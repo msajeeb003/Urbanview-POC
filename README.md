@@ -13,7 +13,7 @@ Source documents (BRD v1.6, BRQ, wireframe, brand assets): `docs/`.
 | `database/` | Schema migrations, seed datasets, DB tooling | Alembic, PostgreSQL 16 + PostGIS |
 | `frontend/` | Public map (reserved, build plan P2) | Next.js, Mapbox GL JS + PMTiles |
 | `admin/` | Admin / review tool (reserved, build plan P1) | Next.js, Auth.js |
-| `packages/` | Shared formula engine + client-validated fixtures (reserved) | TypeScript |
+| `packages/` | `feasibility-engine`: the shared feasibility formula engine and its fixtures (npm workspace; the backend runs a Python copy held to the same fixtures) | TypeScript |
 | `docs/` | BRD, BRQ, wireframe, brand SVGs | |
 
 ## Quick start
@@ -39,4 +39,10 @@ Without `make`: `cd backend` and use `poe run | test | migrate | seed | worker` 
 
 - API docs: http://localhost:8000/docs
 - Health: `GET /health`, `GET /health/ready`
+- Municipality profile: `GET /v1/municipality`
 - Location resolution: `GET /v1/locate?lat=&lng=`, `GET /v1/locate/parcel?ko=&number=&sub=`
+- Information panel: `GET /v1/panel?type=zone|document|cadastral|urban&id=` (optional
+  `saleable_share`, `construction_cost_eur_m2`, `sale_price_eur_m2` overrides; contract in
+  `docs/specs/panel-payload.md`)
+- Feasibility recalculation: `POST /v1/feasibility` with `{parcel_id, type, assumptions}`; same
+  serving data and the same shared engine as the panel (`packages/feasibility-engine`)

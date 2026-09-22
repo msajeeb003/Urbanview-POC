@@ -1,0 +1,38 @@
+export {
+  DEFAULT_SALEABLE_SHARE,
+  EngineInputError,
+  FIELD_DEPENDENCIES,
+  FIELD_ORDER,
+  FIELD_UNITS,
+  boundsOf,
+  calculate,
+  expectedOf,
+  recalculate,
+  withEditedExpected,
+} from "./engine.js";
+export { DECIMALS, roundHalfAwayFromZero } from "./rounding.js";
+export type {
+  AssumptionsUsed,
+  CalculationBasis,
+  CostInput,
+  EditableAssumptions,
+  EditedAssumptions,
+  EngineInputs,
+  EngineResult,
+  ExpectedResult,
+  FieldKey,
+  FieldRange,
+  FixtureCase,
+  FixtureFile,
+  MarketInputs,
+  MarketMissingReason,
+  PlanningInputs,
+  RangeBounds,
+  RangedInput,
+  ReasonCode,
+  Unit,
+  UsedCost,
+  UsedValue,
+  ValueSource,
+} from "./types.js";
+export { ENGINE_VERSION, FORMULA_VERSION, RANGE_DERIVATION } from "./version.js";

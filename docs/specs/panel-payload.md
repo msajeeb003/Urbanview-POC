@@ -28,7 +28,7 @@ GET /v1/panel?type=zone|document|cadastral|urban&id=<int>
   the map, never a red state.
 - The three assumption parameters are optional user overrides. They apply to every panel that
   carries a feasibility block (`urban`, and `cadastral` in both basis modes). Validation:
-  `saleable_share` in [0.30, 1.00]; the two rates in (0, 100 000]. Out of range → 422.
+  `saleable_share` in (0, 1]; the two rates in (0, 100 000]. Out of range → 422.
 - Every response carries `type`, `municipality_id`, `data_version`, `data_version_date`,
   `formula_version`, `client_validated: false`.
 - One SQL statement per panel type (one round trip), same style as `api/services/locate_sql.py`
@@ -287,7 +287,7 @@ four money fields stay `cannot_calculate`. Client formulas (CLAUDE.md):
 
 Cost rows (same shape, `range`): `land_value_eur = area × land_rate`, `design_documentation_eur =
 gfa × design_rate`, `construction_cost_eur` (as above), `total_cost_eur = land + design +
-construction`; each low = × lo, high = × hi. Rounding: areas 1 decimal, euros whole, ROI 1 decimal.
+construction`; each low = × lo, high = × hi. Rounding: 2 decimals for areas, euros and ROI (see the implementation note below).
 Ranges always satisfy low ≤ expected ≤ high.
 
 Each field is `FieldRange(key, status="ok"|"cannot_calculate", reason_code, reason_params,
@@ -303,12 +303,17 @@ construction_cost_eur_m2, sale_price_eur_m2, design_rate_eur_m2, land_rate_eur_m
 range_low_factor, range_high_factor, sources: {construction_cost_eur_m2: "market"|"user"|null,
 sale_price_eur_m2: "market"|"user"|null}) and `formula_version`, plus `to_dict()`.
 
-Fixtures: `packages/formula-engine/fixtures/feasibility.json` — `{"formula_version": "poc-1",
-"client_validated": false, "cases": [{name, inputs, expected}]}` covering: full inputs (UP 12
-numbers: area 959.6, far 3.2, coverage 55, Centar rates); missing FAR; missing coverage; no
-market; user overrides (saleable 0.8, construction 700, sale 2600); area 0 → total cost 0 → roi
-cannot. `backend/tests/test_feasibility.py` runs every case (tolerance 0.5 for euros, 0.05 for
-areas/ROI) so a future TypeScript engine can be held to the same file.
+Implementation note (2026-09-23): the engine is the shared TypeScript package
+`packages/feasibility-engine` (engine keys `max_gfa`, `max_coverage_area`, `saleable_area`,
+`construction_costs`, `land_value`, `design_and_documentation_costs`, `total_cost`,
+`market_value`, `potential_profit`, `roi_pct`; money inputs given per m² or as totals, each with
+admin-supplied multiplier or absolute bounds) and its Python copy `backend/core/engine/shared.py`;
+`backend/core/engine/feasibility.py` is only the panel-facing adapter to the keys above. Both
+engines are held to `packages/feasibility-engine/fixtures/feasibility-cases.json` with exact
+equality (`backend/tests/test_feasibility_shared.py`, `packages/feasibility-engine/test`).
+Rounding is 2 decimals for areas, euros and ROI (half away from zero on the shortest decimal
+representation, outputs only). The fixture file stays `client_validated: false` until the client
+confirms the numbers; never regenerate it from an engine.
 
 ## 5. Payloads
 
@@ -523,3 +528,26 @@ else `not_stated`. For a cadastral-basis panel: document-level values of the gov
    validation; the disclaimer wording awaits the lawyer.
 3. Market inputs are admin-published, not versioned with `data_version` (POC decision).
 4. Free/paid: the paid blocks are served without entitlement checks in the POC, marked by `tier`.
+
+## 9. `POST /v1/feasibility` — server-side recalculation (added 2026-09-23)
+
+```
+POST /v1/feasibility
+{ "parcel_id": 1, "type": "urban" | "cadastral",
+  "assumptions": { "construction_cost_per_m2"?: number, "selling_price_per_m2"?: number, "saleable_share"?: number } }
+```
+
+Same data path as the panel (one statement against the serving tables, the parcel's planning
+parameters and its zone's current market row), the edits merged over the admin defaults, the same
+shared engine. Validation: rates in (0, 100 000], `saleable_share` in (0, 1], unknown keys
+rejected (422); unknown parcel → 404. Response: `type`, `parcel_id`, `municipality_id`,
+`covered` (+ `coverage_note_en/me`), `calculation_basis`, `basis_area_m2`, `planning_inputs`
+(plot area, FAR, coverage, computed GFA / coverage area), `feasibility` (the panel's
+FeasibilityBlock: 7 fields incl. the explicit saleable area + 4 cost rows, each low / expected /
+high), `assumptions` (the panel's AssumptionsBlock with `overrides` and `sources`), `engine`
+(`@urbanview/feasibility-engine`, `engine_version`, `formula_version`, `range_derivation`,
+`deterministic: true`), `data_version`, `data_version_date`, `client_validated: false`,
+`disclaimer` {en, me, status, version}. An uncovered parcel returns 200 with `covered: false` and
+null blocks. Deterministic: identical requests produce byte-identical responses; no AI on this
+path. Tests: `backend/tests/integration/test_feasibility_route.py` (field-for-field equality with
+the panel and with the shared fixtures).

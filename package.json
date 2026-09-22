@@ -1,0 +1,16 @@
+{
+  "name": "urbanview",
+  "private": true,
+  "description": "UrbanView monorepo: shared TypeScript packages (npm workspaces). Backend lives in backend/, database in database/.",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "engine:check": "npm run check -w @urbanview/feasibility-engine",
+    "engine:test": "npm run test -w @urbanview/feasibility-engine",
+    "engine:build": "npm run build -w @urbanview/feasibility-engine"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

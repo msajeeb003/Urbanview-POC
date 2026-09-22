@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routers import health
 from api.routers.v1 import router as v1_router
+from api.services.panel import PanelService
 from api.services.resolver import NoDataResolver, PostgisResolver
 from core.config import Settings, get_settings
 from core.db import check_database, create_engine, create_session_factory
@@ -66,6 +67,14 @@ def create_app(
                 min_overlap_m2=settings.locate_min_overlap_m2,
                 min_overlap_fraction=settings.locate_min_overlap_fraction,
             )
+            # Same links, same thresholds: the panel and locate agree on which planned urban
+            # parcel corresponds to a cadastral parcel.
+            app.state.panel_service = PanelService(
+                municipality,
+                app.state.session_factory,
+                min_overlap_m2=settings.locate_min_overlap_m2,
+                min_overlap_fraction=settings.locate_min_overlap_fraction,
+            )
             # Open the first pooled connection now so the first user request does not pay for
             # it (connection + TLS + type introspection is a few hundred ms). Best effort:
             # readiness reports a database that is down; startup must not crash on it.
@@ -103,10 +112,12 @@ def create_app(
     )
 
     # State available before lifespan runs (used by dependencies and tests). The PostGIS resolver
-    # replaces the no-data one in lifespan once the session factory exists.
+    # replaces the no-data one in lifespan once the session factory exists; the panel service
+    # exists only with PostGIS (its dependency answers 503 while it is None).
     app.state.settings = settings
     app.state.municipality = municipality
     app.state.resolver = NoDataResolver(municipality)
+    app.state.panel_service = None
     if redis_client is not None:
         app.state.redis = redis_client
 

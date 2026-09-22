@@ -1,51 +1,45 @@
-"""Feasibility engine: the client's deterministic formulas, formula version ``poc-1``.
+"""Panel-facing adapter over the shared feasibility engine (``core.engine.shared``).
 
-Pure functions and frozen dataclasses. No I/O, no database, no municipality knowledge and no
-label text: the engine takes numbers in and gives numbers out, and when a figure cannot be
-computed it emits a *reason code* plus parameters; the API layer (``api/services/panel_text.py``)
-turns codes into bilingual text. The shared TypeScript engine in ``packages/formula-engine`` must
-pass the same fixtures (``packages/formula-engine/fixtures/feasibility.json``, parity test
-``tests/test_feasibility.py``). AI never touches this arithmetic.
+The arithmetic lives in ONE place: the shared engine, a line-for-line copy of the TypeScript
+package ``packages/feasibility-engine`` that both are held to
+``packages/feasibility-engine/fixtures/feasibility-cases.json`` with exact equality. This module
+only translates between the panel's vocabulary (a zone's admin market row with per-m² rates and
+range factors, the panel field keys ``max_gfa_m2`` … ``roi_pct`` and the four cost rows) and the
+shared engine's input / output shapes. It adds no formula of its own.
 
-Formulas (CLAUDE.md, client-owned; ``docs/specs/panel-payload.md`` section 4):
-
-- max GFA = FAR x basis area
-- max coverage area = site coverage % / 100 x basis area
-- saleable area = GFA x saleable share (0.70 by default, a visible user-editable assumption)
-- land value = basis area x land rate; design & documentation = GFA x design rate;
-  construction cost = GFA x build rate; total cost = land + design + construction
-- revenue (market value) = saleable area x sale rate
-- profit = revenue - total cost; ROI % = profit / total cost x 100
-
-Ranges: every rate-based figure is a ``range``: low = expected x ``range_low_factor``,
-high = expected x ``range_high_factor`` (factors from the market row). Profit and ROI combine the
-bounds pessimistically: profit low = revenue low - total cost high, profit high = revenue high -
-total cost low, ROI low = profit low / total cost high, ROI high = profit high / total cost low.
-The three area figures are ``deterministic`` (low = expected = high). Every range satisfies
-low <= expected <= high: this follows from low factor <= 1 <= high factor (enforced by the
-``financial_assumptions`` CHECK constraint) with non-negative areas and rates, and rounding is
-monotonic so it never breaks the order.
-
-Effective rates: a user override replaces the market rate for construction cost and sale price
-(``assumptions_used.sources`` says which one was used). Overrides never rescue a missing market
-row: without one the land and design rates are unknown, so the money figures stay
-``cannot_calculate``.
-
-Rounding is applied to outputs only (full precision inside): areas 1 decimal, euros whole
-(returned as ``int``), ROI 1 decimal; half away from zero on the shortest decimal representation
-of the float, so hand arithmetic on the decimal inputs reproduces the figures.
+``None`` inputs mean "unknown / not stated in the plan" (a stated 0 is a real 0). Reason codes and
+their precedence are the shared engine's; the market reason (``no_market_data`` with
+``{zone_name}`` or ``no_market_data_zone_unknown``) is supplied by the caller because the engine
+does not know the zone. Rounding follows the shared rule: 2 decimals for areas, euros and ROI,
+half away from zero on the shortest decimal representation.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
 from enum import StrEnum
 from typing import Any, Literal
 
-FORMULA_VERSION = "poc-1"
-DEFAULT_SALEABLE_SHARE = 0.70
+from core.engine import shared
+from core.engine.shared import DEFAULT_SALEABLE_SHARE, FORMULA_VERSION, EngineInputError
+
+__all__ = [
+    "COST_ROW_KEYS",
+    "DEFAULT_SALEABLE_SHARE",
+    "FIELD_KEYS",
+    "FORMULA_VERSION",
+    "Assumptions",
+    "AssumptionsUsed",
+    "EngineInputError",
+    "FeasibilityResult",
+    "FieldRange",
+    "MarketInputs",
+    "RateSources",
+    "ReasonCode",
+    "compute_feasibility",
+    "shared_inputs",
+]
 
 FIELD_KEYS: tuple[str, ...] = (
     "max_gfa_m2",
@@ -62,10 +56,19 @@ COST_ROW_KEYS: tuple[str, ...] = (
     "construction_cost_eur",
     "total_cost_eur",
 )
-
-AREA_DECIMALS = 1
-EURO_DECIMALS = 0
-PCT_DECIMALS = 1
+# panel key -> shared engine key
+SHARED_KEY: dict[str, str] = {
+    "max_gfa_m2": "max_gfa",
+    "max_coverage_area_m2": "max_coverage_area",
+    "saleable_area_m2": "saleable_area",
+    "construction_cost_eur": "construction_costs",
+    "revenue_eur": "market_value",
+    "profit_eur": "potential_profit",
+    "roi_pct": "roi_pct",
+    "land_value_eur": "land_value",
+    "design_documentation_eur": "design_and_documentation_costs",
+    "total_cost_eur": "total_cost",
+}
 
 Status = Literal["ok", "cannot_calculate"]
 RangeKind = Literal["deterministic", "range"]
@@ -129,7 +132,7 @@ class FieldRange:
         return {
             "key": self.key,
             "status": self.status,
-            "reason_code": None if self.reason_code is None else str(self.reason_code),
+            "reason_code": self.reason_code,
             "reason_params": None if self.reason_params is None else dict(self.reason_params),
             "range_kind": self.range_kind,
             "low": self.low,
@@ -203,80 +206,81 @@ class FeasibilityResult:
         }
 
 
-_Reason = tuple[ReasonCode, dict[str, Any]]
+def shared_inputs(
+    basis_area_m2: float | None,
+    max_far: float | None,
+    max_site_coverage_pct: float | None,
+    market: MarketInputs | None,
+    *,
+    calculation_basis: str = "urban",
+    saleable_share: float = DEFAULT_SALEABLE_SHARE,
+    market_reason_code: str | None = None,
+) -> dict[str, Any]:
+    """The shared engine's ``EngineInputs`` for a panel calculation.
 
-
-def _round(value: float, ndigits: int) -> float | int:
-    """Half away from zero on the shortest decimal representation; whole euros become ``int``."""
-    quantum = Decimal(1).scaleb(-ndigits)
-    rounded = Decimal(repr(float(value))).quantize(quantum, rounding=ROUND_HALF_UP)
-    if ndigits == 0:
-        return int(rounded)
-    return float(rounded) + 0.0  # normalises -0.0 to 0.0
-
-
-def _ok(
-    key: str, kind: RangeKind, low: float, expected: float, high: float, ndigits: int
-) -> FieldRange:
-    return FieldRange(
-        key=key,
-        status="ok",
-        reason_code=None,
-        reason_params=None,
-        range_kind=kind,
-        low=_round(low, ndigits),
-        expected=_round(expected, ndigits),
-        high=_round(high, ndigits),
-    )
-
-
-def _cannot(key: str, kind: RangeKind, reason: _Reason) -> FieldRange:
-    code, params = reason
-    return FieldRange(
-        key=key,
-        status="cannot_calculate",
-        reason_code=code.value,
-        reason_params=dict(params),
-        range_kind=kind,
-        low=None,
-        expected=None,
-        high=None,
-    )
-
-
-def _area_field(key: str, value: float, reason: _Reason | None) -> FieldRange:
-    if reason is not None:
-        return _cannot(key, "deterministic", reason)
-    return _ok(key, "deterministic", value, value, value, AREA_DECIMALS)
-
-
-def _euro_range(key: str, expected: float, lo: float, hi: float) -> FieldRange:
-    return _ok(key, "range", expected * lo, expected, expected * hi, EURO_DECIMALS)
-
-
-def _effective_rate(
-    override: float | None, market_rate: float | None
-) -> tuple[float | None, RateSource | None]:
-    if override is not None:
-        return override, "user"
-    if market_rate is not None:
-        return market_rate, "market"
-    return None, None
+    The admin row's range factors become multiplier bounds on every market input; the land rate
+    is per m² of parcel area, the build and design rates per m² of GFA.
+    """
+    inputs: dict[str, Any] = {
+        "planning": {
+            "plot_area": basis_area_m2,
+            "calculation_basis": calculation_basis,
+            "far": max_far,
+            "site_coverage_pct": max_site_coverage_pct,
+        },
+        "market": None,
+        "assumptions": {"saleable_share": saleable_share},
+    }
+    if market is None:
+        if market_reason_code is not None:
+            inputs["market_missing_reason"] = market_reason_code
+        return inputs
+    bounds = {
+        "kind": "multiplier",
+        "low": market.range_low_factor,
+        "high": market.range_high_factor,
+    }
+    inputs["market"] = {
+        "market_value_per_m2": {"expected": market.sale_rate_eur_m2, "bounds": bounds},
+        "construction_cost": {"per_m2": {"expected": market.build_rate_eur_m2, "bounds": bounds}},
+        "land_value": {"per_m2": {"expected": market.land_rate_eur_m2, "bounds": bounds}},
+        "design_and_documentation_costs": {
+            "per_m2": {"expected": market.design_rate_eur_m2, "bounds": bounds}
+        },
+    }
+    return inputs
 
 
 def _market_reason(
     market: MarketInputs | None,
     market_reason_code: str | None,
     market_reason_params: Mapping[str, Any] | None,
-) -> _Reason | None:
+) -> tuple[str, dict[str, Any]] | None:
     if market is not None:
         return None
     if market_reason_code is None:
-        return ReasonCode.no_market_data_zone_unknown, {}
+        return ReasonCode.no_market_data_zone_unknown.value, {}
     code = ReasonCode(market_reason_code)
     if code not in MARKET_REASON_CODES:
         raise ValueError(f"{market_reason_code!r} is not a market-data reason code")
-    return code, dict(market_reason_params or {})
+    return code.value, dict(market_reason_params or {})
+
+
+def _field(shared_field: Mapping[str, Any], key: str, market_reason: tuple | None) -> FieldRange:
+    reason = shared_field["reason"]
+    params: dict[str, Any] | None = None
+    if reason is not None:
+        params = dict(market_reason[1]) if market_reason and reason == market_reason[0] else {}
+    return FieldRange(
+        key=key,
+        status=shared_field["status"],
+        reason_code=reason,
+        reason_params=params,
+        range_kind=shared_field["range_kind"],
+        low=shared_field["low"],
+        expected=shared_field["expected"],
+        high=shared_field["high"],
+    )
 
 
 def compute_feasibility(
@@ -288,125 +292,53 @@ def compute_feasibility(
     *,
     market_reason_code: str | None = None,
     market_reason_params: Mapping[str, Any] | None = None,
+    calculation_basis: str = "urban",
 ) -> FeasibilityResult:
-    """Run the ``poc-1`` formulas on one parcel.
+    """Run the shared ``poc-1`` formulas for one parcel and return the panel's result shape.
 
-    ``None`` inputs mean "unknown / not stated in the plan" (a stated 0 is a real 0). Dependency
-    rules, in precedence order: no area -> every figure ``area_unknown``; no FAR -> GFA
-    ``far_not_stated`` and everything derived from it ``requires_gfa``; no coverage -> only the
-    coverage area ``coverage_not_stated``; no market row -> the money figures and all cost rows
-    carry the market reason (``no_market_data`` with ``{zone_name}``, or
-    ``no_market_data_zone_unknown``, the default when no code is given); total cost 0 -> ROI
-    ``total_cost_zero``. The engine cannot know the zone, so the caller supplies the market
-    reason; any code other than the two market codes raises ``ValueError``.
+    A user override of the construction cost or the sale price replaces the market rate (the
+    range factors still apply to it); overrides never rescue a missing market row. Any market
+    reason code other than the two market codes raises ``ValueError``.
     """
     market_reason = _market_reason(market, market_reason_code, market_reason_params)
-    build_rate, build_source = _effective_rate(
-        assumptions.construction_cost_eur_m2, market.build_rate_eur_m2 if market else None
+    inputs = shared_inputs(
+        basis_area_m2,
+        max_far,
+        max_site_coverage_pct,
+        market,
+        calculation_basis=calculation_basis,
+        saleable_share=assumptions.saleable_share,
+        market_reason_code=market_reason[0] if market_reason else None,
     )
-    sale_rate, sale_source = _effective_rate(
-        assumptions.sale_price_eur_m2, market.sale_rate_eur_m2 if market else None
-    )
+    edits: dict[str, Any] = {}
+    if assumptions.construction_cost_eur_m2 is not None:
+        edits["construction_cost_per_m2"] = assumptions.construction_cost_eur_m2
+    if assumptions.sale_price_eur_m2 is not None:
+        edits["market_value_per_m2"] = assumptions.sale_price_eur_m2
+    result = shared.recalculate(inputs, edits)
+    fields = result["fields"]
+    used = result["assumptions_used"]
+
+    construction = used["construction_cost"]
+    price = used["market_value_per_m2"]
     assumptions_used = AssumptionsUsed(
         saleable_share=assumptions.saleable_share,
-        construction_cost_eur_m2=build_rate,
-        sale_price_eur_m2=sale_rate,
+        construction_cost_eur_m2=construction["expected"] if construction else None,
+        sale_price_eur_m2=price["expected"] if price else None,
         design_rate_eur_m2=market.design_rate_eur_m2 if market else None,
         land_rate_eur_m2=market.land_rate_eur_m2 if market else None,
         range_low_factor=market.range_low_factor if market else None,
         range_high_factor=market.range_high_factor if market else None,
-        sources=RateSources(construction_cost_eur_m2=build_source, sale_price_eur_m2=sale_source),
-    )
-
-    # Blocking reasons, most fundamental first; the first that applies to a figure wins.
-    area_reason: _Reason | None = (ReasonCode.area_unknown, {}) if basis_area_m2 is None else None
-    far_missing = max_far is None
-    gfa_reason = area_reason or ((ReasonCode.far_not_stated, {}) if far_missing else None)
-    needs_gfa = area_reason or ((ReasonCode.requires_gfa, {}) if far_missing else None)
-    coverage_reason = area_reason or (
-        (ReasonCode.coverage_not_stated, {}) if max_site_coverage_pct is None else None
-    )
-    land_reason = area_reason or market_reason
-    money_reason = needs_gfa or market_reason
-
-    area = basis_area_m2 or 0.0
-    gfa = 0.0 if gfa_reason else (max_far or 0.0) * area
-    coverage_area = 0.0 if coverage_reason else (max_site_coverage_pct or 0.0) / 100 * area
-    saleable = 0.0 if needs_gfa else gfa * assumptions.saleable_share
-
-    fields = [
-        _area_field("max_gfa_m2", gfa, gfa_reason),
-        _area_field("max_coverage_area_m2", coverage_area, coverage_reason),
-        _area_field("saleable_area_m2", saleable, needs_gfa),
-    ]
-
-    # A missing market row sets market_reason, so past these checks ``market`` is present and
-    # the effective build/sale rates are resolved.
-    if land_reason is not None:  # land value needs the area and the market row, not the FAR
-        land_row = _cannot("land_value_eur", "range", land_reason)
-    else:
-        land_row = _euro_range(
-            "land_value_eur",
-            area * market.land_rate_eur_m2,
-            market.range_low_factor,
-            market.range_high_factor,
-        )
-
-    if money_reason is not None:
-        construction_row = _cannot("construction_cost_eur", "range", money_reason)
-        fields += [
-            construction_row,
-            _cannot("revenue_eur", "range", money_reason),
-            _cannot("profit_eur", "range", money_reason),
-            _cannot("roi_pct", "range", money_reason),
-        ]
-        cost_rows = (
-            land_row,
-            _cannot("design_documentation_eur", "range", money_reason),
-            construction_row,
-            _cannot("total_cost_eur", "range", money_reason),
-        )
-        return FeasibilityResult(
-            fields=tuple(fields), cost_rows=cost_rows, assumptions_used=assumptions_used
-        )
-
-    lo, hi = market.range_low_factor, market.range_high_factor
-    land = area * market.land_rate_eur_m2
-    design = gfa * market.design_rate_eur_m2
-    construction = gfa * build_rate
-    total = land + design + construction
-    total_low, total_high = total * lo, total * hi
-    revenue = saleable * sale_rate
-    profit = revenue - total
-    profit_low = revenue * lo - total_high
-    profit_high = revenue * hi - total_low
-
-    construction_row = _euro_range("construction_cost_eur", construction, lo, hi)
-    fields += [
-        construction_row,
-        _euro_range("revenue_eur", revenue, lo, hi),
-        _ok("profit_eur", "range", profit_low, profit, profit_high, EURO_DECIMALS),
-    ]
-    if total == 0 or total_low == 0 or total_high == 0:
-        fields.append(_cannot("roi_pct", "range", (ReasonCode.total_cost_zero, {})))
-    else:
-        fields.append(
-            _ok(
-                "roi_pct",
-                "range",
-                profit_low / total_high * 100,
-                profit / total * 100,
-                profit_high / total_low * 100,
-                PCT_DECIMALS,
-            )
-        )
-
-    cost_rows = (
-        land_row,
-        _euro_range("design_documentation_eur", design, lo, hi),
-        construction_row,
-        _euro_range("total_cost_eur", total, lo, hi),
+        sources=RateSources(
+            construction_cost_eur_m2=construction["source"] if construction else None,
+            sale_price_eur_m2=price["source"] if price else None,
+        ),
     )
     return FeasibilityResult(
-        fields=tuple(fields), cost_rows=cost_rows, assumptions_used=assumptions_used
+        fields=tuple(_field(fields[SHARED_KEY[key]], key, market_reason) for key in FIELD_KEYS),
+        cost_rows=tuple(
+            _field(fields[SHARED_KEY[key]], key, market_reason) for key in COST_ROW_KEYS
+        ),
+        assumptions_used=assumptions_used,
+        formula_version=result["formula_version"],
     )

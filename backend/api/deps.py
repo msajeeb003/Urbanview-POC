@@ -6,8 +6,10 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Request
 
+from api.services.panel import PanelService
 from api.services.resolver import LocationResolver
 from core.config import Settings
+from core.errors import ServiceUnavailableError
 from core.municipality import MunicipalityProfile
 from core.storage import ObjectStorage
 
@@ -33,3 +35,17 @@ def get_resolver(request: Request) -> LocationResolver:
 
 
 ResolverDep = Annotated[LocationResolver, Depends(get_resolver)]
+
+
+def get_panel_service(request: Request) -> PanelService:
+    """The panel is served from PostGIS only: without a database (``LOCATION_RESOLVER=nodata``)
+    the app still imports and runs, and the panel answers 503 ``service_unavailable``."""
+    service = getattr(request.app.state, "panel_service", None)
+    if service is None:
+        raise ServiceUnavailableError(
+            "The information panel needs the planning database (LOCATION_RESOLVER=postgis)"
+        )
+    return service
+
+
+PanelServiceDep = Annotated[PanelService, Depends(get_panel_service)]

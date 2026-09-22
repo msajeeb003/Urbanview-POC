@@ -1,7 +1,10 @@
 """Deterministic calculation engines. Pure Python: no I/O, no database, no municipality knowledge.
 
-``core.engine.feasibility`` implements the client's feasibility formulas (formula version
-``poc-1``). It emits numbers and reason codes only; labels and reason texts live in the API layer.
+``core.engine.shared`` is the Python copy of the shared TypeScript engine
+(``packages/feasibility-engine``); both are held to the same fixtures with exact equality.
+``core.engine.feasibility`` is the panel-facing adapter over it (panel field keys, cost rows,
+the zone's market row as inputs). Both emit numbers and reason codes only; labels and reason texts
+live in the API layer.
 """
 
 from core.engine.feasibility import (

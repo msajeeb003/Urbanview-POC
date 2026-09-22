@@ -1,0 +1,2553 @@
+{
+  "$comment": "Shared feasibility engine fixtures. Every case is input -> expected output of calculate() (edits null) or recalculate(inputs, edits). The TypeScript engine (packages/feasibility-engine) and the Python engine (backend/core/engine) must reproduce `expected` exactly (deep equality, no tolerance). Engineering fixtures derived from the client's formulas: replace or extend with the client's worked examples and set client_validated to true once the client confirms the numbers. Never regenerate from an engine.",
+  "formula_version": "poc-1",
+  "client_validated": false,
+  "range_derivation": "pessimistic-pairing-v1",
+  "rounding": {
+    "decimals": {
+      "m2": 2,
+      "EUR": 2,
+      "%": 2
+    },
+    "rule": "round half away from zero on the shortest decimal representation of the double; applied to outputs and to the displayed assumption bounds only, never to intermediate values; -0 is normalised to 0"
+  },
+  "cases": [
+    {
+      "name": "up12_centar_rates",
+      "description": "Sample parcel UP 12 with the Centar admin rates: per-m² inputs, multiplier bounds 0.86 / 1.15, default saleable share.",
+      "notes": "GFA = 3.2 × 959.6 = 3070.72; coverage = 959.6 × 0.55 = 527.78; saleable = 3070.72 × 0.70 = 2149.504; construction = 3070.72 × 860 = 2,640,819.20 (rate 739.60 low, 989 high); land = 959.6 × 1350 = 1,295,460; design = 3070.72 × 90 = 276,364.80; total = 4,212,644; revenue = 2149.504 × 2450 = 5,266,284.80; profit = 1,053,640.80; profit low = revenue at rate 2107 (4,529,004.93) − total high (4,844,540.60) = −315,535.67; ROI = profit / total × 100 = 25.01 % (−6.51 % / 67.17 %).",
+      "inputs": {
+        "planning": {
+          "plot_area": 959.6,
+          "calculation_basis": "urban",
+          "far": 3.2,
+          "site_coverage_pct": 55,
+          "max_height_m": 27.5,
+          "max_floors": "P+8",
+          "land_use": "Residential – mixed use"
+        },
+        "market": {
+          "market_value_per_m2": {
+            "expected": 2450,
+            "bounds": {
+              "kind": "multiplier",
+              "low": 0.86,
+              "high": 1.15
+            }
+          },
+          "construction_cost": {
+            "per_m2": {
+              "expected": 860,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "land_value": {
+            "per_m2": {
+              "expected": 1350,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "design_and_documentation_costs": {
+            "per_m2": {
+              "expected": 90,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          }
+        }
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 3070.72,
+            "expected": 3070.72,
+            "high": 3070.72
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 527.78,
+            "expected": 527.78,
+            "high": 527.78
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 2149.5,
+            "expected": 2149.5,
+            "high": 2149.5
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 2271104.51,
+            "expected": 2640819.2,
+            "high": 3036942.08
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1114095.6,
+            "expected": 1295460.0,
+            "high": 1489779.0
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 237673.73,
+            "expected": 276364.8,
+            "high": 317819.52
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 3622873.84,
+            "expected": 4212644.0,
+            "high": 4844540.6
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 4529004.93,
+            "expected": 5266284.8,
+            "high": 6056227.52
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": -315535.67,
+            "expected": 1053640.8,
+            "high": 2433353.68
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": -6.51,
+            "expected": 25.01,
+            "high": 67.17
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 959.6,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": {
+            "low": 2107.0,
+            "expected": 2450.0,
+            "high": 2817.5,
+            "source": "market"
+          },
+          "construction_cost": {
+            "low": 739.6,
+            "expected": 860.0,
+            "high": 989.0,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "land_value": {
+            "low": 1161.0,
+            "expected": 1350.0,
+            "high": 1552.5,
+            "source": "market",
+            "basis": "per_m2_plot"
+          },
+          "design_and_documentation_costs": {
+            "low": 77.4,
+            "expected": 90.0,
+            "high": 103.5,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "market_missing_reason": null
+        }
+      }
+    },
+    {
+      "name": "client_style_absolute_inputs",
+      "description": "Worked-example style: cadastral basis 1000 m², absolute cost totals and absolute price bounds.",
+      "notes": "GFA 2400; coverage 400; saleable 1680; revenue 1680 × 2200 = 3,696,000 (3,360,000 / 4,200,000); total = 600,000 + 150,000 + 1,800,000 = 2,550,000 (low 540,000 + 140,000 + 1,650,000 = 2,330,000; high 660,000 + 170,000 + 2,000,000 = 2,830,000); profit 1,146,000 (530,000 / 1,870,000); ROI 44.94 % (18.73 % / 80.26 %).",
+      "inputs": {
+        "planning": {
+          "plot_area": 1000,
+          "calculation_basis": "cadastral",
+          "far": 2.4,
+          "site_coverage_pct": 40
+        },
+        "market": {
+          "market_value_per_m2": {
+            "expected": 2200,
+            "bounds": {
+              "kind": "absolute",
+              "low": 2000,
+              "high": 2500
+            }
+          },
+          "construction_cost": {
+            "total": {
+              "expected": 1800000,
+              "bounds": {
+                "kind": "absolute",
+                "low": 1650000,
+                "high": 2000000
+              }
+            }
+          },
+          "land_value": {
+            "total": {
+              "expected": 600000,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.9,
+                "high": 1.1
+              }
+            }
+          },
+          "design_and_documentation_costs": {
+            "total": {
+              "expected": 150000,
+              "bounds": {
+                "kind": "absolute",
+                "low": 140000,
+                "high": 170000
+              }
+            }
+          }
+        }
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "cadastral",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 2400.0,
+            "expected": 2400.0,
+            "high": 2400.0
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 400.0,
+            "expected": 400.0,
+            "high": 400.0
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 1680.0,
+            "expected": 1680.0,
+            "high": 1680.0
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1650000.0,
+            "expected": 1800000.0,
+            "high": 2000000.0
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 540000.0,
+            "expected": 600000.0,
+            "high": 660000.0
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 140000.0,
+            "expected": 150000.0,
+            "high": 170000.0
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 2330000.0,
+            "expected": 2550000.0,
+            "high": 2830000.0
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 3360000.0,
+            "expected": 3696000.0,
+            "high": 4200000.0
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 530000.0,
+            "expected": 1146000.0,
+            "high": 1870000.0
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 18.73,
+            "expected": 44.94,
+            "high": 80.26
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "cadastral",
+          "plot_area": 1000,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": {
+            "low": 2000.0,
+            "expected": 2200.0,
+            "high": 2500.0,
+            "source": "market"
+          },
+          "construction_cost": {
+            "low": 1650000.0,
+            "expected": 1800000.0,
+            "high": 2000000.0,
+            "source": "market",
+            "basis": "total"
+          },
+          "land_value": {
+            "low": 540000.0,
+            "expected": 600000.0,
+            "high": 660000.0,
+            "source": "market",
+            "basis": "total"
+          },
+          "design_and_documentation_costs": {
+            "low": 140000.0,
+            "expected": 150000.0,
+            "high": 170000.0,
+            "source": "market",
+            "basis": "total"
+          },
+          "market_missing_reason": null
+        }
+      }
+    },
+    {
+      "name": "far_not_stated",
+      "description": "FAR missing: GFA cannot be calculated and everything derived from it follows; the coverage area and the land value still can.",
+      "notes": "",
+      "inputs": {
+        "planning": {
+          "plot_area": 959.6,
+          "calculation_basis": "urban",
+          "far": null,
+          "site_coverage_pct": 55
+        },
+        "market": {
+          "market_value_per_m2": {
+            "expected": 2450,
+            "bounds": {
+              "kind": "multiplier",
+              "low": 0.86,
+              "high": 1.15
+            }
+          },
+          "construction_cost": {
+            "per_m2": {
+              "expected": 860,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "land_value": {
+            "per_m2": {
+              "expected": 1350,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "design_and_documentation_costs": {
+            "per_m2": {
+              "expected": 90,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          }
+        }
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "cannot_calculate",
+            "reason": "far_not_stated",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 527.78,
+            "expected": 527.78,
+            "high": 527.78
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1114095.6,
+            "expected": 1295460.0,
+            "high": 1489779.0
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 959.6,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": {
+            "low": 2107.0,
+            "expected": 2450.0,
+            "high": 2817.5,
+            "source": "market"
+          },
+          "construction_cost": {
+            "low": 739.6,
+            "expected": 860.0,
+            "high": 989.0,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "land_value": {
+            "low": 1161.0,
+            "expected": 1350.0,
+            "high": 1552.5,
+            "source": "market",
+            "basis": "per_m2_plot"
+          },
+          "design_and_documentation_costs": {
+            "low": 77.4,
+            "expected": 90.0,
+            "high": 103.5,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "market_missing_reason": null
+        }
+      }
+    },
+    {
+      "name": "coverage_not_stated",
+      "description": "Site coverage missing: only the coverage area is affected.",
+      "notes": "",
+      "inputs": {
+        "planning": {
+          "plot_area": 959.6,
+          "calculation_basis": "urban",
+          "far": 3.2,
+          "site_coverage_pct": null
+        },
+        "market": {
+          "market_value_per_m2": {
+            "expected": 2450,
+            "bounds": {
+              "kind": "multiplier",
+              "low": 0.86,
+              "high": 1.15
+            }
+          },
+          "construction_cost": {
+            "per_m2": {
+              "expected": 860,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "land_value": {
+            "per_m2": {
+              "expected": 1350,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "design_and_documentation_costs": {
+            "per_m2": {
+              "expected": 90,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          }
+        }
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 3070.72,
+            "expected": 3070.72,
+            "high": 3070.72
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "cannot_calculate",
+            "reason": "coverage_not_stated",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 2149.5,
+            "expected": 2149.5,
+            "high": 2149.5
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 2271104.51,
+            "expected": 2640819.2,
+            "high": 3036942.08
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1114095.6,
+            "expected": 1295460.0,
+            "high": 1489779.0
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 237673.73,
+            "expected": 276364.8,
+            "high": 317819.52
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 3622873.84,
+            "expected": 4212644.0,
+            "high": 4844540.6
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 4529004.93,
+            "expected": 5266284.8,
+            "high": 6056227.52
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": -315535.67,
+            "expected": 1053640.8,
+            "high": 2433353.68
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": -6.51,
+            "expected": 25.01,
+            "high": 67.17
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 959.6,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": {
+            "low": 2107.0,
+            "expected": 2450.0,
+            "high": 2817.5,
+            "source": "market"
+          },
+          "construction_cost": {
+            "low": 739.6,
+            "expected": 860.0,
+            "high": 989.0,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "land_value": {
+            "low": 1161.0,
+            "expected": 1350.0,
+            "high": 1552.5,
+            "source": "market",
+            "basis": "per_m2_plot"
+          },
+          "design_and_documentation_costs": {
+            "low": 77.4,
+            "expected": 90.0,
+            "high": 103.5,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "market_missing_reason": null
+        }
+      }
+    },
+    {
+      "name": "no_market_data",
+      "description": "No market row for the zone: the money figures cannot be calculated; the three areas still can.",
+      "notes": "",
+      "inputs": {
+        "planning": {
+          "plot_area": 959.6,
+          "calculation_basis": "urban",
+          "far": 3.2,
+          "site_coverage_pct": 55
+        },
+        "market": null,
+        "market_missing_reason": "no_market_data"
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 3070.72,
+            "expected": 3070.72,
+            "high": 3070.72
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 527.78,
+            "expected": 527.78,
+            "high": 527.78
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 2149.5,
+            "expected": 2149.5,
+            "high": 2149.5
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 959.6,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": null,
+          "construction_cost": null,
+          "land_value": null,
+          "design_and_documentation_costs": null,
+          "market_missing_reason": "no_market_data"
+        }
+      }
+    },
+    {
+      "name": "no_market_zone_unknown",
+      "description": "No market row and no zone: the default market reason.",
+      "notes": "",
+      "inputs": {
+        "planning": {
+          "plot_area": 959.6,
+          "calculation_basis": "urban",
+          "far": 3.2,
+          "site_coverage_pct": 55
+        },
+        "market": null
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 3070.72,
+            "expected": 3070.72,
+            "high": 3070.72
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 527.78,
+            "expected": 527.78,
+            "high": 527.78
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 2149.5,
+            "expected": 2149.5,
+            "high": 2149.5
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data_zone_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data_zone_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data_zone_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data_zone_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data_zone_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data_zone_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data_zone_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 959.6,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": null,
+          "construction_cost": null,
+          "land_value": null,
+          "design_and_documentation_costs": null,
+          "market_missing_reason": "no_market_data_zone_unknown"
+        }
+      }
+    },
+    {
+      "name": "user_edits_over_multiplier_bounds",
+      "description": "User edits saleable share 0.80, construction 700 €/m² and selling price 2600 €/m² over the Centar rates: the multiplier bounds follow the edited values.",
+      "notes": "saleable = 3070.72 × 0.80 = 2456.576; construction = 3070.72 × 700 = 2,149,504 (bounds × 0.86 / 1.15); revenue = 2456.576 × 2600 = 6,387,097.60.",
+      "inputs": {
+        "planning": {
+          "plot_area": 959.6,
+          "calculation_basis": "urban",
+          "far": 3.2,
+          "site_coverage_pct": 55
+        },
+        "market": {
+          "market_value_per_m2": {
+            "expected": 2450,
+            "bounds": {
+              "kind": "multiplier",
+              "low": 0.86,
+              "high": 1.15
+            }
+          },
+          "construction_cost": {
+            "per_m2": {
+              "expected": 860,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "land_value": {
+            "per_m2": {
+              "expected": 1350,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "design_and_documentation_costs": {
+            "per_m2": {
+              "expected": 90,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          }
+        }
+      },
+      "edits": {
+        "saleable_share": 0.8,
+        "construction_cost_per_m2": 700,
+        "market_value_per_m2": 2600
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 3070.72,
+            "expected": 3070.72,
+            "high": 3070.72
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 527.78,
+            "expected": 527.78,
+            "high": 527.78
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 2456.58,
+            "expected": 2456.58,
+            "high": 2456.58
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1848573.44,
+            "expected": 2149504.0,
+            "high": 2471929.6
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1114095.6,
+            "expected": 1295460.0,
+            "high": 1489779.0
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 237673.73,
+            "expected": 276364.8,
+            "high": 317819.52
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 3200342.77,
+            "expected": 3721328.8,
+            "high": 4279528.12
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 5492903.94,
+            "expected": 6387097.6,
+            "high": 7345162.24
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1213375.82,
+            "expected": 2665768.8,
+            "high": 4144819.47
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 28.35,
+            "expected": 71.63,
+            "high": 129.51
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 959.6,
+          "saleable_share": {
+            "value": 0.8,
+            "source": "user"
+          },
+          "market_value_per_m2": {
+            "low": 2236.0,
+            "expected": 2600.0,
+            "high": 2990.0,
+            "source": "user"
+          },
+          "construction_cost": {
+            "low": 602.0,
+            "expected": 700.0,
+            "high": 805.0,
+            "source": "user",
+            "basis": "per_m2_gfa"
+          },
+          "land_value": {
+            "low": 1161.0,
+            "expected": 1350.0,
+            "high": 1552.5,
+            "source": "market",
+            "basis": "per_m2_plot"
+          },
+          "design_and_documentation_costs": {
+            "low": 77.4,
+            "expected": 90.0,
+            "high": 103.5,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "market_missing_reason": null
+        }
+      }
+    },
+    {
+      "name": "user_edits_over_absolute_bounds",
+      "description": "User edits the selling price to 2500 over absolute bounds 2000 / 2500 at expected 2200: the bounds scale proportionally (2272.73 / 2840.91); a construction edit replaces the total with a per-m² rate carrying no spread.",
+      "notes": "price bounds = 2000 × 2500 / 2200 and 2500 × 2500 / 2200; construction = 2400 × 750 = 1,800,000 flat.",
+      "inputs": {
+        "planning": {
+          "plot_area": 1000,
+          "calculation_basis": "cadastral",
+          "far": 2.4,
+          "site_coverage_pct": 40
+        },
+        "market": {
+          "market_value_per_m2": {
+            "expected": 2200,
+            "bounds": {
+              "kind": "absolute",
+              "low": 2000,
+              "high": 2500
+            }
+          },
+          "construction_cost": {
+            "total": {
+              "expected": 1800000,
+              "bounds": {
+                "kind": "absolute",
+                "low": 1650000,
+                "high": 2000000
+              }
+            }
+          },
+          "land_value": {
+            "total": {
+              "expected": 600000,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.9,
+                "high": 1.1
+              }
+            }
+          },
+          "design_and_documentation_costs": {
+            "total": {
+              "expected": 150000,
+              "bounds": {
+                "kind": "absolute",
+                "low": 140000,
+                "high": 170000
+              }
+            }
+          }
+        }
+      },
+      "edits": {
+        "market_value_per_m2": 2500,
+        "construction_cost_per_m2": 750
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "cadastral",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 2400.0,
+            "expected": 2400.0,
+            "high": 2400.0
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 400.0,
+            "expected": 400.0,
+            "high": 400.0
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 1680.0,
+            "expected": 1680.0,
+            "high": 1680.0
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1800000.0,
+            "expected": 1800000.0,
+            "high": 1800000.0
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 540000.0,
+            "expected": 600000.0,
+            "high": 660000.0
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 140000.0,
+            "expected": 150000.0,
+            "high": 170000.0
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 2480000.0,
+            "expected": 2550000.0,
+            "high": 2630000.0
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 3818181.82,
+            "expected": 4200000.0,
+            "high": 4772727.27
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1188181.82,
+            "expected": 1650000.0,
+            "high": 2292727.27
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 45.18,
+            "expected": 64.71,
+            "high": 92.45
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "cadastral",
+          "plot_area": 1000,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": {
+            "low": 2272.73,
+            "expected": 2500.0,
+            "high": 2840.91,
+            "source": "user"
+          },
+          "construction_cost": {
+            "low": 750.0,
+            "expected": 750.0,
+            "high": 750.0,
+            "source": "user",
+            "basis": "per_m2_gfa"
+          },
+          "land_value": {
+            "low": 540000.0,
+            "expected": 600000.0,
+            "high": 660000.0,
+            "source": "market",
+            "basis": "total"
+          },
+          "design_and_documentation_costs": {
+            "low": 140000.0,
+            "expected": 150000.0,
+            "high": 170000.0,
+            "source": "market",
+            "basis": "total"
+          },
+          "market_missing_reason": null
+        }
+      }
+    },
+    {
+      "name": "edits_do_not_rescue_missing_market",
+      "description": "Without a market row, user edits of construction cost and price do not make the money figures computable (the land and design rates are unknown).",
+      "notes": "",
+      "inputs": {
+        "planning": {
+          "plot_area": 959.6,
+          "calculation_basis": "urban",
+          "far": 3.2,
+          "site_coverage_pct": 55
+        },
+        "market": null,
+        "market_missing_reason": "no_market_data"
+      },
+      "edits": {
+        "construction_cost_per_m2": 700,
+        "market_value_per_m2": 2600
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 3070.72,
+            "expected": 3070.72,
+            "high": 3070.72
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 527.78,
+            "expected": 527.78,
+            "high": 527.78
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 2149.5,
+            "expected": 2149.5,
+            "high": 2149.5
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 959.6,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": {
+            "low": 2600.0,
+            "expected": 2600.0,
+            "high": 2600.0,
+            "source": "user"
+          },
+          "construction_cost": {
+            "low": 700.0,
+            "expected": 700.0,
+            "high": 700.0,
+            "source": "user",
+            "basis": "per_m2_gfa"
+          },
+          "land_value": null,
+          "design_and_documentation_costs": null,
+          "market_missing_reason": "no_market_data"
+        }
+      }
+    },
+    {
+      "name": "area_unknown",
+      "description": "No plot area: every figure is unknown.",
+      "notes": "",
+      "inputs": {
+        "planning": {
+          "plot_area": null,
+          "calculation_basis": "urban",
+          "far": 3.2,
+          "site_coverage_pct": 55
+        },
+        "market": {
+          "market_value_per_m2": {
+            "expected": 2450,
+            "bounds": {
+              "kind": "multiplier",
+              "low": 0.86,
+              "high": 1.15
+            }
+          },
+          "construction_cost": {
+            "per_m2": {
+              "expected": 860,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "land_value": {
+            "per_m2": {
+              "expected": 1350,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "design_and_documentation_costs": {
+            "per_m2": {
+              "expected": 90,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          }
+        }
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "cannot_calculate",
+            "reason": "area_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "cannot_calculate",
+            "reason": "area_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "cannot_calculate",
+            "reason": "area_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "area_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "area_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "area_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "area_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "area_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "area_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "area_unknown",
+            "low": null,
+            "expected": null,
+            "high": null
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": null,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": {
+            "low": 2107.0,
+            "expected": 2450.0,
+            "high": 2817.5,
+            "source": "market"
+          },
+          "construction_cost": {
+            "low": 739.6,
+            "expected": 860.0,
+            "high": 989.0,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "land_value": {
+            "low": 1161.0,
+            "expected": 1350.0,
+            "high": 1552.5,
+            "source": "market",
+            "basis": "per_m2_plot"
+          },
+          "design_and_documentation_costs": {
+            "low": 77.4,
+            "expected": 90.0,
+            "high": 103.5,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "market_missing_reason": null
+        }
+      }
+    },
+    {
+      "name": "zero_area_total_cost_zero",
+      "description": "A stated area of 0 with per-m² costs: every cost is 0, so ROI cannot be calculated (division by zero) while the other figures are 0.",
+      "notes": "",
+      "inputs": {
+        "planning": {
+          "plot_area": 0,
+          "calculation_basis": "urban",
+          "far": 3.2,
+          "site_coverage_pct": 55
+        },
+        "market": {
+          "market_value_per_m2": {
+            "expected": 2450,
+            "bounds": {
+              "kind": "multiplier",
+              "low": 0.86,
+              "high": 1.15
+            }
+          },
+          "construction_cost": {
+            "per_m2": {
+              "expected": 860,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "land_value": {
+            "per_m2": {
+              "expected": 1350,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "design_and_documentation_costs": {
+            "per_m2": {
+              "expected": 90,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          }
+        }
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "total_cost_zero",
+            "low": null,
+            "expected": null,
+            "high": null
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 0,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": {
+            "low": 2107.0,
+            "expected": 2450.0,
+            "high": 2817.5,
+            "source": "market"
+          },
+          "construction_cost": {
+            "low": 739.6,
+            "expected": 860.0,
+            "high": 989.0,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "land_value": {
+            "low": 1161.0,
+            "expected": 1350.0,
+            "high": 1552.5,
+            "source": "market",
+            "basis": "per_m2_plot"
+          },
+          "design_and_documentation_costs": {
+            "low": 77.4,
+            "expected": 90.0,
+            "high": 103.5,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "market_missing_reason": null
+        }
+      }
+    },
+    {
+      "name": "far_missing_takes_precedence_over_missing_market",
+      "description": "FAR and market both missing: the GFA-derived money figures report requires_gfa; the land value, which needs no FAR, reports the market reason.",
+      "notes": "",
+      "inputs": {
+        "planning": {
+          "plot_area": 959.6,
+          "calculation_basis": "urban",
+          "far": null,
+          "site_coverage_pct": 55
+        },
+        "market": null,
+        "market_missing_reason": "no_market_data"
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "cannot_calculate",
+            "reason": "far_not_stated",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 527.78,
+            "expected": 527.78,
+            "high": 527.78
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "no_market_data",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "cannot_calculate",
+            "reason": "requires_gfa",
+            "low": null,
+            "expected": null,
+            "high": null
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 959.6,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": null,
+          "construction_cost": null,
+          "land_value": null,
+          "design_and_documentation_costs": null,
+          "market_missing_reason": "no_market_data"
+        }
+      }
+    },
+    {
+      "name": "negative_profit",
+      "description": "A low selling price against the Centar costs: profit and ROI are negative and the range stays ordered.",
+      "notes": "",
+      "inputs": {
+        "planning": {
+          "plot_area": 959.6,
+          "calculation_basis": "urban",
+          "far": 3.2,
+          "site_coverage_pct": 55
+        },
+        "market": {
+          "market_value_per_m2": {
+            "expected": 1100,
+            "bounds": {
+              "kind": "multiplier",
+              "low": 0.86,
+              "high": 1.15
+            }
+          },
+          "construction_cost": {
+            "per_m2": {
+              "expected": 860,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "land_value": {
+            "per_m2": {
+              "expected": 1350,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "design_and_documentation_costs": {
+            "per_m2": {
+              "expected": 90,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          }
+        }
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 3070.72,
+            "expected": 3070.72,
+            "high": 3070.72
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 527.78,
+            "expected": 527.78,
+            "high": 527.78
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 2149.5,
+            "expected": 2149.5,
+            "high": 2149.5
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 2271104.51,
+            "expected": 2640819.2,
+            "high": 3036942.08
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1114095.6,
+            "expected": 1295460.0,
+            "high": 1489779.0
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 237673.73,
+            "expected": 276364.8,
+            "high": 317819.52
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 3622873.84,
+            "expected": 4212644.0,
+            "high": 4844540.6
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 2033430.78,
+            "expected": 2364454.4,
+            "high": 2719122.56
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": -2811109.82,
+            "expected": -1848189.6,
+            "high": -903751.28
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": -58.03,
+            "expected": -43.87,
+            "high": -24.95
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 959.6,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": {
+            "low": 946.0,
+            "expected": 1100.0,
+            "high": 1265.0,
+            "source": "market"
+          },
+          "construction_cost": {
+            "low": 739.6,
+            "expected": 860.0,
+            "high": 989.0,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "land_value": {
+            "low": 1161.0,
+            "expected": 1350.0,
+            "high": 1552.5,
+            "source": "market",
+            "basis": "per_m2_plot"
+          },
+          "design_and_documentation_costs": {
+            "low": 77.4,
+            "expected": 90.0,
+            "high": 103.5,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "market_missing_reason": null
+        }
+      }
+    },
+    {
+      "name": "stated_zero_far",
+      "description": "A stated FAR of 0 is a real 0, not a missing value: GFA and its dependents are 0 and ROI is −100 % (only the land value is a cost).",
+      "notes": "",
+      "inputs": {
+        "planning": {
+          "plot_area": 959.6,
+          "calculation_basis": "urban",
+          "far": 0,
+          "site_coverage_pct": 55
+        },
+        "market": {
+          "market_value_per_m2": {
+            "expected": 2450,
+            "bounds": {
+              "kind": "multiplier",
+              "low": 0.86,
+              "high": 1.15
+            }
+          },
+          "construction_cost": {
+            "per_m2": {
+              "expected": 860,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "land_value": {
+            "per_m2": {
+              "expected": 1350,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          },
+          "design_and_documentation_costs": {
+            "per_m2": {
+              "expected": 90,
+              "bounds": {
+                "kind": "multiplier",
+                "low": 0.86,
+                "high": 1.15
+              }
+            }
+          }
+        }
+      },
+      "edits": null,
+      "expected": {
+        "formula_version": "poc-1",
+        "range_derivation": "pessimistic-pairing-v1",
+        "calculation_basis": "urban",
+        "fields": {
+          "max_gfa": {
+            "key": "max_gfa",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "max_coverage_area": {
+            "key": "max_coverage_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 527.78,
+            "expected": 527.78,
+            "high": 527.78
+          },
+          "saleable_area": {
+            "key": "saleable_area",
+            "unit": "m2",
+            "range_kind": "deterministic",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "construction_costs": {
+            "key": "construction_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "land_value": {
+            "key": "land_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1114095.6,
+            "expected": 1295460.0,
+            "high": 1489779.0
+          },
+          "design_and_documentation_costs": {
+            "key": "design_and_documentation_costs",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "total_cost": {
+            "key": "total_cost",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 1114095.6,
+            "expected": 1295460.0,
+            "high": 1489779.0
+          },
+          "market_value": {
+            "key": "market_value",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": 0.0,
+            "expected": 0.0,
+            "high": 0.0
+          },
+          "potential_profit": {
+            "key": "potential_profit",
+            "unit": "EUR",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": -1489779.0,
+            "expected": -1295460.0,
+            "high": -1114095.6
+          },
+          "roi_pct": {
+            "key": "roi_pct",
+            "unit": "%",
+            "range_kind": "range",
+            "status": "ok",
+            "reason": null,
+            "low": -100.0,
+            "expected": -100.0,
+            "high": -100.0
+          }
+        },
+        "assumptions_used": {
+          "calculation_basis": "urban",
+          "plot_area": 959.6,
+          "saleable_share": {
+            "value": 0.7,
+            "source": "default"
+          },
+          "market_value_per_m2": {
+            "low": 2107.0,
+            "expected": 2450.0,
+            "high": 2817.5,
+            "source": "market"
+          },
+          "construction_cost": {
+            "low": 739.6,
+            "expected": 860.0,
+            "high": 989.0,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "land_value": {
+            "low": 1161.0,
+            "expected": 1350.0,
+            "high": 1552.5,
+            "source": "market",
+            "basis": "per_m2_plot"
+          },
+          "design_and_documentation_costs": {
+            "low": 77.4,
+            "expected": 90.0,
+            "high": 103.5,
+            "source": "market",
+            "basis": "per_m2_gfa"
+          },
+          "market_missing_reason": null
+        }
+      }
+    }
+  ]
+}

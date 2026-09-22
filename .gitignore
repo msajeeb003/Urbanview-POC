@@ -15,6 +15,12 @@ dist/
 .env.*
 !.env.example
 
+# node / typescript workspaces
+node_modules/
+packages/*/dist/
+packages/*/coverage/
+.tsbuildinfo
+
 # local
 *.log
 .DS_Store
