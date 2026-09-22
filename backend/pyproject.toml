@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "urbanview-backend"
+version = "0.1.0"
+description = "UrbanView backend: FastAPI + PostGIS + Celery. Podgorica prototype on a municipality-agnostic core."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.7",
+  "sqlalchemy[asyncio]>=2.0.30",
+  "asyncpg>=0.29",
+  "geoalchemy2>=0.15",
+  "alembic>=1.13",
+  "redis>=5.0",
+  "celery[redis]>=5.4",
+  "boto3>=1.34",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2",
+  "pytest-asyncio>=0.23",
+  "httpx>=0.27",
+  "fakeredis>=2.23",
+  "ruff>=0.5",
+  "poethepoet>=0.27",
+]
+
+[tool.setuptools.packages.find]
+include = ["api*", "core*", "jobs*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+  "integration: needs a PostGIS database at TEST_DATABASE_URL; skipped when it is unreachable",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+# Cross-platform task runner (for machines without `make`). Run from backend/.
+[tool.poe.tasks]
+run = "uvicorn api.main:app --reload --host 0.0.0.0 --port 8000"
+worker = "celery -A jobs.celery_app worker --loglevel=info -Q default,gis,extraction,publish"
+migrate = "alembic -c ../database/alembic.ini upgrade head"
+migration = "alembic -c ../database/alembic.ini revision --autogenerate -m"
+downgrade = "alembic -c ../database/alembic.ini downgrade -1"
+seed = "python -m core.seeds podgorica_sample"
+test = "pytest -q --ignore=tests/integration"
+test-integration = "pytest -q tests/integration"
+test-all = "pytest -q"
+lint = "ruff check . ../database"
+fmt = "ruff format . ../database"

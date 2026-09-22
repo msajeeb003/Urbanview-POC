@@ -1,0 +1,11 @@
+# Shared lint/format configuration for every Python folder in the monorepo (backend/, database/).
+line-length = 100
+target-version = "py311"
+src = ["backend"]
+extend-exclude = ["database/migrations/versions", "docs", "packages", "frontend", "admin"]
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "W"]
+
+[lint.isort]
+known-first-party = ["api", "core", "jobs", "tests"]

@@ -1,0 +1,61 @@
+{
+  "type": "FeatureCollection",
+  "dataset_version": "podgorica-sample-2026-09",
+  "_notes": [
+    "UP 12 is cadastral #1042 (KO Podgorica I) minus a ~30% strip on its west side taken for the road.",
+    "UP 13 is the eastern neighbour; it overlaps #1042 by a sliver (~8 m², <1%) that must be ignored.",
+    "UP 7 is identical to cadastral #1042 in KO Podgorica II (no mismatch).",
+    "UP 21 has no cadastral parcel under it and no block_id (block resolved by geometry).",
+    "UP 31 (~56%) and UP 32 (~41%) split cadastral #1044 asymmetrically, so UP 31 is the primary."
+  ],
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": 1, "urban_parcel_number": "UP 12", "document_id": 2, "block_id": 1 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.26115, 42.4410], [19.2615, 42.4410], [19.2615, 42.4413], [19.26115, 42.4413], [19.26115, 42.4410]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 2, "urban_parcel_number": "UP 13", "document_id": 2, "block_id": 1 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.261497, 42.4410], [19.2620, 42.4410], [19.2620, 42.4413], [19.261497, 42.4413], [19.261497, 42.4410]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 3, "urban_parcel_number": "UP 7", "document_id": 4, "block_id": 2 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.2920, 42.4320], [19.2925, 42.4320], [19.2925, 42.4323], [19.2920, 42.4323], [19.2920, 42.4320]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 4, "urban_parcel_number": "UP 21", "document_id": 2 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.2640, 42.4415], [19.2644, 42.4415], [19.2644, 42.4418], [19.2640, 42.4418], [19.2640, 42.4415]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 5, "urban_parcel_number": "UP 31", "document_id": 2, "block_id": 1 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.2622, 42.4416], [19.26265, 42.4416], [19.26265, 42.4419], [19.2622, 42.4419], [19.2622, 42.4416]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 6, "urban_parcel_number": "UP 32", "document_id": 2, "block_id": 1 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.26267, 42.4416], [19.2630, 42.4416], [19.2630, 42.4419], [19.26267, 42.4419], [19.26267, 42.4416]]]
+      }
+    }
+  ]
+}

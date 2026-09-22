@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "dataset_version": "podgorica-sample-2026-09",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": 1, "block_ref": "C2-01", "zone_id": 1 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.260, 42.440], [19.265, 42.440], [19.265, 42.444], [19.260, 42.444], [19.260, 42.440]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": 2, "block_ref": "SA-01", "zone_id": 2 },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.291, 42.431], [19.294, 42.431], [19.294, 42.434], [19.291, 42.434], [19.291, 42.431]]]
+      }
+    }
+  ]
+}

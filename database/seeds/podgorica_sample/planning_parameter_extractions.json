@@ -1,0 +1,33 @@
+[
+  {
+    "id": 1,
+    "document_id": 2,
+    "urban_parcel_id": 1,
+    "field_key": "max_far",
+    "value_number": 9.9,
+    "source_page": 13,
+    "source_bbox": [72, 388, 520, 406],
+    "source_note": "table 3 – UP 12 (staging: must never surface on the map)",
+    "extracted_by": "llm:sample",
+    "extracted_at": "2026-09-20T09:00:00Z",
+    "review_state": "pending_review",
+    "dataset_version": "podgorica-sample-2026-09"
+  },
+  {
+    "id": 2,
+    "document_id": 2,
+    "urban_parcel_id": 1,
+    "field_key": "max_height_m",
+    "value_number": 99,
+    "source_page": 14,
+    "source_bbox": [72, 540, 520, 558],
+    "source_note": "table 3 – UP 12 (staging: must never surface on the map)",
+    "extracted_by": "llm:sample",
+    "extracted_at": "2026-09-20T09:00:00Z",
+    "review_state": "rejected",
+    "reviewer": "seed",
+    "reviewed_at": "2026-09-21T09:00:00Z",
+    "review_note": "Misread: the table states 27.5 m.",
+    "dataset_version": "podgorica-sample-2026-09"
+  }
+]

@@ -1,0 +1,78 @@
+Business Requirements Questionnaire — UrbanView Functional Prototype
+1. Prototype Goal and Scope
+What is the primary goal of the functional prototype: serve real users, validate demand, demonstrate the product to investors, or all three? All three
+What must a user be able to accomplish from start to finish?  real estate developer/architect, analysis plot, estimation of cost, achievement of construction in a parcel, quick review of a site, information panel with market parameters
+Which features are mandatory for the release? Zoning data, map layers, base map, basic layers of information
+Please confirm whether the prototype is limited to Podgorica (city). Only podgorica (minimum).
+Which features should be explicitly excluded from this phase, such as 3D modelling, AR, subscriptions, scenario comparison, and expansion to other cities? Yes
+2. Target Users and Access
+Who is the primary user of the prototype: developer, investor, architect, municipality, or general public? Answered above
+Can users access the platform without registration? Basic info, pay per service.
+What information should be available for free? Search and investigate the plot
+3. Main User Flow
+Please confirm the main flow:Search an address or click the map → identify the parcel and planning zone → display planning constraints → calculate development potential and ROI. yes
+Should users be able to search by address, parcel number, map click, or all three? All three
+What should happen when no data is available for the selected location? - client will provide information on the available data locations, no error message
+Is comparing different parcels or development options required in the prototype? 
+4. Map and Planning Layers
+Which GIS layers are mandatory for the prototype? Cover the base layer with parcels from Cadestral website
+Should users be able to turn layers on and off?yes
+What information should appear after clicking a parcel or planning zone? 
+Basic information: parcel number, sub number, name of Cadastral municipality, street address
+Separate layers from Cadastral Data, and future parcel data
+Should the current frontend mockup be followed closely, or is it only a conceptual reference?  (Please share your designs). Not strictly.. 
+5. Data Sources
+What official data sources will be used for the Podgorica prototype? Can you share? Client will share, mostly PDF
+Which datasets are already available, and which still need to be collected or digitized?
+In which formats are the files available: GIS, CAD, vector PDF, scanned PDF, spreadsheet, API, or another format? ++++ 
+Please provide representative samples of the planning documents and GIS data. (upload to folder) 
+Is the platform legally allowed to process, store, and commercially display this data? Good to have stored information, increases database on user behaviour
+Who will verify that the structured data matches the official planning documentation?
+How should incomplete, contradictory, or outdated information be handled?
+6. Planning Parameters and Calculations
+Which planning parameters must be displayed for every selected parcel?
+Please confirm whether the prototype must include:
+Parcel area 
+Land use
+Maximum height or number of floors
+Site coverage %
+Floor Area Ratio
+Maximum Gross Floor Area
+Which financial outputs are mandatory: 
+Land value (reference real estate websites that publicly display these data or Cadastral information)
+Design and documentation costs
+Construction costs
+Market value
+Potential profit
+ROI
+Please provide the approved formulas and assumptions for each calculation. YES
+Where will market prices, construction costs, and land values come from? More precise is Cadastral Institute or websites
+Should results be shown as a single estimate or as low, expected, and high ranges? Ranges
+Can users modify assumptions such as construction cost, selling price, or saleable-area percentage? - open question
+Who will validate the calculations before the prototype is launched? Yes
+
+7. AI Requirements
+What exact function should AI perform in the prototype? - Documents, parcel summaries and present, planning documents, learn from user input data
+Is AI expected to: answered above
+Extract rules from planning documents
+Convert planning maps into GIS layers
+Generate parcel summaries
+Find market data
+Answer user questions
+Which AI functionality is essential for this phase, and which can be handled manually?
+Must all AI-extracted planning information be reviewed by an expert before publication?yes for prototype, textual and numerical data must be correctly extracted
+Should AI-generated answers always reference the original source document? Yes
+8. Paid Expert Analysis
+What exactly does the customer receive after payment? Expert led manually, emailed
+What information and documents must the customer submit? Name , email, number, company support also
+Which payment provider and currencies should be supported? Euro, stripe? … Paddle.com 
+Who will process the request, and how will the completed analysis be delivered?
+9. Administration 
+Does the prototype need an admin dashboard? Yes
+Should administrators be able to upload datasets, edit planning rules, update financial assumptions, and approve AI-extracted data? All necessary
+Should all data changes and approvals be recorded? 
+10. Success and Acceptance Criteria
+How many parcels or planning zones must be supported at launch? 
+How many pilot users will test the product, and who will recruit them? 1 K 
+
+

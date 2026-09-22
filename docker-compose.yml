@@ -1,0 +1,136 @@
+name: urbanview
+
+x-app-env: &app-env
+  APP_ENV: dev
+  DATABASE_URL: postgresql+asyncpg://urbanview:urbanview@postgres:5432/urbanview
+  TEST_DATABASE_URL: postgresql+asyncpg://urbanview:urbanview@postgres:5432/urbanview_test
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/1
+  CELERY_RESULT_BACKEND: redis://redis:6379/2
+  S3_ENDPOINT_URL: http://minio:9000
+  S3_BUCKET: urbanview-dev
+  S3_ACCESS_KEY: minioadmin
+  S3_SECRET_KEY: minioadmin
+  S3_USE_PATH_STYLE: "true"
+  CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+
+x-app-build: &app-build
+  context: .
+  dockerfile: backend/Dockerfile
+
+x-app-volumes: &app-volumes
+  - ./backend:/app/backend
+  - ./database:/app/database
+  - ./packages:/app/packages
+
+services:
+  # One-shot: applies Alembic migrations before the api/worker start.
+  migrate:
+    build: *app-build
+    command: alembic -c /app/database/alembic.ini upgrade head
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      <<: *app-env
+    volumes: *app-volumes
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: *app-build
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      <<: *app-env
+    ports:
+      - "8000:8000"
+    volumes: *app-volumes
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  worker:
+    build: *app-build
+    command: celery -A jobs.celery_app worker --loglevel=info -Q default,gis,extraction,publish
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      <<: *app-env
+    volumes: *app-volumes
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: urbanview
+      POSTGRES_PASSWORD: urbanview
+      POSTGRES_DB: urbanview
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # runs after the image's own 10_postgis.sh: creates urbanview_test with PostGIS
+      - ./database/docker/initdb/01_test_database.sql:/docker-entrypoint-initdb.d/zz_01_test_database.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U urbanview -d urbanview"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/urbanview-dev &&
+      echo 'bucket urbanview-dev ready'
+      "
+
+volumes:
+  pgdata:
+  miniodata:

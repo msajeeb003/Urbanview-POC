@@ -1,0 +1,87 @@
+{
+  "type": "FeatureCollection",
+  "dataset_version": "podgorica-sample-2026-09",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1,
+        "name": "PUP Glavni grad (izvod)",
+        "type": "PUP",
+        "status": "adopted",
+        "source": "eRegistri",
+        "source_url": "https://lamp.gov.me/PlanningDocument?m=PG",
+        "zone_id": 1
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.250, 42.435], [19.275, 42.435], [19.275, 42.450], [19.250, 42.450], [19.250, 42.435]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2,
+        "name": "DUP Centar – Zona C2",
+        "type": "DUP",
+        "status": "adopted",
+        "source": "eRegistri",
+        "source_url": "https://lamp.gov.me/PlanningDocument?m=PG",
+        "zone_id": 1
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.258, 42.438], [19.268, 42.438], [19.268, 42.446], [19.258, 42.446], [19.258, 42.438]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 3,
+        "name": "Izmjene i dopune DUP-a Centar 2023",
+        "type": "DUP",
+        "status": "in_progress",
+        "source": "eRegistri",
+        "source_url": "https://lamp.gov.me/PlanningDocument?m=PG",
+        "zone_id": 1,
+        "amends_document_id": 2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.276, 42.435], [19.285, 42.435], [19.285, 42.450], [19.276, 42.450], [19.276, 42.435]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 4,
+        "name": "DUP Stari Aerodrom",
+        "type": "DUP",
+        "status": "adopted",
+        "source": "eRegistri",
+        "source_url": "https://lamp.gov.me/PlanningDocument?m=PG",
+        "zone_id": 2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.290, 42.430], [19.300, 42.430], [19.300, 42.440], [19.290, 42.440], [19.290, 42.430]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 5,
+        "name": "DUP Stari Aerodrom (2009)",
+        "type": "DUP",
+        "status": "superseded",
+        "source": "eRegistri",
+        "source_url": "https://lamp.gov.me/PlanningDocument?m=PG",
+        "zone_id": 2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.290, 42.430], [19.300, 42.430], [19.300, 42.440], [19.290, 42.440], [19.290, 42.430]]]
+      }
+    }
+  ]
+}

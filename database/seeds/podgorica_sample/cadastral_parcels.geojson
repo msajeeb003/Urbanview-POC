@@ -1,0 +1,113 @@
+{
+  "type": "FeatureCollection",
+  "dataset_version": "podgorica-sample-2026-09",
+  "_notes": [
+    "id = UrbanView Parcel ID. area_m2 is computed on the spheroid by the loader when omitted.",
+    "#1042 exists in two cadastral municipalities (Podgorica I and Podgorica II).",
+    "#2001/1 has a sub-number and no planned urban parcel; #3005 lies where only a document in progress exists (uncovered).",
+    "#1044 is split by the plan into UP 31 (~56%, primary) and UP 32 (~41%).",
+    "#2002 is covered only by the general plan (PUP): no urban parcel, no block; the cadastral area is the calculation basis."
+  ],
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1001,
+        "parcel_number": "1042",
+        "sub_number": null,
+        "ko_name": "Podgorica I",
+        "street_address": "Bulevar Save Kovačevića 12"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.2610, 42.4410], [19.2615, 42.4410], [19.2615, 42.4413], [19.2610, 42.4413], [19.2610, 42.4410]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1002,
+        "parcel_number": "1042",
+        "sub_number": null,
+        "ko_name": "Podgorica II",
+        "street_address": "Ulica Slobode 8"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.2920, 42.4320], [19.2925, 42.4320], [19.2925, 42.4323], [19.2920, 42.4323], [19.2920, 42.4320]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1003,
+        "parcel_number": "2001",
+        "sub_number": "1",
+        "ko_name": "Podgorica I",
+        "street_address": null
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.2630, 42.4420], [19.2635, 42.4420], [19.2635, 42.4423], [19.2630, 42.4423], [19.2630, 42.4420]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1004,
+        "parcel_number": "3005",
+        "sub_number": null,
+        "ko_name": "Podgorica I",
+        "street_address": "Industrijska zona bb",
+        "public_ownership": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.2780, 42.4400], [19.2785, 42.4400], [19.2785, 42.4403], [19.2780, 42.4403], [19.2780, 42.4400]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1005,
+        "parcel_number": "1043",
+        "sub_number": null,
+        "ko_name": "Podgorica I",
+        "street_address": "Bulevar Save Kovačevića 14",
+        "restitution_or_legal_burden": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.2615, 42.4410], [19.2620, 42.4410], [19.2620, 42.4413], [19.2615, 42.4413], [19.2615, 42.4410]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1006,
+        "parcel_number": "1044",
+        "sub_number": null,
+        "ko_name": "Podgorica I",
+        "street_address": "Bulevar Save Kovačevića 16"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.2622, 42.4416], [19.2630, 42.4416], [19.2630, 42.4419], [19.2622, 42.4419], [19.2622, 42.4416]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1007,
+        "parcel_number": "2002",
+        "sub_number": null,
+        "ko_name": "Podgorica I",
+        "street_address": null
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.2525, 42.4365], [19.2530, 42.4365], [19.2530, 42.4368], [19.2525, 42.4368], [19.2525, 42.4365]]]
+      }
+    }
+  ]
+}

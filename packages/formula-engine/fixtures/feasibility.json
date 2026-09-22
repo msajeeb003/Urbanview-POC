@@ -1,0 +1,328 @@
+{
+  "formula_version": "poc-1",
+  "client_validated": false,
+  "description": "Feasibility formula fixtures (docs/specs/panel-payload.md section 4). Every engine (Python: backend/core/engine/feasibility.py, TypeScript: packages/formula-engine) must reproduce each case's `expected` from its `inputs`. `expected` is the exact shape of FeasibilityResult.to_dict(). Inputs use the sample UP 12 parcel (area 959.6 m2, FAR 3.2, site coverage 55 %) and the sample Centar market row (land 1350, build 860, design 90, sale 2450 EUR/m2, range factors 0.86 / 1.15). null inputs mean unknown / not stated in the plan; a 0 is a real 0. Rounding is applied to outputs only: areas 1 decimal, euros whole, ROI 1 decimal, half away from zero on the decimal value.",
+  "tolerances": {"_eur": 0.5, "_m2": 0.05, "_pct": 0.05},
+  "cases": [
+    {
+      "name": "full_up12_centar",
+      "notes": "gfa = 3.2 x 959.6 = 3070.72 -> 3070.7; coverage area = 55 / 100 x 959.6 = 527.78 -> 527.8; saleable = 3070.72 x 0.70 = 2149.504 -> 2149.5. construction = 3070.72 x 860 = 2640819.2 (x 0.86 = 2271104.512, x 1.15 = 3036942.08); revenue = 2149.504 x 2450 = 5266284.8 (x 0.86 = 4529004.928, x 1.15 = 6056227.52); land = 959.6 x 1350 = 1295460 (1114095.6 / 1489779); design = 3070.72 x 90 = 276364.8 (237673.728 / 317819.52); total = 1295460 + 276364.8 + 2640819.2 = 4212644 (3622873.84 / 4844540.6). profit = 5266284.8 - 4212644 = 1053640.8; profit low = revenue low - total high = 4529004.928 - 4844540.6 = -315535.672; profit high = revenue high - total low = 6056227.52 - 3622873.84 = 2433353.68. ROI = 1053640.8 / 4212644 x 100 = 25.011 -> 25.0; ROI low = -315535.672 / 4844540.6 x 100 = -6.513 -> -6.5; ROI high = 2433353.68 / 3622873.84 x 100 = 67.166 -> 67.2.",
+      "inputs": {
+        "basis_area_m2": 959.6, "max_far": 3.2, "max_site_coverage_pct": 55,
+        "market": {"land_rate_eur_m2": 1350, "build_rate_eur_m2": 860, "design_rate_eur_m2": 90, "sale_rate_eur_m2": 2450, "range_low_factor": 0.86, "range_high_factor": 1.15},
+        "assumptions": {"saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null},
+        "market_reason_code": null, "market_reason_params": null
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "fields": [
+          {"key": "max_gfa_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 3070.7, "expected": 3070.7, "high": 3070.7},
+          {"key": "max_coverage_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 527.8, "expected": 527.8, "high": 527.8},
+          {"key": "saleable_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 2149.5, "expected": 2149.5, "high": 2149.5},
+          {"key": "construction_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 2271105, "expected": 2640819, "high": 3036942},
+          {"key": "revenue_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 4529005, "expected": 5266285, "high": 6056228},
+          {"key": "profit_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": -315536, "expected": 1053641, "high": 2433354},
+          {"key": "roi_pct", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": -6.5, "expected": 25.0, "high": 67.2}
+        ],
+        "cost_rows": [
+          {"key": "land_value_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 1114096, "expected": 1295460, "high": 1489779},
+          {"key": "design_documentation_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 237674, "expected": 276365, "high": 317820},
+          {"key": "construction_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 2271105, "expected": 2640819, "high": 3036942},
+          {"key": "total_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 3622874, "expected": 4212644, "high": 4844541}
+        ],
+        "assumptions_used": {
+          "saleable_share": 0.7, "construction_cost_eur_m2": 860, "sale_price_eur_m2": 2450, "design_rate_eur_m2": 90, "land_rate_eur_m2": 1350, "range_low_factor": 0.86, "range_high_factor": 1.15,
+          "sources": {"construction_cost_eur_m2": "market", "sale_price_eur_m2": "market"}
+        }
+      }
+    },
+    {
+      "name": "missing_far",
+      "notes": "FAR not stated: GFA is far_not_stated; everything derived from GFA (saleable, construction, revenue, profit, ROI, design, total) is requires_gfa. Coverage area = 55 / 100 x 959.6 = 527.78 -> 527.8 still computes, and land value needs only the area and the market row: 959.6 x 1350 = 1295460 (x 0.86 = 1114095.6, x 1.15 = 1489779).",
+      "inputs": {
+        "basis_area_m2": 959.6, "max_far": null, "max_site_coverage_pct": 55,
+        "market": {"land_rate_eur_m2": 1350, "build_rate_eur_m2": 860, "design_rate_eur_m2": 90, "sale_rate_eur_m2": 2450, "range_low_factor": 0.86, "range_high_factor": 1.15},
+        "assumptions": {"saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null},
+        "market_reason_code": null, "market_reason_params": null
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "fields": [
+          {"key": "max_gfa_m2", "status": "cannot_calculate", "reason_code": "far_not_stated", "reason_params": {}, "range_kind": "deterministic", "low": null, "expected": null, "high": null},
+          {"key": "max_coverage_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 527.8, "expected": 527.8, "high": 527.8},
+          {"key": "saleable_area_m2", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "deterministic", "low": null, "expected": null, "high": null},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "revenue_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "profit_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "roi_pct", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "cost_rows": [
+          {"key": "land_value_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 1114096, "expected": 1295460, "high": 1489779},
+          {"key": "design_documentation_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "total_cost_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "assumptions_used": {
+          "saleable_share": 0.7, "construction_cost_eur_m2": 860, "sale_price_eur_m2": 2450, "design_rate_eur_m2": 90, "land_rate_eur_m2": 1350, "range_low_factor": 0.86, "range_high_factor": 1.15,
+          "sources": {"construction_cost_eur_m2": "market", "sale_price_eur_m2": "market"}
+        }
+      }
+    },
+    {
+      "name": "missing_coverage",
+      "notes": "Site coverage not stated: only the coverage area is coverage_not_stated. Every other figure is identical to full_up12_centar (the coverage area feeds nothing else).",
+      "inputs": {
+        "basis_area_m2": 959.6, "max_far": 3.2, "max_site_coverage_pct": null,
+        "market": {"land_rate_eur_m2": 1350, "build_rate_eur_m2": 860, "design_rate_eur_m2": 90, "sale_rate_eur_m2": 2450, "range_low_factor": 0.86, "range_high_factor": 1.15},
+        "assumptions": {"saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null},
+        "market_reason_code": null, "market_reason_params": null
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "fields": [
+          {"key": "max_gfa_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 3070.7, "expected": 3070.7, "high": 3070.7},
+          {"key": "max_coverage_area_m2", "status": "cannot_calculate", "reason_code": "coverage_not_stated", "reason_params": {}, "range_kind": "deterministic", "low": null, "expected": null, "high": null},
+          {"key": "saleable_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 2149.5, "expected": 2149.5, "high": 2149.5},
+          {"key": "construction_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 2271105, "expected": 2640819, "high": 3036942},
+          {"key": "revenue_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 4529005, "expected": 5266285, "high": 6056228},
+          {"key": "profit_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": -315536, "expected": 1053641, "high": 2433354},
+          {"key": "roi_pct", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": -6.5, "expected": 25.0, "high": 67.2}
+        ],
+        "cost_rows": [
+          {"key": "land_value_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 1114096, "expected": 1295460, "high": 1489779},
+          {"key": "design_documentation_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 237674, "expected": 276365, "high": 317820},
+          {"key": "construction_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 2271105, "expected": 2640819, "high": 3036942},
+          {"key": "total_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 3622874, "expected": 4212644, "high": 4844541}
+        ],
+        "assumptions_used": {
+          "saleable_share": 0.7, "construction_cost_eur_m2": 860, "sale_price_eur_m2": 2450, "design_rate_eur_m2": 90, "land_rate_eur_m2": 1350, "range_low_factor": 0.86, "range_high_factor": 1.15,
+          "sources": {"construction_cost_eur_m2": "market", "sale_price_eur_m2": "market"}
+        }
+      }
+    },
+    {
+      "name": "no_market_data_zone_centar",
+      "notes": "No market row for the zone (caller passes reason no_market_data with {zone_name: Centar}): the three area figures still compute (gfa 3070.72 -> 3070.7, coverage 527.78 -> 527.8, saleable 2149.504 -> 2149.5); construction, revenue, profit, ROI and all four cost rows are cannot_calculate with that reason and its params. assumptions_used carries no rates or factors and both sources are null.",
+      "inputs": {
+        "basis_area_m2": 959.6, "max_far": 3.2, "max_site_coverage_pct": 55,
+        "market": null,
+        "assumptions": {"saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null},
+        "market_reason_code": "no_market_data", "market_reason_params": {"zone_name": "Centar"}
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "fields": [
+          {"key": "max_gfa_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 3070.7, "expected": 3070.7, "high": 3070.7},
+          {"key": "max_coverage_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 527.8, "expected": 527.8, "high": 527.8},
+          {"key": "saleable_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 2149.5, "expected": 2149.5, "high": 2149.5},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "revenue_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "profit_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "roi_pct", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "cost_rows": [
+          {"key": "land_value_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "design_documentation_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "total_cost_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "assumptions_used": {
+          "saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null, "design_rate_eur_m2": null, "land_rate_eur_m2": null, "range_low_factor": null, "range_high_factor": null,
+          "sources": {"construction_cost_eur_m2": null, "sale_price_eur_m2": null}
+        }
+      }
+    },
+    {
+      "name": "no_market_data_zone_unknown",
+      "notes": "No market row and no reason given by the caller: the engine defaults to no_market_data_zone_unknown with empty params (it cannot know the zone). Area figures as in full_up12_centar.",
+      "inputs": {
+        "basis_area_m2": 959.6, "max_far": 3.2, "max_site_coverage_pct": 55,
+        "market": null,
+        "assumptions": {"saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null},
+        "market_reason_code": null, "market_reason_params": null
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "fields": [
+          {"key": "max_gfa_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 3070.7, "expected": 3070.7, "high": 3070.7},
+          {"key": "max_coverage_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 527.8, "expected": 527.8, "high": 527.8},
+          {"key": "saleable_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 2149.5, "expected": 2149.5, "high": 2149.5},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "no_market_data_zone_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "revenue_eur", "status": "cannot_calculate", "reason_code": "no_market_data_zone_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "profit_eur", "status": "cannot_calculate", "reason_code": "no_market_data_zone_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "roi_pct", "status": "cannot_calculate", "reason_code": "no_market_data_zone_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "cost_rows": [
+          {"key": "land_value_eur", "status": "cannot_calculate", "reason_code": "no_market_data_zone_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "design_documentation_eur", "status": "cannot_calculate", "reason_code": "no_market_data_zone_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "no_market_data_zone_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "total_cost_eur", "status": "cannot_calculate", "reason_code": "no_market_data_zone_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "assumptions_used": {
+          "saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null, "design_rate_eur_m2": null, "land_rate_eur_m2": null, "range_low_factor": null, "range_high_factor": null,
+          "sources": {"construction_cost_eur_m2": null, "sale_price_eur_m2": null}
+        }
+      }
+    },
+    {
+      "name": "user_overrides",
+      "notes": "User overrides saleable share 0.80, construction 700 EUR/m2, sale price 2600 EUR/m2 (sources: user); land and design rates still come from the market row. gfa and coverage area unchanged (3070.72 -> 3070.7, 527.78 -> 527.8); saleable = 3070.72 x 0.80 = 2456.576 -> 2456.6. construction = 3070.72 x 700 = 2149504 (x 0.86 = 1848573.44, x 1.15 = 2471929.6); revenue = 2456.576 x 2600 = 6387097.6 (5492903.936 / 7345162.24); land = 1295460 (1114095.6 / 1489779); design = 276364.8 (237673.728 / 317819.52); total = 1295460 + 276364.8 + 2149504 = 3721328.8 (3200342.768 / 4279528.12). profit = 6387097.6 - 3721328.8 = 2665768.8; low = 5492903.936 - 4279528.12 = 1213375.816; high = 7345162.24 - 3200342.768 = 4144819.472. ROI = 2665768.8 / 3721328.8 x 100 = 71.635 -> 71.6; low = 1213375.816 / 4279528.12 x 100 = 28.353 -> 28.4; high = 4144819.472 / 3200342.768 x 100 = 129.512 -> 129.5.",
+      "inputs": {
+        "basis_area_m2": 959.6, "max_far": 3.2, "max_site_coverage_pct": 55,
+        "market": {"land_rate_eur_m2": 1350, "build_rate_eur_m2": 860, "design_rate_eur_m2": 90, "sale_rate_eur_m2": 2450, "range_low_factor": 0.86, "range_high_factor": 1.15},
+        "assumptions": {"saleable_share": 0.8, "construction_cost_eur_m2": 700, "sale_price_eur_m2": 2600},
+        "market_reason_code": null, "market_reason_params": null
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "fields": [
+          {"key": "max_gfa_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 3070.7, "expected": 3070.7, "high": 3070.7},
+          {"key": "max_coverage_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 527.8, "expected": 527.8, "high": 527.8},
+          {"key": "saleable_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 2456.6, "expected": 2456.6, "high": 2456.6},
+          {"key": "construction_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 1848573, "expected": 2149504, "high": 2471930},
+          {"key": "revenue_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 5492904, "expected": 6387098, "high": 7345162},
+          {"key": "profit_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 1213376, "expected": 2665769, "high": 4144819},
+          {"key": "roi_pct", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 28.4, "expected": 71.6, "high": 129.5}
+        ],
+        "cost_rows": [
+          {"key": "land_value_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 1114096, "expected": 1295460, "high": 1489779},
+          {"key": "design_documentation_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 237674, "expected": 276365, "high": 317820},
+          {"key": "construction_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 1848573, "expected": 2149504, "high": 2471930},
+          {"key": "total_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 3200343, "expected": 3721329, "high": 4279528}
+        ],
+        "assumptions_used": {
+          "saleable_share": 0.8, "construction_cost_eur_m2": 700, "sale_price_eur_m2": 2600, "design_rate_eur_m2": 90, "land_rate_eur_m2": 1350, "range_low_factor": 0.86, "range_high_factor": 1.15,
+          "sources": {"construction_cost_eur_m2": "user", "sale_price_eur_m2": "user"}
+        }
+      }
+    },
+    {
+      "name": "overrides_do_not_rescue_missing_market",
+      "notes": "Same user overrides as user_overrides but no market row: the land and design rates are unknown, so the money figures and all cost rows stay cannot_calculate (no_market_data, zone Centar). saleable = 3070.72 x 0.80 = 2456.576 -> 2456.6 still computes. assumptions_used echoes the overrides (700 / 2600, sources user) with null market rates and factors.",
+      "inputs": {
+        "basis_area_m2": 959.6, "max_far": 3.2, "max_site_coverage_pct": 55,
+        "market": null,
+        "assumptions": {"saleable_share": 0.8, "construction_cost_eur_m2": 700, "sale_price_eur_m2": 2600},
+        "market_reason_code": "no_market_data", "market_reason_params": {"zone_name": "Centar"}
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "fields": [
+          {"key": "max_gfa_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 3070.7, "expected": 3070.7, "high": 3070.7},
+          {"key": "max_coverage_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 527.8, "expected": 527.8, "high": 527.8},
+          {"key": "saleable_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 2456.6, "expected": 2456.6, "high": 2456.6},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "revenue_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "profit_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "roi_pct", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "cost_rows": [
+          {"key": "land_value_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "design_documentation_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "total_cost_eur", "status": "cannot_calculate", "reason_code": "no_market_data", "reason_params": {"zone_name": "Centar"}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "assumptions_used": {
+          "saleable_share": 0.8, "construction_cost_eur_m2": 700, "sale_price_eur_m2": 2600, "design_rate_eur_m2": null, "land_rate_eur_m2": null, "range_low_factor": null, "range_high_factor": null,
+          "sources": {"construction_cost_eur_m2": "user", "sale_price_eur_m2": "user"}
+        }
+      }
+    },
+    {
+      "name": "area_zero_total_cost_zero",
+      "notes": "A stated basis area of 0 is a real 0, not unknown: gfa = 3.2 x 0 = 0, coverage = 0, saleable = 0, every euro figure is 0 (0 x any rate, 0 x 0.86, 0 x 1.15), profit = 0 - 0 = 0 for all three bounds. total cost = 0 so ROI (profit / total cost) is cannot_calculate with total_cost_zero.",
+      "inputs": {
+        "basis_area_m2": 0, "max_far": 3.2, "max_site_coverage_pct": 55,
+        "market": {"land_rate_eur_m2": 1350, "build_rate_eur_m2": 860, "design_rate_eur_m2": 90, "sale_rate_eur_m2": 2450, "range_low_factor": 0.86, "range_high_factor": 1.15},
+        "assumptions": {"saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null},
+        "market_reason_code": null, "market_reason_params": null
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "fields": [
+          {"key": "max_gfa_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 0.0, "expected": 0.0, "high": 0.0},
+          {"key": "max_coverage_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 0.0, "expected": 0.0, "high": 0.0},
+          {"key": "saleable_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 0.0, "expected": 0.0, "high": 0.0},
+          {"key": "construction_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 0, "expected": 0, "high": 0},
+          {"key": "revenue_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 0, "expected": 0, "high": 0},
+          {"key": "profit_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 0, "expected": 0, "high": 0},
+          {"key": "roi_pct", "status": "cannot_calculate", "reason_code": "total_cost_zero", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "cost_rows": [
+          {"key": "land_value_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 0, "expected": 0, "high": 0},
+          {"key": "design_documentation_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 0, "expected": 0, "high": 0},
+          {"key": "construction_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 0, "expected": 0, "high": 0},
+          {"key": "total_cost_eur", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "range", "low": 0, "expected": 0, "high": 0}
+        ],
+        "assumptions_used": {
+          "saleable_share": 0.7, "construction_cost_eur_m2": 860, "sale_price_eur_m2": 2450, "design_rate_eur_m2": 90, "land_rate_eur_m2": 1350, "range_low_factor": 0.86, "range_high_factor": 1.15,
+          "sources": {"construction_cost_eur_m2": "market", "sale_price_eur_m2": "market"}
+        }
+      }
+    },
+    {
+      "name": "area_unknown",
+      "notes": "No basis area at all: every field and every cost row is cannot_calculate with area_unknown, whatever else is known. assumptions_used still reports the market rates that would have been used.",
+      "inputs": {
+        "basis_area_m2": null, "max_far": 3.2, "max_site_coverage_pct": 55,
+        "market": {"land_rate_eur_m2": 1350, "build_rate_eur_m2": 860, "design_rate_eur_m2": 90, "sale_rate_eur_m2": 2450, "range_low_factor": 0.86, "range_high_factor": 1.15},
+        "assumptions": {"saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null},
+        "market_reason_code": null, "market_reason_params": null
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "fields": [
+          {"key": "max_gfa_m2", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "deterministic", "low": null, "expected": null, "high": null},
+          {"key": "max_coverage_area_m2", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "deterministic", "low": null, "expected": null, "high": null},
+          {"key": "saleable_area_m2", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "deterministic", "low": null, "expected": null, "high": null},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "revenue_eur", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "profit_eur", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "roi_pct", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "cost_rows": [
+          {"key": "land_value_eur", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "design_documentation_eur", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "total_cost_eur", "status": "cannot_calculate", "reason_code": "area_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "assumptions_used": {
+          "saleable_share": 0.7, "construction_cost_eur_m2": 860, "sale_price_eur_m2": 2450, "design_rate_eur_m2": 90, "land_rate_eur_m2": 1350, "range_low_factor": 0.86, "range_high_factor": 1.15,
+          "sources": {"construction_cost_eur_m2": "market", "sale_price_eur_m2": "market"}
+        }
+      }
+    },
+    {
+      "name": "missing_far_and_market_precedence",
+      "notes": "FAR not stated and no market row: reasons apply in dependency order (area, then FAR, then market). GFA is far_not_stated; the GFA-derived figures report requires_gfa rather than the market reason; land value, which needs no GFA, reports the market reason (default no_market_data_zone_unknown). Coverage area = 527.78 -> 527.8.",
+      "inputs": {
+        "basis_area_m2": 959.6, "max_far": null, "max_site_coverage_pct": 55,
+        "market": null,
+        "assumptions": {"saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null},
+        "market_reason_code": null, "market_reason_params": null
+      },
+      "expected": {
+        "formula_version": "poc-1",
+        "fields": [
+          {"key": "max_gfa_m2", "status": "cannot_calculate", "reason_code": "far_not_stated", "reason_params": {}, "range_kind": "deterministic", "low": null, "expected": null, "high": null},
+          {"key": "max_coverage_area_m2", "status": "ok", "reason_code": null, "reason_params": null, "range_kind": "deterministic", "low": 527.8, "expected": 527.8, "high": 527.8},
+          {"key": "saleable_area_m2", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "deterministic", "low": null, "expected": null, "high": null},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "revenue_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "profit_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "roi_pct", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "cost_rows": [
+          {"key": "land_value_eur", "status": "cannot_calculate", "reason_code": "no_market_data_zone_unknown", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "design_documentation_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "construction_cost_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null},
+          {"key": "total_cost_eur", "status": "cannot_calculate", "reason_code": "requires_gfa", "reason_params": {}, "range_kind": "range", "low": null, "expected": null, "high": null}
+        ],
+        "assumptions_used": {
+          "saleable_share": 0.7, "construction_cost_eur_m2": null, "sale_price_eur_m2": null, "design_rate_eur_m2": null, "land_rate_eur_m2": null, "range_low_factor": null, "range_high_factor": null,
+          "sources": {"construction_cost_eur_m2": null, "sale_price_eur_m2": null}
+        }
+      }
+    }
+  ]
+}

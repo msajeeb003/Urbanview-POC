@@ -1,0 +1,99 @@
+# Podgorica, Montenegro — the prototype municipality.
+# Values marked "confirm" are provisional until the P0 week-1 gates (sample assessment, zone definition).
+
+id = "podgorica"
+name = "Podgorica"
+country = "ME"
+locale = "sr-Latn-ME"
+currency = "EUR"
+serving_crs_epsg = 4326
+source_crs_epsg = 25834                 # ETRS89 / UTM 34N — confirm against UZN cadastral exports in P0
+center = [19.2636, 42.4411]             # lng, lat (city centre)
+bounds = [19.10, 42.33, 19.45, 42.55]   # min_lng, min_lat, max_lng, max_lat — provisional urban extent, confirm with zone definition
+cadastral_municipalities = ["Podgorica I", "Podgorica II", "Podgorica III"]   # placeholder — replace with the official KO list from UZN
+
+[terminology.site_coverage]
+abbreviation = "IZ"
+local_name = "indeks zauzetosti"
+english = "maximum site coverage (%)"
+
+[terminology.far]
+abbreviation = "II"
+local_name = "indeks izgrađenosti"
+english = "floor area ratio"
+
+[terminology.cadastral_municipality]
+abbreviation = "KO"
+local_name = "katastarska opština"
+english = "cadastral municipality"
+
+[terminology.urban_parcel]
+abbreviation = "UP"
+local_name = "urbanistička parcela"
+english = "planned urban parcel"
+
+[terminology.urban_block]
+abbreviation = "Blok"
+local_name = "urbanistički blok"
+english = "urban block"
+
+[terminology.document_types]
+DUP = "Detaljni urbanistički plan (detailed urban plan)"
+PUP = "Prostorno-urbanistički plan (spatial-urban plan)"
+PGR = "Plan generalne regulacije (general regulation plan)"
+
+[[sources]]
+id = "eregistri"
+kind = "planning"
+name = "eRegistri (lamp.gov.me)"
+url = "https://lamp.gov.me/PlanningDocument?m=PG"
+provides = "Adopted planning documents for Podgorica (mostly PDF)"
+
+[[sources]]
+id = "mondarchitects_site_check"
+kind = "reference"
+name = "mondarchitects.com/site-check"
+url = "https://mondarchitects.com/site-check"
+provides = "Reference list of zones and the planning documents within each (confirm against the official registry)"
+
+[[sources]]
+id = "ekatastar"
+kind = "cadastre"
+name = "eKatastar"
+url = "https://ekatastar.me"
+provides = "Ownership and legal burdens of cadastral parcels"
+
+[[sources]]
+id = "emapa"
+kind = "cadastre"
+name = "eMapa"
+url = "https://emapa.me"
+provides = "Spatial and cadastral data"
+
+[[sources]]
+id = "uzn_geoportal"
+kind = "cadastre"
+name = "Geoportal Uprave za nekretnine (UZN)"
+url = "https://webmap.uzn.me/geoportal01"
+provides = "Cadastral parcels"
+
+[[sources]]
+id = "realitica"
+kind = "market"
+name = "Realitica"
+url = "https://www.realitica.com"
+provides = "Real-estate listings — market reference prices"
+
+[[sources]]
+id = "estitor"
+kind = "market"
+name = "Estitor"
+url = "https://www.estitor.com"
+provides = "Real-estate listings — market reference prices"
+
+[[sources]]
+id = "monstat"
+kind = "market"
+name = "Monstat"
+url = "https://www.monstat.org"
+provides = "Official statistics: selling prices and construction cost indicators"

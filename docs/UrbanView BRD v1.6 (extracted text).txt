@@ -1,0 +1,637 @@
+
+===== PAGE 1 =====
+URBANVIEW 
+Business Requirements Document 
+v1.6  —  Build Specification 
+July 2026  |  Prepared by Artech Digital  |  Client: Monmaks d.o.o. 
+Version v1.6 
+Date July 2026 
+Status Updated — Pending Sign-off 
+1. What We Are Building 
+UrbanView tells you what you can build on a piece of land, and whether it is worth building. Today that answer takes days: 
+planning rules sit in PDFs across different institutions, cadastral data sits elsewhere, market prices sit with agencies. 
+Someone has to assemble it by hand, and mostly nobody does. 
+The user opens a map of Podgorica and clicks a plot. The system identifies the parcel, works out which planning zone 
+governs it, and shows what the adopted plan permits — land use, maximum floors, site coverage, floor area ratio. It then 
+calculates the money: buildable floor area, construction cost, market value, profit, ROI. Under two seconds, no login. If 
+they want more than the automated answer, they pay for an expert analysis of that site, delivered by email. 
+This build is 2D and informative. 3D, AR, subscriptions and scenario comparison are excluded and belong to later phases. 
+What it has to prove: that developers and architects will use a map-based feasibility tool, and that some will pay for a 
+deeper look. 
+The flow in plain language 
+•​ User opens urbanview.io. Map of Podgorica loads with planning zone boundaries visible. No account. 
+•​ User finds a site — address, map click, or parcel number. 
+•​ System identifies the cadastral parcel, the planned urban parcel, and the governing zone. 
+•​ Panel opens: identification, then planning parameters, then market data and ROI. All financials as ranges. 
+•​ User toggles layers, or keeps browsing for a better plot. 
+•​ User optionally orders the expert report: short form, one-off payment, emailed manually by an expert. 
+ 
+Two entry states, both must work. Some users arrive with a site and want to know what it permits. Others have no site 
+and are hunting the city for one worth buying. The first needs search; the second needs browsing. 
+2. Features to Build 
+Scope and cooperation model. The functional prototype budget is EUR 10,000; the next phase will be funded at a 
+six-figure level. Because the feature set below has grown during review beyond what EUR 10,000 covers, the client 
+leaves Artech Digital to choose the cooperation model: either pay-per-project as a subcontractor, with the delivered 
+scope aligned to the budget, or an associated-partner arrangement, where Artech is paid partly in fees and partly in 
+equity in exchange for delivering the larger scope. Which features land in the prototype versus the next phase follows 
+from that choice. 
+2.1 Map and Layer Engine 
+2D interactive map of Podgorica with switchable vector layers. Planning zone boundaries are the core layer and the 
+default view — the first thing a user should see is how the city divides into zoning plans, because each zone carries 
+different constraints. All non-core layers toggle independently, and are selected by clicking their visual representation — a 
+layer card or icon — rather than checkboxes, radio buttons or eye icons. Map features are selectable and data-bearing, 
+not flat imagery. The mapping provider (Mapbox or OpenStreetMap) is to be discussed and chosen on cost and capability. 
+
+===== PAGE 2 =====
+Layer 
+Content 
+Priority 
+Base map 
+Roads and geography. Provider to be decided — 
+OpenStreetMap or Mapbox 
+MUST 
+Cadastral parcels 
+Existing parcels from the cadastral website 
+MUST 
+Urban planning zones 
+Zone boundaries from adopted plans, each linked to its 
+parameter set 
+MUST — core 
+Planned urban 
+parcels 
+Future parcel geometry from the plan. Separate layer — 
+see 2.2 
+MUST 
+Planned land use 
+Land use designation from the plan 
+MUST 
+Urban blocks 
+Block boundaries within zones 
+SHOULD 
+Public ownership 
+Publicly owned parcels 
+MUST 
+Parcels under 
+restitution / legal 
+burden 
+Parcels subject to restitution claims or other legal 
+burdens 
+MUST 
+Planned traffic 
+network 
+Planned roads and traffic infrastructure 
+MUST 
+Planning parameter 
+heatmaps 
+Coverage, height, FAR, GFA across the city 
+MUST 
+Market data heatmap 
+At least one — preferably saleable area / price 
+MUST 
+ 
+Coverage is defined by data, not administrative boundary. Only areas with adopted planning documentation are 
+covered; plans in progress are excluded until adopted. Where there is no data the area is simply not covered — no error 
+message, no empty state. Public ownership, restitution / legal-burden parcels, planned traffic and planning-parameter 
+heatmaps are now required for the prototype (client, 24 July), along with at least one market-data heatmap, preferably 
+saleable area. This reverses the earlier scoping and expands the ingestion effort — see the note below. 
+ 
+Scope note: adding these layers materially increases the data-preparation load, since each requires its own source, 
+georeferencing and (for heatmaps) a computed surface across the city. Against the EUR 10,000 prototype budget this is 
+significant and feeds directly into the cooperation-model choice noted at the start of Section 2. The olive-grove 
+protection layer from BRD v2 remains excluded until the official olive cadastre exists. 
+2.2 Parcel Identification and the Existing-vs-Planned Problem 
+The most important technical requirement in this document. The parcel in the cadastre today and the parcel envisaged by 
+the adopted plan are frequently not the same — land gets taken for roads, public space, reparcelling. The client's 
+example: a plot recorded at 100 units of area is reduced to 75 by the plan. The developer builds on 75. In most cases the 
+planned urban parcel differs from the original cadastral parcel in both geometry and surface area — and this is not 
+common knowledge; typically only the profession is aware of it. Surfacing it clearly is a core value of the platform, not a 
+detail. 
+Rule 
+Requirement 
+Separate layers 
+Cadastral and planned parcels stored, rendered and labelled separately. Never merged. 
+Show both 
+Where they differ, the panel shows both areas and states which drives the calculation. 
+Calculation basis 
+All output calculated on the planned urban parcel area where one exists; cadastral area only as 
+fallback. 
+Never silent 
+The mismatch is surfaced to the user, not resolved quietly. 
+ 
+
+===== PAGE 3 =====
+Identification fields on selection: parcel number, sub-number, cadastral municipality, street address, governing planning 
+document, urban block reference. 
+Cadastral municipality is not optional. One political municipality contains several cadastral municipalities and the same 
+parcel number recurs across them. Without it, the wrong parcel can be returned. 
+2.3 Information Panel 
+The panel updates dynamically based on what the user selects, and it shows different content for a planning zone than for 
+an urban parcel. Clicking empty zone area gives the zone-level picture; clicking a specific parcel gives the full parameter 
+and financial set. 
+Note on zones: in Montenegro, zones are not official areas with defined boundaries. They are UrbanView's own internal city divisions, 
+roughly corresponding to city quarters, which group related planning documents. A single zone will usually contain multiple planning 
+documents. 
+ 
+When a planning zone is selected: 
+Field 
+Note 
+Zone name 
+UrbanView's internal city division (≈ city quarter) 
+Planning documents 
+The list of planning documents grouped under the zone — usually several 
+Document status 
+For each: adopted, in progress, superseded 
+General planning information 
+Zone-level summary 
+ 
+When an urban parcel is selected, two groups. The user's job is to match one against the other: what the constraints 
+allow you to build, against what the market says the location is worth. 
+Group 1 — Planning parameters 
+Group 2 — Market data 
+Parcel ID 
+Estimated land value 
+Planning document name 
+Estimated design and documentation costs 
+Land use designation 
+Estimated construction costs 
+Urban block reference 
+Estimated market value 
+Urban parcel number 
+Estimated saleable area 
+Urban parcel area 
+Estimated potential profit 
+Maximum building height / number of floors 
+Estimated Return on Investment (ROI) 
+Maximum site coverage % (IZ) 
+ 
+Maximum Floor Area Ratio (II) 
+ 
+Calculated maximum Gross Floor Area (GFA) 
+ 
+Every planning value carries its source document reference. Parcel ID is UrbanView's own numeric unique identifier (e.g. 123456), part 
+of a product strategy in which every element of the urban fabric — each parcel, building, and so on — has its own identity. It is not 
+composed of the parcel number, sub-number and cadastral municipality; those are separate attributes displayed alongside it. All urban 
+planning parameters and constraints are based on the planned urban parcels defined in the planning documents, not on the existing 
+cadastral parcels. Estimated saleable area is shown explicitly as an output, not only as an internal step in the profit formula. 
+2.4 Feasibility Calculation Engine 
+User input is the location. Nothing else — every other input is retrieved by the system. 
+
+===== PAGE 4 =====
+Output 
+Formula 
+Maximum GFA 
+FAR x plot area 
+Maximum coverage area 
+Site coverage (%) x plot area 
+Potential profit 
+(Max GFA x 0.70 x market value per m²) − (land value + design and documentation costs 
++ construction costs) 
+ROI (%) 
+Potential profit / (land value + design and documentation costs + construction costs) x 
+100 
+ 
+Ranges, not single numbers. Every financial output is low / expected / high. The client's reasoning was commercial: prices 
+fluctuate, and a precise-looking figure invites a user to hold the platform to a promised return. 
+Assumptions visible. 70% of GFA assumed saleable for residential — indicative, varies by typology. Shown, not buried. 
+Client owns the formulas and validates every calculation before launch. 
+Market data source (confirmed): publicly available real estate listings (Realitica, Estitor) combined with Monstat official 
+statistics for selling prices and construction cost indicators. The cadastral institution is not the market source — and the 
+same applies to any other public authority responsible for preparing planning documents. Planning documents may 
+include market values, but they carry lower weight than current real estate listings and Monstat statistics. Portals plus 
+Monstat are the primary reference for land values, apartment sale prices and construction costs. 
+User-editable assumptions (confirmed): users can adjust assumptions such as construction cost, selling price and 
+saleable-area percentage to test their own scenarios. The client considers this a valuable option. Edited values recalculate 
+the ranges live; the deterministic formulas are unchanged. 
+The engine is deterministic. AI does not generate the financial arithmetic — the client's words: "mathematically correct, 
+not just AI assumptions." AI may interpret and normalise reference prices from listings and Monstat into the input 
+values, but the calculation itself stays formula-driven. 
+2.5 Data Sources and Preparation 
+All source data is publicly available official data. The challenge is not availability — it is that the data is scattered across 
+sources and formats (PDF documents, GIS datasets, cadastral data, statistics) and has to be transformed into standardised, 
+georeferenced GIS layers linked to the information panel. 
+Source 
+Provides 
+eRegistri — 
+lamp.gov.me/PlanningDocume
+nt?m=PG 
+Adopted planning documents for Podgorica 
+mondarchitects.com/site-chec
+k 
+Reference for the city's planning-document structure — the list of zones and the 
+planning documents within each (select Podgorica municipality) 
+eKatastar — ekatastar.me 
+Ownership and legal burdens of cadastral parcels 
+eMapa — emapa.me 
+Spatial and cadastral data 
+Geoportal Uprave za 
+nekretnine (Real Estate 
+Administration) — 
+webmap.uzn.me/geoportal01 
+Cadastral parcels 
+Realitica, Estitor 
+Real estate listings — market reference prices 
+Monstat — monstat.org 
+Official statistics: selling prices and construction cost indicators 
+Representative planning documents and an instructions file are already in the shared Google Drive folder; further documents will be 
+uploaded progressively during discovery. 
+
+===== PAGE 5 =====
+The prototype has a second objective beyond validating the user workflow: establishing a repeatable data-preparation 
+methodology that can be replicated across Montenegro and other countries. The full Montenegro application would 
+cover 5–8 municipalities including Podgorica — more than 80% of the country's construction activity. Build the ingestion 
+pipeline as a repeatable process, not a one-off Podgorica script. 
+2.6 AI Document Extraction and Expert Approval 
+AI has one job: read the source documents so humans do not transcribe them. It handles automatic extraction of planning 
+parameters from planning documents and AI-assisted interpretation of those documents, structures the parameters 
+against the zone and block schema, and attaches a source reference to every value. It also interprets reference prices from 
+real estate listings and Monstat data, using them as reference values for land prices, apartment sale prices and 
+construction costs. Input data and some calculations may be prepared manually where that is faster. AI feeds reference 
+values into the engine but does not perform the financial arithmetic, and does not publish anything unreviewed. 
+Expert review: 100% of AI-extracted planning information is reviewed and approved before publication. A prototype-stage 
+control only — the client accepts it will not scale beyond one city and will be replaced by a sampling regime. Textual 
+accuracy matters as much as numerical: a misread planning term changes the meaning of a constraint. 
+Most planning source data is PDF — documents authored for print, not machines. Converting them into usable 
+georeferenced geometry is the largest technical risk and cost in this build. The client noted on the call that a surveying or 
+GIS engineer will probably be needed. Treat that as a probable additional cost, not an edge case. 
+2.7 Paid Expert Analysis and Checkout 
+The prototype tests three revenue channels in parallel, to evaluate which model provides the strongest user value and 
+willingness to pay: pay-per-service expert reports (one-off), a subscription for market data, and a subscription for full 
+custom AI-assisted chat. The one-off expert analysis is specified below; the free/paid boundary that governs all three 
+follows. 
+Element (one-off 
+expert analysis) 
+Specification 
+What is sold 
+Expert-led site and feasibility analysis of a specific location 
+Price 
+EUR 50–200 per site. Band, not yet resolved into tiers, to be confirmed 
+Billing 
+Single one-off transaction for the expert analysis. (Market data and AI chat are separate 
+subscription channels — see the boundary below) 
+Production and delivery 
+Produced manually by a human expert, outside the platform, and emailed to the customer. 
+Later stages may train AI on the expert's report template and prior expert steps to assist 
+preparation and data extraction — with a human expert always approving the final report 
+Account 
+None for the one-off analysis — guest checkout, no registration to buy or receive. The 
+subscription channels require registration 
+Order form 
+First name, email, telephone. Company details for business purchasers 
+Payment 
+EUR. Provider to be verified — Stripe (lower fees) vs Paddle (Montenegro availability to 
+confirm) 
+ 
+Free / paid boundary (confirmed): 
+Free 
+Paid 
+Explore locations across the city and review their 
+development potential 
+Expert-led site analysis and feasibility study (one-off) 
+Urban planning parameters — what can be built on a 
+specific parcel 
+Market data — whether it is worth developing the parcel 
+(subscription) 
+3 AI-assisted chat interactions per session 
+Unlimited AI-assisted interactions (subscription) 
+
+===== PAGE 6 =====
+This settles the earlier open question. Market data moves behind the paywall; planning parameters stay free as the acquisition hook. 
+The AI assistant is freemium — three interactions per session free, unlimited on subscription (see 2.8). 
+ 
+What the paid report adds (client-confirmed): the expert-led report provides site analysis, expert interpretation of the 
+planning documents (some planning provisions are ambiguous and require professional judgment rather than a 
+straightforward reading), hidden risk assessment, development scenarios, and benchmarking — insights beyond the raw 
+figures already shown from the source data. The CTA button explains this in the panel. 
+2.8 AI Assistant (Freemium) 
+A chat-like AI assistant that helps users explore the available information. Where the paid expert report is 
+human-produced and deep, the assistant is automated and conversational: it answers questions about a selected location, 
+explains what a planning parameter means, and points the user to the source. It is freemium — three AI-assisted 
+interactions per session are free as part of the acquisition hook; unlimited interactions are a paid subscription (one of the 
+three revenue channels in 2.7). 
+•​ Scope: reads the source documents and input data and answers questions grounded in them — so it is limited to, 
+and effectively trained on, UrbanView's own approved data: planning parameters, zone information, and the figures 
+shown in the panel. Additional context documents may be provided to broaden it — laws, regulations, building 
+codes, news — since the assistant needs slightly wider context than the parcel data alone. It does not invent planning 
+values or generate the financial arithmetic. 
+•​ Guardrails: the same controls as the rest of the platform — it draws only on expert-approved data and cites the 
+source document, and it does not present unreviewed extractions as fact. 
+•​ Boundary: the assistant helps users navigate and understand; it does not perform the expert interpretation, risk 
+assessment or development-scenario work reserved for the paid report. 
+New scope. The AI assistant is a feature the client added during review. It runs on a freemium model — three free 
+interactions per session, unlimited on subscription. If built on a third-party service (Gemini, ChatGPT, DeepSeek, etc.) the 
+free tier is cheap to run; a full custom AI solution is the paid subscription channel. Either way it introduces a 
+conversational LLM surface over the platform's data and should be reflected in the estimate and timeline alongside the 
+expanded layer set in Section 2.1. 
+2.9 Admin Panel 
+Role-gated, separate from the public platform. This is where the data pipeline is operated. 
+•​ Upload and version planning documents, GIS files and cadastral extracts 
+•​ Review, amend and approve AI-extracted data before it publishes 
+•​ Create and edit zone parameter sets; manage which areas are live 
+•​ Update financial assumptions — construction rates, market benchmarks, range boundaries 
+•​ View and assign paid analysis orders 
+Audit logging of changes and approvals is unresolved. Recommendation: build it. Once a published value is wrong, the 
+first question is who changed what and when. 
+2.10 Behavioural Data Capture 
+Selective capture of location queries, parcel selections and layer interactions, for later resale as location-demand insight. 
+The client will specify which interactions matter. Personal data limited to what a purchaser submits. Privacy notice 
+required at launch; legal basis for commercial reuse still to be confirmed. 
+3. Screen-by-Screen Build Spec 
+The map is always present; panels open over it rather than replacing it. No dead ends — every path, including an 
+uncovered area or a failed payment, has a clear outcome. 
+
+===== PAGE 7 =====
+ 
+S1 
+Map — Landing 
+ 
+UI: Full-screen 2D map of Podgorica, planning zones visible and visually distinguished. Search bar top-centre, 
+layer controls left. No login wall, no splash. 
+Logic: Loads at city extent. Only covered areas render zone geometry. 
+Future phase: Once multiple cities are covered, the user selects a city from the list of covered cities; the initial 
+default view is the capital. 
+ 
+S2 
+Find a Location 
+ 
+Input: Address with autocomplete, direct map click, or parcel number. Only one of the three is required to 
+identify a location — the user picks whichever suits them. 
+Logic: Captures coordinates, resolves cadastral parcel, planned parcel and zone by point-in-polygon. Under 2 
+seconds. 
+Note: The parcel number is the official cadastral reference used for search; Parcel ID is UrbanView's internal 
+identifier (see 2.3), not a search input. Client estimates roughly 90% of searches will be by address or map 
+click combined; parcel number pinpoints an exact boundary when known. 
+Next: Resolved → S3. Outside coverage → S6. 
+ 
+S3 
+Information Panel 
+ 
+UI: Side panel opens right, selection highlighted on map. Content updates dynamically with what is selected. 
+Zone selected: Planning document name, planning zone name, document status, general planning 
+information. 
+Parcel selected — Group 1: Parcel ID, planning document, land use, urban block, parcel number, parcel area, 
+maximum height/floors, site coverage %, FAR, calculated maximum GFA. Every value carries a visible source 
+reference. 
+Parcel selected — Group 2: Land value, design and documentation costs, construction costs, market value, 
+saleable area, potential profit, ROI. Calculated automatically, no button. Every figure a range. 
+Rules: All planning parameters and constraints are based on the planned urban parcels defined in the 
+planning documents, not on the existing cadastral parcels. Where cadastral and planned areas differ, both 
+shown with the planned area stated as the calculation basis. Assumptions visible. One-sentence disclaimer 
+that figures are indicative, not investment advice. 
+ 
+S4 
+Order Expert Analysis 
+ 
+UI: Call to action within the panel, explaining in one or two sentences what the report adds beyond what is on 
+screen. 
+Form: First name, email, telephone. Optional company details. Short — the client specified "a tiny form, not a 
+huge form." Location carried through automatically. 
+Logic: No account, no password, no verification step before purchase. 
+ 
+S5 
+Payment and Confirmation 
+ 
+UI: Hosted checkout. Price stated before the user commits. One-off payment in EUR, no card data on 
+UrbanView infrastructure. 
+Failure: Returns to S4 with form data preserved and a one-sentence explanation. 
+Confirmation: Order reference, location ordered, turnaround time. Same by email. Order lands in the admin 
+queue; expert notified. 
+Open: Notification routing, queue ownership and committed turnaround still to be defined. 
+ 
+S6 
+Outside Coverage 
+
+===== PAGE 8 =====
+ 
+UI: No error message, no red state, no apology modal. 
+Logic: Zone geometry absent, panel does not open, base map stays navigable. 
+Rationale: Client decision: the platform covers only areas with adopted planning data. Uncovered areas are a 
+fact of the data, not a failure to report. 
+4. UX Rules — Non-Negotiable 
+Rule 
+What it means in practice 
+Guessable on first use 
+The client's reference was an arcade game — a first-time user works it out by trying. 
+No tutorial, no onboarding tour. 
+The map is never replaced 
+Panels open over the map. The user never loses spatial context by navigating away. 
+Two groups, always separated 
+Planning constraints and market data are visually distinct. The user's job is comparing 
+them. 
+Ranges, never single figures 
+A precise-looking number is a promise the platform cannot keep. 
+Every value cites its source 
+Any planning parameter traceable to its document in one click. This is a trust product 
+first. 
+No error state for uncovered 
+areas 
+Absence of data is a fact, not a failure to report. 
+Free tier is the hook 
+Exploring locations, planning parameters, and three AI chats per session are free. 
+Market data, the expert report and unlimited AI chat are paid. The boundary is 
+unambiguous on screen. 
+No account to buy 
+Guest checkout. Registration is not a gate on revenue in this phase. 
+Under two seconds 
+Query to populated panel. Speed is the core claim — days to minutes. 
+Desktop-first 
+Web app, desktop browser first, functional on tablet and phone. No native app. 
+5. Technical Decisions 
+Component 
+Decision 
+Notes 
+Document extraction 
+LLM extraction of text and tables 
+from planning PDFs, with human 
+approval queue 
+Structured output, not prose. Source reference on 
+every value. 
+Geometry extraction 
+To be determined by sample 
+assessment 
+Vector PDF may allow direct extraction; scanned 
+raster needs manual redraw. Largest unknown in the 
+build. 
+Planning rule 
+application 
+Rule-based, from the parameter 
+table, with LLM assistance where 
+input structure varies 
+Input data does not always follow the same structure 
+or matching logic, so an LLM may be needed to map 
+documents to the schema. Final applied values are 
+still expert-approved. 
+Financial calculation 
+Deterministic formula engine; LLM 
+may assist in normalising and 
+matching input values 
+The client noted input data does not always follow 
+the same structure or matching logic, so an LLM may 
+help map source values into the engine. The 
+arithmetic itself stays formula-driven and 
+client-supplied — not AI-generated. 
+Map engine / base map 
+Mapbox over OpenStreetMap 
+Vector layers with independent visibility control. 
+Geocoding 
+OSM-based, with autocomplete 
+Address search suggestions. 
+Cadastral parcels 
+Cadastral website — method to 
+confirm 
+API, export or scrape. Availability and licensing to 
+verify. 
+
+===== PAGE 9 =====
+Component 
+Decision 
+Notes 
+Payments 
+Stripe or Paddle, EUR, one-off 
+Hosted checkout, no card data stored. Verify Stripe 
+Montenegro availability — lower fees than Paddle. 
+Frontend 
+React / Next.js 
+Map interface, panel, checkout, admin. 
+Backend 
+Node.js or Python 
+Calculation engine, extraction orchestration, orders. 
+Database 
+PostgreSQL + PostGIS 
+Zones, parcels, blocks, parameter sets. 
+Version-controlled datasets. 
+File storage 
+S3-compatible, private buckets 
+Source documents, GIS files, generated reports. 
+Platform 
+Web, desktop-first, 
+mobile-responsive 
+No native iOS or Android app in this build. 
+Ownership 
+All accounts and repositories 
+client-owned 
+Delivery team added as collaborators. Code is client 
+property under contract. 
+6. Additional Requirements 
+6.1 Legal and Compliance 
+•​ Terms of Service, Privacy Policy, Refund Policy and an indicative-figures disclaimer required at launch. Drafted by a 
+lawyer familiar with Montenegrin consumer and data protection law 
+•​ Data licensing: the platform commercially displays data derived from public planning documents and the cadastre. 
+Permission per source is outstanding — blocks commercial launch, not the build 
+•​ Liability: the platform publishes ROI figures people may act on. Ranges and visible assumptions mitigate this; a clear 
+"indicative, not investment or planning advice" statement is required on every screen showing financials 
+•​ A paid, human-produced analysis carries professional exposure of a different order to an automated estimate. The 
+expert's standing and any indemnity cover should be established before the first order 
+6.2 Analytics 
+Tracked from day one — the prototype is a validation instrument, and untracked usage proves nothing. 
+•​ map_loaded, search_performed, parcel_selected, layer_toggled 
+•​ panel_viewed, financials_viewed, source_reference_opened 
+•​ order_started, checkout_completed, return_visit, sessions_per_user 
+Client dashboard: conversion at each funnel step, orders and revenue, most-searched districts, repeat usage rate. 
+6.3 Support and Content 
+•​ Email support to a shared inbox, 24 business hours. Short FAQ covering what the data means, where it comes from, 
+what the paid analysis includes 
+•​ Planning terminology glossary — the platform uses terms (IZ, FAR/II, cadastral municipality, urban block) that its own 
+users define inconsistently. Plain-language definitions are a trust feature 
+•​ Refund policy not yet defined. Recommendation: full refund before delivery, discretionary after. Needed before the 
+first paying customer 
+•​ 3–5 example outputs for the landing page as the primary trust signal 
+7. How We Know It's Working 
+Metric 
+Prototype target 
+MVP target 
+Source 
+Pilot professional users 
+20 minimum 
+100+ 
+Recruitment tracking 
+
+===== PAGE 10 =====
+Metric 
+Prototype target 
+MVP target 
+Source 
+Sessions per pilot user 
+3+ 
+5+ 
+Session analytics 
+Query response time 
+Under 2 seconds 
+Under 1 second 
+API monitoring 
+Uptime, business hours 
+99% 
+99.5% 
+Uptime monitoring 
+Capacity 
+~1,000 users 
+5,000+ 
+Load testing 
+Coverage at launch 
+Podgorica, full adopted 
+Podgorica, Bar, Budva 
+Admin coverage manager 
+Published value accuracy 
+100% expert-verified 
+Sampling regime 
+Review queue audit 
+Paid analysis orders 
+Demand demonstrated 
+Sustained volume 
+Payment provider 
+Panel views reaching financials 
+Baseline established 
+60%+ 
+Funnel tracking 
+ 
+What to watch for. If users select parcels but never scroll to the financials, the panel is too long — or the planning group 
+is answering their question on its own, which changes what the paid product should be. 
+If nobody orders the expert analysis, the problem is more likely the undefined value proposition (still undefined) than the 
+price. Fix the description before discounting. 
+If professional users report wrong planning values, stop and audit the extraction pipeline before adding coverage. One 
+wrong FAR shown to an architect costs more than three months of missing features. 
+8. Post-Prototype Additions (Not in This Build) 
+MVP: expansion to Podgorica, Bar and Budva; parcel and scenario comparison; AI feasibility engine and ML models 
+trained on planning documentation; 3D module with constraint-aware push-and-pull modelling; 3D city models and AR; 
+project model upload and sharing for architects, chief city architects and developers; user accounts and subscription tiers 
+with exportable reports, benchmarking and scenario comparison. 
+Full Montenegro: 5–8 municipalities including Podgorica, representing more than 80% of the country's construction 
+activity. The prototype's data-preparation methodology (Section 2.5) is built to be replicated across these municipalities 
+and, later, other countries. 
+MMP: Urban Modeler with prompt-based modelling and GIS import; full cadastral integration and City Information 
+Model; advanced financial modelling and bill of quantities; automated compliance reporting; revenue from data insights, 
+investment matching and advertising. 
+Market expansion: Western Balkans, then German-framework jurisdictions, then Anglo-Saxon. Pareto coverage per 
+country — the ~20% of municipalities accounting for ~80% of construction. Plus the Heritwin module for heritage 
+settlements outside planning coverage. 
+Architectural implication for this build: isolate market-specific ingestion and planning terminology from the core engine. 
+Adding a city or country should be a data and configuration exercise, not a rebuild. This is the one piece of 
+future-proofing worth paying for now. 
+9. Methodology Pipeline (User’s step-by-step when analyzing the 
+location/parcel) 
+In the following text, we will explain our steps that we use everytime we analyze a parcel for purposes of offering our 
+services or when we have contract to design the object. The methodology consists of: 
+1. Step: Searching for the specific cadastral parcel in the urban plans that also contain existing condition and planned 
+condition. First check is if the cadastral parcel is the same geometry and area as planned one - urban parcel. During 
+that research we check the ownership status of the parcel. 
+2. Step: We look for parts from urban planning PDF’s that contain specific information: 
+
+===== PAGE 11 =====
+a. Planned urban parcels - regulation and its relation to public areas 
+b. Planned urban regulation - Area envisaged for site coverage by the object, building height and number of floors, 
+linear distance from the neighboring parcels and public areas. 
+c. Planned land use within the block or area that has the same markation 
+d. Existing and planned infrastructure utilities - water, sewage, energy infrastructure, heating, access roads etc. 
+3. Step: After analyzing the parcel and the referent PDF planning document, we start designing the orthogonal 
+projection (2D view from the top) of the object to the parcel, implementing all the rules and regulations. 
+4. Step: After the design of the object we start working on 3D view and we start fitting the object into the build 
+environment. 
+5. Step: This step is the final. After we conclude that it is the design that should be presented to the Client, we prepare 
+preliminary 2D plans, 3D model and comprehensive analysis of real estate development venture. 
+6. Step: If the Client decides to go for the venture, we prepare offer and start designing. 
+ 
+A few items remain the last gate before wireframing and estimation can be finalised: the definitive Podgorica zone and 
+planning-document list with parcel counts (a reference is now available at mondarchitects.com/site-check, to be 
+confirmed against the official registry), the approved financial formulas, and payment provider verification (Stripe vs 
+Paddle). The free/paid boundary is now settled (2.7). The expanded layer set in Section 2.1 and the three revenue 
+channels also need to be reflected in the estimate and timeline. Everything else is stable. 
+ 

@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "dataset_version": "podgorica-sample-2026-09",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1,
+        "name": "Centar",
+        "general_planning_summary": "Central mixed-use quarter. One general plan (PUP) with a detailed plan (DUP) for zone C2; an amendment is in progress east of the DUP."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.250, 42.435], [19.285, 42.435], [19.285, 42.450], [19.250, 42.450], [19.250, 42.435]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2,
+        "name": "Stari Aerodrom",
+        "general_planning_summary": "Residential quarter governed by a detailed plan (DUP); the 2009 plan is superseded."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.290, 42.430], [19.300, 42.430], [19.300, 42.440], [19.290, 42.440], [19.290, 42.430]]]
+      }
+    }
+  ]
+}
