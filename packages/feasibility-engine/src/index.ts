@@ -8,11 +8,13 @@ export {
   calculate,
   expectedOf,
   recalculate,
+  selectCalculationBasis,
   withEditedExpected,
 } from "./engine.js";
 export { DECIMALS, roundHalfAwayFromZero } from "./rounding.js";
 export type {
   AssumptionsUsed,
+  CalculationArea,
   CalculationBasis,
   CostInput,
   EditableAssumptions,
@@ -26,6 +28,7 @@ export type {
   FixtureFile,
   MarketInputs,
   MarketMissingReason,
+  ParcelAreas,
   PlanningInputs,
   RangeBounds,
   RangedInput,

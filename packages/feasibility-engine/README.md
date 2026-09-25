@@ -41,7 +41,10 @@ edited.assumptions_used; // every number actually used, with its source ("market
 | roi_pct | potential_profit / total_cost × 100 |
 
 `plot_area` is the planned urban parcel area, or the cadastral area as fallback; the caller says
-which with `calculation_basis`, and the result echoes it.
+which with `calculation_basis`, and the result echoes it. `selectCalculationBasis({ planned_area,
+cadastral_area })` applies that rule to both areas (`{ plot_area, calculation_basis }`); the two
+areas, `max_height_m`, `max_floors` and `land_use` may travel in `planning` as validated context
+that no formula uses.
 
 ## Ranges (`range_derivation = "pessimistic-pairing-v1"`)
 
@@ -73,6 +76,23 @@ regenerate the file from the engine.
 Rounding: outputs and displayed assumption bounds are rounded to 2 decimals, half away from zero
 on the shortest decimal representation of the double (`1.005 → 1.01`), never intermediate
 values; `-0` becomes `0`. The Python engine uses the identical rule (`repr` + `ROUND_HALF_UP`).
+
+## The two engines cannot drift
+
+- **Fixtures** (`fixtures/feasibility-cases.json`): both engines, exact to the cent and
+  byte-identical as JSON (`test/fixtures.test.ts`, `backend/tests/test_feasibility_shared.py`,
+  and `frontend/src/lib/feasibility.test.ts`, which runs them through the package as the public
+  map imports it).
+- **Dependency snapshot** (`fixtures/assumption-dependencies.json`): for every calculate-case,
+  which figures change when one assumption is edited; every other figure must stay
+  byte-identical. Both engines are held to it (`test/dependencies.test.ts`, the Python test).
+- **Generated inputs** (`backend/tests/test_feasibility_cross_engine.py`): 680 seeded input sets
+  over the whole input space, including invalid ones, through the built bundle and the Python
+  copy; every JSON text must be identical. It skips with a reason when the bundle is missing or
+  older than `src/`.
+
+The Next.js apps depend on the workspace package (`"@urbanview/feasibility-engine": "*"`);
+`npm install` at the repo root builds `dist/` (root `prepare` script).
 
 ## Develop
 

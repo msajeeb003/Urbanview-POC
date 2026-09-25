@@ -25,6 +25,11 @@ bounds, profit low = revenue low - total cost high (high symmetrically) and ROI 
 total cost high (ROI = revenue / cost - 1 is monotone, so those are its true extremes). The three
 areas depend on no market input and are ``deterministic`` (low = expected = high).
 
+Inputs: ``planning.plot_area`` + ``calculation_basis`` feed the formulas; the optional
+``planned_area`` / ``cadastral_area`` (validated), ``max_height_m``, ``max_floors`` and
+``land_use`` are context. ``select_calculation_basis`` applies the planned-first rule to the two
+areas.
+
 Missing inputs (``None``) never produce a made-up number: the affected figures are
 ``cannot_calculate`` with a reason code, in this precedence: no plot area -> everything
 ``area_unknown``; FAR not stated -> max_gfa ``far_not_stated`` and everything derived from GFA
@@ -199,6 +204,9 @@ def _validate(inputs: JsonDict, edits: JsonDict) -> None:
         _require(
             planning["site_coverage_pct"] <= 100, "planning.site_coverage_pct must be at most 100"
         )
+    for key in ("planned_area", "cadastral_area"):
+        if planning.get(key) is not None:
+            _assert_non_negative(planning[key], f"planning.{key}")
     if market is not None:
         _validate_ranged(market["market_value_per_m2"], "market.market_value_per_m2")
         _validate_cost(market["construction_cost"], "market.construction_cost")
@@ -441,6 +449,18 @@ def _compute(inputs: JsonDict, edits: JsonDict) -> JsonDict:
         "fields": {key: fields[key] for key in FIELD_ORDER},
         "assumptions_used": assumptions_used,
     }
+
+
+def select_calculation_basis(planned_area: Any, cadastral_area: Any) -> JsonDict:
+    """The product rule for the calculation basis (``selectCalculationBasis`` in TypeScript): the
+    planned urban parcel area whenever the plan defines one, the cadastral area only as a
+    fallback; with neither the area is unknown and the basis is the fallback."""
+    for value, label in ((planned_area, "planned_area"), (cadastral_area, "cadastral_area")):
+        if value is not None:
+            _assert_non_negative(value, label)
+    if planned_area is not None:
+        return {"plot_area": planned_area, "calculation_basis": "urban"}
+    return {"plot_area": cadastral_area, "calculation_basis": "cadastral"}
 
 
 def calculate(inputs: JsonDict) -> JsonDict:

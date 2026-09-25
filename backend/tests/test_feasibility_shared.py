@@ -21,6 +21,7 @@ from core.engine.shared import (
     expected_of,
     recalculate,
     round_half_away_from_zero,
+    select_calculation_basis,
     to_json,
 )
 
@@ -108,6 +109,8 @@ def test_json_text_is_javascript_style():
         lambda i: i["market"]["market_value_per_m2"]["bounds"].__setitem__("kind", "range"),
         lambda i: i["market"].__setitem__("land_value", {}),
         lambda i: i.__setitem__("market_missing_reason", "bogus") or i.__setitem__("market", None),
+        lambda i: i["planning"].__setitem__("planned_area", -5),
+        lambda i: i["planning"].__setitem__("cadastral_area", float("inf")),
     ],
     ids=[
         "negative area",
@@ -117,6 +120,8 @@ def test_json_text_is_javascript_style():
         "bad kind",
         "empty cost",
         "bad market reason",
+        "negative planned area",
+        "infinite cadastral area",
     ],
 )
 def test_invalid_inputs_raise(mutate):
@@ -132,3 +137,66 @@ def test_invalid_edits_raise():
         recalculate(inputs, {"saleable_share": 0})
     with pytest.raises(EngineInputError):
         recalculate(inputs, {"construction_cost_per_m2": -1})
+
+
+# --- both parcel areas: the calculation basis (selectCalculationBasis in TypeScript) --------------
+
+
+def test_the_planned_area_is_the_basis_and_the_cadastral_area_the_fallback():
+    assert select_calculation_basis(959.6, 1370.9) == {
+        "plot_area": 959.6,
+        "calculation_basis": "urban",
+    }
+    assert select_calculation_basis(0, 1370.9) == {"plot_area": 0, "calculation_basis": "urban"}
+    assert select_calculation_basis(None, 1370.9) == {
+        "plot_area": 1370.9,
+        "calculation_basis": "cadastral",
+    }
+    assert select_calculation_basis(None, None) == {
+        "plot_area": None,
+        "calculation_basis": "cadastral",
+    }
+    # the same JSON text as the TypeScript object literal (key order plot_area, calculation_basis)
+    assert to_json(select_calculation_basis(959.6, None)) == (
+        '{"plot_area":959.6,"calculation_basis":"urban"}'
+    )
+    for planned, cadastral in ((-1, 10), (10, float("nan"))):
+        with pytest.raises(EngineInputError):
+            select_calculation_basis(planned, cadastral)
+
+
+def test_context_inputs_never_change_a_figure():
+    case = next(c for c in CASES if c["name"] == "up12_centar_rates")
+    inputs = copy.deepcopy(case["inputs"])
+    inputs["planning"].update(
+        planned_area=959.6,
+        cadastral_area=1370.9,
+        max_height_m=None,
+        max_floors="P+8",
+        land_use="Residential",
+    )
+    assert to_json(calculate(inputs)) == to_json(calculate(case["inputs"]))
+
+
+# --- the shared dependency snapshot (fixtures/assumption-dependencies.json) -----------------------
+
+DEPENDENCIES = json.loads(
+    (FIXTURES_PATH.parent / "assumption-dependencies.json").read_text(encoding="utf-8")
+)
+
+
+def test_dependency_snapshot_covers_every_calculate_case():
+    assert DEPENDENCIES["formula_version"] == shared.FORMULA_VERSION
+    assert list(DEPENDENCIES["cases"]) == [c["name"] for c in CASES if c["edits"] is None]
+    assert sorted(DEPENDENCIES["edits"]) == sorted(FIELD_DEPENDENCIES)
+
+
+@pytest.mark.parametrize("name", list(DEPENDENCIES["cases"]))
+def test_one_edit_changes_only_the_snapshot_figures(name: str):
+    case = next(c for c in CASES if c["name"] == name)
+    baseline = calculate(copy.deepcopy(case["inputs"]))["fields"]
+    for assumption, value in DEPENDENCIES["edits"].items():
+        edited = recalculate(copy.deepcopy(case["inputs"]), {assumption: value})["fields"]
+        changed = [k for k in FIELD_ORDER if to_json(edited[k]) != to_json(baseline[k])]
+        assert changed == DEPENDENCIES["cases"][name][assumption], (name, assumption)
+        assert set(changed) <= set(FIELD_DEPENDENCIES[assumption])

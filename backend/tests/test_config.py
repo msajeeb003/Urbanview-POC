@@ -37,6 +37,18 @@ def test_non_dev_rejects_dev_defaults(monkeypatch):
     assert "S3_ACCESS_KEY" in message
 
 
+def test_non_dev_rejects_short_admin_tokens(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@db.internal:5432/urbanview")
+    monkeypatch.setenv("S3_ACCESS_KEY", "key")
+    monkeypatch.setenv("S3_SECRET_KEY", "secret-value")
+    with pytest.raises(ValidationError, match="at least 24 characters"):
+        Settings(_env_file=None, app_env="staging", admin_api_tokens="change-me:admin:ops")
+    good = Settings(_env_file=None, app_env="staging", admin_api_tokens=f"{'a' * 32}:admin:ops")
+    assert good.admin_api_tokens is not None
+    # dev keeps short tokens for local work and tests
+    assert Settings(_env_file=None, admin_api_tokens="dev:admin").admin_api_tokens is not None
+
+
 def test_rate_limit_values_are_validated():
     with pytest.raises(ValidationError):
         Settings(_env_file=None, rate_limit_requests=0)

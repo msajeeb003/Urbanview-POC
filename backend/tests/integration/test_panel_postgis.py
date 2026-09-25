@@ -248,6 +248,7 @@ def _assert_document_ref(ref: dict[str, Any], name: str, status: str) -> None:
     assert ref["registry_url"] == REGISTRY_URL and ref["source"] == "eRegistri"
     assert ref["type"] in {"DUP", "PUP"}
     assert isinstance(ref["id"], int)
+    assert ref["adopted_on"] is None  # the sample has no adoption dates
 
 
 def _assert_common_fields(body: dict[str, Any], panel_type: str) -> None:
@@ -266,7 +267,9 @@ def _assert_stated(field: dict[str, Any], value: Any, page: int, document: str) 
     assert source is not None, field["key"]
     assert source["page"] == page and source["document_name"] == document, field["key"]
     assert source["registry_url"] == REGISTRY_URL
-    assert source["bbox_space"] == "pdf-points-bottom-left" and source["viewer_url"] is None
+    assert source["bbox_space"] == "pdf-points-bottom-left"
+    assert isinstance(source["value_id"], int)
+    assert source["viewer_url"] == f"/v1/source/value/{source['value_id']}"
     assert field["reason_code"] is None and field["formula"] is None
 
 
@@ -316,7 +319,21 @@ async def test_zone_panel_centar(pg_client):
         _assert_document_ref(d, d["name"], d["status"])
     assert [d["id"] for d in docs] == [2, 1, 3]
     assert docs[2]["amends_document_id"] == 2 and docs[0]["amends_document_id"] is None
-    assert body["counts"] == {"documents": 3, "adopted": 2, "in_progress": 1, "superseded": 0}
+    assert body["counts"] == {
+        "documents": 3,
+        "adopted": 2,
+        "in_progress": 1,
+        "superseded": 0,
+        "covered": 2,
+    }
+    assert body["zone"]["zone_type"] == "mix"
+    # what the map shows of each document: the two adopted plans resolve locations and count the
+    # cadastral parcels they cover; the amendment in progress has no coverage and no file
+    assert [(d["covered"], d["file_available"], d["parcel_count"]) for d in docs] == [
+        (True, True, 4),
+        (True, True, 5),
+        (False, False, None),
+    ]
 
 
 async def test_zone_panel_stari_aerodrom_lists_the_superseded_plan_last(pg_client):
@@ -327,7 +344,16 @@ async def test_zone_panel_stari_aerodrom_lists_the_superseded_plan_last(pg_clien
         (DUP_SA_2009, "superseded"),
     ]
     _assert_document_ref(body["planning_documents"][1], DUP_SA_2009, "superseded")
-    assert body["counts"] == {"documents": 2, "adopted": 1, "in_progress": 0, "superseded": 1}
+    assert body["counts"] == {
+        "documents": 2,
+        "adopted": 1,
+        "in_progress": 0,
+        "superseded": 1,
+        "covered": 1,
+    }
+    assert body["zone"]["zone_type"] == "res"
+    assert [d["covered"] for d in body["planning_documents"]] == [True, False]
+    assert body["planning_documents"][1]["parcel_count"] is None
 
 
 # --- document -------------------------------------------------------------------------------------
@@ -339,11 +365,26 @@ async def test_document_panel_dup_with_amendment_in_progress(pg_client):
     _assert_document_ref(body["document"], DUP_C2, "adopted")
     assert body["document"]["id"] == 2 and body["document"]["type"] == "DUP"
     assert body["document"]["ingestion_dataset_version"] == "podgorica-sample-2026-09"
+    assert body["document"]["file_available"] is True
     amendments = body["amendments_in_progress"]
     assert [a["id"] for a in amendments] == [3]
     _assert_document_ref(amendments[0], AMENDMENT, "in_progress")
     assert amendments[0]["amends_document_id"] == 2
-    assert body["zones"] == [{"id": 1, "name": "Centar"}]
+    # each zone spanned with its type and the typical values of its current parameter set
+    assert body["zones"] == [
+        {
+            "id": 1,
+            "name": "Centar",
+            "zone_type": "mix",
+            "typical": {
+                "land_use": "Residential – mixed use (ground-floor commercial)",
+                "max_far": 3.2,
+                "max_site_coverage_pct": 55.0,
+                "max_height_m": 24.0,
+                "max_floors": 7,
+            },
+        }
+    ]
     # #1042, #1043, #2001/1 and #1044 have their point on surface inside the DUP; UP 12, 13, 21,
     # 31 and 32 belong to it (UP 7 belongs to the Stari Aerodrom DUP)
     assert body["coverage_counts"] == {"cadastral_parcels": 4, "urban_parcels": 5}
@@ -355,7 +396,7 @@ async def test_document_panel_general_plan(pg_client):
     _assert_document_ref(body["document"], PUP, "adopted")
     assert body["document"]["type"] == "PUP"
     assert body["amendments_in_progress"] == []  # linked by amends_document_id only
-    assert body["zones"] == [{"id": 1, "name": "Centar"}]
+    assert [(z["id"], z["zone_type"]) for z in body["zones"]] == [(1, "mix")]
     # the four DUP parcels plus #2002, which only the general plan covers; no planned parcels
     assert body["coverage_counts"] == {"cadastral_parcels": 5, "urban_parcels": 0}
     assert body["general_planning_summary"].startswith("Central mixed-use quarter.")
@@ -366,8 +407,17 @@ async def test_document_panel_of_the_amendment_itself(pg_client):
     _assert_document_ref(body["document"], AMENDMENT, "in_progress")
     assert body["document"]["amends_document_id"] == 2
     assert body["amendments_in_progress"] == []
-    assert body["zones"] == [{"id": 1, "name": "Centar"}]
+    assert [z["name"] for z in body["zones"]] == ["Centar"]
+    assert body["document"]["file_available"] is False
     assert body["coverage_counts"] == {"cadastral_parcels": 1, "urban_parcels": 0}  # #3005
+
+
+async def test_document_panel_zone_without_a_parameter_set(pg_client):
+    body = await _get(pg_client, type="document", id=4)
+    assert body["document"]["name"] == DUP_SA
+    assert body["zones"] == [
+        {"id": 2, "name": "Stari Aerodrom", "zone_type": "res", "typical": None}
+    ]
 
 
 # --- cadastral ------------------------------------------------------------------------------------
@@ -1244,7 +1294,10 @@ async def test_document_no_longer_adopted_is_uncovered(pg_conn, pg_client, pg_se
                 "adopted": 0,
                 "in_progress": 0,
                 "superseded": 2,
+                "covered": 0,
             }
+            # the zone panel lists nothing the map covers any more
+            assert [d["covered"] for d in zone["planning_documents"]] == [False, False]
         # nothing is cached: the client created before the change sees it too
         after = await _get(pg_client, type="urban", id=3)
         assert after["covered"] is False and after["planning"] is None
@@ -1271,9 +1324,9 @@ async def test_without_a_current_publish_version_the_panel_is_unpublished(pg_con
             assert urban["header"]["data_version_date"] is None
             assert urban["assumptions"]["data_version"] == "unpublished"
             assert urban["assumptions"]["data_version_date"] is None
-            # whatever serving rows exist are still rendered
-            assert [f["status"] for f in urban["planning"]["fields"]][:11] == ["stated"] * 11
-            assert _feasibility(urban)["roi_pct"]["status"] == "ok"
+            # serving rows belong to a publish version: with none current, nothing is served
+            assert [f["status"] for f in urban["planning"]["fields"]][:11] == ["not_stated"] * 11
+            assert _feasibility(urban)["roi_pct"]["status"] == "cannot_calculate"
     finally:
         await _execute(
             pg_conn,

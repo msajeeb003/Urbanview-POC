@@ -1,0 +1,20 @@
+# Ignore rules for frontend/Dockerfile (build context = the repository root; the root
+# .dockerignore is the backend images' and leaves the frontend out).
+.git
+.claude
+**/node_modules
+**/.next
+**/.venv
+**/.env
+**/.env.*
+!**/.env.example
+backend
+database
+docs
+admin
+deploy
+packages/*/dist
+packages/*/coverage
+frontend/public/map
+frontend/public/pdfjs
+frontend/openapi.json

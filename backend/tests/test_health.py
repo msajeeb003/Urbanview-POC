@@ -41,3 +41,12 @@ async def test_access_log_has_route_template_status_and_latency(client, caplog):
     assert record.duration_ms >= 0
     assert record.slow is False
     assert record.request_id == r.headers["X-Request-ID"]
+    assert record.session_id is None
+
+
+async def test_access_log_carries_a_well_formed_session_id_only(client, caplog):
+    with caplog.at_level(logging.INFO, logger="urbanview.http"):
+        await client.get("/health", headers={"X-Session-ID": "a1B2c3D4e5F6g7H8"})
+        await client.get("/health", headers={"X-Session-ID": "not a session <id>"})
+    records = [rec for rec in caplog.records if rec.name == "urbanview.http"]
+    assert [rec.session_id for rec in records] == ["a1B2c3D4e5F6g7H8", None]

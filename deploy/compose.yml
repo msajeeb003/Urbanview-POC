@@ -1,0 +1,184 @@
+# UrbanView on one server (Hetzner Cloud): Caddy (HTTPS) in front of the public map, the API and
+# the file bucket; worker, PostGIS, Redis and MinIO on the internal network only (no host ports).
+#
+#   docker compose -f deploy/compose.yml --env-file deploy/.env up -d --build
+#
+# Settings: deploy/.env (copy deploy/.env.example). Step by step: deploy/README.md.
+name: urbanview
+
+x-app-env: &app-env
+  APP_ENV: ${APP_ENV:-staging}
+  DATABASE_URL: postgresql+asyncpg://urbanview:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/urbanview
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/1
+  CELERY_RESULT_BACKEND: redis://redis:6379/2
+  S3_ENDPOINT_URL: http://minio:9000
+  S3_PUBLIC_ENDPOINT_URL: https://${FILES_DOMAIN:?set FILES_DOMAIN}
+  S3_BUCKET: ${S3_BUCKET:-urbanview}
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+  S3_USE_PATH_STYLE: "true"
+  CORS_ORIGINS: https://${SITE_DOMAIN:?set SITE_DOMAIN}
+  # Caddy is the only way in: client addresses come from X-Forwarded-For (rate limiting)
+  TRUST_PROXY_HEADERS: "true"
+  ORDER_PUBLIC_BASE_URL: https://${SITE_DOMAIN}
+  ADMIN_BASE_URL: https://${SITE_DOMAIN}
+
+x-app-build: &app-build
+  context: ..
+  dockerfile: backend/Dockerfile
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
+      FILES_DOMAIN: ${FILES_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+      - minio
+
+  # Public map (frontend/Dockerfile). NEXT_PUBLIC_* are baked into the browser bundle at build time:
+  # change them in .env, then rebuild (`deploy/deploy.sh` does).
+  web:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://${API_DOMAIN}
+        NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN:-}
+        NEXT_PUBLIC_MAPBOX_STYLE: ${NEXT_PUBLIC_MAPBOX_STYLE:-mapbox://styles/mapbox/light-v11}
+        NEXT_PUBLIC_MARKET_DATA_FREE: ${NEXT_PUBLIC_MARKET_DATA_FREE:-false}
+        NEXT_PUBLIC_ANALYTICS_ENABLED: ${NEXT_PUBLIC_ANALYTICS_ENABLED:-true}
+        NEXT_PUBLIC_DEFAULT_LANG: ${NEXT_PUBLIC_DEFAULT_LANG:-en}
+    restart: unless-stopped
+    environment:
+      # server-side fetches (profile, tile pointer) go straight to the API container
+      API_INTERNAL_BASE_URL: http://api:8000
+    depends_on:
+      - api
+
+  # One-shot: applies Alembic migrations before the api / worker start (every `up`).
+  migrate:
+    build: *app-build
+    command: alembic -c /app/database/alembic.ini upgrade head
+    env_file: .env
+    environment: *app-env
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: *app-build
+    command: >
+      uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 2
+      --proxy-headers --forwarded-allow-ips=*
+    restart: unless-stopped
+    env_file: .env
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  # Celery on every queue: e-mails, publish job (tippecanoe), extraction / geometry when they land.
+  worker:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile.worker
+    command: celery -A jobs.celery_app worker --loglevel=info --concurrency=2 -Q default,extraction,geo,publish,email
+    restart: unless-stopped
+    env_file: .env
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: urbanview
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: urbanview
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U urbanview -d urbanview"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Private bucket for planning PDFs, map tile archives and expert reports. Browsers only ever get
+  # short-lived signed links (https://FILES_DOMAIN/…, through Caddy).
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # PDF.js and PMTiles read with Range requests from the map's origin
+      MINIO_API_CORS_ALLOW_ORIGIN: https://${SITE_DOMAIN}
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:latest
+    restart: "no"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET:-urbanview}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\" &&
+      mc mb --ignore-existing \"local/$$S3_BUCKET\" &&
+      echo \"bucket $$S3_BUCKET ready\"
+      "
+    depends_on:
+      minio:
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pgdata:
+  redisdata:
+  miniodata:

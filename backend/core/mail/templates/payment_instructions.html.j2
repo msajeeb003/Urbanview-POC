@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="sr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2933;line-height:1.5;">
+<div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;padding:28px;">
+  <p style="margin:0 0 20px;font-size:18px;font-weight:bold;color:#0b3d5c;">{{ app_name }}</p>
+
+  <p>Poštovani/a {{ first_name }},</p>
+  <p>Hvala na narudžbi stručne analize za <strong>{{ location }}</strong>.</p>
+  <p>Broj narudžbe: <strong>{{ reference }}</strong><br>
+     Cijena: <strong>{{ price_eur | money }} {{ currency }}</strong> (jednokratno)</p>
+  <p>{{ note_me }}</p>
+  <table style="border-collapse:collapse;margin:12px 0;" cellpadding="6">
+    <tr><td style="color:#52606d;">Primalac</td><td>{{ beneficiary }}</td></tr>
+    <tr><td style="color:#52606d;">IBAN</td><td>{{ iban }}</td></tr>
+    {% if bank_name %}<tr><td style="color:#52606d;">Banka</td><td>{{ bank_name }}</td></tr>{% endif %}
+    {% if swift %}<tr><td style="color:#52606d;">SWIFT</td><td>{{ swift }}</td></tr>{% endif %}
+    <tr><td style="color:#52606d;">Iznos</td><td>{{ amount_eur | money }} {{ currency }}</td></tr>
+    <tr><td style="color:#52606d;">Poziv na broj</td><td><strong>{{ reference_to_quote }}</strong></td></tr>
+  </table>
+  <p>Rok izrade: do {{ turnaround_business_days }} radnih dana od prijema uplate
+     (očekivano do {{ expected_by | date_short }} ako uplatite danas).</p>
+  <p><a href="{{ status_url }}" style="color:#0b6e8f;">Status narudžbe</a> · Pitanja: <a href="mailto:{{ support_email }}" style="color:#0b6e8f;">{{ support_email }}</a></p>
+
+  <hr style="border:0;border-top:1px solid #e4e7eb;margin:24px 0;">
+
+  <p>Dear {{ first_name }},</p>
+  <p>Thank you for ordering an expert analysis of <strong>{{ location }}</strong>.</p>
+  <p>Order reference: <strong>{{ reference }}</strong><br>
+     Price: <strong>{{ price_eur | money }} {{ currency }}</strong> (one-off)</p>
+  <p>{{ note_en }}</p>
+  <table style="border-collapse:collapse;margin:12px 0;" cellpadding="6">
+    <tr><td style="color:#52606d;">Beneficiary</td><td>{{ beneficiary }}</td></tr>
+    <tr><td style="color:#52606d;">IBAN</td><td>{{ iban }}</td></tr>
+    {% if bank_name %}<tr><td style="color:#52606d;">Bank</td><td>{{ bank_name }}</td></tr>{% endif %}
+    {% if swift %}<tr><td style="color:#52606d;">SWIFT</td><td>{{ swift }}</td></tr>{% endif %}
+    <tr><td style="color:#52606d;">Amount</td><td>{{ amount_eur | money }} {{ currency }}</td></tr>
+    <tr><td style="color:#52606d;">Payment reference</td><td><strong>{{ reference_to_quote }}</strong></td></tr>
+  </table>
+  <p>Turnaround: within {{ turnaround_business_days }} business days after the payment is received
+     (expected by {{ expected_by | date_short }} if paid today).</p>
+  <p><a href="{{ status_url }}" style="color:#0b6e8f;">Track your order</a> · Questions: <a href="mailto:{{ support_email }}" style="color:#0b6e8f;">{{ support_email }}</a></p>
+</div>
+</body>
+</html>

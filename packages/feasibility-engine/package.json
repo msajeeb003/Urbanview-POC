@@ -14,7 +14,7 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./fixtures/feasibility-cases.json": "./fixtures/feasibility-cases.json",
+    "./fixtures/*": "./fixtures/*",
     "./package.json": "./package.json"
   },
   "files": [

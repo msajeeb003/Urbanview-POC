@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="sr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2933;line-height:1.5;">
+<div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;padding:28px;">
+  <p style="margin:0 0 20px;font-size:18px;font-weight:bold;color:#0b3d5c;">{{ app_name }}</p>
+
+  <p>Poštovani/a {{ first_name }},</p>
+  <p>Vaša stručna analiza za <strong>{{ location }}</strong> je gotova.</p>
+  <p>Broj narudžbe: <strong>{{ reference }}</strong></p>
+  <p><a href="{{ download_url }}" style="display:inline-block;padding:10px 18px;background:#0b6e8f;color:#ffffff;text-decoration:none;border-radius:6px;">Preuzmi izvještaj (PDF)</a></p>
+  <p style="color:#52606d;">Link važi do {{ expires_at | datetime_utc }}. Ako je istekao, pišite nam na
+     <a href="mailto:{{ support_email }}" style="color:#0b6e8f;">{{ support_email }}</a> i poslaćemo novi.</p>
+  <p><a href="{{ status_url }}" style="color:#0b6e8f;">Status narudžbe</a></p>
+
+  <hr style="border:0;border-top:1px solid #e4e7eb;margin:24px 0;">
+
+  <p>Dear {{ first_name }},</p>
+  <p>Your expert analysis of <strong>{{ location }}</strong> is ready.</p>
+  <p>Order reference: <strong>{{ reference }}</strong></p>
+  <p><a href="{{ download_url }}" style="display:inline-block;padding:10px 18px;background:#0b6e8f;color:#ffffff;text-decoration:none;border-radius:6px;">Download the report (PDF)</a></p>
+  <p style="color:#52606d;">The link is valid until {{ expires_at | datetime_utc }}. If it has expired, write to
+     <a href="mailto:{{ support_email }}" style="color:#0b6e8f;">{{ support_email }}</a> and we will send a new one.</p>
+  <p><a href="{{ status_url }}" style="color:#0b6e8f;">Track your order</a></p>
+</div>
+</body>
+</html>

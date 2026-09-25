@@ -1,0 +1,22 @@
+# HTTPS for the three public names (certificates from Let's Encrypt, renewed by Caddy; no account
+# e-mail needed). The names come from deploy/.env (SITE_DOMAIN, API_DOMAIN, FILES_DOMAIN); each
+# needs a DNS A record (and AAAA for IPv6) pointing at the server, or an sslip.io name.
+
+# The public map (Next.js).
+{$SITE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+# The API (FastAPI). Caddy replaces any X-Forwarded-For the client sent, so the API's rate
+# limiter sees the real client address.
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:8000
+}
+
+# Signed links into the private bucket (planning PDFs, map tiles, expert reports). The Host header
+# is passed through unchanged, which the link's signature covers.
+{$FILES_DOMAIN} {
+	reverse_proxy minio:9000
+}

@@ -1,0 +1,126 @@
+{
+  "$comment": "Snapshot of which of the ten figures change when a visitor edits ONE assumption: recalculate(inputs, {assumption: value}) compared with calculate(inputs), for every calculate-case of feasibility-cases.json. Both engines are held to it (packages/feasibility-engine/test/dependencies.test.ts, backend/tests/test_feasibility_shared.py). It follows from the formulas: the saleable share feeds saleable_area -> market_value -> potential_profit -> roi_pct; the construction rate feeds construction_costs -> total_cost -> potential_profit -> roi_pct; the selling price feeds market_value -> potential_profit -> roi_pct; nothing rescues a figure that cannot be calculated, and a zero GFA makes every GFA-based figure insensitive. Every unlisted figure must stay byte-identical. Review a change here as carefully as a formula change.",
+  "formula_version": "poc-1",
+  "edits": {
+    "saleable_share": 0.8,
+    "construction_cost_per_m2": 700,
+    "market_value_per_m2": 2600
+  },
+  "cases": {
+    "up12_centar_rates": {
+      "saleable_share": [
+        "saleable_area",
+        "market_value",
+        "potential_profit",
+        "roi_pct"
+      ],
+      "construction_cost_per_m2": [
+        "construction_costs",
+        "total_cost",
+        "potential_profit",
+        "roi_pct"
+      ],
+      "market_value_per_m2": [
+        "market_value",
+        "potential_profit",
+        "roi_pct"
+      ]
+    },
+    "client_style_absolute_inputs": {
+      "saleable_share": [
+        "saleable_area",
+        "market_value",
+        "potential_profit",
+        "roi_pct"
+      ],
+      "construction_cost_per_m2": [
+        "construction_costs",
+        "total_cost",
+        "potential_profit",
+        "roi_pct"
+      ],
+      "market_value_per_m2": [
+        "market_value",
+        "potential_profit",
+        "roi_pct"
+      ]
+    },
+    "far_not_stated": {
+      "saleable_share": [],
+      "construction_cost_per_m2": [],
+      "market_value_per_m2": []
+    },
+    "coverage_not_stated": {
+      "saleable_share": [
+        "saleable_area",
+        "market_value",
+        "potential_profit",
+        "roi_pct"
+      ],
+      "construction_cost_per_m2": [
+        "construction_costs",
+        "total_cost",
+        "potential_profit",
+        "roi_pct"
+      ],
+      "market_value_per_m2": [
+        "market_value",
+        "potential_profit",
+        "roi_pct"
+      ]
+    },
+    "no_market_data": {
+      "saleable_share": [
+        "saleable_area"
+      ],
+      "construction_cost_per_m2": [],
+      "market_value_per_m2": []
+    },
+    "no_market_zone_unknown": {
+      "saleable_share": [
+        "saleable_area"
+      ],
+      "construction_cost_per_m2": [],
+      "market_value_per_m2": []
+    },
+    "area_unknown": {
+      "saleable_share": [],
+      "construction_cost_per_m2": [],
+      "market_value_per_m2": []
+    },
+    "zero_area_total_cost_zero": {
+      "saleable_share": [],
+      "construction_cost_per_m2": [],
+      "market_value_per_m2": []
+    },
+    "far_missing_takes_precedence_over_missing_market": {
+      "saleable_share": [],
+      "construction_cost_per_m2": [],
+      "market_value_per_m2": []
+    },
+    "negative_profit": {
+      "saleable_share": [
+        "saleable_area",
+        "market_value",
+        "potential_profit",
+        "roi_pct"
+      ],
+      "construction_cost_per_m2": [
+        "construction_costs",
+        "total_cost",
+        "potential_profit",
+        "roi_pct"
+      ],
+      "market_value_per_m2": [
+        "market_value",
+        "potential_profit",
+        "roi_pct"
+      ]
+    },
+    "stated_zero_far": {
+      "saleable_share": [],
+      "construction_cost_per_m2": [],
+      "market_value_per_m2": []
+    }
+  }
+}

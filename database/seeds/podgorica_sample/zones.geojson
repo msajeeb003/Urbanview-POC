@@ -7,6 +7,7 @@
       "properties": {
         "id": 1,
         "name": "Centar",
+        "zone_type": "mix",
         "general_planning_summary": "Central mixed-use quarter. One general plan (PUP) with a detailed plan (DUP) for zone C2; an amendment is in progress east of the DUP."
       },
       "geometry": {
@@ -19,6 +20,7 @@
       "properties": {
         "id": 2,
         "name": "Stari Aerodrom",
+        "zone_type": "res",
         "general_planning_summary": "Residential quarter governed by a detailed plan (DUP); the 2009 plan is superseded."
       },
       "geometry": {

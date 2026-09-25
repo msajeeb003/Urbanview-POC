@@ -1,0 +1,69 @@
+/*
+ * Tailwind v4 WITHOUT Preflight. Preflight would change the approved design: it sets
+ * `html { line-height: 1.5 }` (the wireframe relies on `normal`), makes every `svg` a block (the
+ * wireframe's inline icons sit in running text) and resets heading weights. The wireframe ships
+ * its own reset in `src/styles/wireframe.css`, which is imported after this file and is
+ * unlayered, so it wins over every Tailwind layer: utilities are for layout glue only.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+
+/*
+ * Design tokens as Tailwind theme values. The CSS variables themselves are declared by the
+ * wireframe stylesheet (`:root` in wireframe.css) and are the single source of truth; `inline`
+ * makes the utilities reference them (`bg-paper`, `text-ink-2`, `border-line`, `font-mono` …).
+ */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-line: var(--line);
+  --color-white: var(--white);
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-tint: var(--brand-tint);
+  --color-paid: var(--paid);
+  --color-paid-dark: var(--paid-dark);
+  --color-paid-tint: var(--paid-tint);
+  --color-danger: var(--danger);
+  --color-z-res: var(--z-res);
+  --color-z-com: var(--z-com);
+  --color-z-mix: var(--z-mix);
+  --color-z-pub: var(--z-pub);
+  --color-z-grn: var(--z-grn);
+  --color-topbar: #241b12;
+
+  --font-sans: var(--body);
+  --font-display: var(--disp);
+  --font-mono: var(--mono);
+
+  --radius-sm: var(--r);
+  --radius-md: var(--r);
+  --radius-lg: var(--r-lg);
+
+  --shadow-sm: var(--shadow);
+  --shadow-lg: var(--shadow-lg);
+
+  /* shadcn/ui semantic colours, mapped onto the wireframe palette */
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-card: var(--white);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--white);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--white);
+  --color-secondary: var(--paper-2);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--paper-2);
+  --color-muted-foreground: var(--ink-2);
+  --color-accent: var(--brand-tint);
+  --color-accent-foreground: var(--brand-dark);
+  --color-destructive: var(--danger);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--brand);
+}

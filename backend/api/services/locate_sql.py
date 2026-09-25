@@ -64,6 +64,7 @@ doc AS (
     FROM planning_documents d, anchor a
     WHERE d.municipality_id = :municipality_id
       AND d.status = 'adopted'
+      AND d.coverage_live
       AND ST_Intersects(d.coverage_geom, a.pt)
     ORDER BY ST_Area(d.coverage_geom) ASC, d.id DESC
     LIMIT 1
@@ -89,7 +90,7 @@ ups AS (
            (u.document_id = (SELECT id FROM doc)) AS governing
     FROM up_candidates uc
     JOIN urban_parcels u ON u.id = uc.id
-    JOIN planning_documents d ON d.id = u.document_id AND d.status = 'adopted'
+    JOIN planning_documents d ON d.id = u.document_id AND d.status = 'adopted' AND d.coverage_live
     LEFT JOIN urban_blocks b ON b.id = u.block_id
     CROSS JOIN anchor a
 ),

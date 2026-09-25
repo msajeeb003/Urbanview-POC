@@ -4,6 +4,9 @@
 - Adds ``X-Request-ID``, ``Server-Timing`` and ``X-Response-Time`` to every response.
 - Logs one access line per request with method, route template, status and latency; WARNING when
   slower than ``slow_request_ms`` (product target: under two seconds from query to populated panel).
+- The public map sends its anonymous analytics session id (``X-Session-ID``, the id its events
+  carry; random, never personal) on every call: a well-formed one goes into the access line and
+  ``scope["state"]["session_id"]``, anything else is ignored.
 """
 
 from __future__ import annotations
@@ -21,7 +24,9 @@ from core.context import request_id_var
 log = logging.getLogger("urbanview.http")
 
 REQUEST_ID_HEADER = "X-Request-ID"
+SESSION_ID_HEADER = "X-Session-ID"
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+_SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")  # the analytics id format (``POST /v1/events``)
 
 
 def route_template(scope: Scope) -> str:
@@ -54,9 +59,14 @@ class RequestContextMiddleware:
             await self.app(scope, receive, send)
             return
 
-        incoming = Headers(scope=scope).get(REQUEST_ID_HEADER)
+        headers_in = Headers(scope=scope)
+        incoming = headers_in.get(REQUEST_ID_HEADER)
         request_id = incoming if incoming and _SAFE_ID.match(incoming) else uuid.uuid4().hex
-        scope.setdefault("state", {})["request_id"] = request_id
+        session = headers_in.get(SESSION_ID_HEADER)
+        session_id = session if session and _SESSION_ID.match(session) else None
+        state = scope.setdefault("state", {})
+        state["request_id"] = request_id
+        state["session_id"] = session_id
         token = request_id_var.set(request_id)
         started = time.perf_counter()
         status_code: int | None = None
@@ -95,6 +105,7 @@ class RequestContextMiddleware:
                     "status": status_code,
                     "duration_ms": round(elapsed_ms, 1),
                     "slow": slow,
+                    "session_id": session_id,
                 },
             )
             request_id_var.reset(token)

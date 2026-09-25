@@ -21,16 +21,27 @@ dependencies = [
   "redis>=5.0",
   "celery[redis]>=5.4",
   "boto3>=1.34",
+  "httpx>=0.27",
+  "python-multipart>=0.0.9",
+  "pypdf>=4.0",
+  "jinja2>=3.1",
 ]
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8.2",
   "pytest-asyncio>=0.23",
-  "httpx>=0.27",
   "fakeredis>=2.23",
   "ruff>=0.5",
   "poethepoet>=0.27",
+  "flower>=2.0",
+]
+# GIS track (core.gis): PDF drawing inspection / extraction and geometry sampling. GDAL's
+# ogrinfo (for DWG / DXF / SHP / GeoPackage) is a system binary: gdal-bin in the worker image,
+# the portable PostGIS bundle on Windows dev machines.
+gis = [
+  "pymupdf>=1.24",
+  "shapely>=2.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -48,11 +59,14 @@ filterwarnings = ["ignore::DeprecationWarning"]
 # Cross-platform task runner (for machines without `make`). Run from backend/.
 [tool.poe.tasks]
 run = "uvicorn api.main:app --reload --host 0.0.0.0 --port 8000"
-worker = "celery -A jobs.celery_app worker --loglevel=info -Q default,gis,extraction,publish"
+worker = "celery -A jobs.celery_app worker --loglevel=info -Q default,extraction,geo,publish,email"
+flower = "celery -A jobs.celery_app flower --port=5555"
 migrate = "alembic -c ../database/alembic.ini upgrade head"
 migration = "alembic -c ../database/alembic.ini revision --autogenerate -m"
 downgrade = "alembic -c ../database/alembic.ini downgrade -1"
 seed = "python -m core.seeds podgorica_sample"
+openapi = "python -m api.export_openapi ../frontend/openapi.json"
+gis-assess = "python -m core.gis.assess ../docs/gis/source/catalog.toml --out ../docs/gis/assessment"
 test = "pytest -q --ignore=tests/integration"
 test-integration = "pytest -q tests/integration"
 test-all = "pytest -q"

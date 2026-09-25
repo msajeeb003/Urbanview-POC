@@ -38,6 +38,7 @@
 import { DECIMALS, roundHalfAwayFromZero } from "./rounding.js";
 import type {
   AssumptionsUsed,
+  CalculationArea,
   CostInput,
   EditedAssumptions,
   EngineInputs,
@@ -45,6 +46,7 @@ import type {
   FieldKey,
   FieldRange,
   MarketMissingReason,
+  ParcelAreas,
   RangedInput,
   ReasonCode,
   Unit,
@@ -158,6 +160,10 @@ function validateInputs(inputs: EngineInputs, edits: EditedAssumptions): void {
   if (planning.site_coverage_pct !== null) {
     assertNonNegative(planning.site_coverage_pct, "planning.site_coverage_pct");
     assert(planning.site_coverage_pct <= 100, "planning.site_coverage_pct must be at most 100");
+  }
+  for (const key of ["planned_area", "cadastral_area"] as const) {
+    const area = planning[key];
+    if (area !== undefined && area !== null) assertNonNegative(area, `planning.${key}`);
   }
   if (market !== null) {
     validateRanged(market.market_value_per_m2, "market.market_value_per_m2");
@@ -424,6 +430,22 @@ function compute(inputs: EngineInputs, edits: EditedAssumptions): EngineResult {
     fields: ordered,
     assumptions_used: assumptionsUsed,
   };
+}
+
+/**
+ * The product rule for the calculation basis: the planned urban parcel area whenever the plan
+ * defines one, the cadastral area only as a fallback (a stated 0 is a real 0). With neither the
+ * area is unknown and the basis is the fallback. The Python copy is `select_calculation_basis`.
+ */
+export function selectCalculationBasis(areas: ParcelAreas): CalculationArea {
+  for (const key of ["planned_area", "cadastral_area"] as const) {
+    const area = areas[key];
+    if (area !== null) assertNonNegative(area, key);
+  }
+  if (areas.planned_area !== null) {
+    return { plot_area: areas.planned_area, calculation_basis: "urban" };
+  }
+  return { plot_area: areas.cadastral_area, calculation_basis: "cadastral" };
 }
 
 /** Run the formulas with the defaults (saleable share 0.70, market rates). Pure and deterministic. */

@@ -15,6 +15,7 @@ the paid blocks without entitlement checks.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
@@ -54,6 +55,7 @@ class DocumentRef(BaseModel):
     source: str | None = None
     registry_url: str | None = Field(default=None, description="planning_documents.source_url")
     amends_document_id: int | None = None
+    adopted_on: date | None = Field(default=None, description="Adoption date, when known")
 
 
 class HeaderDocumentRef(DocumentRef):
@@ -62,6 +64,20 @@ class HeaderDocumentRef(DocumentRef):
 
 class DocumentDetail(DocumentRef):
     ingestion_dataset_version: str | None = None
+    file_available: bool = Field(default=False, description="The source PDF is stored")
+
+
+class ZonePlanningDocument(DocumentRef):
+    """A document in the zone panel's list, with what the map can show of it."""
+
+    covered: bool = Field(
+        default=False, description="Adopted, live, current version with a coverage geometry"
+    )
+    file_available: bool = Field(default=False, description="The source PDF is stored")
+    parcel_count: int | None = Field(
+        default=None,
+        description="Cadastral parcels (point on surface) in the coverage; null = not covered",
+    )
 
 
 class ZoneRef(BaseModel):
@@ -70,7 +86,27 @@ class ZoneRef(BaseModel):
 
 
 class ZoneDetail(ZoneRef):
+    zone_type: str | None = Field(
+        default=None, description="res | com | mix | pub | grn; null = not classified"
+    )
     general_planning_summary: str | None = None
+
+
+class ZoneTypicalSummary(BaseModel):
+    land_use: str | None = None
+    max_far: float | None = None
+    max_site_coverage_pct: float | None = None
+    max_height_m: float | None = None
+    max_floors: int | None = None
+
+
+class DocumentZone(ZoneRef):
+    """A zone the document's coverage spans, with its type and typical values (if any)."""
+
+    zone_type: str | None = None
+    typical: ZoneTypicalSummary | None = Field(
+        default=None, description="The zone's current parameter set, or null"
+    )
 
 
 class BlockRef(BaseModel):
@@ -132,7 +168,12 @@ class Source(BaseModel):
     bbox_space: Literal["pdf-points-bottom-left"] = "pdf-points-bottom-left"
     note: str | None = None
     registry_url: str | None = None
-    viewer_url: None = Field(default=None, description="Reserved for the source viewer")
+    value_id: int | None = Field(default=None, description="planning_parameter_values.id")
+    viewer_url: str | None = Field(
+        default=None,
+        description="API path answering with a short-lived signed URL to the cited page: "
+        "GET /v1/source/value/{value_id}",
+    )
 
 
 class PlanningField(BaseModel):
@@ -166,6 +207,31 @@ class PlanningBlock(BaseModel):
     not_stated_label: Label
 
 
+class RateRange(BaseModel):
+    expected: float
+    low: float
+    high: float
+    kind: Literal["absolute", "multiplier"] = Field(
+        description="absolute: admin bounds on the row; multiplier: expected × range factors"
+    )
+
+
+class AssumptionsVersion(BaseModel):
+    """Which financial_assumptions row (version) produced the figures."""
+
+    id: int
+    version: int
+    zone_id: int | None = Field(default=None, description="null = municipality-wide default row")
+    effective_from: str | None = Field(default=None, description="created_at of that version")
+
+
+class MarketRanges(BaseModel):
+    land_rate: RateRange
+    build_rate: RateRange
+    design_rate: RateRange
+    sale_rate: RateRange
+
+
 class MarketInputsBlock(BaseModel):
     tier: Literal["paid"] = "paid"
     available: bool
@@ -183,6 +249,10 @@ class MarketInputsBlock(BaseModel):
     source_date: str | None = None
     effective_from: str | None = Field(
         default=None, description="created_at of the current market row (ISO 8601)"
+    )
+    version: AssumptionsVersion | None = None
+    ranges: MarketRanges | None = Field(
+        default=None, description="Per-rate low / expected / high as the engine used them"
     )
 
 
@@ -210,6 +280,7 @@ class AssumptionsBlock(BaseModel):
     sources: RateSources
     market_source: str | None = None
     market_source_date: str | None = None
+    market_version: AssumptionsVersion | None = None
     formula_version: str
     data_version: str
     data_version_date: str | None = None
@@ -276,16 +347,47 @@ class DocumentCounts(BaseModel):
     adopted: int
     in_progress: int
     superseded: int
+    covered: int = Field(default=0, description="Documents that resolve locations on the map")
+
+
+class ZoneTypicalSource(BaseModel):
+    document_id: int
+    document_name: str | None = None
+    page: int | None = None
+    note: str | None = None
+    registry_url: str | None = None
+
+
+class ZoneTypicalParameters(BaseModel):
+    """The zone's typical planning values (staff-maintained, versioned): fallback figures for
+    the zone panel; a parcel's own document values always take precedence."""
+
+    id: int
+    version: int
+    land_use: str | None = None
+    max_far: float | None = None
+    max_site_coverage_pct: float | None = None
+    max_height_m: float | None = None
+    max_floors: int | None = None
+    notes: str | None = None
+    source: ZoneTypicalSource | None = None
+    verified_on: str | None = None
+    verified_by: str | None = None
+    note_en: str
+    note_me: str
 
 
 class ZonePanel(PanelBase):
     type: Literal["zone"] = "zone"
     zone: ZoneDetail
     header: ZoneHeader
-    planning_documents: list[DocumentRef] = Field(
-        description="Adopted first, then in progress, then superseded; name asc within status"
+    planning_documents: list[ZonePlanningDocument] = Field(
+        description="Current versions: adopted first, then in progress, then superseded; name asc"
     )
     counts: DocumentCounts
+    typical_parameters: ZoneTypicalParameters | None = Field(
+        default=None, description="The zone's current parameter set, or null"
+    )
 
 
 class CoverageCounts(BaseModel):
@@ -299,7 +401,7 @@ class DocumentPanel(PanelBase):
     amendments_in_progress: list[DocumentRef] = Field(
         description="amends_document_id = id AND status = in_progress, name asc"
     )
-    zones: list[ZoneRef] = Field(
+    zones: list[DocumentZone] = Field(
         description="zone_id plus zones whose geometry intersects the coverage, name asc"
     )
     coverage_counts: CoverageCounts
@@ -341,6 +443,22 @@ class CadastralIdentification(BaseModel):
     zone: ZoneRef | None = None
 
 
+class PanelEngine(BaseModel):
+    """The shared engine's exact inputs behind ``feasibility``: ``calculate(inputs)`` in the browser
+    gives the same figures, ``recalculate(inputs, edits)`` applies a visitor's edits (keys of
+    ``edit_keys``) without a server round trip."""
+
+    engine_version: str
+    formula_version: str
+    range_derivation: str
+    deterministic: Literal[True] = True
+    inputs: dict[str, Any]
+    edit_keys: dict[str, str] = Field(description="Assumption key -> engine edit key")
+    field_keys: dict[str, str] = Field(
+        description="Feasibility figure key (fields, cost_rows) -> engine result field key"
+    )
+
+
 class CadastralPanel(PanelBase):
     type: Literal["cadastral"] = "cadastral"
     identification: CadastralIdentification
@@ -359,6 +477,7 @@ class CadastralPanel(PanelBase):
     market_inputs: MarketInputsBlock | None = None
     assumptions: AssumptionsBlock | None = None
     feasibility: FeasibilityBlock | None = None
+    engine: PanelEngine | None = None
     covered: bool = Field(description="False when no adopted document governs the parcel")
     coverage_note_en: str | None = None
     coverage_note_me: str | None = None
@@ -404,6 +523,7 @@ class UrbanPanel(PanelBase):
     market_inputs: MarketInputsBlock | None = None
     assumptions: AssumptionsBlock | None = None
     feasibility: FeasibilityBlock | None = None
+    engine: PanelEngine | None = None
     centroid: LatLng
     geometry: dict[str, Any] = Field(description="GeoJSON geometry, EPSG:4326")
 

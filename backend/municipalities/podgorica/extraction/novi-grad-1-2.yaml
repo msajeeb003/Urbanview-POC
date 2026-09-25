@@ -1,0 +1,108 @@
+# Extraction rules: DUP "Novi Grad 1 i 2" (izmjene i dopune), build plan ticket 07.
+#
+# Written with `python -m core.gis.extract styles` and the geometry assessment
+# (docs/gis/assessment). Manual fixes go in this file (offsets, excluded regions, label
+# overrides), never into the extracted data. Paths are relative to docs/gis/source for the CLI;
+# the geometry job finds each sheet by its SHA-256 among the stored files.
+document:
+  id: novi-grad-1-2
+  name: DUP Novi Grad 1 i 2 – izmjene i dopune
+  registry: eRegistri (lamp.gov.me), DUP Novi Grad 1 i 2
+
+sheets:
+  - id: parcels
+    file: 02 Novi Grad 1 i 2/Novi Grad 1 i 2 - Urban parcels - Boundaries.pdf
+    sha256: 9e8f18274613215a23ba09c9cd0d6c79c94b16143e619503f080d11391ead4e7
+    # the PDF viewport says 1:776; 68 grid crosses 100 mm apart prove the stated 1:1000
+    scale: 1000
+    layers: [plan_boundary, urban_parcels, urban_blocks, planned_traffic]
+  - id: land-use
+    file: 02 Novi Grad 1 i 2/Novi Grad 1 i 2 - Land use.pdf
+    sha256: 2102020fc8102011fe39c28e6e2a98aed922ac5133ffc9427a09f9a056e9ca4d
+    scale: 1000
+    # plotted 0.7 m / 3.9 m off the parcel sheet: `offset --base parcels --sheet land-use
+    # --pdf-layer '^PARCELE_GRANICE$'` (1021 of 1000 sampled vertices agree)
+    offset_m: [0.72, -3.852]
+    layers: [planned_land_use]
+
+layers:
+  # a thin red polyline with filled dots along it; the dots and their outlines are left out
+  plan_boundary:
+    method: polygonize
+    select: [{layer: granica, filled: false, min_size_mm: 5}]
+    gap_mm: 1.0
+    min_area_m2: 10000
+
+  # R-PARCELE draws the planned parcel boundaries 1.2 mm wide; where a planned parcel follows
+  # the cadastral base the plan leaves the edge to PARCELE_GRANICE (the fallback). The thin
+  # R-PARCELE strokes are vertex numbers written in a stroke font, not linework.
+  urban_parcels:
+    method: polygonize
+    select: [{layer: R-PARCELE, width_min: 3}]
+    fallback: [{layer: PARCELE_GRANICE, stroke: "#989898"}]
+    closing: [plan_boundary]
+    min_area_m2: 10
+    keep: labelled
+    labels:
+      source: glyphs  # "UP 12" plotted as filled outlines
+      select: [{layer: "!BROJEVI UP"}]
+      pattern: 'UP\s*(\d+[a-z]?)'
+      attribute: urban_parcel_number
+      glyph_height_mm: [3.0, 5.0]  # the vertex table's glyphs are 1.7 mm
+      max_distance_mm: 3
+
+  # the block lines (a chain of 2 mm circles 3.5 mm apart) mark only the street axes between
+  # blocks; the plan boundary closes the blocks outside. "BLOK A" ... "BLOK F" in glyph outlines
+  urban_blocks:
+    method: polygonize
+    select: [{layer: blokovi}]
+    gap_mm: 4.5
+    extend_mm: 8  # the circles stop 4-6 mm short of the junctions and the boundary
+    closing: [plan_boundary]
+    min_area_m2: 1000
+    keep: labelled
+    labels:
+      source: glyphs
+      select: [{layer: BLOKOVI-OZNAKA}]
+      pattern: 'BLOK\s*([A-F])'
+      attribute: block_ref
+      glyph_height_mm: [8.0, 16.0]
+      glyph_chars: ABCDEFKLO
+      font: hebo  # bold lettering: with Helvetica templates the O reads as D
+      max_gap: 2.0  # "BLOK" and the letter are set wide apart
+
+  # the land-use sheet hatches each area with lines of its category's colour: every planned
+  # parcel takes the category covering most of it
+  planned_land_use:
+    method: classify
+    classify_from: urban_parcels
+    gap_mm: 1.5
+    min_share: 0.3
+    categories:
+      - {code: SD, name: stanovanje sa djelatnostima, select: [{layer: SRAF_KOLEKTIVNO_SA_DEL}]}
+      - {code: S, name: stanovanje, select: [{layer: SRAF_KOLEKTIVNO_STAN}]}
+      - {code: CD, name: centralne djelatnosti, select: [{layer: SRAF_C.DJEL}]}
+      - {code: MN, name: mješovita namjena, select: [{layer: SRAF_MJESOVITE}]}
+      - {code: SK, name: školstvo i socijalna zaštita, select: [{layer: SRAF_OBRAZOVANJE}]}
+      - {code: IS, name: površine saobraćajne infrastrukture, select: [{layer: SRAF_SAOBRACAJ}]}
+      - {code: ZP, name: zelene površine, select: [{layer: SRAF_ZELENE_POVRSINE}]}
+
+  # street axes (osovine ulica), dashed: gaps bridged
+  planned_traffic:
+    method: lines
+    select: [{layer: 17os ulica}]
+    gap_mm: 3.0
+    min_length_m: 5
+    road_class: street_axis
+
+expected_parcels:
+  pdf: 02 Novi Grad 1 i 2/Novi Grad 1 i 2 - Urban parcels - Planning parameters.pdf
+  sha256: cd368d64de9d0f36554209fdc5ed6eb0317b3d0b4cd136fce7c656c177c9c089
+  pattern: '\bUP\s*(\d+[a-z]?)\b'
+
+# the parameter table's first two columns: Blok, Broj UP
+parcel_blocks:
+  table:
+    pdf: 02 Novi Grad 1 i 2/Novi Grad 1 i 2 - Urban parcels - Planning parameters.pdf
+    sha256: cd368d64de9d0f36554209fdc5ed6eb0317b3d0b4cd136fce7c656c177c9c089
+    pattern: '(?m)^\s*([A-F])\s*\n\s*UP\s*(\d+[a-z]?)\s*$'

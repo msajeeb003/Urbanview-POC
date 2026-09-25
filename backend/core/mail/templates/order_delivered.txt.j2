@@ -1,0 +1,23 @@
+Poštovani/a {{ first_name }},
+
+Vaša stručna analiza za {{ location }} je gotova.
+
+Broj narudžbe: {{ reference }}
+Preuzimanje (link važi do {{ expires_at | datetime_utc }}): {{ download_url }}
+
+Ako je link istekao, pišite nam na {{ support_email }} i poslaćemo novi.
+Status narudžbe: {{ status_url }}
+
+---
+
+Dear {{ first_name }},
+
+Your expert analysis of {{ location }} is ready.
+
+Order reference: {{ reference }}
+Download (link valid until {{ expires_at | datetime_utc }}): {{ download_url }}
+
+If the link has expired, write to {{ support_email }} and we will send a new one.
+Track your order: {{ status_url }}
+
+{{ app_name }}

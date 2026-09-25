@@ -1,14 +1,20 @@
 """Celery application.
 
-Queues: ``default`` (misc), ``gis`` (ingestion), ``extraction`` (AI), ``publish``.
-Every task takes ``municipality_id`` explicitly; nothing in ``jobs`` knows Podgorica specifically.
+Queues: ``extraction`` (LLM document extraction), ``geo`` (geometry processing), ``publish``,
+``email`` and ``default`` (misc), so a big GIS job never blocks a small extraction. Every task is
+a :class:`jobs.base.JobTask` fed with ``(job_id, municipality_id)``; nothing in ``jobs`` knows
+Podgorica specifically. ``CELERY_TASK_ALWAYS_EAGER=true`` runs tasks inline (tests).
 
-Run a worker:  celery -A jobs.celery_app worker --loglevel=info -Q default,gis,extraction,publish
+Run a worker:  celery -A jobs.celery_app worker --loglevel=info \\
+                   -Q default,extraction,geo,publish,email
+Monitor:       celery -A jobs.celery_app flower --port=5555
+               (docker compose --profile monitoring up flower)
 """
 
 from __future__ import annotations
 
 from celery import Celery
+from kombu import Queue
 
 from core.config import get_settings
 
@@ -23,6 +29,7 @@ celery_app = Celery(
         "jobs.tasks.ingestion",
         "jobs.tasks.extraction",
         "jobs.tasks.publish",
+        "jobs.tasks.email",
     ],
 )
 
@@ -36,10 +43,21 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_default_queue="default",
+    task_queues=[
+        Queue("default"),
+        Queue("extraction"),
+        Queue("geo"),
+        Queue("publish"),
+        Queue("email"),
+    ],
     task_routes={
-        "jobs.tasks.ingestion.*": {"queue": "gis"},
         "jobs.tasks.extraction.*": {"queue": "extraction"},
+        "jobs.tasks.ingestion.*": {"queue": "geo"},
         "jobs.tasks.publish.*": {"queue": "publish"},
+        "jobs.tasks.email.*": {"queue": "email"},
     },
+    task_always_eager=settings.celery_task_always_eager,
+    task_eager_propagates=True,
+    broker_connection_retry_on_startup=True,
     result_expires=60 * 60 * 24,
 )

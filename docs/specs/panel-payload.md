@@ -429,7 +429,7 @@ PlanningField = {key, label_en, label_me, abbreviation, unit,   // unit = row ov
   formula: string | null, derived_from: [keys] | null,   // computed rows
   reason_code, reason_en, reason_me }      // cannot_compute (far_not_stated / coverage_not_stated / area_unknown)
 Source = {document_id, document_name, page, bbox, bbox_space: "pdf-points-bottom-left", note,
-          registry_url, viewer_url: null}  // viewer_url reserved for the source viewer (ticket 36)
+          registry_url, value_id, viewer_url: "/v1/source/value/{value_id}"}  // section 10
 MarketInputsBlock = {tier: "paid", available: bool, reason_code, reason_en, reason_me,
   zone: ZoneRef | null, land_rate_eur_m2, build_rate_eur_m2, design_rate_eur_m2, sale_rate_eur_m2,
   range_low_factor, range_high_factor, source, source_date, effective_from}   // numbers null when unavailable
@@ -551,3 +551,230 @@ high), `assumptions` (the panel's AssumptionsBlock with `overrides` and `sources
 null blocks. Deterministic: identical requests produce byte-identical responses; no AI on this
 path. Tests: `backend/tests/integration/test_feasibility_route.py` (field-for-field equality with
 the panel and with the shared fixtures).
+
+## 10. Source viewer — `GET /v1/source/value/{value_id}`, `GET /v1/source/{document_id}/page/{page}` (added 2026-09-23)
+
+One click from a planning value to the page it cites. Both routes answer:
+
+```
+SourcePage = {document_id, document_name, document_status, page, page_count: int | null,
+  kind: "page_image" | "pdf_page",     // rendered PNG of the page, or the PDF with url ending in #page=N
+  url,                                  // signed, short-lived URL into the private bucket (the only storage fact that leaves the API)
+  content_type: "image/png" | "application/pdf", expires_at, expires_in_seconds,
+  registry_url,                         // public registry page of the document
+  value: SourceValue | null }           // only on /source/value/{value_id}
+SourceValue = {value_id, field_key, label_en, label_me, value, unit, urban_parcel_id,
+  bbox, bbox_space: "pdf-points-bottom-left", note}
+```
+
+- Schema: migration `0004_document_files` adds `planning_documents.file_key` (null = not stored),
+  `page_count` (null = unknown) and `page_images_rendered` (default false); the ingestion job sets
+  them. Existence is decided from these columns, never by probing the bucket.
+- Errors: 404 `not_found` for an unknown document / value, a page beyond `page_count`, or a
+  document without a file (`details.reason = "not_stored"`); 422 for non-positive ids / pages;
+  503 when storage cannot sign or the planning database is absent.
+- Headers: `Cache-Control: no-store`. Expiry: `SOURCE_URL_EXPIRES_SECONDS` (60–86400, default 900).
+- Analytics: the client emits `source_reference_opened` with `document_id` + `page` from the body.
+- Sample data: `make seed` uploads placeholder PDFs (`core.seeds.placeholder_pdf`) for documents
+  1, 2, 4, 5; document 3 (in-progress amendment) has no file and answers 404 `not_stored`.
+
+## 11. Assumption versions, per-rate ranges, zone typical parameters (added 2026-09-24)
+
+- `MarketInputsBlock` gains `version: {id, version, zone_id, effective_from} | null` (the
+  `financial_assumptions` row that produced the figures) and `ranges: {land_rate, build_rate,
+  design_rate, sale_rate}` with `RateRange = {expected, low, high, kind: "absolute" | "multiplier"}`.
+  `AssumptionsBlock` gains `market_version` (same object); `POST /v1/feasibility` echoes it.
+- `ZonePanel` gains `typical_parameters: {id, version, land_use, max_far, max_site_coverage_pct,
+  max_height_m, max_floors, notes, source: {document_id, document_name, page, note, registry_url} | null,
+  verified_on, verified_by, note_en, note_me} | null` — the zone's current parameter set
+  (staff-maintained, `GET/POST/PUT/DELETE /v1/admin/zone-parameters`).
+- Schema: migration `0007_admin_config` (assumption `version` / `supersedes_id` / `retired_*`,
+  absolute bound columns per rate with `low ≤ rate ≤ high`, table `zone_parameter_sets`).
+
+## 12. Publish versions and the tiles pointer — `GET /v1/tiles/current` (added 2026-09-25)
+
+Every planning value the panel shows belongs to the **current publish version**
+(`data_version`); a publish creates a complete new set and flips the pointer, a rollback flips it
+back. With no current version the panel says `data_version: "unpublished"` and every planning
+field is `not_stated`.
+
+`GET /v1/tiles/current` (public, `Cache-Control: no-store`):
+
+```json
+{
+  "status": "published",
+  "version_id": 7,
+  "data_version": "2026-09-25.1",
+  "published_at": "2026-09-25T09:12:03Z",
+  "archive_url": "https://…/podgorica/tiles/7/2026-09-25.1.pmtiles?X-Amz-…",
+  "expires_at": "2026-09-25T10:12:03Z",
+  "layers": [
+    {"id": "zones", "geometry_type": "polygon", "min_zoom": 8, "max_zoom": 16, "features": 3},
+    {"id": "urban_parcels", "geometry_type": "polygon", "min_zoom": 13, "max_zoom": 16, "features": 10006}
+  ],
+  "min_zoom": 8,
+  "max_zoom": 16
+}
+```
+
+- `archive_url` is a signed URL into the private bucket; the PMTiles client reads it with HTTP
+  range requests. Fetch a fresh one after `expires_at` (or on a 403).
+- `status: "unpublished"` (no version yet) or a version without an archive (the seeded sample)
+  answers `archive_url: null`; the map then shows the base map only.
+- Source layers (one per map layer, toggled independently): `zones`, `document_coverage`,
+  `urban_blocks`, `urban_parcels` (properties: parcel number, area, block, document, effective
+  `max_far`, `max_site_coverage_pct`, `max_height_m`, `max_floors`, `land_use`, `max_gfa_m2`),
+  `cadastral_parcels` (number, sub-number, KO, address, area, ownership and burden flags,
+  `has_urban_parcel`, `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`),
+  `public_ownership`, `legal_burdens`, `land_use`, `traffic_network`, `block_cells` and
+  `zone_cells` (heatmap values: `max_site_coverage_pct`, `max_height_m`, `max_far`,
+  `max_gfa_m2`, `saleable_area_m2`, `sale_rate_eur_m2`, `market_value_eur`, `price_band` 1–3).
+  Feature `id` = the entity id (cadastral `id` is the Parcel ID; cells carry the block / zone
+  id), so a click can go straight to `GET /v1/panel?type=…&id=…`.
+
+## 13. Display-shaped panels — `GET /v1/parcels/{id}/panel`, `GET /v1/zones/{id}/panel` (added 2026-09-26)
+
+Everything the panel shows for a cadastral parcel in one response, in display order, labels in
+English and Montenegrin on every item (the frontend hard-codes none). Numbers are raw JSON numbers
+(areas one decimal, `_pct` 0–100, `_share` 0–1, money as the engine rounds it).
+
+```json
+{
+  "type": "parcel", "municipality_id": "podgorica", "parcel_id": 1001,
+  "version_id": 1, "data_version": "sample-2026-09-22", "data_version_date": "2026-09-22",
+  "formula_version": "poc-1", "client_validated": false,
+  "covered": true, "coverage_note_en": null, "coverage_note_me": null,
+  "header": {
+    "parcel_id": 1001, "ko": "Podgorica I", "parcel_number": "1042", "sub_number": null,
+    "title": "KO Podgorica I, 1042", "street_address": "…",
+    "zone": {"id": 1, "name": "Centar"}, "urban_block": {"id": 1, "block_ref": "C2-01"},
+    "documents": [
+      {"id": 2, "name": "DUP Centar – Zona C2", "status": "adopted", "status_label_en": "adopted",
+       "status_label_me": "usvojen", "role": "governing", "…": "…"},
+      {"id": 3, "status": "in_progress", "role": "amendment", "…": "…"}
+    ],
+    "flags": [{"key": "public_ownership", "value": false, "label_en": "Public ownership", "label_me": "Javna svojina"}],
+    "areas": {"cadastral_m2": 1370.9, "planned_m2": 959.6, "linked_planned_total_m2": null,
+              "planned_stated_m2": 959.6, "delta_m2": -411.3, "delta_pct": -30.0,
+              "mismatch": true, "note_en": "Planned area 959.6 m² vs cadastral area 1370.9 m²: …", "note_me": "…"},
+    "calculation_basis": {
+      "basis": "urban", "area_m2": 959.6, "reason": "planned_parcel",
+      "explanation_en": "Calculations use planned urban parcel UP 12 (959.6 m²), which covers 70% of this cadastral parcel (1370.9 m²): …",
+      "explanation_me": "…", "split": false, "links_source": "parcel_links",
+      "links": [{"urban_parcel_id": 1, "urban_parcel_number": "UP 12", "document": {"…": "…"},
+                 "urban_block": {"id": 1, "block_ref": "C2-01"}, "area_m2": 959.6, "overlap_m2": 959.6,
+                 "overlap_pct": 70.0, "area_delta_m2": -411.3, "rank": 1, "primary": true}]
+    }
+  },
+  "group1": {
+    "tier": "free", "title_en": "Planning parameters", "title_me": "Planski parametri",
+    "document": {"id": 2, "…": "…"}, "urban_parcel_number": "UP 12",
+    "fields": [
+      {"key": "max_far", "label_en": "Max floor area ratio", "label_me": "Maksimalni indeks izgrađenosti",
+       "abbreviation": "II", "unit": null, "value_type": "number", "status": "stated", "value": 3.2,
+       "scope": "parcel", "reason": null,
+       "source": {"document_id": 2, "document": "DUP Centar – Zona C2", "page": 13,
+                  "bbox": [72, 388, 520, 406], "bbox_space": "pdf-points-bottom-left", "file_id": null,
+                  "note": "table 3 – UP 12", "registry_url": "…", "value_id": 3,
+                  "viewer_url": "/v1/source/value/3"}},
+      {"key": "max_height_m", "status": "not_stated", "value": null, "source": null,
+       "reason": "not_in_document", "reason_en": "not stated in the planning document",
+       "reason_me": "nije navedeno u planskom dokumentu", "…": "…"}
+    ],
+    "computed": [{"key": "max_gfa_m2", "status": "computed", "value": 3070.72,
+                  "formula": "max_far × basis_area_m2",
+                  "inputs": [{"key": "max_far", "value": 3.2}, {"key": "basis_area_m2", "value": 959.6}]}]
+  },
+  "market": {"tier": "paid", "scope": "zone", "zone": {"id": 1, "name": "Centar"},
+             "label_en": "Selling price per m²", "unit": "€/m²",
+             "sale_price_eur_m2": {"low": 2107.0, "expected": 2450.0, "high": 2817.5, "kind": "multiplier"},
+             "source": "Realitica, Estitor, Monstat (sample)", "source_date": "2026-08-01",
+             "effective_from": "…", "version": {"id": 1, "version": 1, "zone_id": 1, "effective_from": "…"}},
+  "assumptions": {"tier": "paid", "formula_version": "poc-1", "client_validated": false,
+                  "market_version": {"…": "…"},
+                  "items": [
+                    {"key": "construction_cost_eur_m2", "unit": "€/m²", "value": 860, "low": 739.6, "high": 989.0,
+                     "source": "market", "editable": true, "engine_edit_key": "construction_cost_per_m2"},
+                    {"key": "saleable_share", "unit": "share", "value": 0.7, "source": "product_default",
+                     "editable": true, "engine_edit_key": "saleable_share"},
+                    {"key": "sale_price_eur_m2", "editable": true, "engine_edit_key": "market_value_per_m2", "…": "…"},
+                    {"key": "land_value_eur_m2", "editable": false, "…": "…"},
+                    {"key": "design_documentation_eur_m2", "editable": false, "…": "…"}]},
+  "group2": {"tier": "paid", "status": "ok", "calculation_basis": "urban", "basis_area_m2": 959.6,
+             "formula_version": "poc-1",
+             "fields": [{"key": "land_value_eur", "engine_key": "land_value", "unit": "€",
+                         "status": "ok", "range_kind": "range", "low": …, "expected": …, "high": …}],
+             "input_flags": [],
+             "disclaimer_en": "…", "disclaimer_status": "placeholder", "disclaimer_version": "poc-1"},
+  "engine": {"engine_version": "1.0.0", "formula_version": "poc-1",
+             "range_derivation": "pessimistic-pairing-v1", "deterministic": true,
+             "inputs": {"planning": {"plot_area": 959.6, "calculation_basis": "urban", "far": 3.2,
+                                     "site_coverage_pct": 55}, "market": {"…": "…"},
+                        "assumptions": {"saleable_share": 0.7}},
+             "edit_keys": {"construction_cost_eur_m2": "construction_cost_per_m2",
+                           "saleable_share": "saleable_share", "sale_price_eur_m2": "market_value_per_m2"}},
+  "centroid": {"lat": 42.44, "lng": 19.26}, "bbox": [19.26, 42.44, 19.27, 42.45]
+}
+```
+
+- **Group 1** lists the 11 stored fields in dictionary order. A value resolves parcel → block →
+  zone → document and always has a `source`; `viewer_url` answers a signed link to the cited
+  page (section 10). A null value always has a `reason`: `not_in_document`, `rejected` (the
+  expert rejected the extracted value and nothing replaced it) or `unpublished`. Never a default.
+- **Calculation basis:** `planned_parcel` (one linked planned parcel), `split` (several: the
+  largest overlap is the basis, the others are listed with their own figures one click away via
+  `GET /v1/panel?type=urban&id=`), `no_planned_parcel` (cadastral area with the governing
+  document's general values), `not_covered`, `unpublished`. Links come from `parcel_links` of
+  the current publish version.
+- **Group 2** is exactly `calculate(engine.inputs)` of the shared engine, mapped by `engine_key`.
+  When a visitor edits an assumption the browser runs `recalculate(engine.inputs, edits)` with the
+  `engine_edit_key` of each edited item; no server round trip is needed. `input_flags` name the
+  Group 1 inputs that are missing and what they affect (max height and floors are not formula
+  inputs: the figures still compute, the flag says the height rule was not verified).
+- **Uncovered parcel:** 200 with `covered: false`, a neutral note, `group1`, `market`,
+  `assumptions`, `group2` and `engine` null, the header still filled. Unknown id: 404.
+- **Caching:** the response carries a strong `ETag` and `Cache-Control: no-cache`; send
+  `If-None-Match` to get 304 while nothing changed. `X-Panel-Cache` says hit / miss / bypass /
+  revalidated. Any publish, rollback, coverage switch, document registration, assumption or zone
+  parameter change produces a new ETag.
+
+`GET /v1/zones/{id}/panel`:
+
+```json
+{
+  "type": "zone", "municipality_id": "podgorica", "zone_id": 1, "version_id": 1,
+  "data_version": "sample-2026-09-22", "data_version_date": "2026-09-22",
+  "title": "Centar", "subtitle_en": "Internal city division", "subtitle_me": "Interna podjela grada",
+  "zone": {"id": 1, "name": "Centar"},
+  "summary": "…", "summary_label_en": "General planning summary", "summary_label_me": "Opšti planski sažetak",
+  "documents": [{"id": 2, "name": "DUP Centar – Zona C2", "type": "DUP",
+                 "type_name": "Detaljni urbanistički plan (detailed urban plan)", "status": "adopted",
+                 "status_label_en": "adopted", "status_label_me": "usvojen", "covered": true,
+                 "file_available": true, "registry_url": "…", "amends_document_id": null}],
+  "counts": {"documents": 3, "adopted": 2, "in_progress": 1, "superseded": 0},
+  "typical_parameters": {"…": "section 11"}
+}
+```
+
+Documents are the zone's current versions: adopted first, then in progress, then superseded,
+name order within a status. Same caching headers as the parcel panel.
+
+## 14. Zone and document panels for the public map's S3 variants (added 2026-09-28)
+
+`GET /v1/panel?type=zone` and `?type=document` gain what the wireframe's zone and document
+panels show (migration `0016_document_adopted_on`):
+
+- `DocumentRef.adopted_on: date | null` everywhere (adoption date, entered at registration).
+- Zone panel: `zone.zone_type`; `planning_documents` = the zone's **current** versions only, each
+  a `ZonePlanningDocument` = `DocumentRef + {covered, file_available, parcel_count}` (`covered` =
+  adopted AND live AND current AND a coverage geometry; `parcel_count` = cadastral parcels whose
+  point on surface lies in the coverage, null when not covered); `counts.covered`.
+- Document panel: `document.file_available`; `zones[]` = `{id, name, zone_type, typical:
+  {land_use, max_far, max_site_coverage_pct, max_height_m, max_floors} | null}` (the zone's
+  current parameter set).
+- Profile: `terminology.document_types_en` (English names shown after the abbreviation).
+- Cadastral and urban panels: `engine = {engine_version, formula_version, range_derivation,
+  deterministic, inputs, edit_keys, field_keys} | null` — the shared engine's exact inputs behind
+  `feasibility`, for the browser's `recalculate(inputs, edits)` (added with the assumption
+  sandbox).
+

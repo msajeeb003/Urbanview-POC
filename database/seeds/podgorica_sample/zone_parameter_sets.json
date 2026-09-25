@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "zone_id": 1,
+    "land_use": "Residential – mixed use (ground-floor commercial)",
+    "max_far": 3.2,
+    "max_site_coverage_pct": 55,
+    "max_height_m": 24,
+    "max_floors": 7,
+    "notes": "Typical values of zone C2 in DUP Centar; individual planned parcels differ.",
+    "source_document_id": 2,
+    "source_page": 12,
+    "source_note": "table 3 – typical values for zone C2",
+    "verified_on": "2026-09-01",
+    "verified_by": "seed",
+    "is_current": true,
+    "created_by": "seed",
+    "dataset_version": "podgorica-sample-2026-09"
+  }
+]

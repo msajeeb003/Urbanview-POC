@@ -13,7 +13,7 @@ Rules encoded here (CLAUDE.md):
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -21,11 +21,14 @@ from geoalchemy2 import Geometry
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
+    Date,
     DateTime,
     Enum,
     Float,
     ForeignKey,
     Index,
+    Integer,
     Text,
     UniqueConstraint,
     func,
@@ -63,12 +66,25 @@ class Zone(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     geom: Mapped[Any] = mapped_column(multipolygon(), nullable=False)
     general_planning_summary: Mapped[str | None] = mapped_column(Text)
+    zone_type: Mapped[str | None] = mapped_column(
+        Text,
+        comment=(
+            "Planning character for the map colour: res | com | mix | pub | grn; "
+            "null = not classified"
+        ),
+    )
     dataset_version: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    __table_args__ = (gist_index("zones", "geom"),)
+    __table_args__ = (
+        gist_index("zones", "geom"),
+        CheckConstraint(
+            "zone_type IS NULL OR zone_type IN ('res', 'com', 'mix', 'pub', 'grn')",
+            name="ck_zones_zone_type",
+        ),
+    )
 
 
 class PlanningDocument(Base):
@@ -88,7 +104,8 @@ class PlanningDocument(Base):
     )
     source: Mapped[str | None] = mapped_column(Text, comment="e.g. eRegistri")
     source_url: Mapped[str | None] = mapped_column(Text)
-    coverage_geom: Mapped[Any] = mapped_column(multipolygon(), nullable=False)
+    # Nullable since migration 0006: a document is registered before its geometry job has run.
+    coverage_geom: Mapped[Any | None] = mapped_column(multipolygon(), nullable=True)
     zone_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("zones.id", ondelete="SET NULL"), index=True
     )
@@ -100,7 +117,52 @@ class PlanningDocument(Base):
         index=True,
         comment="explicit amendment link set at ingestion (never by coverage)",
     )
+    # Source viewer (migration 0004): set by the ingestion job. Existence of a page is decided
+    # from these columns, never by probing the bucket.
+    file_key: Mapped[str | None] = mapped_column(
+        Text, comment="object key of the stored PDF in the private bucket; null = not stored"
+    )
+    page_count: Mapped[int | None] = mapped_column(
+        Integer, comment="pages in the stored PDF (set at ingestion)"
+    )
+    page_images_rendered: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("false"),
+        comment="page images at <municipality>/planning-documents/<id>/pages/NNNN.png",
+    )
+    # Admin pipeline (migration 0006): registration, versions, the coverage switch.
+    file_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("stored_files.id", ondelete="SET NULL"),
+        comment="the uploaded PDF this version was registered against",
+    )
+    lineage_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("planning_documents.id", ondelete="SET NULL"),
+        comment="first version of this document; null on legacy rows = itself",
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    is_current_version: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
+    licence_note: Mapped[str | None] = mapped_column(
+        Text, comment="licence / permission to use the document"
+    )
+    registered_by: Mapped[str | None] = mapped_column(Text)
+    registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    coverage_live: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("false"),
+        comment="the coverage area takes part in location resolution (admin switch)",
+    )
+    coverage_live_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    coverage_live_changed_by: Mapped[str | None] = mapped_column(Text)
     dataset_version: Mapped[str | None] = mapped_column(Text)
+    adopted_on: Mapped[date | None] = mapped_column(
+        Date, comment="Adoption date (official gazette), when known"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -108,6 +170,17 @@ class PlanningDocument(Base):
     __table_args__ = (
         Index("ix_planning_documents_municipality_status", "municipality_id", "status"),
         gist_index("planning_documents", "coverage_geom"),
+        CheckConstraint(
+            "page_count IS NULL OR page_count > 0", name="ck_planning_documents_page_count"
+        ),
+        Index("ix_planning_documents_file_id", "file_id"),
+        Index("ix_planning_documents_lineage_id", "lineage_id"),
+        Index(
+            "uq_planning_documents_current_version",
+            "lineage_id",
+            unique=True,
+            postgresql_where=text("is_current_version AND lineage_id IS NOT NULL"),
+        ),
     )
 
 

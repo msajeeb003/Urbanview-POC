@@ -1,0 +1,762 @@
+/*
+ * Additions to the wireframe stylesheet. `wireframe.css` is a byte-for-byte copy of
+ * `docs/wireframe/wireframe.css` (checked by `npm run design:check`) and is never edited; every
+ * difference from the mockup lives here, one commented block per reason.
+ */
+
+/* 1. Fonts: next/font self-hosts Schibsted Grotesk and JetBrains Mono under generated family
+      names; point the wireframe's font tokens at them (same faces, same fallbacks). */
+:root {
+  --mono: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+  --disp: var(--font-schibsted-grotesk), "Schibsted Grotesk", -apple-system, sans-serif;
+  --body: var(--font-schibsted-grotesk), "Schibsted Grotesk", -apple-system, sans-serif;
+}
+
+/* 2. Accessibility helpers the mock did not need. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.searchsug button[aria-selected="true"] {
+  background: var(--brand-tint);
+}
+#search::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* 3. Mapbox GL inside the wireframe's map area. The wireframe's `[class][class][class]` rule gives
+      every classed element an 8 px radius; the map container and canvas keep square corners
+      (the mock's SVG map has none), `.mapwrap` keeps its own 8 px. */
+#map {
+  position: absolute;
+  inset: 0;
+}
+.mapboxgl-map[class][class][class],
+.mapboxgl-canvas-container[class][class][class],
+.mapboxgl-canvas[class][class][class] {
+  border-radius: 0;
+}
+.uv-pin {
+  pointer-events: none;
+  line-height: 0;
+}
+.mapboxgl-ctrl-top-right {
+  top: 8px;
+  right: 8px;
+}
+
+/* 4. Bottom-sheet handle: only exists on phones and tablets. */
+.sheethandle {
+  display: none;
+}
+
+/* 5. Tablet and phone (≤ 860 px). The mock hides the rail and turns the panel into a right-hand
+      overlay; the approved behaviour for this build is: rail collapses (drawer over the map),
+      panel becomes a bottom sheet (peek / full), floating chrome sits above the sheet. */
+@media (max-width: 860px) {
+  .searchwrap .kbd,
+  .topnav .navlbl {
+    display: none;
+  }
+  .topnav button:not(.pill) {
+    padding: 8px 9px;
+  }
+
+  .main {
+    --sheet-offset: 0px;
+  }
+  .main:has(.panel:not(.hidden).sheet-peek) {
+    --sheet-offset: 148px;
+  }
+  .main:has(.panel:not(.hidden).sheet-half) {
+    --sheet-offset: min(50vh, 440px);
+  }
+
+  .rail {
+    display: flex;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 66;
+    box-shadow: var(--shadow-lg);
+  }
+  .rail.collapsed {
+    top: 12px;
+    left: 12px;
+    bottom: auto;
+    width: auto;
+    flex: none;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+  .rail.collapsed .railopen {
+    box-shadow: var(--shadow);
+  }
+
+  .panel {
+    position: absolute;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    height: min(78vh, 680px);
+    border-left: none;
+    border-top: 1px solid var(--line);
+    border-radius: 12px 12px 0 0;
+    box-shadow: var(--shadow-lg);
+    z-index: 62;
+    transition: height 0.2s ease;
+  }
+  .panel.sheet-peek {
+    height: 148px;
+    overflow: hidden;
+  }
+  .panel.sheet-half {
+    height: min(50vh, 440px);
+  }
+  .sheethandle {
+    display: block;
+    flex: 0 0 22px;
+    width: 100%;
+    position: relative;
+    cursor: pointer;
+  }
+  .sheethandle::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 9px;
+    width: 40px;
+    height: 4px;
+    margin-left: -20px;
+    border-radius: 999px;
+    background: var(--line);
+  }
+  .panel.sheet-peek .pempty {
+    justify-content: flex-start;
+    padding: 6px 24px 16px;
+    gap: 10px;
+  }
+  .panel.sheet-peek .pempty .ill,
+  .panel.sheet-peek .pempty .hintrow {
+    display: none;
+  }
+  .panel.sheet-peek .pempty p {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .maptools {
+    bottom: calc(var(--sheet-offset) + 88px);
+  }
+  .scalebar {
+    bottom: calc(var(--sheet-offset) + 52px);
+  }
+  .coords {
+    bottom: calc(var(--sheet-offset) + 16px);
+  }
+  .aifab {
+    bottom: calc(var(--sheet-offset) + 16px);
+  }
+  .aipanel {
+    right: 8px;
+    left: 8px;
+    width: auto;
+    bottom: 8px;
+    height: min(544px, calc(100% - 16px));
+    z-index: 70;
+  }
+  .main:has(.panel.sheet-full:not(.hidden)) .maptools,
+  .main:has(.panel.sheet-full:not(.hidden)) .aifab,
+  .main:has(.panel.sheet-full:not(.hidden)) .scalebar,
+  .main:has(.panel.sheet-full:not(.hidden)) .coords {
+    display: none;
+  }
+}
+
+/* 6. Phone (≤ 760 px): the topbar keeps logo, search and icon-only nav. */
+@media (max-width: 760px) {
+  .topbar {
+    padding: 0 12px;
+    gap: 10px;
+  }
+  .brand .logo {
+    height: 26px;
+  }
+  .topnav .pill {
+    display: none;
+  }
+  .frow {
+    grid-template-columns: 1fr;
+  }
+  .coverwarn {
+    white-space: nowrap;
+    max-width: calc(100% - 32px);
+  }
+}
+
+/* 7. Layer rail additions for the data layers (not in the mock):
+      - the field selector under an active choropleth card (FAR / Coverage / Height / GFA, or
+        Low / Expected / High), in the rail's card width, built from the wireframe's `.chiphint`;
+      - the "no data" swatch of the legend: the map's hatch pattern. */
+.lyrmetric {
+  width: 182px;
+  margin: 2px 0 6px;
+  padding-left: 47px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.lyrmetric .chiphint {
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.lyrmetric .chiphint:hover {
+  border-color: var(--brand);
+  color: var(--brand-dark);
+}
+.lyrmetric .chiphint.on {
+  background: var(--brand-tint);
+  border-color: rgba(181, 97, 59, 0.3);
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+.legrow .sw.sw-nodata {
+  background: #e6e9ee repeating-linear-gradient(135deg, rgba(179, 168, 148, 0.75) 0 1.5px, transparent 1.5px 4px);
+}
+@media (max-width: 1100px) {
+  .lyrmetric {
+    width: 158px;
+  }
+}
+
+/* 8. Search (S2) additions to the wireframe's `.searchsug` (not in the mock, which had fixed rows):
+      - the cadastral-municipality picker under a parcel-number row: chips in the rail's field
+        selector style, aligned with the row text (14 px padding + 26 px icon + 11 px gap);
+      - the inline "No parcel … in …" note: a row like the others, neutral, not clickable;
+      - Cancel button and hint: only in the phone sheet (block 9). */
+.searchsug .kopick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 14px 12px 51px;
+  border-bottom: 1px solid var(--paper-2);
+}
+.searchsug .kopick:last-child {
+  border-bottom: none;
+}
+.searchsug .kolbl {
+  flex-basis: 100%;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.searchsug .kopick button {
+  display: inline-flex;
+  width: auto;
+  gap: 0;
+  padding: 5px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--white);
+  border: 1px solid var(--line);
+}
+.searchsug .kopick button:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.searchsug .kopick button:hover,
+.searchsug .kopick button[aria-selected="true"] {
+  border-color: var(--brand);
+  color: var(--brand-dark);
+  background: var(--brand-tint);
+}
+.searchsug .kopick button.on {
+  background: var(--brand-tint);
+  border-color: rgba(181, 97, 59, 0.3);
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+.searchsug .searchnote {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  font-size: 14.5px;
+  border-bottom: 1px solid var(--paper-2);
+}
+.searchcancel,
+.searchhint {
+  display: none;
+}
+
+/* 9. Phone (≤ 760 px): a focused search opens as a full-screen sheet over the app (input on
+      top, suggestions filling the screen, Cancel to leave); picking a row closes it. The topbar
+      is its own stacking context (z 60, under the bottom sheet's 62), so it rises while the
+      sheet is open; the magnifier's light stroke (made for the dark bar) turns ink. */
+@media (max-width: 760px) {
+  .topbar:has(.searchwrap.searching) {
+    z-index: 95;
+  }
+  .searchwrap.searching .mag svg * {
+    stroke: var(--ink-2);
+  }
+  .searchwrap.searching {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    margin: 0;
+    padding: 12px 12px 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--white);
+    color: var(--ink);
+  }
+  .searchwrap.searching input {
+    flex: 0 0 40px;
+    padding-right: 84px;
+    color: var(--ink);
+    background: var(--paper);
+    border-color: var(--line);
+  }
+  .searchwrap.searching input:focus {
+    border-color: var(--brand);
+  }
+  .searchwrap.searching input::placeholder {
+    color: var(--ink-3);
+  }
+  .searchwrap.searching .mag {
+    top: 32px;
+    left: 23px;
+  }
+  .searchwrap.searching .searchcancel {
+    display: block;
+    position: absolute;
+    top: 17px;
+    right: 18px;
+    padding: 6px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--brand-dark);
+  }
+  .searchwrap.searching .searchsug {
+    position: static;
+    display: block;
+    flex: 1;
+    margin: 10px -12px 0;
+    border: none;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    box-shadow: none;
+    overflow-y: auto;
+  }
+  .searchwrap.searching .searchhint {
+    display: block;
+    padding: 16px 14px;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+}
+
+/* 10. Information panel (S3) additions for the zone and planning-document variants:
+       - a superseded plan's status chip (the mock only knew adopted / in progress);
+       - document items: covered ones are buttons (open the document panel) with the mock's
+         look; the others and the "no adopted plan" note keep still on hover;
+       - `panelnote`: short neutral lines the mock did not need (loading, no typical values),
+         in the style of its closing note. */
+.dstat.superseded {
+  background: rgba(42, 33, 24, 0.06);
+  color: var(--ink-2);
+}
+.docitem .dnbtn {
+  flex: 1;
+  display: flex;
+  padding: 0;
+  text-align: left;
+  font-size: inherit;
+}
+.docitem button.di:hover {
+  background: var(--brand-tint);
+  color: var(--brand);
+}
+.docitem.static:hover {
+  border-color: var(--line);
+  background: var(--white);
+}
+.docitem.docnote .di {
+  color: var(--paid);
+}
+.panelnote {
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+/* 11. Parcel panels (S3 Group 1) additions:
+       - `rowsrc`: the source icon after each stated planning value (the mock has one source chip
+         per section; the ticket asks for one click from every value to its cited page);
+       - `parcelid`: UrbanView's Parcel ID under the identification grid, as a mono meta line. */
+.prow .pv .rowsrc {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  vertical-align: -3px;
+  color: var(--brand);
+  opacity: 0.75;
+  border-radius: 6px;
+}
+.prow .pv .rowsrc:hover,
+.prow .pv .rowsrc:focus-visible {
+  opacity: 1;
+  background: var(--brand-tint);
+}
+.prow .pv .rowsrc.spacer {
+  visibility: hidden;
+}
+.assum .assumsrc {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  opacity: 0.85;
+}
+.parcelid {
+  margin: 8px 22px 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+/* 12. Assumption sandbox (Group 2, "◐ Test your own assumptions"): the mock's `.assum` rows plus
+       what the ticket adds — each value marked "your assumption" / "default", an inline error for an
+       edit outside its bounds, "Reset to defaults", and the range markers moving with the figures. */
+.arow label .atag {
+  display: block;
+  margin-top: 1px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+.arow label .atag.yours {
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+.assum .aerr {
+  margin: -4px 0 6px;
+  font-size: 12px;
+  color: var(--danger);
+}
+.assum .assumreset {
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand-dark);
+}
+.assum .assumreset:hover {
+  text-decoration: underline;
+}
+.assum .assumreset[aria-disabled="true"] {
+  color: var(--ink-3);
+  cursor: default;
+  text-decoration: none;
+}
+.rangebar .mark {
+  transition: left 0.18s ease;
+}
+
+/* 13. Source viewer (`components/source/source-viewer.tsx`): the cited page in a wide modal —
+       the mock's `.mhead`, a toolbar, the page on a paper backdrop with the cited value's box in
+       translucent brand, a page-shaped skeleton while loading and a plain retry state. Phones:
+       full screen. */
+.modal.srcmodal {
+  height: 90vh;
+}
+.srcviewer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.srcviewer .srclead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 13px;
+}
+.srcviewer .srclead .mono {
+  font-weight: 700;
+  color: var(--ink);
+}
+.srcviewer .srcnote {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.srctools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 26px;
+  border-bottom: 1px solid var(--line);
+  background: var(--white);
+}
+.srctools .srcspace {
+  flex: 1;
+}
+.srcbtn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1;
+}
+.srcbtn:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand-dark);
+}
+.srcbtn:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+.srcbtn.srcopen {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.srcpageno {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.srcpageno input {
+  width: 44px;
+  height: 32px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink);
+}
+.srcpageno input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+.srczoom {
+  min-width: 44px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.srcpage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  background: var(--paper-2);
+  padding: 16px;
+}
+.srcsheet {
+  position: relative;
+  width: max-content;
+  margin: 0 auto;
+  box-shadow: var(--shadow);
+  background: #fff;
+  line-height: 0;
+}
+.srcsheet canvas {
+  display: block;
+}
+.srchl {
+  position: absolute;
+  background: rgba(181, 97, 59, 0.18);
+  border: 2px solid var(--brand);
+  box-shadow: 0 0 0 4px rgba(181, 97, 59, 0.12);
+  pointer-events: none;
+}
+.srcimg {
+  display: block;
+  max-width: 100%;
+  margin: 0 auto;
+  box-shadow: var(--shadow);
+  background: #fff;
+}
+.srcskel {
+  width: min(100%, 595px);
+  aspect-ratio: 595 / 842;
+  margin: 0 auto;
+  background: linear-gradient(100deg, var(--paper) 30%, var(--white) 50%, var(--paper) 70%) 0 0 / 200% 100%;
+  animation: srcshimmer 1.4s linear infinite;
+  box-shadow: var(--shadow);
+}
+@keyframes srcshimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.srcfail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 64px 16px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+@media (max-width: 760px) {
+  .overlay:has(.modal.srcmodal) {
+    padding: 0;
+  }
+  .modal.srcmodal[class][class][class] {
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+  }
+  .srctools {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+  }
+  .srcpage {
+    padding: 10px;
+  }
+}
+
+/* 14. Orders (S4 order form, S5 confirmation, the public order page `/orders/<reference>`):
+      - inline field messages and the one-sentence failure note of the form (the mock has no
+        validation state); the disabled gold button while the order is being placed;
+      - the confirmation's bank-transfer block (the mock's `.paysummary` lines under a
+        `.fieldlab`): long IBANs wrap, "Copy" buttons, the note under it;
+      - the order page (no mock screen): the topbar alone, then a card in the modal's style that
+        scrolls with the page (the body itself never scrolls). */
+.field.err input {
+  border-color: var(--danger);
+}
+.field .ferr {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--danger);
+}
+.orderfail {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--danger);
+}
+.orderretry {
+  font: inherit;
+  color: var(--brand);
+  text-decoration: underline;
+}
+.mfoot .cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.paylab {
+  margin-top: 18px;
+}
+.payinstr .payline > span:last-child {
+  min-width: 0;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+.payinstr .payline.total > span:last-child {
+  white-space: nowrap;
+}
+.paycopy {
+  margin-left: 6px;
+  font-family: var(--body);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--brand);
+}
+.paycopy:hover {
+  text-decoration: underline;
+}
+.paynote {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.paynote a {
+  color: var(--brand);
+  font-weight: 600;
+}
+.orderpage {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px 16px 48px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.ordercard {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--white);
+  box-shadow: var(--shadow-lg);
+}
+.ordercard .orderref {
+  margin-top: 0;
+}
+.ordercard a.cta {
+  text-decoration: none;
+}
+.ordersteps {
+  list-style: none;
+}
+.ordersteps .st {
+  padding: 0;
+  background: none;
+}
+
+/* 15. Shell language switch (not in the mock; the setup ticket's EN / ME, spec §10 item 2): a nav
+      button showing the language it switches to, in the nav's style, kept at every width; and the
+      layer card's "no data yet" note (the published version has nothing for the layer). */
+.topnav .langbtn {
+  font-family: var(--mono);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.lyr .subnm.nodatasub {
+  color: var(--ink-3);
+}

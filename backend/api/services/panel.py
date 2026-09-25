@@ -28,7 +28,7 @@ import json
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any, Literal
 
 from sqlalchemy import text
@@ -39,6 +39,7 @@ from api.schemas.panel import (
     Areas,
     AssumptionOverrides,
     AssumptionsBlock,
+    AssumptionsVersion,
     BlockRef,
     CadastralIdentification,
     CadastralLink,
@@ -49,6 +50,7 @@ from api.schemas.panel import (
     DocumentDetail,
     DocumentPanel,
     DocumentRef,
+    DocumentZone,
     FeasibilityBlock,
     FeasibilityField,
     Flags,
@@ -56,11 +58,14 @@ from api.schemas.panel import (
     HeaderDocumentRef,
     Label,
     MarketInputsBlock,
+    MarketRanges,
     OverrideFlags,
+    PanelEngine,
     PanelResponse,
     PanelType,
     PlanningBlock,
     PlanningField,
+    RateRange,
     RateSources,
     Source,
     UrbanIdentification,
@@ -69,7 +74,10 @@ from api.schemas.panel import (
     ZoneDetail,
     ZoneHeader,
     ZonePanel,
+    ZonePlanningDocument,
     ZoneRef,
+    ZoneTypicalParameters,
+    ZoneTypicalSource,
 )
 from api.services import panel_text
 from api.services.panel_sql import CADASTRAL_SQL, DOCUMENT_SQL, URBAN_SQL, ZONE_SQL
@@ -82,6 +90,8 @@ from core.engine import (
     MarketInputs,
     compute_feasibility,
 )
+from core.engine.feasibility import EDIT_KEYS, SHARED_KEY
+from core.engine.shared import ENGINE_VERSION, RANGE_DERIVATION
 from core.errors import NotFoundError
 from core.municipality import MunicipalityProfile
 
@@ -125,11 +135,27 @@ def _pct(part: float | None, whole: float | None) -> float | None:
 
 
 def _iso(value: Any) -> str | None:
+    """ISO 8601; timestamps always in UTC with a ``Z`` (JSON built in SQL carries the session's
+    offset, the ORM path carries the driver's), dates unchanged."""
     if value is None:
         return None
-    if isinstance(value, datetime | date):
+    if isinstance(value, datetime):
+        return _utc_iso(value)
+    if isinstance(value, date):
         return value.isoformat()
-    return str(value)
+    text_value = str(value)
+    if "T" in text_value:
+        try:
+            return _utc_iso(datetime.fromisoformat(text_value))
+        except ValueError:
+            return text_value
+    return text_value
+
+
+def _utc_iso(value: datetime) -> str:
+    if value.tzinfo is None:
+        return value.isoformat()
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _parcel_ref(parcel_number: str, sub_number: str | None) -> str:
@@ -143,6 +169,11 @@ def _ko_and_number(ko_name: str, parcel_number: str, sub_number: str | None) -> 
 def _document_ref(raw: Mapping[str, Any]) -> DocumentRef:
     labels = panel_text.document_status_label(raw["status"])
     return DocumentRef(**raw, status_label_en=labels.en, status_label_me=labels.me)
+
+
+def _zone_document(raw: Mapping[str, Any]) -> ZonePlanningDocument:
+    labels = panel_text.document_status_label(raw["status"])
+    return ZonePlanningDocument(**raw, status_label_en=labels.en, status_label_me=labels.me)
 
 
 def _document_detail(raw: Mapping[str, Any]) -> DocumentDetail:
@@ -198,6 +229,7 @@ def _number(resolved: Mapping[str, _Resolved], key: str) -> float | None:
 
 
 def _source(row: Mapping[str, Any]) -> Source:
+    value_id = row.get("value_id")
     return Source(
         document_id=row["document_id"],
         document_name=row["document_name"],
@@ -205,6 +237,8 @@ def _source(row: Mapping[str, Any]) -> Source:
         bbox=row.get("source_bbox"),
         note=row.get("source_note"),
         registry_url=row.get("registry_url"),
+        value_id=value_id,
+        viewer_url=f"/v1/source/value/{value_id}" if value_id is not None else None,
     )
 
 
@@ -293,6 +327,70 @@ def _market_inputs(raw: Mapping[str, Any] | None) -> MarketInputs | None:
         sale_rate_eur_m2=float(raw["sale_rate_eur_m2"]),
         range_low_factor=float(raw["range_low_factor"]),
         range_high_factor=float(raw["range_high_factor"]),
+        land_bounds=_bounds(raw, "land"),
+        build_bounds=_bounds(raw, "build"),
+        design_bounds=_bounds(raw, "design"),
+        sale_bounds=_bounds(raw, "sale"),
+    )
+
+
+def _bounds(raw: Mapping[str, Any], prefix: str) -> tuple[float, float] | None:
+    pair = (raw.get("bounds") or {}).get(prefix)
+    if not pair or pair[0] is None or pair[1] is None:
+        return None
+    return float(pair[0]), float(pair[1])
+
+
+def _rate_range(raw: Mapping[str, Any], prefix: str) -> RateRange:
+    expected = float(raw[f"{prefix}_rate_eur_m2"])
+    pair = _bounds(raw, prefix)
+    if pair is not None:
+        return RateRange(expected=expected, low=pair[0], high=pair[1], kind="absolute")
+    return RateRange(
+        expected=expected,
+        low=round(expected * float(raw["range_low_factor"]), 2),
+        high=round(expected * float(raw["range_high_factor"]), 2),
+        kind="multiplier",
+    )
+
+
+def _assumptions_version(raw: Mapping[str, Any] | None) -> AssumptionsVersion | None:
+    if raw is None:
+        return None
+    return AssumptionsVersion(
+        id=raw["id"],
+        version=int(raw.get("version") or 1),
+        zone_id=raw.get("zone_id"),
+        effective_from=_iso(raw.get("effective_from")),
+    )
+
+
+def _typical_parameters(raw: Mapping[str, Any] | None) -> ZoneTypicalParameters | None:
+    if raw is None:
+        return None
+    source = None
+    if raw.get("source_document_id") is not None:
+        source = ZoneTypicalSource(
+            document_id=raw["source_document_id"],
+            document_name=raw.get("document_name"),
+            page=raw.get("source_page"),
+            note=raw.get("source_note"),
+            registry_url=raw.get("registry_url"),
+        )
+    return ZoneTypicalParameters(
+        id=raw["id"],
+        version=raw["version"],
+        land_use=raw.get("land_use"),
+        max_far=raw.get("max_far"),
+        max_site_coverage_pct=raw.get("max_site_coverage_pct"),
+        max_height_m=raw.get("max_height_m"),
+        max_floors=raw.get("max_floors"),
+        notes=raw.get("notes"),
+        source=source,
+        verified_on=_iso(raw.get("verified_on")),
+        verified_by=raw.get("verified_by"),
+        note_en=panel_text.ZONE_TYPICAL_NOTE.en,
+        note_me=panel_text.ZONE_TYPICAL_NOTE.me,
     )
 
 
@@ -339,6 +437,13 @@ def _market_block(
         source=raw.get("source"),
         source_date=_iso(raw.get("source_date")),
         effective_from=_iso(raw.get("effective_from")),
+        version=_assumptions_version(raw),
+        ranges=MarketRanges(
+            land_rate=_rate_range(raw, "land"),
+            build_rate=_rate_range(raw, "build"),
+            design_rate=_rate_range(raw, "design"),
+            sale_rate=_rate_range(raw, "sale"),
+        ),
     )
 
 
@@ -365,6 +470,7 @@ def _assumptions_block(
         sources=RateSources(**used.sources.to_dict()),
         market_source=market_raw.get("source") if market_raw else None,
         market_source_date=_iso(market_raw.get("source_date")) if market_raw else None,
+        market_version=_assumptions_version(market_raw),
         formula_version=result.formula_version,
         data_version=version.label,
         data_version_date=version.date,
@@ -413,6 +519,7 @@ class _Blocks:
     market_inputs: MarketInputsBlock
     assumptions: AssumptionsBlock
     feasibility: FeasibilityBlock
+    engine: PanelEngine
 
 
 def _blocks(
@@ -443,6 +550,14 @@ def _blocks(
         market_inputs=_market_block(market_raw, zone, reason_code, reason_params),
         assumptions=_assumptions_block(result, overrides, market_raw, version),
         feasibility=_feasibility_block(result, basis, basis_area_m2),
+        engine=PanelEngine(
+            engine_version=ENGINE_VERSION,
+            formula_version=result.formula_version,
+            range_derivation=RANGE_DERIVATION,
+            inputs=dict(result.engine_inputs or {}),
+            edit_keys=dict(EDIT_KEYS),
+            field_keys=dict(SHARED_KEY),
+        ),
     )
 
 
@@ -537,8 +652,9 @@ class PanelService:
                 subtitle_en=panel_text.ZONE_SUBTITLE.en,
                 subtitle_me=panel_text.ZONE_SUBTITLE.me,
             ),
-            planning_documents=[_document_ref(d) for d in _as_json(row["documents"]) or []],
+            planning_documents=[_zone_document(d) for d in _as_json(row["documents"]) or []],
             counts=DocumentCounts(**_as_json(row["counts"])),
+            typical_parameters=_typical_parameters(_as_json(row["typical_parameters"])),
         )
 
     async def document_panel(self, document_id: int) -> DocumentPanel:
@@ -554,7 +670,7 @@ class PanelService:
             formula_version=FORMULA_VERSION,
             document=_document_detail(doc_raw),
             amendments_in_progress=[_document_ref(a) for a in _as_json(row["amendments"]) or []],
-            zones=[ZoneRef(**z) for z in _as_json(row["zones"]) or []],
+            zones=[DocumentZone(**z) for z in _as_json(row["zones"]) or []],
             coverage_counts=CoverageCounts(
                 cadastral_parcels=row["cadastral_parcels"], urban_parcels=row["urban_parcels"]
             ),
@@ -671,6 +787,7 @@ class PanelService:
             market_inputs=blocks.market_inputs if blocks else None,
             assumptions=blocks.assumptions if blocks else None,
             feasibility=blocks.feasibility if blocks else None,
+            engine=blocks.engine if blocks else None,
             covered=covered,
             coverage_note_en=note.en if note else None,
             coverage_note_me=note.me if note else None,
@@ -710,8 +827,9 @@ class PanelService:
         if up is None:
             raise self._not_found("urban", urban_parcel_id)
         version = _version(row)
-        document = _document_ref(_as_json(row["document"]))
-        covered = document.status == "adopted"
+        document_raw = _as_json(row["document"])
+        document = _document_ref(document_raw)
+        covered = document.status == "adopted" and bool(document_raw.get("coverage_live"))
         zone_raw = _as_json(row["zone"])
         zone = ZoneRef(**zone_raw) if zone_raw else None
         blk_raw = _as_json(row["urban_block"])
@@ -803,6 +921,7 @@ class PanelService:
             market_inputs=blocks.market_inputs if blocks else None,
             assumptions=blocks.assumptions if blocks else None,
             feasibility=blocks.feasibility if blocks else None,
+            engine=blocks.engine if blocks else None,
             centroid=LatLng(**up["centroid"]),
             geometry=up["geometry"],
         )

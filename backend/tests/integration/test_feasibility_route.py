@@ -225,3 +225,72 @@ async def test_deterministic_and_one_statement(pg_app):
     assert first.status_code == second.status_code == 200
     assert first.content == second.content  # byte-identical
     assert len(statements) == 2  # one statement per call
+
+
+# --- the public map's in-browser recalculation equals the server ------------------------------
+
+NODE_RECALCULATE = (
+    "const e=require(process.argv[1]);let s='';process.stdin.on('data',d=>s+=d)"
+    ".on('end',()=>{const a=JSON.parse(s);process.stdout.write(JSON.stringify("
+    "a.edits===null?e.calculate(a.inputs):e.recalculate(a.inputs,a.edits)))})"
+)
+
+
+def _typescript(inputs, edits):
+    import json
+    import shutil
+    import subprocess
+
+    from tests.integration.test_parcel_panel_postgis import ENGINE_BUNDLE
+
+    node = shutil.which("node")
+    if node is None or not ENGINE_BUNDLE.is_file():
+        pytest.skip("the TypeScript engine bundle is not built or node is missing")
+    completed = subprocess.run(
+        [node, "-e", NODE_RECALCULATE, str(ENGINE_BUNDLE)],
+        input=json.dumps({"inputs": inputs, "edits": edits}),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+    return json.loads(completed.stdout)
+
+
+def _assert_same_figures(feasibility, engine_result):
+    from core.engine.feasibility import SHARED_KEY
+
+    for figure in [*feasibility["fields"], *feasibility["cost_rows"]]:
+        engine = engine_result["fields"][SHARED_KEY[figure["key"]]]
+        assert (figure["status"], figure["low"], figure["expected"], figure["high"]) == (
+            engine["status"],
+            engine["low"],
+            engine["expected"],
+            engine["high"],
+        ), figure["key"]
+
+
+async def test_browser_recalculation_equals_the_feasibility_route(pg_client):
+    panel = (await pg_client.get("/v1/panel", params={"type": "urban", "id": 1})).json()
+    engine = panel["engine"]
+    assert engine["formula_version"] == "poc-1" and engine["deterministic"] is True
+    assert engine["edit_keys"] == {
+        "construction_cost_eur_m2": "construction_cost_per_m2",
+        "saleable_share": "saleable_share",
+        "sale_price_eur_m2": "market_value_per_m2",
+    }
+    # no edits: the payload's inputs give the payload's figures (what "Reset" shows)
+    _assert_same_figures(panel["feasibility"], _typescript(engine["inputs"], None))
+
+    # the visitor's edits, through the edit keys, give what POST /v1/feasibility answers
+    visitor = {"construction_cost_eur_m2": 700, "sale_price_eur_m2": 2600, "saleable_share": 0.8}
+    edits = {engine["edit_keys"][key]: value for key, value in visitor.items()}
+    server = await _post(pg_client, {"parcel_id": 1, "type": "urban", "assumptions": EDITS})
+    _assert_same_figures(server["feasibility"], _typescript(engine["inputs"], edits))
+
+
+async def test_cadastral_and_uncovered_panels_carry_the_engine_inputs(pg_client):
+    cadastral = (await pg_client.get("/v1/panel", params={"type": "cadastral", "id": 1001})).json()
+    assert cadastral["engine"]["inputs"]["planning"]["plot_area"] == pytest.approx(959.6)
+    uncovered = (await pg_client.get("/v1/panel", params={"type": "cadastral", "id": 1004})).json()
+    assert uncovered["engine"] is None

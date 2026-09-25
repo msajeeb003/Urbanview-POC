@@ -15,7 +15,7 @@ COMPOSE ?= docker compose
 ALEMBIC := $(BIN)/alembic -c ../database/alembic.ini
 TEST_DATABASE_URL ?= postgresql+asyncpg://urbanview:urbanview@localhost:5432/urbanview_test
 
-.PHONY: help venv install run worker migrate migration downgrade seed test test-integration test-all \
+.PHONY: help venv install run worker flower migrate migration downgrade seed openapi gis-assess test test-integration test-all \
         lint fmt up down logs ps db-dev-install db-dev-start db-dev-stop db-dev-status clean
 
 help: ## list targets
@@ -24,14 +24,17 @@ help: ## list targets
 venv: ## create backend/.venv
 	cd backend && $(PY) -m venv $(VENV)
 
-install: venv ## install the backend with dev extras
-	cd backend && $(BIN)/pip install --upgrade pip && $(BIN)/pip install -e ".[dev]"
+install: venv ## install the backend with the dev and gis extras
+	cd backend && $(BIN)/pip install --upgrade pip && $(BIN)/pip install -e ".[dev,gis]"
 
 run: ## run the API with auto-reload on :8000
 	cd backend && $(BIN)/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 
 worker: ## run the Celery worker (all queues)
-	cd backend && $(BIN)/celery -A jobs.celery_app worker --loglevel=info -Q default,gis,extraction,publish
+	cd backend && $(BIN)/celery -A jobs.celery_app worker --loglevel=info -Q default,extraction,geo,publish,email
+
+flower: ## Celery monitoring UI on http://localhost:5555
+	cd backend && $(BIN)/celery -A jobs.celery_app flower --port=5555
 
 migrate: ## apply migrations to head (database/migrations)
 	cd backend && $(ALEMBIC) upgrade head
@@ -42,8 +45,15 @@ migration: ## autogenerate a migration: make migration m="add orders"
 downgrade: ## roll back one migration
 	cd backend && $(ALEMBIC) downgrade -1
 
-seed: ## load the Podgorica sample dataset (database/seeds/podgorica_sample)
-	cd backend && $(BIN)/python -m core.seeds podgorica_sample
+seed: ## load the Podgorica sample dataset (database/seeds/podgorica_sample) + placeholder PDFs into MinIO
+	cd backend && $(BIN)/python -m core.seeds podgorica_sample --upload-files
+
+openapi: ## export the API's OpenAPI document and regenerate the frontend's TypeScript API types
+	cd backend && $(BIN)/python -m api.export_openapi ../frontend/openapi.json
+	npm run api:types -w @urbanview/frontend
+
+gis-assess: ## week-1 geometry assessment of docs/gis/source (writes docs/gis/assessment)
+	cd backend && $(BIN)/python -m core.gis.assess ../docs/gis/source/catalog.toml --out ../docs/gis/assessment
 
 test: ## unit tests (no services needed)
 	cd backend && $(BIN)/pytest -q --ignore=tests/integration

@@ -13,6 +13,11 @@ x-app-env: &app-env
   S3_SECRET_KEY: minioadmin
   S3_USE_PATH_STYLE: "true"
   CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+  SMTP_USE_TLS: "false"
+  SMTP_FROM: UrbanView dev <no-reply@urbanview.local>
+  ADMIN_BASE_URL: http://localhost:3001
 
 x-app-build: &app-build
   context: .
@@ -57,9 +62,13 @@ services:
       minio:
         condition: service_healthy
 
+  # Celery worker on every queue (backend/Dockerfile.worker). Scale with
+  # `docker compose up --scale worker=2`, or run one worker per queue by overriding `-Q`.
   worker:
-    build: *app-build
-    command: celery -A jobs.celery_app worker --loglevel=info -Q default,gis,extraction,publish
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.worker
+    command: celery -A jobs.celery_app worker --loglevel=info -Q default,extraction,geo,publish,email
     env_file:
       - path: backend/.env
         required: false
@@ -73,6 +82,42 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      mailpit:
+        condition: service_healthy
+
+  # Flower: queue / task monitoring UI on http://localhost:5555
+  # (`docker compose --profile monitoring up flower`). Set FLOWER_BASIC_AUTH=user:pass before
+  # exposing it anywhere.
+  flower:
+    build: *app-build
+    command: celery -A jobs.celery_app flower --port=5555
+    profiles: ["monitoring"]
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      <<: *app-env
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Mailpit catches every e-mail the worker sends in dev: SMTP on 1025, inbox UI on
+  # http://localhost:8025. Nothing leaves the machine.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8025/readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   postgres:
     image: postgis/postgis:16-3.4

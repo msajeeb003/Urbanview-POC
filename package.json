@@ -1,14 +1,19 @@
 {
   "name": "urbanview",
   "private": true,
-  "description": "UrbanView monorepo: shared TypeScript packages (npm workspaces). Backend lives in backend/, database in database/.",
+  "description": "UrbanView monorepo: shared TypeScript packages and the Next.js frontend (npm workspaces). Backend lives in backend/, database in database/.",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "frontend"
   ],
   "scripts": {
+    "prepare": "npm run engine:build",
     "engine:check": "npm run check -w @urbanview/feasibility-engine",
     "engine:test": "npm run test -w @urbanview/feasibility-engine",
-    "engine:build": "npm run build -w @urbanview/feasibility-engine"
+    "engine:build": "npm run build -w @urbanview/feasibility-engine",
+    "frontend:dev": "npm run dev -w @urbanview/frontend",
+    "frontend:build": "npm run build -w @urbanview/frontend",
+    "frontend:check": "npm run check -w @urbanview/frontend"
   },
   "engines": {
     "node": ">=18"

@@ -11,6 +11,7 @@ import {
   boundsOf,
   calculate,
   recalculate,
+  selectCalculationBasis,
   withEditedExpected,
 } from "../src/index.js";
 import type { EngineInputs, FieldKey, MarketInputs, RangedInput } from "../src/index.js";
@@ -241,6 +242,49 @@ describe("bounds helpers", () => {
   });
 });
 
+describe("both parcel areas: the calculation basis", () => {
+  it("uses the planned urban parcel area whenever the plan defines one", () => {
+    expect(selectCalculationBasis({ planned_area: 959.6, cadastral_area: 1370.9 })).toStrictEqual({
+      plot_area: 959.6,
+      calculation_basis: "urban",
+    });
+    expect(selectCalculationBasis({ planned_area: 0, cadastral_area: 1370.9 })).toStrictEqual({
+      plot_area: 0,
+      calculation_basis: "urban",
+    });
+  });
+
+  it("falls back to the cadastral area, and to an unknown area with neither", () => {
+    expect(selectCalculationBasis({ planned_area: null, cadastral_area: 1370.9 })).toStrictEqual({
+      plot_area: 1370.9,
+      calculation_basis: "cadastral",
+    });
+    expect(selectCalculationBasis({ planned_area: null, cadastral_area: null })).toStrictEqual({
+      plot_area: null,
+      calculation_basis: "cadastral",
+    });
+  });
+
+  it("rejects a negative or non-finite area on either side", () => {
+    expect(() => selectCalculationBasis({ planned_area: -1, cadastral_area: 10 })).toThrow(EngineInputError);
+    expect(() => selectCalculationBasis({ planned_area: 10, cadastral_area: Number.NaN })).toThrow(EngineInputError);
+  });
+
+  it("feeds calculate; the two areas travel as context and never change a figure", () => {
+    const planning = {
+      ...UP12.planning,
+      ...selectCalculationBasis({ planned_area: 959.6, cadastral_area: 1370.9 }),
+    };
+    const withContext = calculate({
+      ...UP12,
+      planning: { ...planning, planned_area: 959.6, cadastral_area: 1370.9, max_height_m: null, land_use: "Residential" },
+    });
+    expect(JSON.stringify(withContext)).toBe(JSON.stringify(calculate(UP12)));
+    const nulls = calculate({ ...UP12, planning: { ...UP12.planning, planned_area: null, cadastral_area: null } });
+    expect(JSON.stringify(nulls)).toBe(JSON.stringify(calculate(UP12)));
+  });
+});
+
 describe("invalid inputs are rejected (caller bugs, not data gaps)", () => {
   const cases: [string, () => unknown][] = [
     ["negative plot area", () => calculate({ ...UP12, planning: { ...UP12.planning, plot_area: -1 } })],
@@ -248,6 +292,8 @@ describe("invalid inputs are rejected (caller bugs, not data gaps)", () => {
     ["coverage above 100", () => calculate({ ...UP12, planning: { ...UP12.planning, site_coverage_pct: 101 } })],
     ["negative coverage", () => calculate({ ...UP12, planning: { ...UP12.planning, site_coverage_pct: -5 } })],
     ["bad basis", () => calculate({ ...UP12, planning: { ...UP12.planning, calculation_basis: "plot" as never } })],
+    ["negative planned area", () => calculate({ ...UP12, planning: { ...UP12.planning, planned_area: -5 } })],
+    ["infinite cadastral area", () => calculate({ ...UP12, planning: { ...UP12.planning, cadastral_area: Number.POSITIVE_INFINITY } })],
     ["saleable share 0", () => recalculate(UP12, { saleable_share: 0 })],
     ["saleable share above 1", () => recalculate(UP12, { saleable_share: 1.2 })],
     ["negative edit", () => recalculate(UP12, { construction_cost_per_m2: -1 })],

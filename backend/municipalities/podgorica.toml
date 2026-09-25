@@ -7,10 +7,19 @@ country = "ME"
 locale = "sr-Latn-ME"
 currency = "EUR"
 serving_crs_epsg = 4326
-source_crs_epsg = 25834                 # ETRS89 / UTM 34N — confirm against UZN cadastral exports in P0
+# Planning documents are drawn in the state system, MGI 1901 / Balkans zone 6 (Gauss-Krüger 6):
+# grid labels and parcel-vertex tables in the sample plans (week-1 geometry assessment,
+# docs/gis/geometry-assessment.md). EPSG's only Montenegro transformation to WGS 84 (EPSG:3965) is
+# good to 10 m, so georeferencing fits its own datum shift. UZN cadastral exports may come in
+# ETRS89 / UTM 34N (MONREF97, EPSG:25834): confirm when bulk access is granted.
+source_crs_epsg = 3908
 center = [19.2636, 42.4411]             # lng, lat (city centre)
 bounds = [19.10, 42.33, 19.45, 42.55]   # min_lng, min_lat, max_lng, max_lat — provisional urban extent, confirm with zone definition
 cadastral_municipalities = ["Podgorica I", "Podgorica II", "Podgorica III"]   # placeholder — replace with the official KO list from UZN
+
+# Sale-price choropleth bands (€/m²): not saleable (0) | under 1,300 | 1,300–1,700 | 1,700–2,100 |
+# 2,100 and above — the approved wireframe's bands; confirm with the client's market data.
+price_band_breaks_eur_m2 = [1300, 1700, 2100]
 
 [terminology.site_coverage]
 abbreviation = "IZ"
@@ -41,6 +50,12 @@ english = "urban block"
 DUP = "Detaljni urbanistički plan (detailed urban plan)"
 PUP = "Prostorno-urbanistički plan (spatial-urban plan)"
 PGR = "Plan generalne regulacije (general regulation plan)"
+
+# English names the public map shows after the abbreviation (the approved wireframe's copy)
+[terminology.document_types_en]
+DUP = "Detailed urban plan"
+PUP = "General urban plan"
+PGR = "General regulation plan"
 
 [[sources]]
 id = "eregistri"
@@ -97,3 +112,56 @@ kind = "market"
 name = "Monstat"
 url = "https://www.monstat.org"
 provides = "Official statistics: selling prices and construction cost indicators"
+
+# --- GIS track (core.gis): what the plans of this place look like -----------------------------
+# Established by the week-1 geometry assessment (docs/gis/geometry-assessment.md). Patterns are
+# case-insensitive regular expressions (TOML literal strings) on accent-folded text: layer names
+# without the AutoCAD xref prefix "drawing$0$", title-block text.
+[gis]
+crs_keywords = ['gauss', 'kr[uü]ger', '\butm\b', 'monref', '\betrs', 'wgs ?84', 'epsg', '\bmgi\b', 'bessel', 'koordinatn\w* sistem']
+legend_keywords = ['legenda', '\blegend\b']
+coordinate_keywords = ['koordinat']
+
+# Plans and the PUP atlas are drawn in the state system (Gauss-Krüger zone 6 on MGI 1901): grid
+# labels 6 580 000 … / 4 675 000 …, urban-parcel vertex tables X = 6 603 501 / Y = 4 700 163.
+[[gis.crs_candidates]]
+epsg = 3908
+name = "MGI 1901 / Balkans zone 6 (Gauss-Krüger zone 6, state system)"
+easting = [6540000, 6680000]
+northing = [4620000, 4780000]
+
+[[gis.crs_candidates]]
+epsg = 25834
+name = "ETRS89 / UTM zone 34N (MONREF97)"
+easting = [300000, 440000]
+northing = [4620000, 4780000]
+
+# sheet type -> title-block phrases
+[gis.sheet_titles]
+urban_parcels = ['plan parcelacije']
+land_use = ['plan namjene povrsina', 'namjena povrsina']
+traffic_network = ['plan saobracaja']
+zones = ['planska podjela', 'administrativna podjela']
+plan_boundaries = ['rezimi uredjenja prostora', 'granice planova']
+
+# layer type -> CAD layer names on DUP / UP plan sheets (Montenegrin drafting conventions; the
+# ZGR_ / PARCELE_ / G_TACKE layers come from the UZN cadastral-topographic base under the plan)
+[gis.plan_layers]
+plan_boundary = ['granica[ _-]*(obuhvata|plana|izmjen)', '^granica$']
+urban_parcels = ['urbanisticka[ _-]*parcela', '^r[ _-]*parcele$']
+urban_parcel_labels = ['oznaka[ _-]*urb', 'brojevi[ _-]*(up|urb)']
+urban_blocks = ['^(up[ _-]*)?blokovi$']
+block_labels = ['blokovi?[ _-]*oznak']
+land_use = ['^sraf[ _-]', '(^|[ _-])pov\w*[ _-]+za\b', 'povrsinske[ _-]*vode', 'prirodne[ _-]*povrs']
+traffic_network = ['saobracaj', 'osovin', 'kolovoz', 'trotoar', 'ulic', 'biciklist', 'kolsko', 'parkin']
+buildings = ['objekt', '^k?[ _-]*zgr[ _-]']
+cadastral_parcels = ['^k?[ _-]*parcele[ _-]*(granice|oznake)$']
+geodetic_control = ['^[gd][ _-]*tacke', 'poligon\w*[ _-]*mrez', '^mreza$', 'decimetarsk']
+
+# layer type -> layer names on PUP atlas maps (1:10 000 – 1:50 000)
+[gis.base_map_layers]
+plan_boundaries = ['\bdup\b', '^0*1[46]\.(dup|up)$', '^up$']
+plan_labels = ['naziv[ _-]*dup', '^text igor$']
+zones = ['^granice[ _-]*plana$', 'plansko[ _-]*podrucje', 'planske[ _-]*zone']
+city_boundary = ['granica[ _-]*gup', 'granica[ _-]*grada']
+admin_boundaries = ['drzavna[ _-]*granica', 'opstinska[ _-]*granica', '^granice$', 'gradska[ _-]*opstina']

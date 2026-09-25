@@ -1,0 +1,45 @@
+# Celery worker image. Same code and dependencies as backend/Dockerfile (build context = repo
+# root), started as a worker on every queue, plus tippecanoe / tile-join for the publish job's
+# PMTiles archive. Separate so the GIS track can add GDAL here without touching the API image.
+# Override the queues with `-Q` on the compose command line.
+FROM debian:bookworm-slim AS tippecanoe
+ARG TIPPECANOE_VERSION=2.79.0
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential ca-certificates curl \
+        libsqlite3-dev zlib1g-dev \
+ && rm -rf /var/lib/apt/lists/* \
+ && curl -fsSL "https://github.com/felt/tippecanoe/archive/refs/tags/${TIPPECANOE_VERSION}.tar.gz" \
+        | tar -xz -C /tmp \
+ && cd "/tmp/tippecanoe-${TIPPECANOE_VERSION}" \
+ && make -j"$(nproc)" \
+ && make install
+
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# gdal-bin: ogrinfo / ogr2ogr for the GIS track (core.gis: DWG / DXF / SHP / GeoPackage inputs)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libsqlite3-0 zlib1g gdal-bin \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=tippecanoe /usr/local/bin/tippecanoe /usr/local/bin/tile-join \
+     /usr/local/bin/tippecanoe-decode /usr/local/bin/
+
+WORKDIR /app
+COPY backend /app/backend
+COPY database /app/database
+COPY packages /app/packages
+
+WORKDIR /app/backend
+RUN pip install -e ".[dev,gis]"
+
+# `celery inspect ping` answers only when the worker is connected to the broker and idle enough
+# to reply; the start period covers the broker connection retry.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s \
+  CMD celery -A jobs.celery_app inspect ping -d "celery@$HOSTNAME" || exit 1
+
+CMD ["celery", "-A", "jobs.celery_app", "worker", "--loglevel=info", \
+     "-Q", "default,extraction,geo,publish,email"]

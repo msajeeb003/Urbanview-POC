@@ -6,9 +6,13 @@
       "type": "Feature",
       "properties": {
         "id": 1,
+        "file_key": "podgorica/planning-documents/1/document.pdf",
+        "page_count": 8,
+        "page_images_rendered": false,
         "name": "PUP Glavni grad (izvod)",
         "type": "PUP",
         "status": "adopted",
+        "coverage_live": true,
         "source": "eRegistri",
         "source_url": "https://lamp.gov.me/PlanningDocument?m=PG",
         "zone_id": 1
@@ -22,9 +26,13 @@
       "type": "Feature",
       "properties": {
         "id": 2,
+        "file_key": "podgorica/planning-documents/2/document.pdf",
+        "page_count": 24,
+        "page_images_rendered": false,
         "name": "DUP Centar – Zona C2",
         "type": "DUP",
         "status": "adopted",
+        "coverage_live": true,
         "source": "eRegistri",
         "source_url": "https://lamp.gov.me/PlanningDocument?m=PG",
         "zone_id": 1
@@ -55,9 +63,13 @@
       "type": "Feature",
       "properties": {
         "id": 4,
+        "file_key": "podgorica/planning-documents/4/document.pdf",
+        "page_count": 16,
+        "page_images_rendered": false,
         "name": "DUP Stari Aerodrom",
         "type": "DUP",
         "status": "adopted",
+        "coverage_live": true,
         "source": "eRegistri",
         "source_url": "https://lamp.gov.me/PlanningDocument?m=PG",
         "zone_id": 2
@@ -71,6 +83,9 @@
       "type": "Feature",
       "properties": {
         "id": 5,
+        "file_key": "podgorica/planning-documents/5/document.pdf",
+        "page_count": 12,
+        "page_images_rendered": false,
         "name": "DUP Stari Aerodrom (2009)",
         "type": "DUP",
         "status": "superseded",

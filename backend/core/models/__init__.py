@@ -10,13 +10,25 @@ Conventions (see CLAUDE.md):
 """
 
 from core.db import Base
+from core.models.admin import (
+    AuditLogEntry,
+    PipelineJob,
+    StaffLoginToken,
+    StaffSession,
+    StaffUser,
+    StoredFile,
+)
+from core.models.analytics import AnalyticsEventRecord
+from core.models.orders import EmailLogEntry, Order
 from core.models.panel import (
     FinancialAssumption,
     PlanningField,
     PlanningParameterExtraction,
     PlanningParameterValue,
+    PlanningValueGap,
     PublishVersion,
     ReviewState,
+    ZoneParameterSet,
 )
 from core.models.planning import (
     CadastralParcel,
@@ -26,19 +38,42 @@ from core.models.planning import (
     UrbanParcel,
     Zone,
 )
+from core.models.publish import (
+    GeometryBatch,
+    HeatmapCell,
+    LayerFeature,
+    ParcelLink,
+    StagingGeometry,
+)
 
 __all__ = [
+    "AnalyticsEventRecord",
+    "AuditLogEntry",
     "Base",
     "CadastralParcel",
+    "EmailLogEntry",
     "FinancialAssumption",
+    "GeometryBatch",
+    "HeatmapCell",
+    "LayerFeature",
+    "Order",
+    "ParcelLink",
     "PlanningDocument",
     "PlanningDocumentStatus",
     "PlanningField",
     "PlanningParameterExtraction",
+    "PipelineJob",
     "PlanningParameterValue",
+    "PlanningValueGap",
     "PublishVersion",
     "ReviewState",
+    "StaffLoginToken",
+    "StaffSession",
+    "StaffUser",
+    "StagingGeometry",
+    "StoredFile",
     "UrbanBlock",
     "UrbanParcel",
     "Zone",
+    "ZoneParameterSet",
 ]

@@ -1,0 +1,55 @@
+Poštovani/a {{ first_name }},
+
+Hvala na narudžbi stručne analize za {{ location }}.
+
+Broj narudžbe: {{ reference }}
+Cijena: {{ price_eur | money }} {{ currency }} (jednokratno)
+
+{{ note_me }}
+
+Primalac: {{ beneficiary }}
+IBAN: {{ iban }}
+{% if bank_name %}
+Banka: {{ bank_name }}
+{% endif %}
+{% if swift %}
+SWIFT: {{ swift }}
+{% endif %}
+Iznos: {{ amount_eur | money }} {{ currency }}
+Poziv na broj: {{ reference_to_quote }}
+
+Rok izrade: do {{ turnaround_business_days }} radnih dana od prijema uplate
+(očekivano do {{ expected_by | date_short }} ako uplatite danas).
+Status narudžbe: {{ status_url }}
+
+Pitanja: {{ support_email }}
+
+---
+
+Dear {{ first_name }},
+
+Thank you for ordering an expert analysis of {{ location }}.
+
+Order reference: {{ reference }}
+Price: {{ price_eur | money }} {{ currency }} (one-off)
+
+{{ note_en }}
+
+Beneficiary: {{ beneficiary }}
+IBAN: {{ iban }}
+{% if bank_name %}
+Bank: {{ bank_name }}
+{% endif %}
+{% if swift %}
+SWIFT: {{ swift }}
+{% endif %}
+Amount: {{ amount_eur | money }} {{ currency }}
+Payment reference: {{ reference_to_quote }}
+
+Turnaround: within {{ turnaround_business_days }} business days after the payment is received
+(expected by {{ expected_by | date_short }} if paid today).
+Track your order: {{ status_url }}
+
+Questions: {{ support_email }}
+
+{{ app_name }}

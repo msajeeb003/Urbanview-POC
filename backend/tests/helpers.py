@@ -32,11 +32,27 @@ def make_redis() -> fakeredis.aioredis.FakeRedis:
     return fakeredis.aioredis.FakeRedis(decode_responses=True)
 
 
-def make_app(settings: Settings | None = None, redis: Any | None = None) -> FastAPI:
+def make_app(
+    settings: Settings | None = None,
+    redis: Any | None = None,
+    *,
+    geocoder: Any | None = None,
+    storage: Any | None = None,
+    source_repository: Any | None = None,
+    analytics_repository: Any | None = None,
+    admin_dispatcher: Any | None = None,
+    staff_authenticator: Any | None = None,
+) -> FastAPI:
     return create_app(
         settings or make_settings(),
         redis_client=redis if redis is not None else make_redis(),
         rate_limit_clock=lambda: FIXED_NOW,
+        geocoder=geocoder,
+        storage=storage,
+        source_repository=source_repository,
+        analytics_repository=analytics_repository,
+        admin_dispatcher=admin_dispatcher,
+        staff_authenticator=staff_authenticator,
     )
 
 

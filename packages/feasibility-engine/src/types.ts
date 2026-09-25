@@ -63,6 +63,12 @@ export interface PlanningInputs {
   far: number | null;
   /** Maximum site coverage (IZ) in percent, 0–100. */
   site_coverage_pct: number | null;
+  /**
+   * Context: both areas of the parcel as the visitor sees them (`selectCalculationBasis` picks
+   * `plot_area` and `calculation_basis` from them). Validated, not used by any formula.
+   */
+  planned_area?: number | null;
+  cadastral_area?: number | null;
   /** Context echoed for the UI; not used by any formula. */
   max_height_m?: number | null;
   max_floors?: string | null;
@@ -81,6 +87,20 @@ export interface EditableAssumptions {
 
 /** User edits merged over the defaults by `recalculate`; `undefined` entries are ignored. */
 export type EditedAssumptions = { [K in keyof EditableAssumptions]?: EditableAssumptions[K] | undefined };
+
+/** Both areas of a parcel; `null` = not available (no planned parcel, no cadastral record). */
+export interface ParcelAreas {
+  /** Area of the planned urban parcel the cadastral parcel lies in (the plan's parcel). */
+  planned_area: number | null;
+  /** Area of the cadastral parcel. */
+  cadastral_area: number | null;
+}
+
+/** The area the formulas use and which one it is. */
+export interface CalculationArea {
+  plot_area: number | null;
+  calculation_basis: CalculationBasis;
+}
 
 export interface EngineInputs {
   planning: PlanningInputs;

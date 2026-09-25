@@ -56,6 +56,12 @@ COST_ROW_KEYS: tuple[str, ...] = (
     "construction_cost_eur",
     "total_cost_eur",
 )
+# Assumption item -> key of the engine's recalculate() edits (the three visitor-editable ones).
+EDIT_KEYS: dict[str, str] = {
+    "construction_cost_eur_m2": "construction_cost_per_m2",
+    "saleable_share": "saleable_share",
+    "sale_price_eur_m2": "market_value_per_m2",
+}
 # panel key -> shared engine key
 SHARED_KEY: dict[str, str] = {
     "max_gfa_m2": "max_gfa",
@@ -100,6 +106,11 @@ class MarketInputs:
     sale_rate_eur_m2: float
     range_low_factor: float = 0.86
     range_high_factor: float = 1.15
+    # Optional absolute bounds per rate (low, high); None = the range factors apply.
+    land_bounds: tuple[float, float] | None = None
+    build_bounds: tuple[float, float] | None = None
+    design_bounds: tuple[float, float] | None = None
+    sale_bounds: tuple[float, float] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +200,9 @@ class FeasibilityResult:
     cost_rows: tuple[FieldRange, ...]
     assumptions_used: AssumptionsUsed
     formula_version: str = FORMULA_VERSION
+    # The shared engine's inputs (before the visitor's edits) that produced these figures;
+    # the parcel panel hands them to the browser, which runs the same engine on them.
+    engine_inputs: dict[str, Any] | None = None
 
     def get(self, key: str) -> FieldRange:
         """Look a figure up by key, in ``fields`` first, then ``cost_rows``."""
@@ -215,10 +229,12 @@ def shared_inputs(
     calculation_basis: str = "urban",
     saleable_share: float = DEFAULT_SALEABLE_SHARE,
     market_reason_code: str | None = None,
+    planning_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The shared engine's ``EngineInputs`` for a panel calculation.
 
-    The admin row's range factors become multiplier bounds on every market input; the land rate
+    The admin row's range factors become multiplier bounds on every market input (a rate with
+    absolute admin bounds uses those instead); the land rate
     is per m² of parcel area, the build and design rates per m² of GFA.
     """
     inputs: dict[str, Any] = {
@@ -227,6 +243,9 @@ def shared_inputs(
             "calculation_basis": calculation_basis,
             "far": max_far,
             "site_coverage_pct": max_site_coverage_pct,
+            # context for the reader and the browser (both areas, height, floors, land use);
+            # validated by the engine, never used by a formula
+            **dict(planning_context or {}),
         },
         "market": None,
         "assumptions": {"saleable_share": saleable_share},
@@ -235,17 +254,33 @@ def shared_inputs(
         if market_reason_code is not None:
             inputs["market_missing_reason"] = market_reason_code
         return inputs
-    bounds = {
+    factors = {
         "kind": "multiplier",
         "low": market.range_low_factor,
         "high": market.range_high_factor,
     }
+
+    def bounds(pair: tuple[float, float] | None) -> dict[str, Any]:
+        if pair is None:
+            return factors
+        return {"kind": "absolute", "low": pair[0], "high": pair[1]}
+
     inputs["market"] = {
-        "market_value_per_m2": {"expected": market.sale_rate_eur_m2, "bounds": bounds},
-        "construction_cost": {"per_m2": {"expected": market.build_rate_eur_m2, "bounds": bounds}},
-        "land_value": {"per_m2": {"expected": market.land_rate_eur_m2, "bounds": bounds}},
+        "market_value_per_m2": {
+            "expected": market.sale_rate_eur_m2,
+            "bounds": bounds(market.sale_bounds),
+        },
+        "construction_cost": {
+            "per_m2": {"expected": market.build_rate_eur_m2, "bounds": bounds(market.build_bounds)}
+        },
+        "land_value": {
+            "per_m2": {"expected": market.land_rate_eur_m2, "bounds": bounds(market.land_bounds)}
+        },
         "design_and_documentation_costs": {
-            "per_m2": {"expected": market.design_rate_eur_m2, "bounds": bounds}
+            "per_m2": {
+                "expected": market.design_rate_eur_m2,
+                "bounds": bounds(market.design_bounds),
+            }
         },
     }
     return inputs
@@ -293,6 +328,7 @@ def compute_feasibility(
     market_reason_code: str | None = None,
     market_reason_params: Mapping[str, Any] | None = None,
     calculation_basis: str = "urban",
+    planning_context: Mapping[str, Any] | None = None,
 ) -> FeasibilityResult:
     """Run the shared ``poc-1`` formulas for one parcel and return the panel's result shape.
 
@@ -309,6 +345,7 @@ def compute_feasibility(
         calculation_basis=calculation_basis,
         saleable_share=assumptions.saleable_share,
         market_reason_code=market_reason[0] if market_reason else None,
+        planning_context=planning_context,
     )
     edits: dict[str, Any] = {}
     if assumptions.construction_cost_eur_m2 is not None:
@@ -341,4 +378,5 @@ def compute_feasibility(
         ),
         assumptions_used=assumptions_used,
         formula_version=result["formula_version"],
+        engine_inputs=inputs,
     )

@@ -38,6 +38,20 @@ def document_status_label(status: str) -> Bilingual:
 # --- fixed labels --------------------------------------------------------------------------------
 
 ZONE_SUBTITLE = Bilingual("Internal city division", "Interna podjela grada")
+MARKET_PARAMETER_LABELS: dict[str, Bilingual] = {
+    "land_rate_eur_m2": Bilingual("Land value per m²", "Vrijednost zemljišta po m²"),
+    "build_rate_eur_m2": Bilingual("Construction cost per m² GFA", "Cijena gradnje po m² BGP"),
+    "design_rate_eur_m2": Bilingual(
+        "Design & documentation per m² GFA", "Projektovanje i dokumentacija po m² BGP"
+    ),
+    "sale_rate_eur_m2": Bilingual("Selling price per m²", "Prodajna cijena po m²"),
+}
+ZONE_TYPICAL_NOTE = Bilingual(
+    "Typical values for the zone, maintained by staff; the values of a parcel's own planning "
+    "document always take precedence.",
+    "Tipične vrijednosti za zonu koje održava osoblje; vrijednosti iz planskog dokumenta "
+    "parcele uvijek imaju prednost.",
+)
 
 FLAGS_NOTE = Bilingual(
     "false means not flagged in the cadastral extract",
@@ -168,3 +182,134 @@ DISCLAIMER = Bilingual(
 )
 DISCLAIMER_STATUS = "placeholder"  # "client_approved" once the lawyer signs the wording off
 DISCLAIMER_VERSION = "poc-1"
+
+
+# --- display-shaped panels (GET /v1/parcels/{id}/panel, GET /v1/zones/{id}/panel) ------------
+
+PANEL_SECTIONS: dict[str, Bilingual] = {
+    "group1": Bilingual("Planning parameters", "Planski parametri"),
+    "market": Bilingual("Market data", "Tržišni podaci"),
+    "assumptions": Bilingual("Assumptions", "Pretpostavke"),
+    "group2": Bilingual("Financial feasibility", "Finansijska izvodljivost"),
+}
+ZONE_SUMMARY_LABEL = Bilingual("General planning summary", "Opšti planski sažetak")
+
+# Why a Group 1 value is null (never a default).
+FIELD_GAP_REASONS: dict[str, Bilingual] = {
+    "not_in_document": Bilingual(
+        "not stated in the planning document", "nije navedeno u planskom dokumentu"
+    ),
+    "rejected": Bilingual(
+        "the extracted value was rejected in expert review and is not shown",
+        "izvučena vrijednost je odbijena u stručnoj provjeri i nije prikazana",
+    ),
+    "unpublished": Bilingual(
+        "planning data has not been published yet", "planski podaci još nisu objavljeni"
+    ),
+}
+
+
+def field_gap_reason(code: str) -> Bilingual:
+    return FIELD_GAP_REASONS[code]
+
+
+# Which area the calculations use and why (ParcelHeader.calculation_basis).
+PARCEL_BASIS_EXPLANATIONS: dict[str, Bilingual] = {
+    "planned_parcel": Bilingual(
+        "Calculations use planned urban parcel {urban_parcel_number} ({planned_m2} m²), which "
+        "covers {overlap_pct}% of this cadastral parcel ({cadastral_m2} m²): the adopted plan "
+        "defines the parcel that can be built on.",
+        "Proračuni koriste urbanističku parcelu {urban_parcel_number} ({planned_m2} m²), koja "
+        "pokriva {overlap_pct}% ove katastarske parcele ({cadastral_m2} m²): usvojeni plan "
+        "definiše parcelu na kojoj se gradi.",
+    ),
+    "split": Bilingual(
+        "This cadastral parcel lies in {count} planned urban parcels ({numbers}). Calculations use "
+        "{urban_parcel_number} ({planned_m2} m²), which covers the largest part ({overlap_pct}%); "
+        "the others are listed and have their own figures.",
+        "Ova katastarska parcela leži u više urbanističkih parcela ({count}: {numbers}). "
+        "Proračuni koriste {urban_parcel_number} ({planned_m2} m²), koja pokriva najveći dio "
+        "({overlap_pct}%); ostale su navedene i imaju svoje podatke.",
+    ),
+    "no_planned_parcel": Bilingual(
+        "No planned urban parcel is defined over this cadastral parcel; calculations use the "
+        "cadastral area ({cadastral_m2} m²) with the general values of {document_name}.",
+        "Nad ovom katastarskom parcelom nije definisana urbanistička parcela; proračuni koriste "
+        "katastarsku površinu ({cadastral_m2} m²) i opšte vrijednosti dokumenta {document_name}.",
+    ),
+    "not_covered": Bilingual(
+        "No adopted planning document covers this parcel, so there is no calculation basis.",
+        "Nijedan usvojeni planski dokument ne pokriva ovu parcelu, pa nema osnove za proračun.",
+    ),
+    "unpublished": Bilingual(
+        "Planning data has not been published yet; the calculation basis is set at the first "
+        "publish.",
+        "Planski podaci još nisu objavljeni; osnova za proračun određuje se prvim objavljivanjem.",
+    ),
+}
+
+
+def parcel_basis_text(code: str, params: dict[str, Any] | None) -> Bilingual:
+    return PARCEL_BASIS_EXPLANATIONS[code].format(**_text_params(params))
+
+
+AREA_MISMATCH_NOTE = Bilingual(
+    "Planned area {planned_m2} m² vs cadastral area {cadastral_m2} m²: difference {delta_m2} m² "
+    "({delta_pct}%).",
+    "Planirana površina {planned_m2} m² naspram katastarske {cadastral_m2} m²: razlika "
+    "{delta_m2} m² ({delta_pct}%).",
+)
+
+
+def area_mismatch_text(**params: Any) -> Bilingual:
+    return AREA_MISMATCH_NOTE.format(**_text_params(params))
+
+
+PARCEL_FLAG_LABELS: dict[str, Bilingual] = {
+    "public_ownership": Bilingual("Public ownership", "Javna svojina"),
+    "restitution_or_legal_burden": Bilingual(
+        "Restitution or legal burden", "Restitucija ili pravni teret"
+    ),
+}
+
+# The effective assumptions (AssumptionsView.items); unit "share" = 0–1 shown as a percentage.
+ASSUMPTION_LABELS: dict[str, FeasibilityLabel] = {
+    "construction_cost_eur_m2": FeasibilityLabel(
+        "Construction cost per m² GFA", "Cijena gradnje po m² BGP", "€/m²"
+    ),
+    "saleable_share": FeasibilityLabel("Saleable share of GFA", "Prodajni udio BGP", "share"),
+    "sale_price_eur_m2": FeasibilityLabel("Selling price per m²", "Prodajna cijena po m²", "€/m²"),
+    "land_value_eur_m2": FeasibilityLabel(
+        "Land value per m² of parcel", "Vrijednost zemljišta po m² parcele", "€/m²"
+    ),
+    "design_documentation_eur_m2": FeasibilityLabel(
+        "Design & documentation per m² GFA", "Projektovanje i dokumentacija po m² BGP", "€/m²"
+    ),
+}
+
+# Group 2 input flags: what a missing Group 1 input means for the figures.
+INPUT_FLAG_NOTES: dict[str, Bilingual] = {
+    "max_far": Bilingual(
+        "Without the FAR the gross floor area and every figure derived from it cannot be "
+        "calculated.",
+        "Bez indeksa izgrađenosti ne može se izračunati BGP ni iznosi koji iz nje proizlaze.",
+    ),
+    "max_site_coverage_pct": Bilingual(
+        "Without the site coverage only the max coverage area is missing; the financial figures "
+        "are unaffected.",
+        "Bez indeksa zauzetosti nedostaje samo maksimalna površina pod objektom; finansijski "
+        "iznosi nisu pogođeni.",
+    ),
+    "max_height_m": Bilingual(
+        "Not an input of the formulas: the figures assume the full FAR can be built within the "
+        "plan's height rules; check the plan.",
+        "Nije ulaz formula: iznosi pretpostavljaju da se puni indeks izgrađenosti može ostvariti "
+        "u okviru visinskih pravila plana; provjerite plan.",
+    ),
+    "max_floors": Bilingual(
+        "Not an input of the formulas: the figures assume the full FAR can be built within the "
+        "plan's floor limits; check the plan.",
+        "Nije ulaz formula: iznosi pretpostavljaju da se puni indeks izgrađenosti može ostvariti "
+        "u okviru dozvoljene spratnosti; provjerite plan.",
+    ),
+}
