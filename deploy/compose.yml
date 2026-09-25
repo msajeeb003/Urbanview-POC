@@ -91,9 +91,9 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
       redis:
-        condition: service_healthy
-      minio:
         condition: service_healthy
 
   # Celery on every queue: e-mails, publish job (tippecanoe), extraction / geometry when they land.
@@ -141,9 +141,12 @@ services:
       retries: 20
 
   # Private bucket for planning PDFs, map tile archives and expert reports. Browsers only ever get
-  # short-lived signed links (https://FILES_DOMAIN/…, through Caddy).
+  # short-lived signed links (https://FILES_DOMAIN/…, through Caddy). Built from source
+  # (deploy/minio/Dockerfile): MinIO publishes no free images any more.
   minio:
-    image: minio/minio:latest
+    build:
+      context: ./minio
+    image: urbanview-minio
     command: server /data
     restart: unless-stopped
     environment:
@@ -154,24 +157,20 @@ services:
     volumes:
       - miniodata:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
       interval: 5s
       timeout: 5s
       retries: 20
 
-  minio-init:
-    image: minio/mc:latest
+  # One-shot: creates the bucket (private) with the app's own storage code (every `up`).
+  storage-init:
+    build: *app-build
+    command: >
+      python -c "from core.config import get_settings; from core.storage import ObjectStorage;
+      ObjectStorage(get_settings()).ensure_bucket(); print('bucket ready')"
+    env_file: .env
+    environment: *app-env
     restart: "no"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      S3_BUCKET: ${S3_BUCKET:-urbanview}
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\" &&
-      mc mb --ignore-existing \"local/$$S3_BUCKET\" &&
-      echo \"bucket $$S3_BUCKET ready\"
-      "
     depends_on:
       minio:
         condition: service_healthy

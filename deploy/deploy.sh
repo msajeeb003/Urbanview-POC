@@ -12,7 +12,7 @@ if [[ ! -f deploy/.env ]]; then
   echo "deploy/.env is missing: copy deploy/.env.example and fill it in" >&2
   exit 1
 fi
-if grep -q 'change-me' deploy/.env; then
+if grep -qE '^[^#].*change-me' deploy/.env; then
   echo "deploy/.env still has change-me placeholders" >&2
   exit 1
 fi

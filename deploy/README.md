@@ -11,7 +11,7 @@ Everything runs on one server with Docker Compose (`deploy/compose.yml`):
 | `worker` | background jobs: e-mails, the publish job (tippecanoe) | internal |
 | `postgres` | PostgreSQL 16 + PostGIS | internal |
 | `redis` | job queue, caches, rate limiting | internal |
-| `migrate`, `minio-init` | one-shot: database migrations, bucket creation (every `up`) | — |
+| `migrate`, `storage-init` | one-shot: database migrations, bucket creation (every `up`) | — |
 
 Nothing but Caddy publishes a port; the database, Redis and MinIO are only on Docker's internal
 network.
@@ -162,9 +162,10 @@ $dc run --rm api python -m core.staff list   # staff users
 
 - **Mail:** Hetzner blocks outgoing ports 25 and 465 on new accounts; use a provider on 587 (Resend,
   Brevo). The worker sends; `GET /v1/admin/email-log` shows every attempt.
-- **Storage:** MinIO runs on the server's disk. Hetzner Object Storage (or Cloudflare R2) can
+- **Storage:** MinIO runs on the server's disk, built from source (`deploy/minio/Dockerfile`: MinIO
+  stopped publishing free images in 2025; the first build compiles it, a few minutes). Hetzner Object Storage (or Cloudflare R2) can
   replace it: set `S3_ENDPOINT_URL`, `S3_PUBLIC_ENDPOINT_URL`, `S3_BUCKET`, `S3_ACCESS_KEY`,
-  `S3_SECRET_KEY` for the api and worker, drop `minio` / `minio-init`, and give the bucket a CORS
+  `S3_SECRET_KEY` for the api and worker, drop `minio` / `storage-init`, and give the bucket a CORS
   rule allowing `GET` with `Range` from `https://SITE_DOMAIN` (exposing `Accept-Ranges`,
   `Content-Range`, `Content-Length`).
 - **Memory:** the Next.js and tippecanoe builds peak above 4 GB; the swap from `server-setup.sh`
