@@ -213,16 +213,15 @@ export function MapView({
       if (focus) useShell.getState().setFocus(null);
       // Mapbox only follows window resizes; the map's box also changes when the rail collapses or
       // opens, the panel hides (outside coverage) or the bottom sheet moves: redraw at the new size.
-      let resizeRaf = 0;
+      // Resizing wipes the drawing surface and Mapbox repaints a frame later, which shows as a
+      // blink; paint the new size in the same frame (Mapbox's own frame function, when present).
+      const paintNow = (map as unknown as { _render?: (now: number) => void })._render;
       const resizeObserver = new ResizeObserver(() => {
-        cancelAnimationFrame(resizeRaf);
-        resizeRaf = requestAnimationFrame(() => map.resize());
+        map.resize();
+        if (typeof paintNow === "function" && map.isStyleLoaded()) paintNow.call(map, performance.now());
       });
       resizeObserver.observe(container);
-      unsubscribers.push(() => {
-        cancelAnimationFrame(resizeRaf);
-        resizeObserver.disconnect();
-      });
+      unsubscribers.push(() => resizeObserver.disconnect());
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
       map.addControl(new mapboxgl.AttributionControl({ compact: true }), "top-right");
