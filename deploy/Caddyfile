@@ -2,6 +2,13 @@
 # e-mail needed). The names come from deploy/.env (SITE_DOMAIN, API_DOMAIN, FILES_DOMAIN); each
 # needs a DNS A record (and AAAA for IPv6) pointing at the server, or an sslip.io name.
 
+# The server's bare IP typed into a browser: send the visitor to the map's name. HTTP only:
+# certificates are issued for names, not for the IP (without this, http://IP redirects to
+# https://IP, which fails).
+http://{$SERVER_IP} {
+	redir https://{$SITE_DOMAIN}{uri}
+}
+
 # The public map (Next.js).
 {$SITE_DOMAIN} {
 	encode zstd gzip

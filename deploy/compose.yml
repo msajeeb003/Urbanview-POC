@@ -40,6 +40,8 @@ services:
       SITE_DOMAIN: ${SITE_DOMAIN}
       API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
       FILES_DOMAIN: ${FILES_DOMAIN}
+      # the server's public IPv4: http://IP forwards to the map (127.0.0.1 = unused)
+      SERVER_IP: ${SERVER_IP:-127.0.0.1}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
