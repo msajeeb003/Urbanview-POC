@@ -211,6 +211,18 @@ export function MapView({
       });
       mapRef.current = map;
       if (focus) useShell.getState().setFocus(null);
+      // Mapbox only follows window resizes; the map's box also changes when the rail collapses or
+      // opens, the panel hides (outside coverage) or the bottom sheet moves: redraw at the new size.
+      let resizeRaf = 0;
+      const resizeObserver = new ResizeObserver(() => {
+        cancelAnimationFrame(resizeRaf);
+        resizeRaf = requestAnimationFrame(() => map.resize());
+      });
+      resizeObserver.observe(container);
+      unsubscribers.push(() => {
+        cancelAnimationFrame(resizeRaf);
+        resizeObserver.disconnect();
+      });
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
       map.addControl(new mapboxgl.AttributionControl({ compact: true }), "top-right");
