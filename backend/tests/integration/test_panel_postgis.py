@@ -1222,7 +1222,9 @@ async def test_market_data_removed_makes_money_fields_cannot_calculate(pg_conn, 
         assert _feasibility(restored)["revenue_eur"]["status"] == "ok"
 
 
-async def test_municipality_wide_default_market_row_is_the_fallback(pg_conn, pg_settings):
+async def test_municipality_wide_row_never_stands_in_for_a_zone(pg_conn, pg_settings):
+    """Market imports (migration 0019): a zone without its own current row has no market
+    figures, whatever the municipality-wide row says; that row only holds range factors."""
     inserted = (
         await _execute(
             pg_conn,
@@ -1237,18 +1239,17 @@ async def test_municipality_wide_default_market_row_is_the_fallback(pg_conn, pg_
             pg_conn, "UPDATE financial_assumptions SET is_current = false WHERE zone_id = 2"
         )
         async with _fresh_client(pg_settings) as client:
-            fallback = await _get(client, type="urban", id=3)
-            market = fallback["market_inputs"]
-            assert market["available"] is True
+            body = await _get(client, type="urban", id=3)
+            market = body["market_inputs"]
+            assert market["available"] is False
+            assert market["reason_code"] == "no_market_data"
             assert market["zone"] == {"id": 2, "name": "Stari Aerodrom"}
-            assert (market["land_rate_eur_m2"], market["build_rate_eur_m2"]) == (1000, 800)
-            assert (market["design_rate_eur_m2"], market["sale_rate_eur_m2"]) == (80, 2000)
-            assert market["source"] == "test default"
-            assert fallback["assumptions"]["construction_cost_eur_m2"] == 800
-            engine = compute_feasibility(
-                fallback["basis_area_m2"], 2.4, 40, MarketInputs(1000, 800, 80, 2000), Assumptions()
-            )
-            _assert_feasibility_equals(fallback["feasibility"], engine.to_dict())
+            assert market["sale_rate_eur_m2"] is None and market["source"] is None
+            rows = _feasibility(body)
+            for key in MONEY_KEYS:
+                assert rows[key]["status"] == "cannot_calculate", key
+                assert rows[key]["reason_code"] == "no_market_data", key
+            assert rows["max_gfa_m2"]["status"] == "ok"
             # a zone with its own current row keeps it
             own = await _get(client, type="urban", id=1)
             assert own["market_inputs"]["land_rate_eur_m2"] == 1350

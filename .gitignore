@@ -43,3 +43,10 @@ docs/urbanview-pilot-technical-scope.pdf
 docs/UrbanView Pilot Technical Scope (extracted text).txt
 docs/technical-scope-diagrams/
 docs/UrbanView_POC_Exclusions.docx.md
+
+# evaluation caches: model replies and page data hold client document text
+backend/.cache/
+
+# Claude Code local state: background-task worktrees, machine-specific preview config
+.claude/worktrees/
+.claude/launch.json

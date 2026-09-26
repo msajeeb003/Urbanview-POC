@@ -192,8 +192,10 @@ async def test_assumption_versions_and_what_the_panel_states(config_app):
     assert panel_without["market_inputs"]["reason_code"] == "no_market_data"
     assert panel_without["market_inputs"]["version"] is None
     assert default.status_code == 201 and default.json()["zone_id"] is None
-    assert panel_default["market_inputs"]["version"]["zone_id"] is None
-    assert panel_default["market_inputs"]["land_rate_eur_m2"] == 1000
+    # the municipality-wide row never stands in for a zone (market imports, migration 0019)
+    assert panel_default["market_inputs"]["available"] is False
+    assert panel_default["market_inputs"]["reason_code"] == "no_market_data"
+    assert panel_default["market_inputs"]["land_rate_eur_m2"] is None
     assert bad_bounds.status_code == 422 and "low" in bad_bounds.text
     assert bad_zone.status_code == 422 and "zone" in bad_zone.text
     assert anonymous.status_code == 401

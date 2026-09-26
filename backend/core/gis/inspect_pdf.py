@@ -119,6 +119,11 @@ def looks_glyph_shifted(word: str) -> bool:
     decoded = decode_glyph_ids(word)
     if not _READABLE.fullmatch(decoded):
         return False
+    letters = "".join(c for c in decoded if c.isalpha())
+    if not (letters.islower() or letters.isupper() or letters.istitle()):
+        return False  # "D3078" would read "aPMTU": a parcel id, not shifted text
+    if re.fullmatch(r"[A-Z]{1,3}\d+(?:[/.\-]\d+)*[a-z]?", word):
+        return False
     if any(ord(c) < 0x20 for c in word):
         return True
     if any(0x24 <= ord(c) <= 0x3D for c in word) or any(c in GLYPH_ID_LETTERS for c in word):

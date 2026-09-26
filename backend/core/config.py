@@ -69,6 +69,62 @@ class Settings(BaseSettings):
     llm_price_eur_per_mtok_output: float = Field(default=15.0, ge=0)
     llm_price_table: str | None = None  # per-model override: 'model=in:out,...' (EUR / MTok)
 
+    # AI document extraction (core.extraction): the model that transcribes planning PDFs
+    anthropic_api_key: SecretStr | None = None  # None = the SDK's own lookup (env, profile)
+    # passed to the SDK explicitly: a stray ANTHROPIC_BASE_URL in the environment (a local
+    # proxy, a desktop app) must never receive the key
+    anthropic_base_url: str = "https://api.anthropic.com"
+    extraction_model: str = "claude-sonnet-5"
+    extraction_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "high"
+    extraction_adaptive_thinking: bool = True
+    extraction_max_tokens: int = Field(default=32_000, ge=1024, le=128_000)
+    # server-side refusal fallback (fallbacks "default", beta server-side-fallback-2026-07-01);
+    # documented for Opus 5 / Fable 5.1, off for the Sonnet default (planning text is not refused)
+    extraction_refusal_fallback: bool = False
+    extraction_timeout_seconds: int = Field(default=600, ge=10)
+    # items below this confidence stay in the queue, flagged low_confidence for the reviewer
+    extraction_low_confidence: float = Field(default=0.7, ge=0, le=1)
+    # OCR of scanned pages: none (pages stay flagged for manual handling) | tesseract (needs
+    # Tesseract + language data, TESSDATA_PREFIX); srp_latn+srp reads Montenegrin in both scripts
+    extraction_ocr_backend: Literal["none", "tesseract"] = "none"
+    extraction_ocr_languages: str = "srp_latn+srp"
+    extraction_ocr_dpi: int = Field(default=300, ge=72, le=600)
+    # the extract_document job (jobs.extraction_runner): a request that meets a transient model
+    # error (overload, timeout, 429) is retried in the job with backoff, then the job retries;
+    # an answer that does not fit the schema is asked again once with the error; a run reads at
+    # most EXTRACTION_MAX_CHUNKS chunks x tasks (a runaway plan fails instead of spending)
+    extraction_call_retries: int = Field(default=2, ge=0, le=10)
+    extraction_retry_base_seconds: float = Field(default=2.0, ge=0, le=60)
+    extraction_retry_max_seconds: float = Field(default=30.0, ge=0, le=600)
+    extraction_max_chunks: int = Field(default=400, ge=1)
+
+    # PDF pre-processing (core.extraction.preprocess, job preprocess_file), cached by checksum
+    preprocess_page_image_dpi: int = Field(default=150, ge=36, le=600)
+    preprocess_page_image_max_pixels: int = Field(default=25_000_000, ge=1_000_000)
+    # true: the source viewer serves the rendered PNGs (page_images_rendered); the public viewer
+    # highlights cited values only on the PDF, so the default keeps serving the PDF
+    preprocess_serve_page_images: bool = False
+    preprocess_chunk_token_budget: int = Field(default=6000, ge=500, le=100_000)
+    preprocess_chars_per_token: float = Field(default=3.0, gt=0.5, le=10)
+    preprocess_min_text_density: float = Field(default=2.0, ge=0)  # chars per 10 000 pt²
+    preprocess_scanned_image_coverage: float = Field(default=0.5, ge=0, le=1)
+    preprocess_table_max_paths: int = Field(default=20_000, ge=0)
+
+    # Market-data imports (core.market, job import_market_data): the LLM maps table structure,
+    # area names and periods only (auto = when the rules cannot); every figure is read by code
+    market_normalise_llm: Literal["auto", "never", "always"] = "auto"
+    market_model: str | None = None  # None = EXTRACTION_MODEL
+    market_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "medium"
+    market_max_tokens: int = Field(default=16_000, ge=1024, le=128_000)
+    market_llm_max_rows: int = Field(default=150, ge=5, le=2000)  # rows of a sheet shown
+    market_low_confidence: float = Field(default=0.7, ge=0, le=1)
+    market_max_rows: int = Field(default=5000, ge=1)  # per sheet, larger tables are refused
+    # pasted listings: fewer than this per zone and metric give no figure; the range is the
+    # interquartile range around the median unless configured otherwise
+    market_min_listings: int = Field(default=5, ge=1)
+    market_listings_low_percentile: float = Field(default=25, gt=0, lt=50)
+    market_listings_high_percentile: float = Field(default=75, gt=50, lt=100)
+
     # S3-compatible private object storage
     s3_endpoint_url: str | None = None
     # the address browsers reach the bucket at (signed links); unset = S3_ENDPOINT_URL. On one

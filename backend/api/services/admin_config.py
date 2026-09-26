@@ -2,13 +2,17 @@
 
 Three sets of staff-maintained data, every write audited (``audit_log``) and role-gated (admin):
 
-- **Financial assumptions** per zone (or the municipality-wide default, ``zone_id`` null): the
+- **Financial assumptions** per zone (or the municipality-wide row, ``zone_id`` null): the
   four rates the feasibility engine needs, the range factors, optional absolute low / high
-  bounds per rate, and sources. Rows are immutable versions: a create or an update inserts
-  version n+1 for the zone and flips the previous current row off (``supersedes_id`` links them);
-  a retire flips the current row off without a successor, so the panel falls back to the
-  municipality default (or reports no market data). The current row is what ``GET /v1/panel``
-  and ``POST /v1/feasibility`` read, and both state its id and version.
+  bounds per rate, sources, an optional effective date and, once reviewed market inputs have set
+  a rate, its provenance (``rate_sources``). Rows are immutable versions: a create or an update
+  inserts version n+1 for the zone and flips the previous current row off (``supersedes_id``
+  links them); a retire flips the current row off without a successor, so the panel reports no
+  market data for the zone. The current row is what ``GET /v1/panel`` and ``POST
+  /v1/feasibility`` read, and both state its id and version. A zone without its own row gets no
+  figures: the municipality-wide row (``zone_id`` null) only supplies the range factors that
+  single-figure market imports are widened with (``core.market``), never a zone's figures.
+  Approved market inputs write versions through :func:`insert_assumptions_version` too.
 - **Zone parameter sets**: the typical planning values of a zone (land use, FAR, coverage,
   height, floors) with a source document reference and a verification date; versioned the same
   way; the current row is the zone panel's ``typical_parameters``.
@@ -21,8 +25,9 @@ uniqueness (e-mail) here.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import text
@@ -90,6 +95,7 @@ def _assumptions_sql(extra: str) -> str:
     SELECT a.id, a.zone_id, z.name AS zone_name, a.version, a.is_current, a.supersedes_id,
            {_ASSUMPTION_COLUMNS},
            a.range_low_factor, a.range_high_factor, a.source, a.source_date, a.notes,
+           a.effective_from, a.rate_sources,
            a.created_by, a.created_at, a.retired_at, a.retired_by
     FROM financial_assumptions a
     LEFT JOIN zones z ON z.id = a.zone_id
@@ -103,9 +109,11 @@ ASSUMPTIONS_BY_ID_SQL = text(_assumptions_sql("AND a.id = :id"))
 CURRENT_ASSUMPTIONS_SQL = text(
     """
     SELECT id, version, land_rate_eur_m2, build_rate_eur_m2, design_rate_eur_m2,
-           sale_rate_eur_m2, range_low_factor, range_high_factor, source
+           sale_rate_eur_m2, range_low_factor, range_high_factor, source, effective_from,
+           rate_sources
     FROM financial_assumptions
     WHERE municipality_id = :m AND is_current AND zone_id IS NOT DISTINCT FROM :zone_id
+    FOR UPDATE
     """
 )
 SUPERSEDE_ASSUMPTIONS_SQL = text(
@@ -126,7 +134,7 @@ INSERT_ASSUMPTIONS_SQL = text(
         design_rate_eur_m2, design_rate_low_eur_m2, design_rate_high_eur_m2,
         sale_rate_eur_m2, sale_rate_low_eur_m2, sale_rate_high_eur_m2,
         range_low_factor, range_high_factor, source, source_date, notes, created_by,
-        dataset_version)
+        dataset_version, effective_from, rate_sources)
     VALUES (
         :m, :zone_id, :version, :supersedes_id, true,
         :land_expected, :land_low, :land_high,
@@ -134,7 +142,7 @@ INSERT_ASSUMPTIONS_SQL = text(
         :design_expected, :design_low, :design_high,
         :sale_expected, :sale_low, :sale_high,
         :range_low_factor, :range_high_factor, :source, :source_date, :notes, :created_by,
-        NULL)
+        NULL, :effective_from, CAST(:rate_sources AS jsonb))
     RETURNING id
     """
 )
@@ -251,6 +259,8 @@ def _assumptions_out(row: Mapping[str, Any]) -> AssumptionsOut:
         source=row["source"],
         source_date=row["source_date"],
         notes=row["notes"],
+        effective_from=row["effective_from"],
+        rate_sources=row["rate_sources"],
         created_by=row["created_by"],
         created_at=_utc(row["created_at"]),
         retired_at=_utc(row["retired_at"]),
@@ -312,12 +322,82 @@ def _rate_params(prefix: str, rate: RateIn) -> dict[str, Any]:
     }
 
 
-def _rate_from_row(row: Mapping[str, Any], prefix: str) -> RateIn:
+def rate_from_row(row: Mapping[str, Any], prefix: str) -> RateIn:
     return RateIn(
         expected=float(row[f"{prefix}_rate_eur_m2"]),
         low=row[f"{prefix}_rate_low_eur_m2"],
         high=row[f"{prefix}_rate_high_eur_m2"],
     )
+
+
+async def insert_assumptions_version(
+    session: AsyncSession,
+    *,
+    municipality_id: str,
+    principal: Principal,
+    payload: AssumptionsIn,
+    action: str,
+    changed: list[str] | None = None,
+    effective_from: date | None = None,
+    rate_sources: Mapping[str, Any] | None = None,
+    details: Mapping[str, Any] | None = None,
+) -> int:
+    """Insert version n+1 of the zone's assumptions (the current row, locked, is superseded)
+    and audit it with the state before and after. The caller commits."""
+    current = (
+        (
+            await session.execute(
+                CURRENT_ASSUMPTIONS_SQL, {"m": municipality_id, "zone_id": payload.zone_id}
+            )
+        )
+        .mappings()
+        .first()
+    )
+    version = int(current["version"]) + 1 if current is not None else 1
+    if current is not None:
+        await session.execute(SUPERSEDE_ASSUMPTIONS_SQL, {"id": current["id"]})
+    params: dict[str, Any] = {
+        "m": municipality_id,
+        "zone_id": payload.zone_id,
+        "version": version,
+        "supersedes_id": current["id"] if current is not None else None,
+        "range_low_factor": payload.range_low_factor,
+        "range_high_factor": payload.range_high_factor,
+        "source": payload.source,
+        "source_date": payload.source_date,
+        "notes": payload.notes,
+        "created_by": principal.subject,
+        "effective_from": effective_from,
+        "rate_sources": json.dumps(rate_sources, default=str) if rate_sources else None,
+    }
+    for prefix in RATES:
+        params.update(_rate_params(prefix, getattr(payload, f"{prefix}_rate")))
+    new_id = int((await session.execute(INSERT_ASSUMPTIONS_SQL, params)).scalar_one())
+    await write_audit(
+        session,
+        municipality_id=municipality_id,
+        principal=principal,
+        action=action,
+        entity_type="financial_assumptions",
+        entity_id=new_id,
+        details={
+            "zone_id": payload.zone_id,
+            "version": version,
+            "supersedes_id": current["id"] if current is not None else None,
+            "changed": changed,
+            "source": payload.source,
+            **(details or {}),
+        },
+        before=dict(current) if current is not None else None,
+        after={
+            "id": new_id,
+            "version": version,
+            **payload.model_dump(mode="json"),
+            "effective_from": effective_from.isoformat() if effective_from else None,
+            "rate_sources": dict(rate_sources) if rate_sources else None,
+        },
+    )
+    return new_id
 
 
 # --- service --------------------------------------------------------------------------------------
@@ -429,7 +509,11 @@ class AdminConfigService:
             ):
                 raise _validation_error([{"loc": ["body", "zone_id"], "msg": "no such zone"}])
             new_id = await self._insert_assumptions_version(
-                session, principal, payload, action="assumptions.create"
+                session,
+                principal,
+                payload,
+                action="assumptions.create",
+                effective_from=payload.effective_from,
             )
             await session.commit()
         return await self.get_assumptions(new_id)
@@ -447,22 +531,34 @@ class AdminConfigService:
             changes = payload.model_dump(exclude_unset=True)
             merged = AssumptionsIn(
                 zone_id=row["zone_id"],
-                land_rate=payload.land_rate or _rate_from_row(row, "land"),
-                build_rate=payload.build_rate or _rate_from_row(row, "build"),
-                design_rate=payload.design_rate or _rate_from_row(row, "design"),
-                sale_rate=payload.sale_rate or _rate_from_row(row, "sale"),
+                land_rate=payload.land_rate or rate_from_row(row, "land"),
+                build_rate=payload.build_rate or rate_from_row(row, "build"),
+                design_rate=payload.design_rate or rate_from_row(row, "design"),
+                sale_rate=payload.sale_rate or rate_from_row(row, "sale"),
                 range_low_factor=changes.get("range_low_factor", row["range_low_factor"]),
                 range_high_factor=changes.get("range_high_factor", row["range_high_factor"]),
                 source=changes.get("source", row["source"]) or "",
                 source_date=changes.get("source_date", row["source_date"]),
                 notes=changes.get("notes", row["notes"]),
             )
+            # provenance per rate: an edited rate is now the admin's, the others keep theirs
+            rate_sources = dict(row["rate_sources"] or {}) or None
+            if rate_sources is not None:
+                for prefix in RATES:
+                    if f"{prefix}_rate" in changes:
+                        rate_sources[f"{prefix}_rate"] = {
+                            "source": merged.source,
+                            "source_date": merged.source_date,
+                            "set_by": "admin",
+                        }
             new_id = await self._insert_assumptions_version(
                 session,
                 principal,
                 merged,
                 action="assumptions.update",
                 changed=sorted(changes),
+                effective_from=changes.get("effective_from", row["effective_from"]),
+                rate_sources=rate_sources,
             )
             await session.commit()
         return await self.get_assumptions(new_id)
@@ -475,52 +571,19 @@ class AdminConfigService:
         *,
         action: str,
         changed: list[str] | None = None,
+        effective_from: date | None = None,
+        rate_sources: Mapping[str, Any] | None = None,
     ) -> int:
-        current = (
-            (
-                await session.execute(
-                    CURRENT_ASSUMPTIONS_SQL,
-                    {"m": self.municipality_id, "zone_id": payload.zone_id},
-                )
-            )
-            .mappings()
-            .first()
-        )
-        version = int(current["version"]) + 1 if current is not None else 1
-        if current is not None:
-            await session.execute(SUPERSEDE_ASSUMPTIONS_SQL, {"id": current["id"]})
-        params: dict[str, Any] = {
-            "m": self.municipality_id,
-            "zone_id": payload.zone_id,
-            "version": version,
-            "supersedes_id": current["id"] if current is not None else None,
-            "range_low_factor": payload.range_low_factor,
-            "range_high_factor": payload.range_high_factor,
-            "source": payload.source,
-            "source_date": payload.source_date,
-            "notes": payload.notes,
-            "created_by": principal.subject,
-        }
-        for prefix in RATES:
-            params.update(_rate_params(prefix, getattr(payload, f"{prefix}_rate")))
-        new_id = int((await session.execute(INSERT_ASSUMPTIONS_SQL, params)).scalar_one())
-        await self._audit(
+        return await insert_assumptions_version(
             session,
-            principal,
-            action,
-            "financial_assumptions",
-            new_id,
-            {
-                "zone_id": payload.zone_id,
-                "version": version,
-                "supersedes_id": current["id"] if current is not None else None,
-                "changed": changed,
-                "source": payload.source,
-            },
-            before=dict(current) if current is not None else None,
-            after={"id": new_id, "version": version, **payload.model_dump(mode="json")},
+            municipality_id=self.municipality_id,
+            principal=principal,
+            payload=payload,
+            action=action,
+            changed=changed,
+            effective_from=effective_from,
+            rate_sources=rate_sources,
         )
-        return new_id
 
     async def retire_assumptions(self, principal: Principal, assumptions_id: int) -> AssumptionsOut:
         async with self.session_factory() as session:

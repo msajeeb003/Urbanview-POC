@@ -1,0 +1,7344 @@
+{
+ "gold_version": 1,
+ "document": "novi-grad-1-2",
+ "name": "Izmjena i dopuna DUP-a \"Novi Grad 1 i 2\" u Podgorici",
+ "source": "02 Novi Grad 1 i 2/Novi Grad 1 i 2 - Urban parcels - Planning parameters.pdf",
+ "sha256": "cd368d64de9d0f36554209fdc5ed6eb0317b3d0b4cd136fce7c656c177c9c089",
+ "labelled_by": "core.extraction.corpus.build_gold (draft)",
+ "labelled_on": "2026-09-26",
+ "method": "draft from the PDF stage's table grids with the column map of corpus.toml (core.extraction.corpus.build_gold), then checked against the rendered pages (see verification)",
+ "verification": [
+  {
+   "pages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+   ],
+   "by": "Claude (AI) visual check: every page rendered at 170 dpi and compared row by row, digit by digit, with the gold rows (9 independent checkers, one per page range); a human reviewer's sign-off is still pending",
+   "on": "2026-09-26",
+   "corrections": [
+    "block totals: the wrapped last digit of a neighbouring total had been taken as the land use / floors of UKUPNO BLOK B, C, D, E and F; total rows now carry numeric fields only",
+    "the plan-wide total 'UKUPNO SVE ZONE' (page 11) is not a block and is left out"
+   ],
+   "notes": "all 103 parcel rows match on number, block, area, land use, floors, IZ and II; merged cells (UP 51, 81, 85 groups; IZ / II over *** rows), wrapped numbers, deferred UP 1 / UP 25 and the blank cells confirmed; page 12 has no parcel table"
+  }
+ ],
+ "fields": [
+  "block_ref",
+  "planned_parcel_area_m2",
+  "land_use",
+  "max_site_coverage_pct",
+  "max_far",
+  "max_height_m",
+  "max_floors",
+  "building_line_m",
+  "setback_neighbours_m",
+  "parking_requirement",
+  "min_green_area_pct",
+  "utilities"
+ ],
+ "document_fields": {
+  "name": {
+   "status": "stated",
+   "printed": "Izmjena i dopuna DUP-a \"Novi Grad 1 i 2\" u Podgorici",
+   "value": "Izmjena i dopuna DUP-a \"Novi Grad 1 i 2\" u Podgorici",
+   "unit": null,
+   "page": 1,
+   "text": "Izmjena i dopuna DUP-a \"Novi Grad 1 i 2\" u Podgorici",
+   "cell": null
+  },
+  "document_type": {
+   "status": "stated",
+   "printed": "DUP",
+   "value": "DUP",
+   "unit": null,
+   "page": 1,
+   "text": "Izmjena i dopuna DUP-a \"Novi Grad 1 i 2\" u Podgorici",
+   "cell": null
+  },
+  "status": null,
+  "gazette_reference": null,
+  "decision_number": null,
+  "decision_date": null,
+  "area_ha": null
+ },
+ "parcels": [
+  {
+   "number": "UP 1",
+   "key": "1",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r1c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "5705.17",
+     "value": 5705.17,
+     "unit": "m²",
+     "page": 1,
+     "text": "5705.17",
+     "cell": "r1c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "mješovita namjena - prostor namjenjen za razradu konkursnim rjesenjem",
+     "value": "mješovita namjena - prostor namjenjen za razradu konkursnim rjesenjem",
+     "unit": null,
+     "page": 1,
+     "text": "mješovita namjena - prostor namjenjen za razradu konkursnim rjesenjem",
+     "cell": "r1c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "deferred",
+     "printed": "",
+     "value": null,
+     "unit": null,
+     "page": 1,
+     "text": "definisaće se konkursnim rješenjem",
+     "cell": null
+    },
+    "max_far": {
+     "status": "deferred",
+     "printed": "",
+     "value": null,
+     "unit": null,
+     "page": 1,
+     "text": "definisaće se konkursnim rješenjem",
+     "cell": null
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "deferred",
+     "printed": "",
+     "value": null,
+     "unit": null,
+     "page": 1,
+     "text": "definisaće se konkursnim rješenjem",
+     "cell": null
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 2",
+   "key": "2",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r2c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1906.09",
+     "value": 1906.09,
+     "unit": "m²",
+     "page": 1,
+     "text": "1906.09",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 1,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 1,
+     "text": "1",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 1,
+     "text": "7",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 1,
+     "text": "Po+P+6",
+     "cell": "r2c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 3",
+   "key": "3",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r4c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1022.25",
+     "value": 1022.25,
+     "unit": "m²",
+     "page": 1,
+     "text": "1022.25",
+     "cell": "r4c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 1,
+     "text": "stanovanje",
+     "cell": "r4c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 1,
+     "text": "1",
+     "cell": "r4c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 1,
+     "text": "6",
+     "cell": "r4c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+5",
+     "value": "S+P+5",
+     "unit": null,
+     "page": 1,
+     "text": "S+P+5",
+     "cell": "r4c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 4",
+   "key": "4",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r5c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1050.91",
+     "value": 1050.91,
+     "unit": "m²",
+     "page": 1,
+     "text": "1050.91",
+     "cell": "r5c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 1,
+     "text": "stanovanje",
+     "cell": "r5c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 1,
+     "text": "1",
+     "cell": "r5c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 1,
+     "text": "7",
+     "cell": "r5c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+6",
+     "value": "S+P+6",
+     "unit": null,
+     "page": 1,
+     "text": "S+P+6",
+     "cell": "r5c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 5",
+   "key": "5",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r7c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1663.88",
+     "value": 1663.88,
+     "unit": "m²",
+     "page": 1,
+     "text": "1663.88",
+     "cell": "r7c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 1,
+     "text": "stanovanje",
+     "cell": "r7c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 1,
+     "text": "1",
+     "cell": "r7c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 1,
+     "text": "6",
+     "cell": "r7c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+5",
+     "value": "S+P+5",
+     "unit": null,
+     "page": 1,
+     "text": "S+P+5",
+     "cell": "r7c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 6",
+   "key": "6",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r8c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1568.83",
+     "value": 1568.83,
+     "unit": "m²",
+     "page": 1,
+     "text": "1568.83",
+     "cell": "r8c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "površine saobraćajne infrastrukture",
+     "value": "površine saobraćajne infrastrukture",
+     "unit": null,
+     "page": 1,
+     "text": "površine saobraćajne infrastrukture",
+     "cell": "r8c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.9",
+     "value": 90.0,
+     "unit": "%",
+     "page": 1,
+     "text": "0.9",
+     "cell": "r8c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "1.8",
+     "value": 1.8,
+     "unit": null,
+     "page": 1,
+     "text": "1.8",
+     "cell": "r8c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+1",
+     "value": "P+1",
+     "unit": null,
+     "page": 1,
+     "text": "P+1",
+     "cell": "r8c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 7",
+   "key": "7",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r9c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "5349.7",
+     "value": 5349.7,
+     "unit": "m²",
+     "page": 1,
+     "text": "5349.7",
+     "cell": "r9c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 1,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r9c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.32",
+     "value": 32.0,
+     "unit": "%",
+     "page": 1,
+     "text": "0.32",
+     "cell": "r9c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.4",
+     "value": 0.4,
+     "unit": null,
+     "page": 1,
+     "text": "0.4",
+     "cell": "r9c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+1",
+     "value": "P+1",
+     "unit": null,
+     "page": 1,
+     "text": "P+1",
+     "cell": "r9c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 8",
+   "key": "8",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r10c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "885.34",
+     "value": 885.34,
+     "unit": "m²",
+     "page": 1,
+     "text": "885.34",
+     "cell": "r10c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 1,
+     "text": "stanovanje",
+     "cell": "r10c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 1,
+     "text": "1",
+     "cell": "r10c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 1,
+     "text": "7",
+     "cell": "r10c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 1,
+     "text": "Po+P+6",
+     "cell": "r10c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 9",
+   "key": "9",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r12c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1573.1",
+     "value": 1573.1,
+     "unit": "m²",
+     "page": 1,
+     "text": "1573.1",
+     "cell": "r12c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 1,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r12c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.42",
+     "value": 42.0,
+     "unit": "%",
+     "page": 1,
+     "text": "0.42",
+     "cell": "r12c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "2.9",
+     "value": 2.9,
+     "unit": null,
+     "page": 1,
+     "text": "2.9",
+     "cell": "r12c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+6",
+     "value": "S+P+6",
+     "unit": null,
+     "page": 1,
+     "text": "S+P+6",
+     "cell": "r12c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 10",
+   "key": "10",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r13c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "770.01",
+     "value": 770.01,
+     "unit": "m²",
+     "page": 1,
+     "text": "770.01",
+     "cell": "r13c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 1,
+     "text": "stanovanje",
+     "cell": "r13c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 1,
+     "text": "1",
+     "cell": "r13c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 1,
+     "text": "5",
+     "cell": "r13c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 1,
+     "text": "Po+P+4",
+     "cell": "r13c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 11",
+   "key": "11",
+   "page": 1,
+   "table": "p1t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 1,
+     "text": "A",
+     "cell": "r14c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "828",
+     "value": 828.0,
+     "unit": "m²",
+     "page": 1,
+     "text": "828",
+     "cell": "r14c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 1,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r14c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.71",
+     "value": 71.0,
+     "unit": "%",
+     "page": 1,
+     "text": "0.71",
+     "cell": "r14c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "3.6",
+     "value": 3.6,
+     "unit": null,
+     "page": 1,
+     "text": "3.6",
+     "cell": "r14c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+3+ M",
+     "value": "S+P+3+ M",
+     "unit": null,
+     "page": 1,
+     "text": "S+P+3+ M",
+     "cell": "r14c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 12",
+   "key": "12",
+   "page": 2,
+   "table": "p2t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 2,
+     "text": "A",
+     "cell": "r0c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1270.56",
+     "value": 1270.56,
+     "unit": "m²",
+     "page": 2,
+     "text": "1270.56",
+     "cell": "r0c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 2,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r0c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 2,
+     "text": "1",
+     "cell": "r0c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 2,
+     "text": "7",
+     "cell": "r0c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 2,
+     "text": "Po+P+6",
+     "cell": "r0c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 13",
+   "key": "13",
+   "page": 2,
+   "table": "p2t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 2,
+     "text": "A",
+     "cell": "r2c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1324.74",
+     "value": 1324.74,
+     "unit": "m²",
+     "page": 2,
+     "text": "1324.74",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 2,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 2,
+     "text": "1",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 2,
+     "text": "7",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 2,
+     "text": "Po+P+6",
+     "cell": "r2c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 14",
+   "key": "14",
+   "page": 2,
+   "table": "p2t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 2,
+     "text": "A",
+     "cell": "r4c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1620.02",
+     "value": 1620.02,
+     "unit": "m²",
+     "page": 2,
+     "text": "1620.02",
+     "cell": "r4c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 2,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r4c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 2,
+     "text": "1",
+     "cell": "r4c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 2,
+     "text": "7",
+     "cell": "r4c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 2,
+     "text": "Po+P+6",
+     "cell": "r4c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 15",
+   "key": "15",
+   "page": 2,
+   "table": "p2t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "A",
+     "value": "A",
+     "unit": null,
+     "page": 2,
+     "text": "A",
+     "cell": "r6c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "783.5",
+     "value": 783.5,
+     "unit": "m²",
+     "page": 2,
+     "text": "783.5",
+     "cell": "r6c2"
+    },
+    "land_use": null,
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 2,
+     "text": "1",
+     "cell": "r6c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 2,
+     "text": "7",
+     "cell": "r6c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 2,
+     "text": "Po+P+6",
+     "cell": "r6c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 16",
+   "key": "16",
+   "page": 2,
+   "table": "p2t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 2,
+     "text": "B",
+     "cell": "r1c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1434.35",
+     "value": 1434.35,
+     "unit": "m²",
+     "page": 2,
+     "text": "1434.35",
+     "cell": "r1c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 2,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r1c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 2,
+     "text": "1",
+     "cell": "r1c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 2,
+     "text": "7",
+     "cell": "r1c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 2,
+     "text": "Po+P+6",
+     "cell": "r1c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 17",
+   "key": "17",
+   "page": 2,
+   "table": "p2t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 2,
+     "text": "B",
+     "cell": "r3c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1617.37",
+     "value": 1617.37,
+     "unit": "m²",
+     "page": 2,
+     "text": "1617.37",
+     "cell": "r3c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 2,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r3c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 2,
+     "text": "1",
+     "cell": "r3c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 2,
+     "text": "7",
+     "cell": "r3c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 2,
+     "text": "Po+P+6",
+     "cell": "r3c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 18",
+   "key": "18",
+   "page": 2,
+   "table": "p2t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 2,
+     "text": "B",
+     "cell": "r5c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1387.38",
+     "value": 1387.38,
+     "unit": "m²",
+     "page": 2,
+     "text": "1387.38",
+     "cell": "r5c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 2,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r5c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 2,
+     "text": "1",
+     "cell": "r5c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 2,
+     "text": "7",
+     "cell": "r5c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 2,
+     "text": "Po+P+6",
+     "cell": "r5c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 19",
+   "key": "19",
+   "page": 3,
+   "table": "p3t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 3,
+     "text": "B",
+     "cell": "r0c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "14294.17",
+     "value": 14294.17,
+     "unit": "m²",
+     "page": 3,
+     "text": "14294.17",
+     "cell": "r0c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 3,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r0c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.18",
+     "value": 18.0,
+     "unit": "%",
+     "page": 3,
+     "text": "0.18",
+     "cell": "r0c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.43",
+     "value": 0.43,
+     "unit": null,
+     "page": 3,
+     "text": "0.43",
+     "cell": "r0c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+2",
+     "value": "P+2",
+     "unit": null,
+     "page": 3,
+     "text": "P+2",
+     "cell": "r0c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 20",
+   "key": "20",
+   "page": 3,
+   "table": "p3t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 3,
+     "text": "B",
+     "cell": "r1c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1195.43",
+     "value": 1195.43,
+     "unit": "m²",
+     "page": 3,
+     "text": "1195.43",
+     "cell": "r1c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 3,
+     "text": "stanovanje",
+     "cell": "r1c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 3,
+     "text": "1",
+     "cell": "r1c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 3,
+     "text": "7",
+     "cell": "r1c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 3,
+     "text": "Po+P+6",
+     "cell": "r1c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 21",
+   "key": "21",
+   "page": 3,
+   "table": "p3t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 3,
+     "text": "B",
+     "cell": "r3c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "890.49",
+     "value": 890.49,
+     "unit": "m²",
+     "page": 3,
+     "text": "890.49",
+     "cell": "r3c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 3,
+     "text": "stanovanje",
+     "cell": "r3c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 3,
+     "text": "1",
+     "cell": "r3c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 3,
+     "text": "6",
+     "cell": "r3c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+4+M",
+     "value": "P+4+M",
+     "unit": null,
+     "page": 3,
+     "text": "P+4+M",
+     "cell": "r3c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 22",
+   "key": "22",
+   "page": 3,
+   "table": "p3t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 3,
+     "text": "B",
+     "cell": "r5c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1404.6",
+     "value": 1404.6,
+     "unit": "m²",
+     "page": 3,
+     "text": "1404.6",
+     "cell": "r5c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 3,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r5c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 3,
+     "text": "1",
+     "cell": "r5c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "8",
+     "value": 8.0,
+     "unit": null,
+     "page": 3,
+     "text": "8",
+     "cell": "r5c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+7",
+     "value": "Po+P+7",
+     "unit": null,
+     "page": 3,
+     "text": "Po+P+7",
+     "cell": "r5c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 23",
+   "key": "23",
+   "page": 3,
+   "table": "p3t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 3,
+     "text": "B",
+     "cell": "r7c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "969.82",
+     "value": 969.82,
+     "unit": "m²",
+     "page": 3,
+     "text": "969.82",
+     "cell": "r7c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 3,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r7c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 3,
+     "text": "1",
+     "cell": "r7c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 3,
+     "text": "7",
+     "cell": "r7c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+5+M",
+     "value": "P+5+M",
+     "unit": null,
+     "page": 3,
+     "text": "P+5+M",
+     "cell": "r7c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 24",
+   "key": "24",
+   "page": 3,
+   "table": "p3t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 3,
+     "text": "B",
+     "cell": "r9c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "3813.46",
+     "value": 3813.46,
+     "unit": "m²",
+     "page": 3,
+     "text": "3813.46",
+     "cell": "r9c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "površine saobraćajne infrastrukture",
+     "value": "površine saobraćajne infrastrukture",
+     "unit": null,
+     "page": 3,
+     "text": "površine saobraćajne infrastrukture",
+     "cell": "r9c3"
+    },
+    "max_site_coverage_pct": null,
+    "max_far": null,
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "3S",
+     "value": "3S",
+     "unit": null,
+     "page": 3,
+     "text": "3S",
+     "cell": "r9c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 25",
+   "key": "25",
+   "page": 3,
+   "table": "p3t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 3,
+     "text": "B",
+     "cell": "r10c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1014.15",
+     "value": 1014.15,
+     "unit": "m²",
+     "page": 3,
+     "text": "1014.15",
+     "cell": "r10c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelat. - prostor namjenjen za razradu konkursnim rjesenjem",
+     "value": "stanovanje sa djelat. - prostor namjenjen za razradu konkursnim rjesenjem",
+     "unit": null,
+     "page": 3,
+     "text": "stanovanje sa djelat. - prostor namjenjen za razradu konkursnim rjesenjem",
+     "cell": "r10c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "deferred",
+     "printed": "",
+     "value": null,
+     "unit": null,
+     "page": 3,
+     "text": "definisaće se konkursnim rješenjem",
+     "cell": null
+    },
+    "max_far": {
+     "status": "deferred",
+     "printed": "",
+     "value": null,
+     "unit": null,
+     "page": 3,
+     "text": "definisaće se konkursnim rješenjem",
+     "cell": null
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "deferred",
+     "printed": "",
+     "value": null,
+     "unit": null,
+     "page": 3,
+     "text": "definisaće se konkursnim rješenjem",
+     "cell": null
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 26",
+   "key": "26",
+   "page": 3,
+   "table": "p3t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "B",
+     "value": "B",
+     "unit": null,
+     "page": 3,
+     "text": "B",
+     "cell": "r11c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1235.8",
+     "value": 1235.8,
+     "unit": "m²",
+     "page": 3,
+     "text": "1235.8",
+     "cell": "r11c2"
+    },
+    "land_use": null,
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 3,
+     "text": "1",
+     "cell": "r11c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "8.75",
+     "value": 8.75,
+     "unit": null,
+     "page": 3,
+     "text": "8.75",
+     "cell": "r11c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+8+ M",
+     "value": "Po+P+8+ M",
+     "unit": null,
+     "page": 3,
+     "text": "Po+P+8+ M",
+     "cell": "r11c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 27",
+   "key": "27",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r1c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "2257.6",
+     "value": 2257.6,
+     "unit": "m²",
+     "page": 4,
+     "text": "2257.6",
+     "cell": "r1c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 4,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r1c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 4,
+     "text": "1",
+     "cell": "r1c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 4,
+     "text": "7",
+     "cell": "r1c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 4,
+     "text": "Po+P+6",
+     "cell": "r1c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 28",
+   "key": "28",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r2c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1707",
+     "value": 1707.0,
+     "unit": "m²",
+     "page": 4,
+     "text": "1707",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 4,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 4,
+     "text": "1",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 4,
+     "text": "7",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 4,
+     "text": "Po+P+6",
+     "cell": "r2c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 29",
+   "key": "29",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r4c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1712.38",
+     "value": 1712.38,
+     "unit": "m²",
+     "page": 4,
+     "text": "1712.38",
+     "cell": "r4c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 4,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r4c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 4,
+     "text": "1",
+     "cell": "r4c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 4,
+     "text": "6",
+     "cell": "r4c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+5",
+     "value": "Po+P+5",
+     "unit": null,
+     "page": 4,
+     "text": "Po+P+5",
+     "cell": "r4c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 30",
+   "key": "30",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r5c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1171.53",
+     "value": 1171.53,
+     "unit": "m²",
+     "page": 4,
+     "text": "1171.53",
+     "cell": "r5c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 4,
+     "text": "stanovanje",
+     "cell": "r5c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 4,
+     "text": "1",
+     "cell": "r5c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 4,
+     "text": "6",
+     "cell": "r5c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4+ M",
+     "value": "Po+P+4+ M",
+     "unit": null,
+     "page": 4,
+     "text": "Po+P+4+ M",
+     "cell": "r5c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 31",
+   "key": "31",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r7c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "907.1",
+     "value": 907.1,
+     "unit": "m²",
+     "page": 4,
+     "text": "907.1",
+     "cell": "r7c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 4,
+     "text": "stanovanje",
+     "cell": "r7c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 4,
+     "text": "1",
+     "cell": "r7c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 4,
+     "text": "6",
+     "cell": "r7c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4+ M",
+     "value": "Po+P+4+ M",
+     "unit": null,
+     "page": 4,
+     "text": "Po+P+4+ M",
+     "cell": "r7c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 32",
+   "key": "32",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r9c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "914.34",
+     "value": 914.34,
+     "unit": "m²",
+     "page": 4,
+     "text": "914.34",
+     "cell": "r9c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 4,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r9c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.6",
+     "value": 60.0,
+     "unit": "%",
+     "page": 4,
+     "text": "0.6",
+     "cell": "r9c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "3.42",
+     "value": 3.42,
+     "unit": null,
+     "page": 4,
+     "text": "3.42",
+     "cell": "r9c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "G+P+4+Pk",
+     "value": "G+P+4+Pk",
+     "unit": null,
+     "page": 4,
+     "text": "G+P+4+Pk",
+     "cell": "r9c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 33",
+   "key": "33",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r10c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "2141.89",
+     "value": 2141.89,
+     "unit": "m²",
+     "page": 4,
+     "text": "2141.89",
+     "cell": "r10c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "površine saobraćajne infrastrukture",
+     "value": "površine saobraćajne infrastrukture",
+     "unit": null,
+     "page": 4,
+     "text": "površine saobraćajne infrastrukture",
+     "cell": "r10c3"
+    },
+    "max_site_coverage_pct": null,
+    "max_far": null,
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S",
+     "value": "S",
+     "unit": null,
+     "page": 4,
+     "text": "S",
+     "cell": "r10c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 34",
+   "key": "34",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r11c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "980.12",
+     "value": 980.12,
+     "unit": "m²",
+     "page": 4,
+     "text": "980.12",
+     "cell": "r11c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 4,
+     "text": "stanovanje",
+     "cell": "r11c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 4,
+     "text": "1",
+     "cell": "r11c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 4,
+     "text": "6",
+     "cell": "r11c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4+ M",
+     "value": "Po+P+4+ M",
+     "unit": null,
+     "page": 4,
+     "text": "Po+P+4+ M",
+     "cell": "r11c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 35",
+   "key": "35",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r13c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "641.66",
+     "value": 641.66,
+     "unit": "m²",
+     "page": 4,
+     "text": "641.66",
+     "cell": "r13c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 4,
+     "text": "stanovanje",
+     "cell": "r13c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 4,
+     "text": "1",
+     "cell": "r13c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 4,
+     "text": "6",
+     "cell": "r13c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4+ M",
+     "value": "Po+P+4+ M",
+     "unit": null,
+     "page": 4,
+     "text": "Po+P+4+ M",
+     "cell": "r13c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 36",
+   "key": "36",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r15c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "495.76",
+     "value": 495.76,
+     "unit": "m²",
+     "page": 4,
+     "text": "495.76",
+     "cell": "r15c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 4,
+     "text": "stanovanje",
+     "cell": "r15c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 4,
+     "text": "1",
+     "cell": "r15c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 4,
+     "text": "6",
+     "cell": "r15c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+5",
+     "value": "Po+P+5",
+     "unit": null,
+     "page": 4,
+     "text": "Po+P+5",
+     "cell": "r15c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 37",
+   "key": "37",
+   "page": 4,
+   "table": "p4t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 4,
+     "text": "C",
+     "cell": "r17c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1008.14",
+     "value": 1008.14,
+     "unit": "m²",
+     "page": 4,
+     "text": "1008.14",
+     "cell": "r17c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 4,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r17c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.4",
+     "value": 40.0,
+     "unit": "%",
+     "page": 4,
+     "text": "0.4",
+     "cell": "r17c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "3.85",
+     "value": 3.85,
+     "unit": null,
+     "page": 4,
+     "text": "3.85",
+     "cell": "r17c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 4,
+     "text": "Po+P+6",
+     "cell": "r17c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 38",
+   "key": "38",
+   "page": 5,
+   "table": "p5t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 5,
+     "text": "C",
+     "cell": "r0c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "581.17",
+     "value": 581.17,
+     "unit": "m²",
+     "page": 5,
+     "text": "581.17",
+     "cell": "r0c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 5,
+     "text": "stanovanje",
+     "cell": "r0c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 5,
+     "text": "1",
+     "cell": "r0c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 5,
+     "text": "5",
+     "cell": "r0c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 5,
+     "text": "Po+P+4",
+     "cell": "r0c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 39",
+   "key": "39",
+   "page": 5,
+   "table": "p5t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 5,
+     "text": "C",
+     "cell": "r2c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "784.56",
+     "value": 784.56,
+     "unit": "m²",
+     "page": 5,
+     "text": "784.56",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 5,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.55",
+     "value": 55.0,
+     "unit": "%",
+     "page": 5,
+     "text": "0.55",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "2.8",
+     "value": 2.8,
+     "unit": null,
+     "page": 5,
+     "text": "2.8",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+3+Pk",
+     "value": "Po+P+3+Pk",
+     "unit": null,
+     "page": 5,
+     "text": "Po+P+3+Pk",
+     "cell": "r2c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 40",
+   "key": "40",
+   "page": 5,
+   "table": "p5t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 5,
+     "text": "C",
+     "cell": "r3c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "2087.46",
+     "value": 2087.46,
+     "unit": "m²",
+     "page": 5,
+     "text": "2087.46",
+     "cell": "r3c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 5,
+     "text": "stanovanje",
+     "cell": "r3c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 5,
+     "text": "1",
+     "cell": "r3c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "4",
+     "value": 4.0,
+     "unit": null,
+     "page": 5,
+     "text": "4",
+     "cell": "r3c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+3",
+     "value": "S+P+3",
+     "unit": null,
+     "page": 5,
+     "text": "S+P+3",
+     "cell": "r3c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 41",
+   "key": "41",
+   "page": 5,
+   "table": "p5t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 5,
+     "text": "C",
+     "cell": "r4c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "603.13",
+     "value": 603.13,
+     "unit": "m²",
+     "page": 5,
+     "text": "603.13",
+     "cell": "r4c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 5,
+     "text": "stanovanje",
+     "cell": "r4c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 5,
+     "text": "1",
+     "cell": "r4c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 5,
+     "text": "5",
+     "cell": "r4c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+3+ M",
+     "value": "Po+P+3+ M",
+     "unit": null,
+     "page": 5,
+     "text": "Po+P+3+ M",
+     "cell": "r4c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 42",
+   "key": "42",
+   "page": 5,
+   "table": "p5t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 5,
+     "text": "C",
+     "cell": "r6c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1217.49",
+     "value": 1217.49,
+     "unit": "m²",
+     "page": 5,
+     "text": "1217.49",
+     "cell": "r6c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 5,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r6c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.2",
+     "value": 20.0,
+     "unit": "%",
+     "page": 5,
+     "text": "0.2",
+     "cell": "r6c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.2",
+     "value": 0.2,
+     "unit": null,
+     "page": 5,
+     "text": "0.2",
+     "cell": "r6c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P",
+     "value": "P",
+     "unit": null,
+     "page": 5,
+     "text": "P",
+     "cell": "r6c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 43",
+   "key": "43",
+   "page": 5,
+   "table": "p5t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 5,
+     "text": "C",
+     "cell": "r7c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "387.15",
+     "value": 387.15,
+     "unit": "m²",
+     "page": 5,
+     "text": "387.15",
+     "cell": "r7c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 5,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r7c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.7",
+     "value": 70.0,
+     "unit": "%",
+     "page": 5,
+     "text": "0.7",
+     "cell": "r7c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5.48",
+     "value": 5.48,
+     "unit": null,
+     "page": 5,
+     "text": "5.48",
+     "cell": "r7c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 5,
+     "text": "Po+P+4",
+     "cell": "r7c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 44",
+   "key": "44",
+   "page": 5,
+   "table": "p5t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 5,
+     "text": "C",
+     "cell": "r8c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "2439.18",
+     "value": 2439.18,
+     "unit": "m²",
+     "page": 5,
+     "text": "2439.18",
+     "cell": "r8c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 5,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r8c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 5,
+     "text": "1",
+     "cell": "r8c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "4.56",
+     "value": 4.56,
+     "unit": null,
+     "page": 5,
+     "text": "4.56",
+     "cell": "r8c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 5,
+     "text": "Po+P+4",
+     "cell": "r8c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 45",
+   "key": "45",
+   "page": 5,
+   "table": "p5t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "C",
+     "value": "C",
+     "unit": null,
+     "page": 5,
+     "text": "C",
+     "cell": "r10c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "441.79",
+     "value": 441.79,
+     "unit": "m²",
+     "page": 5,
+     "text": "441.79",
+     "cell": "r10c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 5,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r10c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 5,
+     "text": "1",
+     "cell": "r10c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "4",
+     "value": 4.0,
+     "unit": null,
+     "page": 5,
+     "text": "4",
+     "cell": "r10c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+3",
+     "value": "Po+P+3",
+     "unit": null,
+     "page": 5,
+     "text": "Po+P+3",
+     "cell": "r10c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 46",
+   "key": "46",
+   "page": 5,
+   "table": "p5t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 5,
+     "text": "D",
+     "cell": "r1c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "4489.28",
+     "value": 4489.28,
+     "unit": "m²",
+     "page": 5,
+     "text": "4489.28",
+     "cell": "r1c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "centralne djelatnosti",
+     "value": "centralne djelatnosti",
+     "unit": null,
+     "page": 5,
+     "text": "centralne djelatnosti",
+     "cell": "r1c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.32",
+     "value": 32.0,
+     "unit": "%",
+     "page": 5,
+     "text": "0.32",
+     "cell": "r1c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "1.3",
+     "value": 1.3,
+     "unit": null,
+     "page": 5,
+     "text": "1.3",
+     "cell": "r1c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+3",
+     "value": "S+P+3",
+     "unit": null,
+     "page": 5,
+     "text": "S+P+3",
+     "cell": "r1c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 47",
+   "key": "47",
+   "page": 5,
+   "table": "p5t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 5,
+     "text": "D",
+     "cell": "r2c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "3787.34",
+     "value": 3787.34,
+     "unit": "m²",
+     "page": 5,
+     "text": "3787.34",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "centralne djelatnosti",
+     "value": "centralne djelatnosti",
+     "unit": null,
+     "page": 5,
+     "text": "centralne djelatnosti",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.4",
+     "value": 40.0,
+     "unit": "%",
+     "page": 5,
+     "text": "0.4",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "2",
+     "value": 2.0,
+     "unit": null,
+     "page": 5,
+     "text": "2",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+4",
+     "value": "S+P+4",
+     "unit": null,
+     "page": 5,
+     "text": "S+P+4",
+     "cell": "r2c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 48",
+   "key": "48",
+   "page": 5,
+   "table": "p5t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 5,
+     "text": "D",
+     "cell": "r3c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "515.17",
+     "value": 515.17,
+     "unit": "m²",
+     "page": 5,
+     "text": "515.17",
+     "cell": "r3c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 5,
+     "text": "stanovanje",
+     "cell": "r3c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 5,
+     "text": "1",
+     "cell": "r3c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "4",
+     "value": 4.0,
+     "unit": null,
+     "page": 5,
+     "text": "4",
+     "cell": "r3c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+3",
+     "value": "Po+P+3",
+     "unit": null,
+     "page": 5,
+     "text": "Po+P+3",
+     "cell": "r3c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 49",
+   "key": "49",
+   "page": 5,
+   "table": "p5t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 5,
+     "text": "D",
+     "cell": "r4c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "311.22",
+     "value": 311.22,
+     "unit": "m²",
+     "page": 5,
+     "text": "311.22",
+     "cell": "r4c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 5,
+     "text": "stanovanje",
+     "cell": "r4c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 5,
+     "text": "1",
+     "cell": "r4c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "4",
+     "value": 4.0,
+     "unit": null,
+     "page": 5,
+     "text": "4",
+     "cell": "r4c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+3",
+     "value": "Po+P+3",
+     "unit": null,
+     "page": 5,
+     "text": "Po+P+3",
+     "cell": "r4c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 50",
+   "key": "50",
+   "page": 5,
+   "table": "p5t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 5,
+     "text": "D",
+     "cell": "r5c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "507.47",
+     "value": 507.47,
+     "unit": "m²",
+     "page": 5,
+     "text": "507.47",
+     "cell": "r5c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 5,
+     "text": "stanovanje",
+     "cell": "r5c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 5,
+     "text": "1",
+     "cell": "r5c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "4",
+     "value": 4.0,
+     "unit": null,
+     "page": 5,
+     "text": "4",
+     "cell": "r5c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+3",
+     "value": "Po+P+3",
+     "unit": null,
+     "page": 5,
+     "text": "Po+P+3",
+     "cell": "r5c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 51(a)",
+   "key": "51(a)",
+   "page": 6,
+   "table": "p6t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 6,
+     "text": "D",
+     "cell": "r0c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "16273.23",
+     "value": 16273.23,
+     "unit": "m²",
+     "page": 6,
+     "text": "16273.23",
+     "cell": "r0c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 6,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r0c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.2",
+     "value": 20.0,
+     "unit": "%",
+     "page": 6,
+     "text": "0.2",
+     "cell": "r0c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 0.5,
+     "unit": null,
+     "page": 6,
+     "text": "0.5",
+     "cell": "r0c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+3",
+     "value": "Po+P+3",
+     "unit": null,
+     "page": 6,
+     "text": "Po+P+3",
+     "cell": "r0c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 51(b)",
+   "key": "51(b)",
+   "page": 6,
+   "table": "p6t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 6,
+     "text": "D",
+     "cell": "r2c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "16273.23",
+     "value": 16273.23,
+     "unit": "m²",
+     "page": 6,
+     "text": "16273.23",
+     "cell": "r0c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 6,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r0c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.2",
+     "value": 20.0,
+     "unit": "%",
+     "page": 6,
+     "text": "0.2",
+     "cell": "r0c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 0.5,
+     "unit": null,
+     "page": 6,
+     "text": "0.5",
+     "cell": "r0c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Pv",
+     "value": "Pv",
+     "unit": null,
+     "page": 6,
+     "text": "Pv",
+     "cell": "r2c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "merged cell printed once for several rows: land_use, max_far, max_site_coverage_pct, planned_parcel_area_m2"
+   ]
+  },
+  {
+   "number": "UP 51(c)",
+   "key": "51(c)",
+   "page": 6,
+   "table": "p6t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 6,
+     "text": "D",
+     "cell": "r3c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "16273.23",
+     "value": 16273.23,
+     "unit": "m²",
+     "page": 6,
+     "text": "16273.23",
+     "cell": "r0c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 6,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r0c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.2",
+     "value": 20.0,
+     "unit": "%",
+     "page": 6,
+     "text": "0.2",
+     "cell": "r0c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 0.5,
+     "unit": null,
+     "page": 6,
+     "text": "0.5",
+     "cell": "r0c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+1",
+     "value": "P+1",
+     "unit": null,
+     "page": 6,
+     "text": "P+1",
+     "cell": "r3c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "merged cell printed once for several rows: land_use, max_far, max_site_coverage_pct, planned_parcel_area_m2"
+   ]
+  },
+  {
+   "number": "UP 52",
+   "key": "52",
+   "page": 6,
+   "table": "p6t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 6,
+     "text": "D",
+     "cell": "r4c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "457.18",
+     "value": 457.18,
+     "unit": "m²",
+     "page": 6,
+     "text": "457.18",
+     "cell": "r4c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 6,
+     "text": "stanovanje",
+     "cell": "r4c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 6,
+     "text": "1",
+     "cell": "r4c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 6,
+     "text": "5",
+     "cell": "r4c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+4",
+     "value": "S+P+4",
+     "unit": null,
+     "page": 6,
+     "text": "S+P+4",
+     "cell": "r4c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 53",
+   "key": "53",
+   "page": 6,
+   "table": "p6t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 6,
+     "text": "D",
+     "cell": "r6c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "682.56",
+     "value": 682.56,
+     "unit": "m²",
+     "page": 6,
+     "text": "682.56",
+     "cell": "r6c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 6,
+     "text": "stanovanje",
+     "cell": "r6c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 6,
+     "text": "1",
+     "cell": "r6c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 6,
+     "text": "5",
+     "cell": "r6c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+4",
+     "value": "S+P+4",
+     "unit": null,
+     "page": 6,
+     "text": "S+P+4",
+     "cell": "r6c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 54",
+   "key": "54",
+   "page": 6,
+   "table": "p6t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 6,
+     "text": "D",
+     "cell": "r8c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "692.21",
+     "value": 692.21,
+     "unit": "m²",
+     "page": 6,
+     "text": "692.21",
+     "cell": "r8c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 6,
+     "text": "stanovanje",
+     "cell": "r8c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 6,
+     "text": "1",
+     "cell": "r8c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 6,
+     "text": "5",
+     "cell": "r8c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+4",
+     "value": "S+P+4",
+     "unit": null,
+     "page": 6,
+     "text": "S+P+4",
+     "cell": "r8c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 55",
+   "key": "55",
+   "page": 6,
+   "table": "p6t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 6,
+     "text": "D",
+     "cell": "r10c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "3349.37",
+     "value": 3349.37,
+     "unit": "m²",
+     "page": 6,
+     "text": "3349.37",
+     "cell": "r10c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 6,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r10c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.55",
+     "value": 55.0,
+     "unit": "%",
+     "page": 6,
+     "text": "0.55",
+     "cell": "r10c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "2.5",
+     "value": 2.5,
+     "unit": null,
+     "page": 6,
+     "text": "2.5",
+     "cell": "r10c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "G+S+P+5+Pk",
+     "value": "G+S+P+5+Pk",
+     "unit": null,
+     "page": 6,
+     "text": "G+S+P+5+Pk",
+     "cell": "r10c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 56",
+   "key": "56",
+   "page": 6,
+   "table": "p6t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "D",
+     "value": "D",
+     "unit": null,
+     "page": 6,
+     "text": "D",
+     "cell": "r11c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "895.25",
+     "value": 895.25,
+     "unit": "m²",
+     "page": 6,
+     "text": "895.25",
+     "cell": "r11c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "centralne djelatnosti",
+     "value": "centralne djelatnosti",
+     "unit": null,
+     "page": 6,
+     "text": "centralne djelatnosti",
+     "cell": "r11c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 6,
+     "text": "1",
+     "cell": "r11c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 6,
+     "text": "5",
+     "cell": "r11c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+4",
+     "value": "S+P+4",
+     "unit": null,
+     "page": 6,
+     "text": "S+P+4",
+     "cell": "r11c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 57",
+   "key": "57",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r1c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "615.77",
+     "value": 615.77,
+     "unit": "m²",
+     "page": 7,
+     "text": "615.77",
+     "cell": "r1c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 7,
+     "text": "stanovanje",
+     "cell": "r1c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 7,
+     "text": "1",
+     "cell": "r1c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 7,
+     "text": "5",
+     "cell": "r1c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+4",
+     "value": "S+P+4",
+     "unit": null,
+     "page": 7,
+     "text": "S+P+4",
+     "cell": "r1c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 58",
+   "key": "58",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r3c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "8508",
+     "value": 8508.0,
+     "unit": "m²",
+     "page": 7,
+     "text": "8508",
+     "cell": "r3c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "centralne djelatnosti",
+     "value": "centralne djelatnosti",
+     "unit": null,
+     "page": 7,
+     "text": "centralne djelatnosti",
+     "cell": "r3c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 50.0,
+     "unit": "%",
+     "page": 7,
+     "text": "0.5",
+     "cell": "r3c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "1.5",
+     "value": 1.5,
+     "unit": null,
+     "page": 7,
+     "text": "1.5",
+     "cell": "r3c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+3",
+     "value": "S+P+3",
+     "unit": null,
+     "page": 7,
+     "text": "S+P+3",
+     "cell": "r3c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 59",
+   "key": "59",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r6c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "551.34",
+     "value": 551.34,
+     "unit": "m²",
+     "page": 7,
+     "text": "551.34",
+     "cell": "r6c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 7,
+     "text": "stanovanje",
+     "cell": "r6c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 7,
+     "text": "1",
+     "cell": "r6c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 7,
+     "text": "5",
+     "cell": "r6c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "S+P+4",
+     "value": "S+P+4",
+     "unit": null,
+     "page": 7,
+     "text": "S+P+4",
+     "cell": "r6c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 60",
+   "key": "60",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r8c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "431.04",
+     "value": 431.04,
+     "unit": "m²",
+     "page": 7,
+     "text": "431.04",
+     "cell": "r8c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 7,
+     "text": "stanovanje",
+     "cell": "r8c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 7,
+     "text": "1",
+     "cell": "r8c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 7,
+     "text": "5",
+     "cell": "r8c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 7,
+     "text": "Po+P+4",
+     "cell": "r8c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 61",
+   "key": "61",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r10c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "956.35",
+     "value": 956.35,
+     "unit": "m²",
+     "page": 7,
+     "text": "956.35",
+     "cell": "r10c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 7,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r10c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 50.0,
+     "unit": "%",
+     "page": 7,
+     "text": "0.5",
+     "cell": "r10c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "2.35",
+     "value": 2.35,
+     "unit": null,
+     "page": 7,
+     "text": "2.35",
+     "cell": "r10c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "G+P+3+Pk",
+     "value": "G+P+3+Pk",
+     "unit": null,
+     "page": 7,
+     "text": "G+P+3+Pk",
+     "cell": "r10c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 62",
+   "key": "62",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r11c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1313.24",
+     "value": 1313.24,
+     "unit": "m²",
+     "page": 7,
+     "text": "1313.24",
+     "cell": "r11c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 7,
+     "text": "stanovanje",
+     "cell": "r11c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 50.0,
+     "unit": "%",
+     "page": 7,
+     "text": "0.5",
+     "cell": "r11c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "2",
+     "value": 2.0,
+     "unit": null,
+     "page": 7,
+     "text": "2",
+     "cell": "r11c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "G+P+3+Pk",
+     "value": "G+P+3+Pk",
+     "unit": null,
+     "page": 7,
+     "text": "G+P+3+Pk",
+     "cell": "r11c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 63",
+   "key": "63",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r12c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "289.27",
+     "value": 289.27,
+     "unit": "m²",
+     "page": 7,
+     "text": "289.27",
+     "cell": "r12c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 7,
+     "text": "stanovanje",
+     "cell": "r12c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 7,
+     "text": "1",
+     "cell": "r12c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "4",
+     "value": 4.0,
+     "unit": null,
+     "page": 7,
+     "text": "4",
+     "cell": "r12c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+2+ M",
+     "value": "Po+P+2+ M",
+     "unit": null,
+     "page": 7,
+     "text": "Po+P+2+ M",
+     "cell": "r12c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 64",
+   "key": "64",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r14c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "452.99",
+     "value": 452.99,
+     "unit": "m²",
+     "page": 7,
+     "text": "452.99",
+     "cell": "r14c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 7,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r14c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 7,
+     "text": "1",
+     "cell": "r14c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "3",
+     "value": 3.0,
+     "unit": null,
+     "page": 7,
+     "text": "3",
+     "cell": "r14c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+2",
+     "value": "Po+P+2",
+     "unit": null,
+     "page": 7,
+     "text": "Po+P+2",
+     "cell": "r14c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 65",
+   "key": "65",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r15c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "484.4",
+     "value": 484.4,
+     "unit": "m²",
+     "page": 7,
+     "text": "484.4",
+     "cell": "r15c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 7,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r15c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 50.0,
+     "unit": "%",
+     "page": 7,
+     "text": "0.5",
+     "cell": "r15c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "2.2",
+     "value": 2.2,
+     "unit": null,
+     "page": 7,
+     "text": "2.2",
+     "cell": "r15c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "G+P+3+Pk",
+     "value": "G+P+3+Pk",
+     "unit": null,
+     "page": 7,
+     "text": "G+P+3+Pk",
+     "cell": "r15c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 66",
+   "key": "66",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r16c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "497.22",
+     "value": 497.22,
+     "unit": "m²",
+     "page": 7,
+     "text": "497.22",
+     "cell": "r16c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 7,
+     "text": "stanovanje",
+     "cell": "r16c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 7,
+     "text": "1",
+     "cell": "r16c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 7,
+     "text": "5",
+     "cell": "r16c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 7,
+     "text": "Po+P+4",
+     "cell": "r16c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 67",
+   "key": "67",
+   "page": 7,
+   "table": "p7t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 7,
+     "text": "E",
+     "cell": "r18c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "527.03",
+     "value": 527.03,
+     "unit": "m²",
+     "page": 7,
+     "text": "527.03",
+     "cell": "r18c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 7,
+     "text": "stanovanje",
+     "cell": "r18c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 7,
+     "text": "1",
+     "cell": "r18c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 7,
+     "text": "5",
+     "cell": "r18c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 7,
+     "text": "Po+P+4",
+     "cell": "r18c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 68",
+   "key": "68",
+   "page": 8,
+   "table": "p8t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 8,
+     "text": "E",
+     "cell": "r0c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "573.81",
+     "value": 573.81,
+     "unit": "m²",
+     "page": 8,
+     "text": "573.81",
+     "cell": "r0c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 8,
+     "text": "stanovanje",
+     "cell": "r0c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 8,
+     "text": "1",
+     "cell": "r0c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 8,
+     "text": "5",
+     "cell": "r0c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 8,
+     "text": "Po+P+4",
+     "cell": "r0c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 69",
+   "key": "69",
+   "page": 8,
+   "table": "p8t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 8,
+     "text": "E",
+     "cell": "r2c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "447.87",
+     "value": 447.87,
+     "unit": "m²",
+     "page": 8,
+     "text": "447.87",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 8,
+     "text": "stanovanje",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 8,
+     "text": "1",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 8,
+     "text": "5",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 8,
+     "text": "Po+P+4",
+     "cell": "r2c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 70",
+   "key": "70",
+   "page": 8,
+   "table": "p8t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 8,
+     "text": "E",
+     "cell": "r4c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1219.72",
+     "value": 1219.72,
+     "unit": "m²",
+     "page": 8,
+     "text": "1219.72",
+     "cell": "r4c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 8,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r4c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 8,
+     "text": "1",
+     "cell": "r4c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 8,
+     "text": "5",
+     "cell": "r4c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 8,
+     "text": "Po+P+4",
+     "cell": "r4c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 71",
+   "key": "71",
+   "page": 8,
+   "table": "p8t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 8,
+     "text": "E",
+     "cell": "r6c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "439.38",
+     "value": 439.38,
+     "unit": "m²",
+     "page": 8,
+     "text": "439.38",
+     "cell": "r6c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 8,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r6c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 8,
+     "text": "1",
+     "cell": "r6c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "15",
+     "value": 15.0,
+     "unit": null,
+     "page": 8,
+     "text": "15",
+     "cell": "r6c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+14",
+     "value": "Po+P+14",
+     "unit": null,
+     "page": 8,
+     "text": "Po+P+14",
+     "cell": "r6c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 72",
+   "key": "72",
+   "page": 8,
+   "table": "p8t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 8,
+     "text": "E",
+     "cell": "r7c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "432.44",
+     "value": 432.44,
+     "unit": "m²",
+     "page": 8,
+     "text": "432.44",
+     "cell": "r7c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 8,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r7c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 8,
+     "text": "1",
+     "cell": "r7c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "15",
+     "value": 15.0,
+     "unit": null,
+     "page": 8,
+     "text": "15",
+     "cell": "r7c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+14",
+     "value": "Po+P+14",
+     "unit": null,
+     "page": 8,
+     "text": "Po+P+14",
+     "cell": "r7c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 73",
+   "key": "73",
+   "page": 8,
+   "table": "p8t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 8,
+     "text": "E",
+     "cell": "r8c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "489.79",
+     "value": 489.79,
+     "unit": "m²",
+     "page": 8,
+     "text": "489.79",
+     "cell": "r8c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 8,
+     "text": "stanovanje",
+     "cell": "r8c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 8,
+     "text": "1",
+     "cell": "r8c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "4",
+     "value": 4.0,
+     "unit": null,
+     "page": 8,
+     "text": "4",
+     "cell": "r8c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+2+ M",
+     "value": "Po+P+2+ M",
+     "unit": null,
+     "page": 8,
+     "text": "Po+P+2+ M",
+     "cell": "r8c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 74",
+   "key": "74",
+   "page": 8,
+   "table": "p8t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 8,
+     "text": "E",
+     "cell": "r1c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "630.57",
+     "value": 630.57,
+     "unit": "m²",
+     "page": 8,
+     "text": "630.57",
+     "cell": "r1c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 8,
+     "text": "stanovanje",
+     "cell": "r1c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 8,
+     "text": "1",
+     "cell": "r1c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "5",
+     "value": 5.0,
+     "unit": null,
+     "page": 8,
+     "text": "5",
+     "cell": "r1c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 8,
+     "text": "Po+P+4",
+     "cell": "r1c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 75",
+   "key": "75",
+   "page": 8,
+   "table": "p8t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 8,
+     "text": "E",
+     "cell": "r3c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "422.95",
+     "value": 422.95,
+     "unit": "m²",
+     "page": 8,
+     "text": "422.95",
+     "cell": "r3c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 8,
+     "text": "stanovanje",
+     "cell": "r3c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 8,
+     "text": "1",
+     "cell": "r3c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "4",
+     "value": 4.0,
+     "unit": null,
+     "page": 8,
+     "text": "4",
+     "cell": "r3c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+3",
+     "value": "Po+P+3",
+     "unit": null,
+     "page": 8,
+     "text": "Po+P+3",
+     "cell": "r3c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 76",
+   "key": "76",
+   "page": 8,
+   "table": "p8t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 8,
+     "text": "E",
+     "cell": "r5c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "541.79",
+     "value": 541.79,
+     "unit": "m²",
+     "page": 8,
+     "text": "541.79",
+     "cell": "r5c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 8,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r5c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 8,
+     "text": "1",
+     "cell": "r5c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 8,
+     "text": "7",
+     "cell": "r5c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 8,
+     "text": "Po+P+6",
+     "cell": "r5c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 77",
+   "key": "77",
+   "page": 8,
+   "table": "p8t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "E",
+     "value": "E",
+     "unit": null,
+     "page": 8,
+     "text": "E",
+     "cell": "r6c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "431.12",
+     "value": 431.12,
+     "unit": "m²",
+     "page": 8,
+     "text": "431.12",
+     "cell": "r6c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 8,
+     "text": "stanovanje",
+     "cell": "r6c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 8,
+     "text": "1",
+     "cell": "r6c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 8,
+     "text": "6",
+     "cell": "r6c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+5",
+     "value": "Po+P+5",
+     "unit": null,
+     "page": 8,
+     "text": "Po+P+5",
+     "cell": "r6c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 78",
+   "key": "78",
+   "page": 9,
+   "table": "p9t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 9,
+     "text": "F",
+     "cell": "r1c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "381.14",
+     "value": 381.14,
+     "unit": "m²",
+     "page": 9,
+     "text": "381.14",
+     "cell": "r1c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 9,
+     "text": "stanovanje",
+     "cell": "r1c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 9,
+     "text": "1",
+     "cell": "r1c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 9,
+     "text": "6",
+     "cell": "r1c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+5",
+     "value": "Po+P+5",
+     "unit": null,
+     "page": 9,
+     "text": "Po+P+5",
+     "cell": "r1c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 79",
+   "key": "79",
+   "page": 9,
+   "table": "p9t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 9,
+     "text": "F",
+     "cell": "r3c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "390.82",
+     "value": 390.82,
+     "unit": "m²",
+     "page": 9,
+     "text": "390.82",
+     "cell": "r3c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 9,
+     "text": "stanovanje",
+     "cell": "r3c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 9,
+     "text": "1",
+     "cell": "r3c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 9,
+     "text": "6",
+     "cell": "r3c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+5",
+     "value": "Po+P+5",
+     "unit": null,
+     "page": 9,
+     "text": "Po+P+5",
+     "cell": "r3c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 80",
+   "key": "80",
+   "page": 9,
+   "table": "p9t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 9,
+     "text": "F",
+     "cell": "r5c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "342.74",
+     "value": 342.74,
+     "unit": "m²",
+     "page": 9,
+     "text": "342.74",
+     "cell": "r5c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 9,
+     "text": "stanovanje",
+     "cell": "r5c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 9,
+     "text": "1",
+     "cell": "r5c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "6",
+     "value": 6.0,
+     "unit": null,
+     "page": 9,
+     "text": "6",
+     "cell": "r5c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+5",
+     "value": "Po+P+5",
+     "unit": null,
+     "page": 9,
+     "text": "Po+P+5",
+     "cell": "r5c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 81(a)",
+   "key": "81(a)",
+   "page": 9,
+   "table": "p9t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 9,
+     "text": "F",
+     "cell": "r7c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "7224.11",
+     "value": 7224.11,
+     "unit": "m²",
+     "page": 9,
+     "text": "7224.11",
+     "cell": "r7c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 9,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r7c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.3",
+     "value": 30.0,
+     "unit": "%",
+     "page": 9,
+     "text": "0.3",
+     "cell": "r7c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "1",
+     "value": 1.0,
+     "unit": null,
+     "page": 9,
+     "text": "1",
+     "cell": "r7c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 9,
+     "text": "Po+P+4",
+     "cell": "r7c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 81(b)",
+   "key": "81(b)",
+   "page": 9,
+   "table": "p9t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 9,
+     "text": "F",
+     "cell": "r8c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "7224.11",
+     "value": 7224.11,
+     "unit": "m²",
+     "page": 9,
+     "text": "7224.11",
+     "cell": "r7c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 9,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r7c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.3",
+     "value": 30.0,
+     "unit": "%",
+     "page": 9,
+     "text": "0.3",
+     "cell": "r7c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "1",
+     "value": 1.0,
+     "unit": null,
+     "page": 9,
+     "text": "1",
+     "cell": "r7c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 9,
+     "text": "Po+P+4",
+     "cell": "r8c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)",
+    "merged cell printed once for several rows: land_use, max_far, max_site_coverage_pct, planned_parcel_area_m2"
+   ]
+  },
+  {
+   "number": "UP 81(c)",
+   "key": "81(c)",
+   "page": 9,
+   "table": "p9t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 9,
+     "text": "F",
+     "cell": "r10c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "7224.11",
+     "value": 7224.11,
+     "unit": "m²",
+     "page": 9,
+     "text": "7224.11",
+     "cell": "r7c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 9,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r7c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.3",
+     "value": 30.0,
+     "unit": "%",
+     "page": 9,
+     "text": "0.3",
+     "cell": "r7c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "1",
+     "value": 1.0,
+     "unit": null,
+     "page": 9,
+     "text": "1",
+     "cell": "r7c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+4",
+     "value": "Po+P+4",
+     "unit": null,
+     "page": 9,
+     "text": "Po+P+4",
+     "cell": "r10c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)",
+    "merged cell printed once for several rows: land_use, max_far, max_site_coverage_pct, planned_parcel_area_m2"
+   ]
+  },
+  {
+   "number": "UP 81(d)",
+   "key": "81(d)",
+   "page": 9,
+   "table": "p9t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 9,
+     "text": "F",
+     "cell": "r12c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "7224.11",
+     "value": 7224.11,
+     "unit": "m²",
+     "page": 9,
+     "text": "7224.11",
+     "cell": "r7c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 9,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r7c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.3",
+     "value": 30.0,
+     "unit": "%",
+     "page": 9,
+     "text": "0.3",
+     "cell": "r7c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "1",
+     "value": 1.0,
+     "unit": null,
+     "page": 9,
+     "text": "1",
+     "cell": "r7c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+1",
+     "value": "Po+P+1",
+     "unit": null,
+     "page": 9,
+     "text": "Po+P+1",
+     "cell": "r12c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "merged cell printed once for several rows: land_use, max_far, max_site_coverage_pct, planned_parcel_area_m2"
+   ]
+  },
+  {
+   "number": "UP 82 a",
+   "key": "82a",
+   "page": 9,
+   "table": "p9t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 9,
+     "text": "F",
+     "cell": "r13c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1093.09",
+     "value": 1093.09,
+     "unit": "m²",
+     "page": 9,
+     "text": "1093.09",
+     "cell": "r13c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 9,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r13c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 50.0,
+     "unit": "%",
+     "page": 9,
+     "text": "0.5",
+     "cell": "r13c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "3.5",
+     "value": 3.5,
+     "unit": null,
+     "page": 9,
+     "text": "3.5",
+     "cell": "r13c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "G+P+5",
+     "value": "G+P+5",
+     "unit": null,
+     "page": 9,
+     "text": "G+P+5",
+     "cell": "r13c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 82 b",
+   "key": "82b",
+   "page": 9,
+   "table": "p9t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 9,
+     "text": "F",
+     "cell": "r14c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1146.69",
+     "value": 1146.69,
+     "unit": "m²",
+     "page": 9,
+     "text": "1146.69",
+     "cell": "r14c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 9,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r14c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 50.0,
+     "unit": "%",
+     "page": 9,
+     "text": "0.5",
+     "cell": "r14c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "3.5",
+     "value": 3.5,
+     "unit": null,
+     "page": 9,
+     "text": "3.5",
+     "cell": "r14c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "G+P+5",
+     "value": "G+P+5",
+     "unit": null,
+     "page": 9,
+     "text": "G+P+5",
+     "cell": "r14c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 82 c",
+   "key": "82c",
+   "page": 9,
+   "table": "p9t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 9,
+     "text": "F",
+     "cell": "r15c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1121.86",
+     "value": 1121.86,
+     "unit": "m²",
+     "page": 9,
+     "text": "1121.86",
+     "cell": "r15c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 9,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r15c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 50.0,
+     "unit": "%",
+     "page": 9,
+     "text": "0.5",
+     "cell": "r15c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "3.5",
+     "value": 3.5,
+     "unit": null,
+     "page": 9,
+     "text": "3.5",
+     "cell": "r15c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "G+P+5",
+     "value": "G+P+5",
+     "unit": null,
+     "page": 9,
+     "text": "G+P+5",
+     "cell": "r15c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 83",
+   "key": "83",
+   "page": 10,
+   "table": "p10t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r0c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "773.82",
+     "value": 773.82,
+     "unit": "m²",
+     "page": 10,
+     "text": "773.82",
+     "cell": "r0c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 10,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r0c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 50.0,
+     "unit": "%",
+     "page": 10,
+     "text": "0.5",
+     "cell": "r0c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "3.5",
+     "value": 3.5,
+     "unit": null,
+     "page": 10,
+     "text": "3.5",
+     "cell": "r0c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "G+P+5",
+     "value": "G+P+5",
+     "unit": null,
+     "page": 10,
+     "text": "G+P+5",
+     "cell": "r0c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 84",
+   "key": "84",
+   "page": 10,
+   "table": "p10t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r1c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "843.14",
+     "value": 843.14,
+     "unit": "m²",
+     "page": 10,
+     "text": "843.14",
+     "cell": "r1c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 10,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r1c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.83",
+     "value": 83.0,
+     "unit": "%",
+     "page": 10,
+     "text": "0.83",
+     "cell": "r1c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "4.2",
+     "value": 4.2,
+     "unit": null,
+     "page": 10,
+     "text": "4.2",
+     "cell": "r1c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+4+Pk",
+     "value": "P+4+Pk",
+     "unit": null,
+     "page": 10,
+     "text": "P+4+Pk",
+     "cell": "r1c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 85(a)",
+   "key": "85(a)",
+   "page": 10,
+   "table": "p10t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r2c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "16545.83",
+     "value": 16545.83,
+     "unit": "m²",
+     "page": 10,
+     "text": "16545.83",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 10,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.32",
+     "value": 32.0,
+     "unit": "%",
+     "page": 10,
+     "text": "0.32",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 0.5,
+     "unit": null,
+     "page": 10,
+     "text": "0.5",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+1",
+     "value": "P+1",
+     "unit": null,
+     "page": 10,
+     "text": "P+1",
+     "cell": "r2c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 85(b)",
+   "key": "85(b)",
+   "page": 10,
+   "table": "p10t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r4c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "16545.83",
+     "value": 16545.83,
+     "unit": "m²",
+     "page": 10,
+     "text": "16545.83",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 10,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.32",
+     "value": 32.0,
+     "unit": "%",
+     "page": 10,
+     "text": "0.32",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 0.5,
+     "unit": null,
+     "page": 10,
+     "text": "0.5",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P",
+     "value": "P",
+     "unit": null,
+     "page": 10,
+     "text": "P",
+     "cell": "r4c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "merged cell printed once for several rows: land_use, max_far, max_site_coverage_pct, planned_parcel_area_m2"
+   ]
+  },
+  {
+   "number": "UP 85(c)",
+   "key": "85(c)",
+   "page": 10,
+   "table": "p10t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r5c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "16545.83",
+     "value": 16545.83,
+     "unit": "m²",
+     "page": 10,
+     "text": "16545.83",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 10,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.32",
+     "value": 32.0,
+     "unit": "%",
+     "page": 10,
+     "text": "0.32",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 0.5,
+     "unit": null,
+     "page": 10,
+     "text": "0.5",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+1",
+     "value": "P+1",
+     "unit": null,
+     "page": 10,
+     "text": "P+1",
+     "cell": "r5c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "merged cell printed once for several rows: land_use, max_far, max_site_coverage_pct, planned_parcel_area_m2"
+   ]
+  },
+  {
+   "number": "UP 85(d)",
+   "key": "85(d)",
+   "page": 10,
+   "table": "p10t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r6c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "16545.83",
+     "value": 16545.83,
+     "unit": "m²",
+     "page": 10,
+     "text": "16545.83",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 10,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.32",
+     "value": 32.0,
+     "unit": "%",
+     "page": 10,
+     "text": "0.32",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 0.5,
+     "unit": null,
+     "page": 10,
+     "text": "0.5",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P",
+     "value": "P",
+     "unit": null,
+     "page": 10,
+     "text": "P",
+     "cell": "r6c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)",
+    "merged cell printed once for several rows: land_use, max_far, max_site_coverage_pct, planned_parcel_area_m2"
+   ]
+  },
+  {
+   "number": "UP 85(e)",
+   "key": "85(e)",
+   "page": 10,
+   "table": "p10t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r8c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "16545.83",
+     "value": 16545.83,
+     "unit": "m²",
+     "page": 10,
+     "text": "16545.83",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 10,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.32",
+     "value": 32.0,
+     "unit": "%",
+     "page": 10,
+     "text": "0.32",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 0.5,
+     "unit": null,
+     "page": 10,
+     "text": "0.5",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+1",
+     "value": "P+1",
+     "unit": null,
+     "page": 10,
+     "text": "P+1",
+     "cell": "r8c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "merged cell printed once for several rows: land_use, max_far, max_site_coverage_pct, planned_parcel_area_m2"
+   ]
+  },
+  {
+   "number": "UP 85(f)",
+   "key": "85(f)",
+   "page": 10,
+   "table": "p10t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r9c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "16545.83",
+     "value": 16545.83,
+     "unit": "m²",
+     "page": 10,
+     "text": "16545.83",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "školstvo i soc.zaštita",
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "page": 10,
+     "text": "školstvo i soc.zaštita",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.32",
+     "value": 32.0,
+     "unit": "%",
+     "page": 10,
+     "text": "0.32",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "0.5",
+     "value": 0.5,
+     "unit": null,
+     "page": 10,
+     "text": "0.5",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P",
+     "value": "P",
+     "unit": null,
+     "page": 10,
+     "text": "P",
+     "cell": "r9c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "merged cell printed once for several rows: land_use, max_far, max_site_coverage_pct, planned_parcel_area_m2"
+   ]
+  },
+  {
+   "number": "UP 86",
+   "key": "86",
+   "page": 10,
+   "table": "p10t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r10c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1686.84",
+     "value": 1686.84,
+     "unit": "m²",
+     "page": 10,
+     "text": "1686.84",
+     "cell": "r10c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "sport i rekreacija",
+     "value": "sport i rekreacija",
+     "unit": null,
+     "page": 10,
+     "text": "sport i rekreacija",
+     "cell": "r10c3"
+    },
+    "max_site_coverage_pct": null,
+    "max_far": null,
+    "max_height_m": null,
+    "max_floors": null,
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 87",
+   "key": "87",
+   "page": 10,
+   "table": "p10t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r11c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "2940.23",
+     "value": 2940.23,
+     "unit": "m²",
+     "page": 10,
+     "text": "2940.23",
+     "cell": "r11c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "površine saobraćajne infrastrukture",
+     "value": "površine saobraćajne infrastrukture",
+     "unit": null,
+     "page": 10,
+     "text": "površine saobraćajne infrastrukture",
+     "cell": "r11c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "0.8",
+     "value": 80.0,
+     "unit": "%",
+     "page": 10,
+     "text": "0.8",
+     "cell": "r11c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "1.6",
+     "value": 1.6,
+     "unit": null,
+     "page": 10,
+     "text": "1.6",
+     "cell": "r11c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "P+1",
+     "value": "P+1",
+     "unit": null,
+     "page": 10,
+     "text": "P+1",
+     "cell": "r11c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 88",
+   "key": "88",
+   "page": 10,
+   "table": "p10t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r1c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1460.56",
+     "value": 1460.56,
+     "unit": "m²",
+     "page": 10,
+     "text": "1460.56",
+     "cell": "r1c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 10,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r1c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 10,
+     "text": "1",
+     "cell": "r1c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 10,
+     "text": "7",
+     "cell": "r1c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 10,
+     "text": "Po+P+6",
+     "cell": "r1c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 89",
+   "key": "89",
+   "page": 10,
+   "table": "p10t2",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 10,
+     "text": "F",
+     "cell": "r3c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "1751.13",
+     "value": 1751.13,
+     "unit": "m²",
+     "page": 10,
+     "text": "1751.13",
+     "cell": "r3c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 10,
+     "text": "stanovanje",
+     "cell": "r3c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 10,
+     "text": "1",
+     "cell": "r3c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 10,
+     "text": "7",
+     "cell": "r3c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 10,
+     "text": "Po+P+6",
+     "cell": "r3c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  },
+  {
+   "number": "UP 90",
+   "key": "90",
+   "page": 11,
+   "table": "p11t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 11,
+     "text": "F",
+     "cell": "r0c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "2320.36",
+     "value": 2320.36,
+     "unit": "m²",
+     "page": 11,
+     "text": "2320.36",
+     "cell": "r0c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje sa djelatn.",
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "page": 11,
+     "text": "stanovanje sa djelatn.",
+     "cell": "r0c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 11,
+     "text": "1",
+     "cell": "r0c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 11,
+     "text": "7",
+     "cell": "r0c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 11,
+     "text": "Po+P+6",
+     "cell": "r0c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": [
+    "followed by a *** footnote row (extension areas)"
+   ]
+  },
+  {
+   "number": "UP 91",
+   "key": "91",
+   "page": 11,
+   "table": "p11t1",
+   "values": {
+    "block_ref": {
+     "status": "stated",
+     "printed": "F",
+     "value": "F",
+     "unit": null,
+     "page": 11,
+     "text": "F",
+     "cell": "r2c0"
+    },
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "914.33",
+     "value": 914.33,
+     "unit": "m²",
+     "page": 11,
+     "text": "914.33",
+     "cell": "r2c2"
+    },
+    "land_use": {
+     "status": "stated",
+     "printed": "stanovanje",
+     "value": "stanovanje",
+     "unit": null,
+     "page": 11,
+     "text": "stanovanje",
+     "cell": "r2c3"
+    },
+    "max_site_coverage_pct": {
+     "status": "stated",
+     "printed": "1",
+     "value": 100.0,
+     "unit": "%",
+     "page": 11,
+     "text": "1",
+     "cell": "r2c11"
+    },
+    "max_far": {
+     "status": "stated",
+     "printed": "7",
+     "value": 7.0,
+     "unit": null,
+     "page": 11,
+     "text": "7",
+     "cell": "r2c12"
+    },
+    "max_height_m": null,
+    "max_floors": {
+     "status": "stated",
+     "printed": "Po+P+6",
+     "value": "Po+P+6",
+     "unit": null,
+     "page": 11,
+     "text": "Po+P+6",
+     "cell": "r2c5"
+    },
+    "building_line_m": null,
+    "setback_neighbours_m": null,
+    "parking_requirement": null,
+    "min_green_area_pct": null,
+    "utilities": null
+   },
+   "notes": []
+  }
+ ],
+ "blocks": [
+  {
+   "label": "UKUPNO BLOK A",
+   "page": 2,
+   "is_total_row": true,
+   "values": {
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "27322.1",
+     "value": 27322.1,
+     "unit": "m²",
+     "page": 2,
+     "text": "27322.1",
+     "cell": "r9c2"
+    }
+   }
+  },
+  {
+   "label": "UKUPNO BLOK B",
+   "page": 3,
+   "is_total_row": true,
+   "values": {
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "29257.02",
+     "value": 29257.02,
+     "unit": "m²",
+     "page": 3,
+     "text": "29257.02",
+     "cell": "r14c2"
+    }
+   }
+  },
+  {
+   "label": "UKUPNO BLOK C",
+   "page": 5,
+   "is_total_row": true,
+   "values": {
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "22479.45",
+     "value": 22479.45,
+     "unit": "m²",
+     "page": 5,
+     "text": "22479.45",
+     "cell": "r12c2"
+    }
+   }
+  },
+  {
+   "label": "UKUPNO BLOK D",
+   "page": 6,
+   "is_total_row": true,
+   "values": {
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "31960.28",
+     "value": 31960.28,
+     "unit": "m²",
+     "page": 6,
+     "text": "31960.28",
+     "cell": "r14c2"
+    }
+   }
+  },
+  {
+   "label": "UKUPNO BLOK E",
+   "page": 8,
+   "is_total_row": true,
+   "values": {
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "20256.09",
+     "value": 20256.09,
+     "unit": "m²",
+     "page": 8,
+     "text": "20256.09",
+     "cell": "r9c2"
+    }
+   }
+  },
+  {
+   "label": "UKUPNO BLOK F",
+   "page": 11,
+   "is_total_row": true,
+   "values": {
+    "planned_parcel_area_m2": {
+     "status": "stated",
+     "printed": "40936.69",
+     "value": 40936.69,
+     "unit": "m²",
+     "page": 11,
+     "text": "40936.69",
+     "cell": "r5c2"
+    }
+   }
+  }
+ ],
+ "special_cases": [
+  "footnote rows: rows marked *** (after most parcels) hold extension areas of existing buildings, per the page note 'Redovi oznaceni sa *** predstavljaju površine za nadogradnju i dogradnju ...'; they are not parcels and no parcel value comes from them (UP 77 and UP 91 have such a row with a blank Blok cell instead of ***)",
+  "merged cells: IZ and II are printed once, centred over a parcel row and its *** row(s); UP 51(a)-(c), UP 81(a)-(d) and UP 85(a)-(f) share one area, land use, IZ and II printed once over the group, while floors differ per row: the values apply to every row they span",
+  "wrapped cells: areas wrap in the narrow column (5705.1 / 7 = 5705.17), floor notations too ('S+P+3+ / M', 'G+S+P+5+P / k' in small print)",
+  "deferred: UP 1 and UP 25 carry one merged cell 'definisaće se konkursnim rješenjem' (set by an architectural competition) over ground floor, floors, BGP and both indices; their land use adds '- prostor namjenjen za razradu konkursnim rjesenjem'",
+  "blank cells: UP 15 and UP 26 print no land use, UP 86 (sport i rekreacija) no floors or indices, UP 24 ('3S') and UP 33 ('S') no indices: nothing may be filled in",
+  "block totals: a 'UKUPNO BLOK A..F' row per block states the block's sums (areas, BGP, dwellings, employees); the last digit of a total often wraps into the bottom of its cell; 'UKUPNO SVE ZONE' on page 11 is the plan-wide total (not a block)",
+  "annex row: UP 58 is followed by an 'aneks' row (floors 3S+P+3) inside UP 58's merged IZ / II cell: not the parcel's floors",
+  "ratio indices: IZ printed as a plain ratio ('1' = 100 %), II as a plain number; UP 43 states IZ 0.7 with II 5.48 (as printed, not checked against the floors)"
+ ],
+ "not_covered": [
+  "heights in metres, building lines, setbacks, parking, green area, utilities: not in this table (these fields must stay blank)",
+  "parameter ranges ('P+2 do P+4'): no range is printed in this document",
+  "parcels listed twice (superseded amendment vs current): every parcel number appears once",
+  "gazette, decision number and date, area: not on these pages"
+ ]
+}

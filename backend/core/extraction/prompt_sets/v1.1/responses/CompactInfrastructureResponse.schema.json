@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "CUtility": {
+      "additionalProperties": false,
+      "properties": {
+        "scope_level": {
+          "enum": [
+            "document",
+            "block",
+            "urban_parcel"
+          ],
+          "type": "string"
+        },
+        "scope_ref": {
+          "description": "Block label or parcel number, \"\" for the document",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "water_supply",
+            "sewerage",
+            "stormwater",
+            "electricity",
+            "heating",
+            "gas",
+            "telecom",
+            "access_road",
+            "other"
+          ],
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "existing",
+            "planned",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "description": {
+          "description": "The statement as printed",
+          "type": "string"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "confidence": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "scope_level",
+        "scope_ref",
+        "kind",
+        "status",
+        "description",
+        "page",
+        "confidence"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "utilities": {
+      "items": {
+        "$ref": "#/$defs/CUtility"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "utilities"
+  ],
+  "type": "object"
+}

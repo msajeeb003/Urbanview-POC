@@ -1,0 +1,288 @@
+{
+  "$defs": {
+    "OutAmendment": {
+      "additionalProperties": false,
+      "properties": {
+        "relation": {
+          "enum": [
+            "amends",
+            "amended_by"
+          ],
+          "type": "string"
+        },
+        "document_name": {
+          "$ref": "#/$defs/OutValue"
+        }
+      },
+      "required": [
+        "relation",
+        "document_name"
+      ],
+      "type": "object"
+    },
+    "OutDocument": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "document_type": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "status": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "gazette_reference": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "decision_number": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "decision_date": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "area_ha": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "amendments": {
+          "items": {
+            "$ref": "#/$defs/OutAmendment"
+          },
+          "type": "array"
+        },
+        "rules": {
+          "$ref": "#/$defs/OutRules"
+        },
+        "notes": {
+          "items": {
+            "$ref": "#/$defs/OutValue"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "document_type",
+        "status",
+        "gazette_reference",
+        "decision_number",
+        "decision_date",
+        "area_ha",
+        "amendments",
+        "rules",
+        "notes"
+      ],
+      "type": "object"
+    },
+    "OutRules": {
+      "additionalProperties": false,
+      "properties": {
+        "land_use": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "max_site_coverage_pct": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "max_far": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "max_height_m": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "max_floors": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "building_line_m": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "setback_neighbours_m": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "parking_requirement": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "min_green_area_pct": {
+          "$ref": "#/$defs/OutValue"
+        },
+        "utilities": {
+          "$ref": "#/$defs/OutValue"
+        }
+      },
+      "required": [
+        "land_use",
+        "max_site_coverage_pct",
+        "max_far",
+        "max_height_m",
+        "max_floors",
+        "building_line_m",
+        "setback_neighbours_m",
+        "parking_requirement",
+        "min_green_area_pct",
+        "utilities"
+      ],
+      "type": "object"
+    },
+    "OutTableRef": {
+      "additionalProperties": false,
+      "properties": {
+        "table": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Table id as given (p7t1) or its caption"
+        },
+        "row": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Row label as printed, e.g. the parcel no."
+        },
+        "column": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Column header as printed"
+        },
+        "cell": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Cell id as given (r4c11)"
+        }
+      },
+      "type": "object",
+      "required": [
+        "table",
+        "row",
+        "column",
+        "cell"
+      ]
+    },
+    "OutValue": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The value exactly as printed (digits, decimal separator, abbreviations, spelling untouched); for a code field, the code. null when the pages do not state it."
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "enum": [
+                "m",
+                "m2",
+                "ha",
+                "percent",
+                "ratio",
+                "none"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How the document expresses the value: m, m2, ha, percent (a % sign or a % column), ratio (an index printed as a plain decimal), none (a bare number); null for words."
+        },
+        "raw_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Verbatim, contiguous copy of the page text the value is read from (the table cell, or a short phrase with its label); contains the value. For a deferred field, the text that defers it."
+        },
+        "page": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Page number from the page marker"
+        },
+        "table_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutTableRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confidence": {
+          "description": "0 to 1: how sure you are the value is legible and belongs to this field",
+          "type": "number"
+        },
+        "absent_reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "not_found",
+                "deferred"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null when value is given; not_found when the pages do not state it; deferred when the document leaves it to a later decision."
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "raw_text",
+        "page",
+        "table_ref",
+        "confidence",
+        "absent_reason"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "document": {
+      "$ref": "#/$defs/OutDocument"
+    }
+  },
+  "required": [
+    "document"
+  ],
+  "type": "object"
+}

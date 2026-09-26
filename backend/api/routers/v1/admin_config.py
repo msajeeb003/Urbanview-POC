@@ -57,7 +57,9 @@ async def list_assumptions(
     principal: AdminPrincipal,
     service: AdminConfigServiceDep,
     zone_id: Annotated[int | None, Query(gt=0)] = None,
-    default_only: Annotated[bool, Query(description="Only the municipality-wide default")] = False,
+    default_only: Annotated[
+        bool, Query(description="Only the municipality-wide row (range factors)")
+    ] = False,
     include_history: Annotated[bool, Query()] = False,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,

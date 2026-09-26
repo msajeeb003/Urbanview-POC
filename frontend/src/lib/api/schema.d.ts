@@ -311,6 +311,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/files/{file_id}/jobs/preprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue PDF pre-processing: pages, tables, scanned pages, chunks and page images */
+        post: operations["enqueue_preprocess_job_v1_admin_files__file_id__jobs_preprocess_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/documents": {
         parameters: {
             query?: never;
@@ -372,7 +389,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Queue the LLM extraction job for a document version (staging only) */
+        /** Queue the LLM extraction run for a document version (staging only) */
         post: operations["enqueue_extract_job_v1_admin_documents__document_id__jobs_extract_post"];
         delete?: never;
         options?: never;
@@ -608,6 +625,160 @@ export interface paths {
         head?: never;
         /** Change role or name, deactivate (revokes sessions) or reactivate */
         patch: operations["update_user_v1_admin_users__user_id__patch"];
+        trace?: never;
+    };
+    "/v1/admin/market/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Imports */
+        get: operations["list_imports_v1_admin_market_imports_get"];
+        put?: never;
+        /** Import an uploaded statistics table or range sheet */
+        post: operations["create_import_v1_admin_market_imports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/market/listings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import asking prices pasted from a listings portal */
+        post: operations["create_listings_v1_admin_market_listings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/market/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Import */
+        get: operations["get_import_v1_admin_market_imports__import_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/market/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Per zone: the sale price per m² with source and date, and what is missing */
+        get: operations["coverage_v1_admin_market_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/review/market-inputs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The review queue of market inputs (pending first) */
+        get: operations["list_market_inputs_v1_admin_review_market_inputs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/review/market-inputs/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Market Input */
+        get: operations["get_market_input_v1_admin_review_market_inputs__item_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/review/market-inputs/{item_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept the imported figure: writes the zone's next assumptions version */
+        post: operations["approve_market_input_v1_admin_review_market_inputs__item_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/review/market-inputs/{item_id}/amend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct the figure (the imported one stays) and apply the correction */
+        post: operations["amend_market_input_v1_admin_review_market_inputs__item_id__amend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/review/market-inputs/{item_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject the figure with a reason; it never reaches the panel */
+        post: operations["reject_market_input_v1_admin_review_market_inputs__item_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/admin/review": {
@@ -1198,7 +1369,7 @@ export interface components {
         AssumptionsIn: {
             /**
              * Zone Id
-             * @description null = the municipality-wide default row
+             * @description null = the municipality-wide row: its range factors widen single-figure market imports; it never supplies a zone's figures
              */
             zone_id?: number | null;
             /** @description Land value per m² of parcel area */
@@ -1228,6 +1399,11 @@ export interface components {
             source_date?: string | null;
             /** Notes */
             notes?: string | null;
+            /**
+             * Effective From
+             * @description The date the figures apply from (not in the future)
+             */
+            effective_from?: string | null;
         };
         /** AssumptionsList */
         AssumptionsList: {
@@ -1240,7 +1416,7 @@ export interface components {
             id: number;
             /**
              * Zone Id
-             * @description null = municipality-wide default
+             * @description null = the municipality-wide row (range factors only, never a zone's figures)
              */
             zone_id: number | null;
             /** Zone Name */
@@ -1268,6 +1444,15 @@ export interface components {
             source_date?: string | null;
             /** Notes */
             notes?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /**
+             * Rate Sources
+             * @description Per rate, once reviewed market inputs set it: source, source_date, market_data_id, import_id, range_basis, effective_from (or set_by admin after a manual edit)
+             */
+            rate_sources?: {
+                [key: string]: unknown;
+            } | null;
             /** Created By */
             created_by?: string | null;
             /**
@@ -1299,6 +1484,8 @@ export interface components {
             source_date?: string | null;
             /** Notes */
             notes?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
         };
         /**
          * AssumptionsVersion
@@ -1311,7 +1498,7 @@ export interface components {
             version: number;
             /**
              * Zone Id
-             * @description null = municipality-wide default row
+             * @description The zone of the row (the panel reads zone rows only)
              */
             zone_id?: number | null;
             /**
@@ -1405,7 +1592,7 @@ export interface components {
              * @description The file
              */
             file: string;
-            /** @description planning_document | gis | cadastral_extract */
+            /** @description planning_document | gis | cadastral_extract | market_data (.csv, .xlsx) */
             kind: components["schemas"]["FileKind"];
         };
         /** Body_upload_report_v1_admin_orders__order_id__report_post */
@@ -1460,7 +1647,7 @@ export interface components {
              * Reason
              * @enum {string}
              */
-            reason: "not_found" | "not_pending" | "published";
+            reason: "not_found" | "not_pending" | "published" | "superseded";
         };
         /** CadastralIdentification */
         CadastralIdentification: {
@@ -1739,6 +1926,39 @@ export interface components {
             /** Live */
             live: boolean;
         };
+        /** CoverageRate */
+        CoverageRate: {
+            /**
+             * Metric
+             * @enum {string}
+             */
+            metric: "land_rate" | "build_rate" | "design_rate" | "sale_rate";
+            /**
+             * Status
+             * @description current: in the zone's current assumptions; approved_waiting: approved, waiting for the other metrics of the zone's first version; pending: awaiting review; missing
+             * @enum {string}
+             */
+            status: "current" | "approved_waiting" | "pending" | "missing";
+            /** Low */
+            low?: number | null;
+            /** Expected */
+            expected?: number | null;
+            /** High */
+            high?: number | null;
+            /** Source */
+            source?: string | null;
+            /** Source Date */
+            source_date?: string | null;
+            /**
+             * Market Data Id
+             * @description The reviewed market input that set the current value
+             */
+            market_data_id?: number | null;
+            /** Pending Item Ids */
+            pending_item_ids?: number[];
+            /** Approved Item Ids */
+            approved_item_ids?: number[];
+        };
         /**
          * CoverageReason
          * @enum {string}
@@ -1749,6 +1969,22 @@ export interface components {
          * @enum {string}
          */
         CoverageStatus: "covered" | "uncovered";
+        /**
+         * CurrentRate
+         * @description The zone's current value of the metric, for comparison.
+         */
+        CurrentRate: {
+            /** Assumptions Id */
+            assumptions_id: number;
+            /** Version */
+            version: number;
+            /** Low */
+            low?: number | null;
+            /** Expected */
+            expected: number;
+            /** High */
+            high?: number | null;
+        };
         /** DataSource */
         DataSource: {
             /** Id */
@@ -2001,6 +2237,10 @@ export interface components {
              */
             jobs?: components["schemas"]["JobOut"][];
             review?: components["schemas"]["ReviewSummary"] | null;
+            /** @description PDF pre-processing of the document's file: scanned pages (listed; they need manual handling), vector pages, tables, chunks, planning sections */
+            preprocessing?: components["schemas"]["PreprocessSummary"] | null;
+            /** @description The latest extraction run of this version: queued -> extracting -> ready_for_review | failed, pages failed / skipped, items written */
+            extraction?: components["schemas"]["ExtractionRunOut"] | null;
         };
         /** DocumentPanel */
         DocumentPanel: {
@@ -2182,6 +2422,127 @@ export interface components {
                 [key: string]: string | number | boolean | null;
             };
         };
+        /**
+         * ExtractionRunOut
+         * @description One extraction run of a document version's file (``extraction_runs``).
+         */
+        ExtractionRunOut: {
+            /** Id */
+            id: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "extracting" | "ready_for_review" | "failed";
+            /** Document Id */
+            document_id: number;
+            /** File Id */
+            file_id?: number | null;
+            /** File Sha256 */
+            file_sha256: string;
+            /**
+             * Model
+             * @description The configured model (part of the idempotency key)
+             */
+            model: string;
+            /**
+             * Model Version
+             * @description The model id the API reported
+             */
+            model_version?: string | null;
+            /** Prompt Version */
+            prompt_version: string;
+            /** Schema Version */
+            schema_version: string;
+            /** Pages Total */
+            pages_total?: number | null;
+            /**
+             * Pages Processed
+             * @description Pages read by a successful chunk
+             * @default 0
+             */
+            pages_processed: number;
+            /**
+             * Pages Skipped
+             * @description Scanned pages nobody could read (no OCR)
+             */
+            pages_skipped?: number[];
+            /**
+             * Pages Failed
+             * @description Pages of chunks that failed after their retry
+             */
+            pages_failed?: components["schemas"]["PageFailure"][];
+            /**
+             * Pages Failed Count
+             * @description Distinct failed pages
+             * @default 0
+             */
+            pages_failed_count: number;
+            /**
+             * Chunks Total
+             * @default 0
+             */
+            chunks_total: number;
+            /**
+             * Chunks Done
+             * @default 0
+             */
+            chunks_done: number;
+            /**
+             * Chunks Failed
+             * @default 0
+             */
+            chunks_failed: number;
+            /**
+             * Items Written
+             * @default 0
+             */
+            items_written: number;
+            /**
+             * Items Low Confidence
+             * @default 0
+             */
+            items_low_confidence: number;
+            /**
+             * Items Unmatched
+             * @description Items whose parcel / block matches no geometry (kept as printed)
+             * @default 0
+             */
+            items_unmatched: number;
+            /**
+             * Items Superseded
+             * @description Earlier items this run superseded
+             * @default 0
+             */
+            items_superseded: number;
+            /**
+             * Tokens In
+             * @default 0
+             */
+            tokens_in: number;
+            /**
+             * Tokens Out
+             * @default 0
+             */
+            tokens_out: number;
+            /** Estimated Cost Eur */
+            estimated_cost_eur?: number | null;
+            /** Error */
+            error?: string | null;
+            /** Superseded By Run Id */
+            superseded_by_run_id?: number | null;
+            /** Job Id */
+            job_id?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+        };
         /** FeasibilityBlock */
         FeasibilityBlock: {
             /**
@@ -2321,7 +2682,7 @@ export interface components {
          * FileKind
          * @enum {string}
          */
-        FileKind: "planning_document" | "gis" | "cadastral_extract" | "expert_report";
+        FileKind: "planning_document" | "gis" | "cadastral_extract" | "expert_report" | "market_data";
         /** FileList */
         FileList: {
             /** Items */
@@ -2775,6 +3136,35 @@ export interface components {
             /** Sessions */
             sessions: number;
         };
+        /** ItemCounts */
+        ItemCounts: {
+            /**
+             * Pending
+             * @default 0
+             */
+            pending: number;
+            /**
+             * Approved
+             * @default 0
+             */
+            approved: number;
+            /**
+             * Amended
+             * @default 0
+             */
+            amended: number;
+            /**
+             * Rejected
+             * @default 0
+             */
+            rejected: number;
+            /**
+             * Applied
+             * @description Approved or amended items that wrote a version
+             * @default 0
+             */
+            applied: number;
+        };
         /**
          * JobCostOut
          * @description What the job cost; fields stay ``null`` until it has run (and succeeded, for LLM cost).
@@ -2865,7 +3255,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "extract_document" | "process_geometry" | "publish_approved" | "send_email";
+            type: "extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data";
             /** Queue */
             queue: string;
             /**
@@ -2939,10 +3329,19 @@ export interface components {
             progress?: {
                 [key: string]: unknown;
             } | null;
+            /** @description extract_document jobs: the run's summary as it stands */
+            extraction_run?: components["schemas"]["ExtractionRunOut"] | null;
             /**
              * Status Url
              * @description GET here for the current status
              */
+            status_url: string;
+        };
+        /** JobRef */
+        JobRef: {
+            /** Id */
+            id: number;
+            /** Status Url */
             status_url: string;
         };
         /** Label */
@@ -3004,6 +3403,33 @@ export interface components {
             rank: number;
             /** Primary */
             primary: boolean;
+        };
+        /**
+         * ListingsImportIn
+         * @description Asking prices pasted from a portal: one listing per line, ``location, EUR/m², date``.
+         */
+        ListingsImportIn: {
+            /**
+             * Source
+             * @description e.g. Realitica, Estitor
+             */
+            source: string;
+            /**
+             * Retrieved On
+             * Format: date
+             */
+            retrieved_on: string;
+            /**
+             * Metric
+             * @description sale_rate: dwellings (EUR per m² of floor); land_rate: plots (per m² of land)
+             * @default sale_rate
+             * @enum {string}
+             */
+            metric: "sale_rate" | "land_rate";
+            /** Listings */
+            listings: string;
+            /** Notes */
+            notes?: string | null;
         };
         /** LocateQuery */
         LocateQuery: {
@@ -3079,6 +3505,160 @@ export interface components {
             /** Email */
             email: string;
         };
+        /**
+         * MarketAmendIn
+         * @description A corrected figure (EUR per m²): low and high both or neither; neither = the configured
+         *     range factors of the zone widen it (refused when none are configured).
+         */
+        MarketAmendIn: {
+            /** Expected */
+            expected: number;
+            /** Low */
+            low?: number | null;
+            /** High */
+            high?: number | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Note */
+            note?: string | null;
+        };
+        /** MarketApproveIn */
+        MarketApproveIn: {
+            /**
+             * Effective From
+             * @description The date the figures apply from; default today
+             */
+            effective_from?: string | null;
+            /** Note */
+            note?: string | null;
+        };
+        /** MarketCoverage */
+        MarketCoverage: {
+            /** Zones */
+            zones: components["schemas"]["ZoneCoverage"][];
+            /** Zones Total */
+            zones_total: number;
+            /** Zones With Market Data */
+            zones_with_market_data: number;
+            /** Zones With Reviewed Sale Price */
+            zones_with_reviewed_sale_price: number;
+            /** Zones Without Market Data */
+            zones_without_market_data: string[];
+            /** Pending Items */
+            pending_items: number;
+        };
+        /** MarketImportAccepted */
+        MarketImportAccepted: {
+            market_import: components["schemas"]["MarketImportOut"];
+            /**
+             * Created
+             * @description false: the same content was imported before
+             */
+            created: boolean;
+            job?: components["schemas"]["JobRef"] | null;
+        };
+        /**
+         * MarketImportIn
+         * @description Register an uploaded table (``POST /v1/admin/files`` with ``kind = market_data``).
+         */
+        MarketImportIn: {
+            /**
+             * File Id
+             * @description A stored file of kind market_data (.csv / .xlsx)
+             */
+            file_id: number;
+            /**
+             * Kind
+             * @description statistics: official tables (Monstat); client_ranges: the client's sheet
+             * @enum {string}
+             */
+            kind: "statistics" | "client_ranges";
+            /**
+             * Source
+             * @description Who published the figures; statistics default to the profile's source
+             */
+            source?: string | null;
+            /**
+             * Retrieved On
+             * Format: date
+             * @description When the figures were retrieved or received
+             */
+            retrieved_on: string;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** MarketImportList */
+        MarketImportList: {
+            /** Items */
+            items: components["schemas"]["MarketImportOut"][];
+            /** Total */
+            total: number;
+        };
+        /** MarketImportOut */
+        MarketImportOut: {
+            /** Id */
+            id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "statistics" | "client_ranges" | "listings";
+            /** Source */
+            source: string;
+            /**
+             * Retrieved On
+             * Format: date
+             */
+            retrieved_on: string;
+            /** File Id */
+            file_id?: number | null;
+            /** Filename */
+            filename?: string | null;
+            /** Sha256 */
+            sha256: string;
+            /** Row Count */
+            row_count: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "received" | "normalised" | "failed";
+            /**
+             * Normaliser
+             * @description rules, or rules+llm:<model>@<prompt version>
+             */
+            normaliser?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Job Id */
+            job_id?: number | null;
+            /** Created By */
+            created_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Normalised At */
+            normalised_at?: string | null;
+            items?: components["schemas"]["ItemCounts"];
+            /**
+             * Report
+             * @description Detail only: items made, every row / column left out with its reason, issues, the sheet mappings and the LLM's calls and tokens
+             */
+            report?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Raw
+             * @description Detail only: the file as read
+             */
+            raw?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** MarketInputsBlock */
         MarketInputsBlock: {
             /**
@@ -3121,12 +3701,134 @@ export interface components {
             /** @description Per-rate low / expected / high as the engine used them */
             ranges?: components["schemas"]["MarketRanges"] | null;
         };
+        /** MarketItemOut */
+        MarketItemOut: {
+            /** Id */
+            id: number;
+            /**
+             * Item Type
+             * @default market_input
+             * @constant
+             */
+            item_type: "market_input";
+            /** Import Id */
+            import_id: number;
+            /**
+             * Import Kind
+             * @enum {string}
+             */
+            import_kind: "statistics" | "client_ranges" | "listings";
+            /** Zone Id */
+            zone_id: number;
+            /** Zone Name */
+            zone_name: string;
+            /**
+             * Metric
+             * @enum {string}
+             */
+            metric: "land_rate" | "build_rate" | "design_rate" | "sale_rate";
+            /** Currency */
+            currency: string;
+            /** Unit */
+            unit: string;
+            /** @description As normalised from the source */
+            imported: components["schemas"]["MarketRange"];
+            /** @description The reviewer's correction */
+            amended?: components["schemas"]["MarketRange"] | null;
+            /** @description What approving writes: amended, else imported */
+            effective: components["schemas"]["MarketRange"];
+            /**
+             * Range Basis
+             * @enum {string}
+             */
+            range_basis: "stated" | "derived" | "listings" | "unavailable";
+            /** Source */
+            source: string;
+            /** Source Date */
+            source_date?: string | null;
+            /**
+             * Effective From
+             * @description Set on approval
+             */
+            effective_from?: string | null;
+            /** Confidence */
+            confidence?: number | null;
+            /** Notes */
+            notes?: string | null;
+            /** Flags */
+            flags?: string[];
+            /**
+             * Raw
+             * @description The source row and cells the figure was read from
+             */
+            raw: {
+                [key: string]: unknown;
+            };
+            /** Mapping */
+            mapping?: {
+                [key: string]: unknown;
+            } | null;
+            /** Normaliser */
+            normaliser: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "amended" | "rejected";
+            /** Reviewer */
+            reviewer?: string | null;
+            /** Reviewed At */
+            reviewed_at?: string | null;
+            /** Review Note */
+            review_note?: string | null;
+            /**
+             * Applied Assumption Id
+             * @description The assumptions version this item wrote (closed)
+             */
+            applied_assumption_id?: number | null;
+            /**
+             * Waiting For
+             * @description Approved but not applied: the zone has no assumptions yet and these metrics still need an approved item before its first version is written
+             */
+            waiting_for?: ("land_rate" | "build_rate" | "design_rate" | "sale_rate")[] | null;
+            current?: components["schemas"]["CurrentRate"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** MarketItemPage */
+        MarketItemPage: {
+            /** Items */
+            items: components["schemas"]["MarketItemOut"][];
+            /** Total */
+            total: number;
+            counts: components["schemas"]["ItemCounts"];
+        };
+        /** MarketRange */
+        MarketRange: {
+            /** Low */
+            low?: number | null;
+            /** Expected */
+            expected: number;
+            /** High */
+            high?: number | null;
+        };
         /** MarketRanges */
         MarketRanges: {
             land_rate: components["schemas"]["RateRange"];
             build_rate: components["schemas"]["RateRange"];
             design_rate: components["schemas"]["RateRange"];
             sale_rate: components["schemas"]["RateRange"];
+        };
+        /** MarketRejectIn */
+        MarketRejectIn: {
+            /**
+             * Note
+             * @description Why the figure is rejected
+             */
+            note: string;
         };
         /** MarketView */
         MarketView: {
@@ -3143,7 +3845,7 @@ export interface components {
             zone?: components["schemas"]["ZoneRef"] | null;
             /**
              * Scope
-             * @description The zone's own row, or the municipality-wide default row
+             * @description zone: the zone's own row (a municipality-wide row never stands in for a zone since market imports, migration 0019)
              * @enum {string}
              */
             scope: "zone" | "municipality";
@@ -3610,6 +4312,23 @@ export interface components {
             /** Sale Price Eur M2 */
             sale_price_eur_m2: boolean;
         };
+        /** PageFailure */
+        PageFailure: {
+            /** Page */
+            page: number;
+            /**
+             * Chunk
+             * @description The manifest's chunk id
+             */
+            chunk: string;
+            /**
+             * Task
+             * @description The extraction task that failed on it
+             */
+            task: string;
+            /** Error */
+            error: string;
+        };
         /** PageLinkOut */
         PageLinkOut: {
             /**
@@ -4020,6 +4739,57 @@ export interface components {
              */
             max_coverage_area_m2?: number | null;
         };
+        /**
+         * PreprocessSummary
+         * @description What the admin document and file records show.
+         */
+        PreprocessSummary: {
+            /** Version */
+            version: string;
+            /**
+             * Preprocessed At
+             * Format: date-time
+             */
+            preprocessed_at: string;
+            /** Page Count */
+            page_count: number;
+            /**
+             * Vector Pages
+             * @description Pages with a text layer or vector drawings
+             */
+            vector_pages: number;
+            /**
+             * Scanned Pages
+             * @description Raster pages: geometry needs manual redraw
+             */
+            scanned_pages: number[];
+            /** Ocr Pages */
+            ocr_pages?: number[];
+            /**
+             * Unread Pages
+             * @description Scanned pages nobody has read yet (no OCR backend)
+             */
+            unread_pages?: number[];
+            /** Blank Pages */
+            blank_pages?: number[];
+            /** Tables */
+            tables: number;
+            /** Chunks */
+            chunks: number;
+            /** Sections */
+            sections?: {
+                [key: string]: number[];
+            };
+            /** Scripts */
+            scripts?: {
+                [key: string]: number;
+            };
+            /**
+             * Page Images
+             * @description Documents whose page images are rendered
+             */
+            page_images?: number[];
+        };
         /** PriceTierOut */
         PriceTierOut: {
             /**
@@ -4360,6 +5130,42 @@ export interface components {
              * @description Already copied to the serving table; decisions are closed
              */
             published: boolean;
+            /**
+             * Flags
+             * @description What the extraction validator asks the reviewer to look at: low_confidence, out_of_range, unit_assumed, bbox_ambiguous, found_under_other_parcel ...
+             */
+            flags?: string[];
+            /**
+             * Schema Version
+             * @description Extraction contract version the item was stored in
+             */
+            schema_version?: string | null;
+            /**
+             * Prompt Version
+             * @description Prompt set that produced it
+             */
+            prompt_version?: string | null;
+            /**
+             * Run Id
+             * @description The extraction run that wrote it; null = manual or seeded
+             */
+            run_id?: number | null;
+            /**
+             * Change
+             * @description Against the previous run's item for the same target and field
+             */
+            change?: ("new" | "same" | "changed") | null;
+            previous?: components["schemas"]["ReviewPrevious"] | null;
+            /**
+             * Superseded
+             * @description Replaced by a later run or decision; kept for history, decisions closed
+             * @default false
+             */
+            superseded: boolean;
+            /** Superseded At */
+            superseded_at?: string | null;
+            /** Superseded By Run Id */
+            superseded_by_run_id?: number | null;
         };
         /** ReviewPage */
         ReviewPage: {
@@ -4371,6 +5177,23 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * ReviewPrevious
+         * @description The previous extraction run's item for the same target and field.
+         */
+        ReviewPrevious: {
+            /** Id */
+            id: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "amended" | "rejected";
+            /** @description Its effective value (amended if amended) */
+            value: components["schemas"]["ReviewValue"];
+            /** Run Id */
+            run_id?: number | null;
         };
         /** ReviewSource */
         ReviewSource: {
@@ -4405,6 +5228,11 @@ export interface components {
              * @description Extractor confidence 0..1
              */
             confidence?: number | null;
+            /**
+             * Extraction Method
+             * @description How the value was read; null for manual or seeded items
+             */
+            extraction_method?: ("text" | "table" | "ocr") | null;
             /** @description null when the document file is not stored or the page is unknown */
             link?: components["schemas"]["PageLinkOut"] | null;
         };
@@ -4450,6 +5278,17 @@ export interface components {
             zone_id?: number | null;
             /** Zone Name */
             zone_name?: string | null;
+            /**
+             * Label
+             * @description The parcel number / block label as the document prints it; the only reference when no geometry matches (flag target_unmatched)
+             */
+            label?: string | null;
+            /**
+             * Matched
+             * @description false: a parcel / block value without a geometry id; it cannot publish
+             * @default true
+             */
+            matched: boolean;
         };
         /** ReviewValue */
         ReviewValue: {
@@ -4708,9 +5547,13 @@ export interface components {
             document_ids?: number[];
             /**
              * Jobs
-             * @description Recent geometry jobs, newest first
+             * @description Recent geometry and pre-processing jobs, newest first
              */
             jobs?: components["schemas"]["JobOut"][];
+            /** @description PDF pre-processing: pages, vector / scanned pages, tables, chunks, sections */
+            preprocessing?: components["schemas"]["PreprocessSummary"] | null;
+            /** @description The latest extraction run over the file: queued -> extracting -> ready_for_review | failed, with the pages that failed */
+            extraction?: components["schemas"]["ExtractionRunOut"] | null;
         };
         /** TermLabel */
         TermLabel: {
@@ -5031,6 +5874,39 @@ export interface components {
             is_current_version: boolean;
             /** Registered At */
             registered_at?: string | null;
+        };
+        /** ZoneCoverage */
+        ZoneCoverage: {
+            /** Zone Id */
+            zone_id: number;
+            /** Zone Name */
+            zone_name: string;
+            /** Zone Type */
+            zone_type?: string | null;
+            /**
+             * Market Data
+             * @description The zone has current assumptions: the panel shows its figures
+             */
+            market_data: boolean;
+            /** Assumptions Id */
+            assumptions_id?: number | null;
+            /** Assumptions Version */
+            assumptions_version?: number | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** @description The current sale price per m² (null: not covered) */
+            sale_price_eur_m2?: components["schemas"]["MarketRange"] | null;
+            /** Sale Price Source */
+            sale_price_source?: string | null;
+            /** Sale Price Source Date */
+            sale_price_source_date?: string | null;
+            /**
+             * Sale Price Reviewed
+             * @description The current sale price was set by an approved market input
+             */
+            sale_price_reviewed: boolean;
+            /** Rates */
+            rates: components["schemas"]["CoverageRate"][];
         };
         /** ZoneDetail */
         ZoneDetail: {
@@ -6421,6 +7297,77 @@ export interface operations {
             };
         };
     };
+    enqueue_preprocess_job_v1_admin_files__file_id__jobs_preprocess_post: {
+        parameters: {
+            query?: {
+                /** @description Redo it even when the file's manifest is current */
+                force?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                file_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An identical job is already queued or running; returned as is */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The file is not a planning-document PDF */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Database, object storage or job queue unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list_documents_v1_admin_documents_get: {
         parameters: {
             query?: {
@@ -6647,7 +7594,10 @@ export interface operations {
     };
     enqueue_extract_job_v1_admin_documents__document_id__jobs_extract_post: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Read the file again even though an identical run already finished */
+                force?: boolean;
+            };
             header?: {
                 authorization?: string | null;
             };
@@ -6658,7 +7608,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description An identical job is already queued or running; returned as is */
+            /** @description Nothing new to do: the same file was already read with the same model, prompt and schema versions (that run's job, with its summary), or an identical job is queued or running (returned as is) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6716,7 +7666,7 @@ export interface operations {
     list_jobs_v1_admin_jobs_get: {
         parameters: {
             query?: {
-                type?: ("extract_document" | "process_geometry" | "publish_approved" | "send_email") | null;
+                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data") | null;
                 status?: ("queued" | "running" | "retrying" | "succeeded" | "failed" | "cancelled") | null;
                 /** @description `<target_type>:<id>`, e.g. `document:12` */
                 target?: string | null;
@@ -6779,7 +7729,7 @@ export interface operations {
             query?: {
                 /** @description `<target_type>:<id>`, e.g. `document:12` */
                 target?: string | null;
-                type?: ("extract_document" | "process_geometry" | "publish_approved" | "send_email") | null;
+                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data") | null;
                 limit?: number;
             };
             header?: {
@@ -7155,7 +8105,7 @@ export interface operations {
         parameters: {
             query?: {
                 zone_id?: number | null;
-                /** @description Only the municipality-wide default */
+                /** @description Only the municipality-wide row (range factors) */
                 default_only?: boolean;
                 include_history?: boolean;
                 limit?: number;
@@ -7846,6 +8796,580 @@ export interface operations {
             };
         };
     };
+    list_imports_v1_admin_market_imports_get: {
+        parameters: {
+            query?: {
+                kind?: ("statistics" | "client_ranges" | "listings") | null;
+                status?: ("received" | "normalised" | "failed") | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketImportList"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not do this (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_import_v1_admin_market_imports_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarketImportIn"];
+            };
+        };
+        responses: {
+            /** @description Already imported and normalised */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Recorded; normalisation queued (the job's status_url) */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketImportAccepted"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not do this (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a readable market table, wrong file kind, or bad fields */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The stored file or the job queue is unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_listings_v1_admin_market_listings_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ListingsImportIn"];
+            };
+        };
+        responses: {
+            /** @description Already imported and normalised */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Recorded; normalisation queued (the job's status_url) */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketImportAccepted"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not do this (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a readable market table, wrong file kind, or bad fields */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The stored file or the job queue is unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_import_v1_admin_market_imports__import_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketImportOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not do this (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such import (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    coverage_v1_admin_market_coverage_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketCoverage"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not do this (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_market_inputs_v1_admin_review_market_inputs_get: {
+        parameters: {
+            query?: {
+                status?: ("pending" | "approved" | "amended" | "rejected") | null;
+                zone_id?: number | null;
+                metric?: ("land_rate" | "build_rate" | "design_rate" | "sale_rate") | null;
+                import_id?: number | null;
+                /** @description e.g. zone_mapped_by_ai */
+                flag?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketItemPage"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not do this (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_market_input_v1_admin_review_market_inputs__item_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketItemOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not do this (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such market input (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_market_input_v1_admin_review_market_inputs__item_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MarketApproveIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketItemOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not do this (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such market input (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `conflict`: the input already wrote an assumptions version (`applied`), its range is missing or inconsistent (`range_required`, `range_incomplete`, `bounds_inconsistent`: amend it), or another approved input for the zone and metric is waiting (`already_approved`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    amend_market_input_v1_admin_review_market_inputs__item_id__amend_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarketAmendIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketItemOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not do this (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such market input (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `conflict`: the input already wrote an assumptions version (`applied`), its range is missing or inconsistent (`range_required`, `range_incomplete`, `bounds_inconsistent`: amend it), or another approved input for the zone and metric is waiting (`already_approved`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_market_input_v1_admin_review_market_inputs__item_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarketRejectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketItemOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not do this (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such market input (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `conflict`: the input already wrote an assumptions version (`applied`), its range is missing or inconsistent (`range_required`, `range_incomplete`, `bounds_inconsistent`: amend it), or another approved input for the zone and metric is waiting (`already_approved`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_review_items_v1_admin_review_get: {
         parameters: {
             query?: {
@@ -7855,6 +9379,14 @@ export interface operations {
                 entity_type?: ("urban_parcel" | "zone" | "block" | "document" | "market_data") | null;
                 urban_parcel_id?: number | null;
                 source_page?: number | null;
+                /** @description Items carrying this flag, e.g. low_confidence, target_unmatched, repeated_in_run */
+                flag?: string | null;
+                /** @description Items of one extraction run */
+                run_id?: number | null;
+                /** @description Against the previous run's item for the same target and field */
+                change?: ("new" | "same" | "changed") | null;
+                /** @description Also items a later run or decision superseded (history) */
+                include_superseded?: boolean;
                 limit?: number;
                 offset?: number;
             };

@@ -221,7 +221,9 @@ class AssumptionsVersion(BaseModel):
 
     id: int
     version: int
-    zone_id: int | None = Field(default=None, description="null = municipality-wide default row")
+    zone_id: int | None = Field(
+        default=None, description="The zone of the row (the panel reads zone rows only)"
+    )
     effective_from: str | None = Field(default=None, description="created_at of that version")
 
 

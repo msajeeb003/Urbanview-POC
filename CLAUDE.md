@@ -16,7 +16,7 @@ wireframe, brand SVGs, specs; the client's planning PDFs in `docs/gis/source/`).
 
 | Folder | Contents |
 |---|---|
-| `backend/` | FastAPI app (`api/`: app factory, routers under `/v1`, schemas, services), `core/` (settings, logging, errors, middleware, db, models, `engine/` feasibility formulas, `geocode/` geocoding providers, `gis/` geometry assessment, redis, storage, mail, municipality profiles, seeds loader), `jobs/` (Celery: ingestion, extraction, publish), `municipalities/<id>.toml`, `tests/` (unit) and `tests/integration/` (PostGIS). Python venv: `backend/.venv`. |
+| `backend/` | FastAPI app (`api/`: app factory, routers under `/v1`, schemas, services), `core/` (settings, logging, errors, middleware, db, models, `engine/` feasibility formulas, `geocode/` geocoding providers, `gis/` geometry assessment, `extraction/` the AI extraction contract, redis, storage, mail, municipality profiles, seeds loader), `jobs/` (Celery: ingestion, extraction, publish), `municipalities/<id>.toml`, `tests/` (unit) and `tests/integration/` (PostGIS). Python venv: `backend/.venv`. |
 | `database/` | Alembic (`alembic.ini`, `migrations/`), seed datasets (`seeds/podgorica_sample/*.geojson` for the geometry tables, `*.json` for the panel tables), compose init SQL (`docker/initdb/`), `scripts/dev_postgis.py` (portable PostGIS for Docker-less machines). |
 | `frontend/` | Public map: Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Radix) + Mapbox GL JS + TanStack Query, npm workspace `@urbanview/frontend`. Its own `frontend/CLAUDE.md` holds the tokens, dimensions, layer list, panel field lists and frontend rules. |
 | `admin/` | Staff tool, Next.js + Auth.js, roles admin / reviewer / expert (reserved, P1). |
@@ -398,14 +398,19 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   that cite them stay. `type` must be a key of the profile's `document_types`; `zone_id`,
   `file_id` (a planning_document PDF) and `amends_document_id` must exist (422 otherwise).
   `coverage_geom` is nullable since 0006 (registered before the geometry job ran).
-- **Jobs.** `POST /v1/admin/documents/{id}/jobs/extract` and `POST /v1/admin/files/{id}/jobs/geo`
-  go through `jobs.enqueue.enqueue_job` (see "Background jobs"): one `pipeline_jobs` row
-  (`extract_document` on `extraction`, `process_geometry` on `geo`), committed, then the Celery
+- **Jobs.** `POST /v1/admin/documents/{id}/jobs/extract`, `POST /v1/admin/files/{id}/jobs/geo`
+  and `POST /v1/admin/files/{id}/jobs/preprocess[?force=true]` go through
+  `jobs.enqueue.enqueue_job` (see "Background jobs"): one `pipeline_jobs` row (`extract_document`
+  and `preprocess_file` on `extraction`, `process_geometry` on `geo`), committed, then the Celery
   message; the reply is 202 with `status_url = /v1/admin/jobs/{id}`, or **200 with the existing
   job** when an identical one is queued / running / retrying (idempotency key = type + target +
-  file SHA-256). A dead broker marks the job failed and answers 503 with the job id. The task
-  bodies are stubs until the AI / GIS items land, so today a run ends `failed` with a clear
-  "not implemented" error. Extraction writes to STAGING only; publishing is a separate job.
+  file SHA-256; for extraction also the model and the prompt / schema versions, and a run that
+  already finished answers 200 unless `?force=true`: see "Extraction job"). A dead broker marks
+  the job failed and answers 503 with the job id. The geometry body is a stub until its item
+  lands (a run ends `failed` with a clear "not implemented" error); pre-processing and extraction
+  run. Files and documents carry `preprocessing` (the manifest summary: vector / scanned pages,
+  tables, chunks, sections) and `extraction` (the latest run: status, pages failed / skipped,
+  items). Extraction writes to STAGING only; publishing is a separate job.
 - **Coverage switch.** `PATCH /v1/admin/documents/{id}/coverage {live}` sets
   `planning_documents.coverage_live` (only the current version, only with a coverage geometry;
   409 otherwise). Location resolution and the panel take **adopted AND live** documents only
@@ -461,13 +466,19 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   (`pending` = `pending_review`, approved, amended, rejected), entity, urban parcel, page. Each
   item: parameter labels and type, `extracted` (the AI value with unit), `amended`, `effective`
   (what would publish), `target`, `source` (document, page, bbox, note, raw text snippet,
-  confidence) and a signed `link` to the cited page (same rule as the source viewer:
-  `api.services.source.signed_page_link`).
+  confidence, `extraction_method`) and a signed `link` to the cited page (same rule as the source
+  viewer: `api.services.source.signed_page_link`), plus the extraction validator's `flags` and
+  the item's `schema_version` / `prompt_version` (migration 0017); `?flag=low_confidence`
+  filters (see "AI extraction contract").
 - **Decisions never overwrite the AI value.** `POST .../approve` accepts it, `.../amend`
   (`{value, unit?, note?}`, typed to the parameter: numbers stay numbers, texts texts) stores
   the correction alongside and sets `amended`, `.../reject` (`{note}` required) keeps it out
   and clears any correction. Any decision may be revised while the item is unpublished; an item
-  with `published_value_id` is closed (409). `POST /v1/admin/review/bulk-approve` approves many
+  with `published_value_id` is closed (409), so is a superseded one (409 `superseded`). Items of
+  extraction runs carry `run_id`, `change` + `previous` (the previous run's item for the target
+  and field) and `target.label` / `target.matched` (unmatched parcels stay text references);
+  approving a newer reading retires the older approved item; the queue hides superseded items
+  (`?include_superseded=true`) and filters `run_id`, `change` (see "Extraction job"). `POST /v1/admin/review/bulk-approve` approves many
   pending items (ids, document page or urban parcel), one audit row per item.
   `GET /v1/admin/review/summary` (and `DocumentOut.review`) gives pending / approved / amended /
   rejected per document and `can_publish` = no pending items and something approved; the
@@ -483,7 +494,213 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   actor, action prefix and time. Test fixtures never delete audit rows.
 - Tests: `tests/test_review_unit.py` (payloads, typed corrections, publish rule, page links) and
   `tests/integration/test_review_postgis.py` (queue payload, transitions with audit before /
-  after, bulk approval, counters, append-only enforcement, audit listing).
+  after, bulk approval, counters, append-only enforcement, audit listing, contract rows with
+  flags and the flag filter).
+
+## AI extraction contract (`backend/core/extraction/`, `docs/specs/extraction-contract.md`)
+
+- **AI has one job: read the documents so people do not transcribe them.** It never invents a
+  planning value and never does arithmetic, not even a unit conversion: the model **transcribes**
+  (every field an `OutValue`: the value as printed, always a string; how the unit is printed;
+  a verbatim `raw_text`; the page; optional table ref; confidence; `absent_reason` not_found |
+  deferred), deterministic code types, normalises and checks it. `core.extraction.run.run_task`
+  is one request: `prompts.build_prompt` -> `llm` model -> `response.RESPONSE_MODELS[task]` ->
+  `validate.assemble` -> canonical `schema.ExtractionResult`; `staging.to_staging_rows` makes
+  review-queue rows. The job that runs it per file: "Extraction job" below.
+- **Canonical schema** (`schema.py`, `SCHEMA_VERSION = "1.0"`, JSON Schema exported to
+  `core/extraction/schemas/`): entities `document` (name, `document_type` code = a profile key,
+  `status` code, gazette, decision number / date ISO, `area_ha`, amendments, document-wide
+  `rules`, notes), `blocks` (the plan's Blok / Zona, never UrbanView zones; `total_row` = sums),
+  `urban_parcels` (number as printed + `parcel_key`, block, `planned_parcel_area_m2`, `rules`,
+  `public_area_relation`, `other_conditions`), `utilities` (kind / status / scope),
+  `land_use_legend`; `rules` = the Group 1 fields except the area (`fields.RULE_FIELDS`), always
+  all present. A leaf is `StatedValue` (value in the canonical unit or the document's wording,
+  `raw_text` **taken from the page**, `source` document + page + bbox bottom-left + table ref,
+  confidence, `extraction_method` text | table | ocr, `stated` as printed, `normalisation` rules,
+  `derived` floor counts, land-use `category`, `flags`) or `MissingValue` (`not_found`,
+  `deferred` with its text and source, `unverified` = a model value whose text is not on the
+  cited page or does not contain it; the candidate goes to `issues`). Land-use classes
+  (`LandUseClass`) are product-wide; the wording stays the value.
+- **Validation** (`validate.py`, `textmatch.py`): raw text on the cited page (case-, accent-,
+  quote- and whitespace-insensitive, whole words; exactly one other page read -> `page_corrected`),
+  value inside it, typing (`normalise.py`: numbers in the document's conventions in `Decimal`,
+  ratio -> % and ha <-> m² only, `d.m.yyyy` dates, the floor notation counted with the profile's
+  tokens, land use via the profile's term table or the document legend), plausible ranges
+  (`fields.FIELD_SPECS`), confidence below `EXTRACTION_LOW_CONFIDENCE` (0.7). Flags never remove
+  a value (`low_confidence`, `out_of_range`, `unit_assumed`, `bbox_ambiguous`,
+  `found_under_other_parcel` ...); removed values are issues. Boxes come from the page's words;
+  a repeated value is settled by its row label and column header, else no box. **The cited grid
+  cell is tried first** (the page's own words inside the cell box): a short value (`A`, `1`) is
+  not matched to its first occurrence elsewhere on the page, and a cell wrapped over several
+  lines (interleaved with its neighbours in the page text) still verifies; a citation of the
+  empty cell of a row a merged value spans resolves to the cell it is printed in
+  (`pages.merged_origin`).
+- **Prompts** (`prompts.py`, `prompt_sets/v1.1/`, `PROMPT_VERSION = "1.1"`; 1.0 stays loadable):
+  1.1 asks for **compact answers** (`compact.py`: per entity only the fields the pages state, flat
+  entries without unions, `to_legacy()` turns them into the 1.0 response models the validator
+  reads; the API refused 1.0's nested schema as too complex). Manifest + Jinja2
+  templates (system rules, field guide, one file per task: document, block, urban_parcel,
+  parameter_table keyed by urban parcel number, infrastructure, land_use_legend; context; user)
+  + `responses/*.schema.json`, the structured-output schemas as sent (all objects closed, all
+  properties required, no bounds). **Templates are place-neutral**: language, glossary, floor
+  tokens, land-use terms and block label words come from `[extraction]` of the municipality
+  profile (`core.municipality.load_extraction_profile`), document types from `[terminology]`
+  (UP = urban project added for Stara Varoš). Two cached system blocks, pages in the user
+  message. A changed prompt is a new directory; regenerate schemas with
+  `python -m core.extraction export` (a test compares them).
+- **Model** (`llm.py`): `ClaudeModel` (Anthropic SDK, `ai` extra, installed in the worker image
+  only): streaming, `output_config` {format json_schema, effort}, adaptive thinking; server-side
+  refusal fallback (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) only when
+  switched on (documented for Opus 5 / Fable 5.1). **Default model Claude Sonnet 5** (product
+  owner, 2026-09-26: Opus not required): reads the tables well, supports adaptive thinking and
+  effort and caches the prompt; Haiku 4.5 has neither thinking mode nor effort and caches only
+  4096+ token prompts; `claude-opus-5` stays one setting away for hard pages. Settings
+  `ANTHROPIC_API_KEY`, `EXTRACTION_MODEL` (claude-sonnet-5), `EXTRACTION_EFFORT`,
+  `EXTRACTION_ADAPTIVE_THINKING`, `EXTRACTION_MAX_TOKENS`, `EXTRACTION_REFUSAL_FALLBACK`,
+  `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_LOW_CONFIDENCE`. `ModelUnavailable` /
+  `ModelRateLimited` are retryable (the job maps them to `TransientError` / `RateLimited`);
+  `ModelRefused`, `ModelOutputInvalid`, `ModelError` are final. `ScriptedModel` for tests.
+- **Staging** (`staging.py`, migration 0017): only stated planning-field values become
+  `planning_parameter_extractions` rows (`pending_review`), parcel values on their urban parcel
+  (`parcel_key` lookup), block values on their block, document rules at document scope, each with
+  `schema_version`, `prompt_version`, `extraction_method`, `flags` (JSONB), `payload` (the leaf +
+  context, `StagedPayload`) and `job_id`; the rest is reported (`unstaged`, missing counts).
+  **Stored items stay readable**: `read_payload` dispatches on the major version
+  (`PAYLOAD_READERS`); keep the old reader when a major version changes.
+- **Evaluation**: `cases.py` holds five never-guessed cases (FAR from coverage x floors, height
+  from floors, area from GFA / FAR, a neighbour's parking rule, an adoption date from the plan's
+  date). `python -m core.extraction eval [--sample DIR] [--dry-run]` asks the configured model
+  (costs tokens; a case passes only when the model returns not_found itself);
+  `check-sample DIR` builds the hand-labelled sample (2 pages per POC document, stored with the
+  client documents in `docs/gis/source/extraction-sample/`, not in the repository) into the
+  contract. Tests: `tests/test_extraction_contract.py` (schema files, prompts, normalisation,
+  never-guessed, flags, staging, frozen 1.0 item, the sample when present) and
+  `tests/test_extraction_llm.py` (request shape, reply, error classes, the wire request through
+  the real SDK on a mock transport).
+
+## PDF pre-processing (`core/extraction/preprocess.py`, `chunking.py`, `manifest.py`, `jobs/preprocessing.py`)
+
+- Spec: `docs/specs/pdf-preprocessing.md`. `extract_pages(pdf)` (pymupdf, `PREPROCESS_VERSION`):
+  per page the text blocks in reading order with boxes, the words with boxes, table grids
+  (`lines_strict` -> `lines` -> a layout heuristic kept only when table-shaped; cell ids `rNcM`
+  with boxes; cell text rebuilt in reading order, rotated headers included, a word or number
+  wrapped in a narrow cell joined: "Površin" + "a UP", "1906.0" + "9"; leading rows without
+  numbers are the header), page size / rotation, script (latin | cyrillic | mixed), and
+  `scanned` (images cover ≥ half the page, ≤ 200 vector paths, no text layer or below
+  `PREPROCESS_MIN_TEXT_DENSITY`). Boxes: PDF points, origin bottom-left, rotation undone. Text is
+  kept as extracted (NFC; č ć š ž đ and Cyrillic unchanged); on pages with the AutoCAD glyph-id
+  shift the shifted words are decoded with `core.gis` (block `decoded`); a word is taken as
+  shifted only when it decodes to word-like casing and is not id-shaped (preprocess 1.1: Stara
+  Varoš's `D3078` had been "decoded" to `aPMTU`). Table finding is skipped on drawing sheets
+  (`PREPROCESS_TABLE_MAX_PATHS`, > A2). In the model's table view a merged cell (printed once
+  for several rows) shows as `cM: ^rK` in the rows it spans below row K.
+- **Never made up**: a scanned page is read only by a configured OCR backend
+  (`EXTRACTION_OCR_BACKEND=tesseract`, `srp_latn+srp`; default `none`, OCR is outside the POC);
+  otherwise it stays unread, gets no chunk and is listed (`unread_pages`) for manual handling.
+- **Stitching**: a header-less table with the columns of the table before it continues it and
+  takes its column names (`continues`, `header_from`); its chunk shows those columns.
+- **Sections** (methodology 2a–d) from headings (numbered / larger / bold / upper-case short
+  blocks; running headers excepted) matched against `[extraction.sections]` of the profile
+  (Cyrillic transliterated: `textmatch.fold` maps Cyrillic to its Latin spelling), plus a table's
+  column names. **Chunks** (`plan_chunks`): one per page within `PREPROCESS_CHUNK_TOKEN_BUDGET`
+  (chars / `PREPROCESS_CHARS_PER_TOKEN`), a table never split (alone over budget:
+  `over_budget`), planning sections first (`priority` 0) with suggested extraction tasks;
+  `chunk_pages` -> the contract's `PageInput` (verification `text` + `words`, grids, the `view`
+  the model reads).
+- **Job** `preprocess_file` (`POST /v1/admin/files/{id}/jobs/preprocess`): skips the analysis
+  when `stored_files.preprocess` (migration 0018) is current for the SHA-256, version and options
+  key; else stores the page data as gzip JSON next to the upload and the manifest (pages,
+  tables, chunk plan, page image keys, `summary`) on the file record. Renders page images
+  (`PREPROCESS_PAGE_IMAGE_DPI`, capped at `..._MAX_PIXELS`) for each document version on the file
+  that lacks them, at the source viewer's keys; served (`page_images_rendered`) only with
+  `PREPROCESS_SERVE_PAGE_IMAGES=true`, because the public viewer highlights values on the PDF.
+- Tests: `tests/test_extraction_preprocess.py` (a generated PDF, `tests/pdf_synthetic.py`: ruled
+  table with wrapped cells, continuation, image-only page, Cyrillic, blank, glyph-shifted label;
+  plus the POC documents when present) and `tests/integration/test_preprocess_postgis.py` (job
+  through the API: manifest, document record, images, cache, force, serving, refusals).
+
+## Extraction job (`jobs/extraction_runner.py`, `core/extraction/runs.py`, `docs/specs/extraction-job.md`)
+
+- `POST /v1/admin/documents/{id}/jobs/extract[?force=true]` queues `extract_document` and one
+  `extraction_runs` row (migration 0020) in the same transaction. **Idempotent** by document
+  version + file SHA-256 + `EXTRACTION_MODEL` + `PROMPT_VERSION` + `SCHEMA_VERSION`: a run with
+  that key in `ready_for_review` answers 200 with its job (nothing re-read; `force` reads again),
+  an identical queued / running job answers 200 (`core.extraction.runs.run_dedupe_key`).
+  Status: queued -> extracting -> ready_for_review | failed (`DocumentOut.extraction`,
+  `StoredFileOut.extraction`, `JobOut.extraction_run`).
+- **Pipeline** (`ExtractionRunner`): the manifest (the PDF stage first when missing or stale),
+  every chunk whose plan suggests tasks, once per task (land-use legend first; chunks without
+  planning content counted, not read; more than `EXTRACTION_MAX_CHUNKS` steps fail),
+  `run_task` per step, targets matched to the document's urban parcels / blocks by
+  `parcel_key` / `block_key`; **unmatched targets are staged as text references**
+  (`target_label` as printed, `target_key`, no parcel id, flag `target_unmatched`, or
+  `target_staged` for staged-but-unpublished geometry; the publish job never serves them).
+  Items (`to_staging_rows(..., unmatched="stage")`) are written in one transaction at the end,
+  `pending_review`, with `run_id`, `extracted_by = llm:<model version>`, prompt / schema versions,
+  flags (+ `repeated_in_run`).
+- **Failures:** transient model errors retried in the job with backoff
+  (`EXTRACTION_CALL_RETRIES`, `EXTRACTION_RETRY_BASE_SECONDS` / `_MAX_SECONDS`), then by the job,
+  which resumes from the steps checkpointed in `extraction_run_chunks` (never paid twice); an
+  answer that does not fit is asked again once with the validator's error (`run_task(feedback=)`,
+  `ModelOutputInvalid` carries the tokens it cost), then only that step fails and its pages are
+  listed (`pages_failed`); refusals / bad requests fail the step. Every step failed, nothing
+  readable, a changed or missing file: the run and the job fail. A manual retry re-reads failed
+  steps only.
+- **Re-extraction never deletes:** new items link to the previous reading of the target and
+  field in the lineage (`previous_item_id`, `change` new | same | changed). On completion the run
+  supersedes (`superseded_at`, `superseded_by_run_id`): pending items of runs over the same file
+  (older prompt / schema / model; decisions stay), every open item of runs over another file of
+  the version and of older versions; published, manual and seeded items never. Approving a
+  newer reading retires the older approved item. Superseded items leave the queue, counters,
+  `can_publish` and the publish job.
+- **Tracking:** the run row (model version, versions, pages processed / skipped / failed,
+  chunks, items written / low_confidence / unmatched / superseded, tokens, cost, summary), the
+  job's progress and `result` (the summary) and cost block, `audit_log` `extraction.start` /
+  `extraction.finish` (entity `extraction_run`, actor `worker:extract_document`). Nothing touches
+  the serving tables. Live model runs need `ANTHROPIC_API_KEY` (`backend/.env`, git-ignored) and
+  `ANTHROPIC_BASE_URL` (`anthropic_base_url`, default `https://api.anthropic.com`: the key never
+  goes to a proxy the shell environment may name).
+- Tests: `tests/test_extraction_job_unit.py` and `tests/integration/test_extraction_job_postgis.py`
+  with `tests/extraction_script.Transcriber` (a scripted model that copies parameter tables).
+
+## Extraction evaluation corpus (`core/extraction/corpus.py`, `scoring.py`, `harness.py`, `evalcli.py`, `backend/tests/corpus/`)
+
+- The prompts are measured against the client's own planning documents: `tests/corpus/corpus.toml`
+  lists them (path in the client folder mirror `docs/gis/source/`, git-ignored; SHA-256 pinned;
+  per document the column map, row kinds, special cases and what it does not cover) and
+  `tests/corpus/<id>/gold.json` holds **every urban parcel row × 12 fields** (the 11 Group 1
+  fields + block) with printed value, canonical value, page and grid cell, block totals and the
+  document identity. Corpus today: DUP Novi Grad 1 i 2 (12 pages, 103 parcels) and UP Stara
+  Varoš (57 pages, 560 parcels). README: `tests/corpus/README.md`.
+- **Gold sets**: `python -m core.extraction corpus label` drafts them deterministically from the
+  PDF stage's grids (merged cells carried to every row they span; total rows numeric fields only;
+  plan-wide totals left out), then every page is checked against the rendered PDF and recorded in
+  `verification` (2026-09-26: an AI visual check of all 69 pages, every parcel row matched; a
+  human reviewer's sign-off is still pending). A verified set is never redrafted without `--force`.
+- **Scoring** (`scoring.py`) per gold cell: `exact`, `tolerance` (same canonical value printed
+  differently, whitespace-only text differences), `wrong`, `missing` (false blank, incl.
+  validator-removed values), `false_value` (**hallucinated**: a value where the document states
+  none or defers, or any field of an invented parcel; must be 0), `correct_blank`; accuracy,
+  stated accuracy (over the cells the document states), `wrong_page`, `wrong_cell` (the cited cell
+  is not the gold cell), confidence calibration per bucket, parcels found / missed / extra,
+  tokens and cost (USD list prices, `harness.PRICES_USD`).
+- **Harness** (`harness.py`): the job's own pipeline (PDF stage, `plan_steps`, `read_step`,
+  legend first, then steps concurrently); every model reply cached by request hash in
+  `backend/.cache/extraction-eval/` (git-ignored: it holds document text), so unchanged requests
+  are free and `corpus eval` without `--live` replays the cache (validator / scoring changes are
+  re-measured at no cost). A run with failed model calls is `incomplete` and exits 1.
+- **Log**: each run appends to `tests/corpus/results/log.jsonl` (prompt, schema and preprocess
+  versions, git revision, model, effort, pages, scores, note) and rebuilds `RESULTS.md`; the full
+  report with error examples goes to the cache folder. `corpus baseline` accepts a full run as
+  `tests/corpus/baseline.json`; `corpus check` / `eval --check` fail on any hallucination, a new
+  wrong page or accuracy half a point below the baseline. CI:
+  `.github/workflows/extraction-eval.yml` on changes to `core/extraction/`, the profiles or the
+  corpus (secrets `ANTHROPIC_API_KEY`, `CORPUS_ARCHIVE_URL`).
+- Results so far (Sonnet 5, effort high, prompt 1.1): Novi Grad 100 % of 609 stated cells, Stara
+  Varoš pages 1-23 100 % of 1 386, no hallucinated value, no wrong page or cell. Pages 24-57 of
+  Stara Varoš were not read (the API account ran out of credit); no baseline yet.
+- Tests: `tests/test_extraction_eval.py` (outcomes, merged cells in the table view, cost, the
+  regression check, manifest vs gold sets).
 
 ## Orders (`api/services/orders.py`, `core/pricing.py`, `core/payments.py`, `api/services/order_mail.py`)
 
@@ -627,12 +844,14 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
 ## Background jobs (`jobs/`, `api/services/jobs.py`, `api/routers/v1/admin_jobs.py`)
 
 - **One job system.** Every long-running task is a `pipeline_jobs` row (migration 0010: `type`
-  extract_document | process_geometry | publish_approved | send_email, `kind` family, `queue`,
+  extract_document | preprocess_file (0018) | process_geometry | publish_approved | send_email,
+  `kind` family, `queue`,
   `target_type` document | file | publish_run | email + `target_id`, `payload`, `status` queued |
   running | retrying | succeeded | failed | cancelled, `attempts` / `max_attempts`,
   `manual_retries`, `next_retry_at`, `dedupe_key`, `wall_time_ms`, `llm_model`,
   `llm_tokens_in/out`, `estimated_cost_eur`) delivered to a worker as `(job_id, municipality_id)`.
-  Celery app `jobs/celery_app.py`: queues `default`, `extraction` (LLM), `geo` (geometry),
+  Celery app `jobs/celery_app.py`: queues `default`, `extraction` (LLM, PDF pre-processing),
+  `geo` (geometry),
   `publish`, `email`, routed by task module; `CELERY_TASK_ALWAYS_EAGER=true` runs tasks inline
   (tests only).
 - **Base task** `jobs.base.JobTask`: a task function `(self, job_id, municipality_id)` hands its
@@ -655,10 +874,11 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   retrying) makes the same key return the existing job; keys are `type:target_type:target_id`
   plus `sha256:<file checksum>` for document / file work, so the same content never runs twice.
   Task modules stay import-light (the API imports them to dispatch).
-- **Tasks** (`jobs/tasks/`): `extract_document` (extraction queue), `process_geometry` (geo),
-  `publish_approved` (publish; one active run per municipality), `send_email` (email; payload
-  `{template, to, context}`, `to` a reference resolved at send time, never a stored address).
-  All four are stubs that fail with a clear "not implemented" error until their items land.
+- **Tasks** (`jobs/tasks/`): `extract_document` and `preprocess_file` (extraction queue),
+  `process_geometry` (geo), `publish_approved` (publish; one active run per municipality),
+  `send_email` (email; payload `{template, to, context}`, `to` a reference resolved at send time,
+  never a stored address). `process_geometry` is still a stub that fails with a clear "not
+  implemented" error until its item lands; `extract_document` runs (see "Extraction job").
   `system.ping` is the broker smoke test.
 - **API** (role `admin`): `GET /v1/admin/jobs` (filters `type`, `status`, `target=document:12`
   | `file:` | `publish_run:` | `email:`, `document_id`, `file_id`; `total`),
@@ -685,7 +905,8 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   running | done | failed, timestamps, detail), `can_publish`, `blockers`, `keep_versions`.
 - **The job** (`PublishPipeline.run`, one database transaction from preflight to flip, so
   visitors see the previous version until the commit and a failure leaves nothing behind):
-  `preflight` (pending items = hard failure) → `version` (new `publish_versions` row, not
+  `preflight` (pending items = hard failure; superseded items never count or publish) →
+  `version` (new `publish_versions` row, not
   current) → `values` (the previous version's `planning_parameter_values` carried forward for
   current document versions, overridden by approved / amended items: amended value wins, unit
   `COALESCE(amended, extracted)`, every row cites the item's page; items closed with

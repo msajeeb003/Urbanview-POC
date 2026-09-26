@@ -27,6 +27,7 @@ from api.services.auth import MagicLinkService
 from api.services.email import EmailService
 from api.services.geocode import GeocodeService
 from api.services.jobs import JobService
+from api.services.market import MarketService
 from api.services.orders import OrderService
 from api.services.panel import PanelService
 from api.services.panel_cache import PanelCache
@@ -163,6 +164,7 @@ def create_app(
                 municipality=municipality,
                 upload_max_bytes=settings.admin_upload_max_mb * 1024 * 1024,
                 max_attempts=settings.job_max_attempts,
+                extraction_model=settings.extraction_model,
             )
             app.state.job_service = JobService(
                 app.state.session_factory,
@@ -198,6 +200,14 @@ def create_app(
                 storage=app.state.storage,
                 municipality=municipality,
                 link_expires_in_seconds=settings.source_url_expires_seconds,
+            )
+            app.state.market_service = MarketService(
+                app.state.session_factory,
+                storage=app.state.storage,
+                dispatcher=app.state.admin_service.dispatcher,
+                municipality=municipality,
+                settings=settings,
+                max_attempts=settings.job_max_attempts,
             )
             app.state.order_service = OrderService(
                 app.state.session_factory,

@@ -163,6 +163,8 @@ def test_glyph_id_shift_is_decoded():
         ("HOTEL", False),
         ("P+1", False),
         ("A99", False),
+        ("D3078", False),  # a parcel id ("aPMTU" once shifted)
+        ("D3080/1", False),
         ("1:1000", False),
         ("parking", False),
     ],

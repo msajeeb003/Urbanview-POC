@@ -207,7 +207,9 @@ class ZoneParameterSet(Base):
 
 
 class FinancialAssumption(Base):
-    """Current admin market inputs per zone (``zone_id`` null = municipality-wide default)."""
+    """Market inputs per zone, versioned (the current row is what the panel reads). The
+    municipality-wide row (``zone_id`` null) holds the range factors single-figure market
+    imports are widened with; it never supplies a zone's figures (migration 0019)."""
 
     __tablename__ = "financial_assumptions"
 
@@ -216,7 +218,9 @@ class FinancialAssumption(Base):
     zone_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("zones.id", ondelete="CASCADE"),
-        comment="null = municipality-wide default",
+        comment=(
+            "null = municipality-wide row: range factors for market imports, never a zone's figures"
+        ),
     )
     land_rate_eur_m2: Mapped[float] = mapped_column(
         Float(53), nullable=False, comment="land value per m² of parcel area"
@@ -273,6 +277,14 @@ class FinancialAssumption(Base):
     source: Mapped[str | None] = mapped_column(Text, comment="e.g. Realitica, Estitor, Monstat")
     source_date: Mapped[date | None] = mapped_column(Date)
     notes: Mapped[str | None] = mapped_column(Text)
+    # Market-data imports (migration 0019): when the version applies from, and per rate where
+    # it came from ({rate: {source, source_date, market_data_id?, range_basis?}}).
+    effective_from: Mapped[date | None] = mapped_column(
+        Date, comment="the date the version applies from, when stated"
+    )
+    rate_sources: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB, comment="per rate: source, source date, the market input that set it"
+    )
     is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     created_by: Mapped[str | None] = mapped_column(Text)
     dataset_version: Mapped[str | None] = mapped_column(Text)
@@ -571,9 +583,67 @@ class PlanningParameterExtraction(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    # The extraction contract (migration 0017, core.extraction): the leaf as produced, readable
+    # after the schema or the prompts change; the flags and method the queue shows and filters.
+    schema_version: Mapped[str | None] = mapped_column(
+        Text, comment="extraction contract version of payload; null = manual or seeded row"
+    )
+    prompt_version: Mapped[str | None] = mapped_column(
+        Text, comment="prompt set that produced the item"
+    )
+    extraction_method: Mapped[str | None] = mapped_column(Text, comment="text | table | ocr")
+    flags: Mapped[list[Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+        comment="validator flags for the reviewer (low_confidence, out_of_range ...)",
+    )
+    payload: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB, comment="the extraction item as produced (core.extraction.read_payload)"
+    )
+    job_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("pipeline_jobs.id", ondelete="SET NULL"),
+        comment="the extraction job that produced the item",
+    )
+    # Extraction runs (migration 0020, jobs.extraction_runner): the run that wrote the item, the
+    # target as printed when no geometry matches it, the previous run's item for the same target
+    # and field, and superseding instead of deleting.
+    run_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("extraction_runs.id", ondelete="SET NULL"),
+        comment="the extraction run that wrote the item; null = manual or seeded",
+    )
+    target_label: Mapped[str | None] = mapped_column(
+        Text,
+        comment="the parcel number / block label as printed (kept when no geometry matches)",
+    )
+    target_key: Mapped[str | None] = mapped_column(
+        Text, comment="normalised target: parcel_key, block_key or 'document'"
+    )
+    previous_item_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("planning_parameter_extractions.id", ondelete="SET NULL"),
+        comment="the previous run's item for the same target and field",
+    )
+    change: Mapped[str | None] = mapped_column(
+        Text, comment="new | same | changed against previous_item_id"
+    )
+    superseded_by_run_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("extraction_runs.id", ondelete="SET NULL"),
+        comment="the run (or decision) that replaced this open item; never deleted",
+    )
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         Index("ix_planning_parameter_extractions_review", "municipality_id", "review_state"),
+        Index("ix_planning_parameter_extractions_run", "run_id"),
+        Index("ix_planning_parameter_extractions_target", "document_id", "target_key", "field_key"),
+        CheckConstraint(
+            "change IS NULL OR change IN ('new', 'same', 'changed')",
+            name="ck_planning_parameter_extractions_change",
+        ),
         Index(
             "ix_planning_parameter_extractions_queue",
             "municipality_id",
@@ -597,5 +667,13 @@ class PlanningParameterExtraction(Base):
         CheckConstraint(
             "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
             name="ck_planning_parameter_extractions_confidence",
+        ),
+        CheckConstraint(
+            "extraction_method IS NULL OR extraction_method IN ('text', 'table', 'ocr')",
+            name="ck_planning_parameter_extractions_method",
+        ),
+        CheckConstraint(
+            "payload IS NULL OR schema_version IS NOT NULL",
+            name="ck_planning_parameter_extractions_payload_version",
         ),
     )

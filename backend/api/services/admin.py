@@ -28,13 +28,14 @@ import mimetypes
 import os
 import re
 import unicodedata
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import UploadFile
+from pydantic import ValidationError
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -44,6 +45,7 @@ from api.schemas.admin import (
     DocumentIn,
     DocumentList,
     DocumentOut,
+    ExtractionRunOut,
     FileKind,
     FileList,
     FileSummary,
@@ -58,6 +60,8 @@ from api.services.jobs import JOB_JSON, job_out
 from api.services.review import can_publish
 from core.auth import Principal
 from core.errors import AppError, ConflictError, NotFoundError, ServiceUnavailableError
+from core.extraction.manifest import PreprocessSummary
+from core.extraction.runs import RUN_JSON, insert_run, reusable_run, run_dedupe_key
 from core.municipality import MunicipalityProfile
 from core.storage import ObjectStorage
 from jobs.enqueue import JobDispatcher, enqueue_job
@@ -97,6 +101,20 @@ KIND_SPECS: dict[str, KindSpec] = {
                 "application/vnd.google-earth.kml+xml",
                 "application/vnd.google-earth.kmz",
                 "application/pdf",
+            }
+        ),
+    ),
+    # market figures (core.market): official statistics tables and the client's range sheets
+    "market_data": KindSpec(
+        frozenset({".csv", ".tsv", ".txt", ".xlsx"}),
+        frozenset(
+            {
+                "text/csv",
+                "text/plain",
+                "text/tab-separated-values",
+                "application/csv",
+                "application/vnd.ms-excel",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             }
         ),
     ),
@@ -213,7 +231,9 @@ _JOB_JSON = JOB_JSON
 def _file_sql(extra: str) -> str:
     return f"""
     SELECT f.id, f.kind, f.original_filename, f.mime_type, f.size_bytes, f.sha256, f.page_count,
-           f.uploaded_by, f.uploaded_at,
+           f.uploaded_by, f.uploaded_at, f.preprocess -> 'summary' AS preprocessing,
+           (SELECT {RUN_JSON} FROM extraction_runs r WHERE r.file_id = f.id
+            ORDER BY r.id DESC LIMIT 1) AS extraction,
            COALESCE((SELECT jsonb_agg(d.id ORDER BY d.id) FROM planning_documents d
                      WHERE d.file_id = f.id), '[]'::jsonb) AS document_ids,
            COALESCE((SELECT jsonb_agg({_JOB_JSON} ORDER BY j.requested_at DESC, j.id DESC)
@@ -241,6 +261,9 @@ def _document_sql(extra: str) -> str:
                'mime_type', f.mime_type, 'size_bytes', f.size_bytes, 'sha256', f.sha256,
                'page_count', f.page_count, 'uploaded_by', f.uploaded_by,
                'uploaded_at', f.uploaded_at) END AS file,
+           f.preprocess -> 'summary' AS preprocessing,
+           (SELECT {RUN_JSON} FROM extraction_runs r WHERE r.document_id = d.id
+            ORDER BY r.id DESC LIMIT 1) AS extraction,
            COALESCE((SELECT jsonb_agg(jsonb_build_object(
                          'id', v.id, 'version', v.version, 'status', v.status::text,
                          'is_current_version', v.is_current_version,
@@ -258,7 +281,8 @@ def _document_sql(extra: str) -> str:
                 'amended', count(*) FILTER (WHERE e.review_state = 'amended'),
                 'rejected', count(*) FILTER (WHERE e.review_state = 'rejected'),
                 'total', count(*))
-            FROM planning_parameter_extractions e WHERE e.document_id = d.id) AS review
+            FROM planning_parameter_extractions e
+            WHERE e.document_id = d.id AND e.superseded_at IS NULL) AS review
     FROM planning_documents d
     LEFT JOIN zones z ON z.id = d.zone_id
     LEFT JOIN stored_files f ON f.id = d.file_id
@@ -397,7 +421,23 @@ def _file_out(row: Mapping[str, Any]) -> StoredFileOut:
         uploaded_at=row["uploaded_at"],
         document_ids=list(row["document_ids"] or []),
         jobs=[_job_out(j) for j in row["jobs"] or []],
+        preprocessing=_preprocessing(row.get("preprocessing")),
+        extraction=_extraction(row.get("extraction")),
     )
+
+
+def _extraction(raw: Any) -> ExtractionRunOut | None:
+    return ExtractionRunOut.model_validate(raw) if raw else None
+
+
+def _preprocessing(raw: Any) -> PreprocessSummary | None:
+    """The file's pre-processing summary; None when it has not run (or is of another shape)."""
+    if not raw:
+        return None
+    try:
+        return PreprocessSummary.model_validate(raw)
+    except ValidationError:
+        return None
 
 
 def _document_out(row: Mapping[str, Any]) -> DocumentOut:
@@ -428,6 +468,8 @@ def _document_out(row: Mapping[str, Any]) -> DocumentOut:
         versions=[VersionRef(**v) for v in row["versions"] or []],
         jobs=[_job_out(j) for j in row["jobs"] or []],
         review=_review_summary(row["review"]),
+        preprocessing=_preprocessing(row.get("preprocessing")),
+        extraction=_extraction(row.get("extraction")),
     )
 
 
@@ -451,12 +493,14 @@ class AdminService:
         upload_max_bytes: int = 100 * MB,
         jobs_limit: int = JOB_HISTORY_LIMIT,
         max_attempts: int = 3,
+        extraction_model: str = "claude-sonnet-5",
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.session_factory = session_factory
         self.storage = storage
         self.dispatcher = dispatcher
         self.municipality = municipality
+        self.extraction_model = extraction_model
         self.upload_max_bytes = int(upload_max_bytes)
         self.jobs_limit = int(jobs_limit)
         self.max_attempts = int(max_attempts)
@@ -831,7 +875,12 @@ class AdminService:
 
     # --- jobs ------------------------------------------------------------------------------------
 
-    async def enqueue_extract(self, principal: Principal, document_id: int) -> EnqueuedJob:
+    async def enqueue_extract(
+        self, principal: Principal, document_id: int, *, force: bool = False
+    ) -> EnqueuedJob:
+        """Queue one extraction run of the document version's file. Idempotent: the run that
+        already read the same file with the same model, prompt and schema versions answers
+        (unless ``force``), and an identical job still queued / running is returned as it is."""
         async with self.session_factory() as session:
             doc = (
                 (
@@ -842,15 +891,36 @@ class AdminService:
                 .mappings()
                 .first()
             )
-        if doc is None:
-            raise NotFoundError(
-                f"No planning document with id {document_id}", details={"document_id": document_id}
+            if doc is None:
+                raise NotFoundError(
+                    f"No planning document with id {document_id}",
+                    details={"document_id": document_id},
+                )
+            if doc["file_id"] is None:
+                raise ConflictError(
+                    "The document has no stored file; upload the PDF and register it first",
+                    details={"document_id": document_id, "reason": "no_file"},
+                )
+            if not force:
+                done = await reusable_run(
+                    session,
+                    municipality_id=self.municipality_id,
+                    document_id=document_id,
+                    sha256=doc["sha256"],
+                    model=self.extraction_model,
+                )
+                if done is not None:
+                    return EnqueuedJob(job=await self.get_job(int(done["job_id"])), created=False)
+
+        async def create_run(session: AsyncSession, job_id: int) -> None:
+            await insert_run(
+                session,
+                municipality_id=self.municipality_id,
+                document_id=document_id,
+                job_id=job_id,
+                model=self.extraction_model,
             )
-        if doc["file_id"] is None:
-            raise ConflictError(
-                "The document has no stored file; upload the PDF and register it first",
-                details={"document_id": document_id, "reason": "no_file"},
-            )
+
         return await self._enqueue(
             principal,
             "extract_document",
@@ -859,6 +929,8 @@ class AdminService:
             payload={"document_id": document_id, "file_id": doc["file_id"]},
             document_id=document_id,
             checksum=doc["sha256"],
+            key=run_dedupe_key(document_id, doc["sha256"], self.extraction_model),
+            also_on_created=create_run,
         )
 
     async def enqueue_geo(self, principal: Principal, file_id: int) -> EnqueuedJob:
@@ -886,6 +958,32 @@ class AdminService:
             checksum=file_row["sha256"],
         )
 
+    async def enqueue_preprocess(
+        self, principal: Principal, file_id: int, *, force: bool = False
+    ) -> EnqueuedJob:
+        async with self.session_factory() as session:
+            file_row = (
+                (await session.execute(FILE_REF_SQL, {"m": self.municipality_id, "id": file_id}))
+                .mappings()
+                .first()
+            )
+        if file_row is None:
+            raise NotFoundError(f"No stored file with id {file_id}", details={"file_id": file_id})
+        if file_row["kind"] != FileKind.planning_document.value:
+            raise ConflictError(
+                "Pre-processing reads planning-document PDFs",
+                details={"file_id": file_id, "kind": file_row["kind"]},
+            )
+        return await self._enqueue(
+            principal,
+            "preprocess_file",
+            target_type="file",
+            target_id=file_id,
+            payload={"file_id": file_id, "force": force},
+            file_id=file_id,
+            checksum=file_row["sha256"],
+        )
+
     async def _enqueue(
         self,
         principal: Principal,
@@ -897,11 +995,15 @@ class AdminService:
         document_id: int | None = None,
         file_id: int | None = None,
         checksum: str | None = None,
+        key: str | None = None,
+        also_on_created: Callable[[AsyncSession, int], Awaitable[None]] | None = None,
     ) -> EnqueuedJob:
         """One job per target while it is queued / running (``jobs.enqueue``); the audit rows
-        are written inside the enqueue transactions."""
+        are written inside the enqueue transactions (``also_on_created`` too)."""
 
         async def on_created(session: AsyncSession, job_id: int) -> None:
+            if also_on_created is not None:
+                await also_on_created(session, job_id)
             await self._audit(
                 session,
                 principal,
@@ -938,6 +1040,7 @@ class AdminService:
             document_id=document_id,
             file_id=file_id,
             checksum=checksum,
+            key=key,
             max_attempts=self.max_attempts,
             requested_by=principal.subject,
             requested_by_user_id=principal.user_id,

@@ -19,6 +19,8 @@ from core.models.admin import (
     StoredFile,
 )
 from core.models.analytics import AnalyticsEventRecord
+from core.models.extraction import ExtractionRun, ExtractionRunChunk
+from core.models.market import MarketDataItem, MarketImport
 from core.models.orders import EmailLogEntry, Order
 from core.models.panel import (
     FinancialAssumption,
@@ -52,10 +54,14 @@ __all__ = [
     "Base",
     "CadastralParcel",
     "EmailLogEntry",
+    "ExtractionRun",
+    "ExtractionRunChunk",
     "FinancialAssumption",
     "GeometryBatch",
     "HeatmapCell",
     "LayerFeature",
+    "MarketDataItem",
+    "MarketImport",
     "Order",
     "ParcelLink",
     "PlanningDocument",

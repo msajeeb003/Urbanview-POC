@@ -40,9 +40,15 @@ JOB_TYPES: dict[str, JobType] = {
         JobType(
             "extract_document", "jobs.tasks.extraction.extract_document", "extraction", "extract"
         ),
+        JobType(
+            "preprocess_file", "jobs.tasks.extraction.preprocess_file", "extraction", "extract"
+        ),
         JobType("process_geometry", "jobs.tasks.ingestion.process_geometry", "geo", "geo"),
         JobType("publish_approved", "jobs.tasks.publish.publish_approved", "publish", "publish"),
         JobType("send_email", "jobs.tasks.email.send_email", "email", "email"),
+        JobType(
+            "import_market_data", "jobs.tasks.market.import_market_data", "extraction", "extract"
+        ),
     )
 }
 QUEUES: tuple[str, ...] = ("default", "extraction", "geo", "publish", "email")
@@ -80,6 +86,7 @@ def import_tasks() -> None:
     import jobs.tasks.email  # noqa: F401
     import jobs.tasks.extraction  # noqa: F401
     import jobs.tasks.ingestion  # noqa: F401
+    import jobs.tasks.market  # noqa: F401
     import jobs.tasks.publish  # noqa: F401
 
 

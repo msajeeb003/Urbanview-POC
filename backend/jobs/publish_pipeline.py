@@ -265,6 +265,7 @@ PENDING_SQL = text(
     FROM planning_parameter_extractions e
     JOIN planning_documents d ON d.id = e.document_id
     WHERE e.municipality_id = :m AND e.review_state = 'pending_review'
+      AND e.superseded_at IS NULL
     GROUP BY d.id, d.name ORDER BY d.name, d.id
     """
 )
@@ -302,7 +303,7 @@ ELIGIBLE_ITEMS_SQL = """
     JOIN planning_fields f ON f.key = e.field_key AND NOT f.computed
     WHERE e.municipality_id = :m AND e.review_state IN ('approved', 'amended')
       AND e.published_value_id IS NULL AND e.entity_type <> 'market_data'
-      AND e.source_page IS NOT NULL
+      AND e.superseded_at IS NULL AND e.source_page IS NOT NULL
       AND num_nonnulls(
             CASE WHEN e.review_state = 'amended' THEN e.amended_value_text ELSE e.value_text END,
             CASE WHEN e.review_state = 'amended' THEN e.amended_value_number
@@ -334,7 +335,7 @@ SKIPPED_ITEMS_SQL = text(
                 ELSE 'no_value' END AS reason
     FROM planning_parameter_extractions e
     WHERE e.municipality_id = :m AND e.review_state IN ('approved', 'amended')
-      AND e.published_value_id IS NULL
+      AND e.published_value_id IS NULL AND e.superseded_at IS NULL
       AND e.id NOT IN (SELECT id FROM ({ELIGIBLE_ITEMS_SQL}) eligible)
     ORDER BY e.id
     """
@@ -385,6 +386,7 @@ GAPS_SQL = text(
         JOIN planning_fields f ON f.key = e.field_key AND NOT f.computed
         WHERE e.municipality_id = :m AND e.review_state = 'rejected'
           AND e.published_value_id IS NULL AND e.entity_type <> 'market_data'
+          AND e.superseded_at IS NULL
           AND ((e.entity_type = 'urban_parcel'
                 AND EXISTS (SELECT 1 FROM urban_parcels u
                             WHERE u.id = e.urban_parcel_id AND u.document_id = e.document_id))
@@ -999,7 +1001,8 @@ class PublishPipeline:
         market_by_zone: dict[int | None, MarketInputs] = {
             row["zone_id"]: market_inputs_from_row(row) for row in market_rows
         }
-        default_market = market_by_zone.get(None)
+        # a zone without its own current row has no market figures (never the municipality-wide
+        # row's): its cells carry no sale rate and the map draws them as not covered
         bands = price_bands(
             {zone_id: mk.sale_rate_eur_m2 for zone_id, mk in market_by_zone.items() if zone_id}
         )
@@ -1010,7 +1013,7 @@ class PublishPipeline:
         by_zone: dict[int, list[ParcelFigures]] = {}
         for p in parcels:
             zone_id = p["effective_zone_id"]
-            market = market_by_zone.get(zone_id, default_market) if zone_id else default_market
+            market = market_by_zone.get(zone_id) if zone_id else None
             result = compute_feasibility(
                 p["area_m2"], p["max_far"], p["max_site_coverage_pct"], market, Assumptions()
             )
@@ -1033,7 +1036,7 @@ class PublishPipeline:
             for cell in cells:
                 figures = aggregate_cell(groups.get(cell["id"], []))
                 zone_id = cell["zone_id"]
-                market = market_by_zone.get(zone_id, default_market) if zone_id else default_market
+                market = market_by_zone.get(zone_id) if zone_id else None
                 await session.execute(
                     INSERT_CELL_SQL[cell_type],
                     {

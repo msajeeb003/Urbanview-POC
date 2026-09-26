@@ -30,7 +30,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from core.db import Base
 
-FILE_KINDS: tuple[str, ...] = ("planning_document", "gis", "cadastral_extract")
+FILE_KINDS: tuple[str, ...] = ("planning_document", "gis", "cadastral_extract", "market_data")
 JOB_KINDS: tuple[str, ...] = ("extract", "geo")
 JOB_STATUSES: tuple[str, ...] = ("queued", "running", "succeeded", "failed", "cancelled")
 
@@ -117,7 +117,7 @@ class StoredFile(Base):
     municipality_id: Mapped[str] = mapped_column(Text, nullable=False)
     kind: Mapped[str] = mapped_column(
         Text, nullable=False, comment="planning_document | gis | cadastral_extract"
-    )  # + expert_report since migration 0009 (the CHECK below)
+    )  # + expert_report since migration 0009, market_data since 0019 (the CHECK below)
     object_key: Mapped[str] = mapped_column(
         Text,
         nullable=False,
@@ -135,10 +135,16 @@ class StoredFile(Base):
         BigInteger, ForeignKey("staff_users.id", ondelete="SET NULL")
     )
     uploaded_at: Mapped[datetime] = _timestamp(nullable=False, server_default=func.now())
+    # PDF pre-processing (migration 0018): pages, tables, scanned pages, chunk plan, page image
+    # keys and the admin summary, for this checksum (core.extraction.manifest)
+    preprocess: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB, comment="PDF pre-processing manifest (core.extraction.manifest); null = not run"
+    )
 
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('planning_document', 'gis', 'cadastral_extract', 'expert_report')",
+            "kind IN ('planning_document', 'gis', 'cadastral_extract', 'expert_report', "
+            "'market_data')",
             name="ck_stored_files_kind",
         ),
         Index("uq_stored_files_sha256", "municipality_id", "sha256", unique=True),
@@ -160,7 +166,10 @@ class PipelineJob(Base):
     type: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        comment="extract_document | process_geometry | publish_approved | send_email",
+        comment=(
+            "extract_document | preprocess_file | process_geometry | publish_approved | send_email"
+            " | import_market_data"
+        ),
     )
     queue: Mapped[str] = mapped_column(
         Text, nullable=False, server_default=text("'default'"), comment="Celery queue"
@@ -178,7 +187,7 @@ class PipelineJob(Base):
         BigInteger, ForeignKey("stored_files.id", ondelete="SET NULL")
     )
     target_type: Mapped[str | None] = mapped_column(
-        Text, comment="document | file | publish_run | email"
+        Text, comment="document | file | publish_run | email | market_import"
     )
     target_id: Mapped[int | None] = mapped_column(BigInteger)
     payload: Mapped[dict[str, Any]] = mapped_column(
@@ -221,7 +230,8 @@ class PipelineJob(Base):
             name="ck_pipeline_jobs_status",
         ),
         CheckConstraint(
-            "type IN ('extract_document', 'process_geometry', 'publish_approved', 'send_email')",
+            "type IN ('extract_document', 'preprocess_file', 'process_geometry', "
+            "'publish_approved', 'send_email', 'import_market_data')",
             name="ck_pipeline_jobs_type",
         ),
         CheckConstraint("attempts >= 0 AND max_attempts >= 1", name="ck_pipeline_jobs_attempts"),

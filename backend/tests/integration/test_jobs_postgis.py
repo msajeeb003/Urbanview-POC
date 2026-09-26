@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from core.extraction.prompts import PROMPT_VERSION
 from jobs.base import (
     JobResult,
     SqlJobStore,
@@ -107,7 +108,11 @@ async def test_enqueueing_the_same_document_twice_returns_the_existing_job(admin
     assert job["type"] == "extract_document" and job["queue"] == "extraction"
     assert job["target_type"] == "document" and job["target_id"] == doc["id"]
     assert job["payload"] == {"document_id": doc["id"], "file_id": file["id"]}
-    assert job["dedupe_key"] == f"extract_document:document:{doc['id']}:sha256:{file['sha256']}"
+    # the extraction key also names the model and the prompt and schema versions (0020)
+    assert job["dedupe_key"] == (
+        f"extract_document:document:{doc['id']}:sha256:{file['sha256']}"
+        f":model:claude-sonnet-5:prompt:{PROMPT_VERSION}:schema:1.0"
+    )
     assert job["attempts"] == 0 and job["max_attempts"] == 3 and job["manual_retries"] == 0
     assert job["cost"] == {
         "wall_time_ms": None,
@@ -297,11 +302,17 @@ async def test_manual_retry_requeues_a_failed_job(admin_app, dispatcher):
 
 async def test_eager_celery_task_runs_through_the_api(postgis_url, storage, monkeypatch):
     """With ``task_always_eager`` the real task runs inside the request: the enqueue reply already
-    shows the stub's outcome (failed with a clear not-implemented error, one attempt, wall time)."""
+    shows its outcome (the extraction run over a placeholder PDF with a scripted model; the
+    geometry stub's clear not-implemented error), attempts and wall time."""
     from jobs.celery_app import celery_app
     from jobs.enqueue import CeleryDispatcher
+    from jobs.tasks.extraction import configure_extraction, configure_preprocess
+    from tests.extraction_script import Transcriber
 
+    storage.get_bytes = lambda key: storage.objects[key][0]
     configure_job_store(SqlJobStore(database_url=postgis_url))
+    configure_extraction(database_url=postgis_url, storage=storage, model=Transcriber())
+    configure_preprocess(database_url=postgis_url, storage=storage)
     monkeypatch.setattr(celery_app.conf, "task_always_eager", True)
     app = build(postgis_url, storage, CeleryDispatcher())
     try:
@@ -316,12 +327,13 @@ async def test_eager_celery_task_runs_through_the_api(postgis_url, storage, monk
             status = await client.get(extract.json()["status_url"], headers=auth())
     finally:
         configure_job_store(None)
+        configure_extraction(database_url=None, storage=None, model=None)
+        configure_preprocess(database_url=None, storage=None)
     assert extract.status_code == 202, extract.text
     job = extract.json()
-    assert job["status"] == "failed" and job["attempts"] == 1
-    assert job["error"] == (
-        "NotImplementedError: LLM extraction lands with the AI track item; nothing was extracted"
-    )
+    assert job["status"] == "succeeded" and job["attempts"] == 1, job
+    assert job["extraction_run"]["status"] == "ready_for_review"
+    assert job["result"]["run_id"] == job["extraction_run"]["id"]
     assert job["celery_task_id"] and job["started_at"] and job["finished_at"]
     assert job["cost"]["wall_time_ms"] is not None
     assert status.json() == job

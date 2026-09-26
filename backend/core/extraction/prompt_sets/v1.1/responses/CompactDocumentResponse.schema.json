@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "DocumentEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "description": "The value exactly as printed; \"\" when status is deferred",
+          "type": "string"
+        },
+        "unit": {
+          "description": "How the value is printed: m, m2, ha, percent, ratio (an index as a plain decimal), none (a bare number), words (a value in words)",
+          "enum": [
+            "m",
+            "m2",
+            "ha",
+            "percent",
+            "ratio",
+            "none",
+            "words"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "description": "Verbatim, contiguous page text the value is read from (the cell text)",
+          "type": "string"
+        },
+        "page": {
+          "description": "Page number from the page marker",
+          "type": "integer"
+        },
+        "table": {
+          "description": "Table id as given (p7t1), \"\" when not from a table",
+          "type": "string"
+        },
+        "cell": {
+          "description": "Cell id as given (r4c11), \"\" when not from a table grid",
+          "type": "string"
+        },
+        "column": {
+          "description": "Column header as printed, \"\" when not from a table",
+          "type": "string"
+        },
+        "confidence": {
+          "description": "0 to 1: legible and belongs to this field and entity",
+          "type": "number"
+        },
+        "status": {
+          "description": "stated, or deferred (set later): then text says so",
+          "enum": [
+            "stated",
+            "deferred"
+          ],
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "name",
+            "document_type",
+            "status",
+            "gazette_reference",
+            "decision_number",
+            "decision_date",
+            "area_ha",
+            "amends",
+            "amended_by",
+            "land_use",
+            "max_site_coverage_pct",
+            "max_far",
+            "max_height_m",
+            "max_floors",
+            "building_line_m",
+            "setback_neighbours_m",
+            "parking_requirement",
+            "min_green_area_pct",
+            "utilities",
+            "note"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "text",
+        "page",
+        "table",
+        "cell",
+        "column",
+        "confidence",
+        "status",
+        "field"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "values": {
+      "items": {
+        "$ref": "#/$defs/DocumentEntry"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "values"
+  ],
+  "type": "object"
+}

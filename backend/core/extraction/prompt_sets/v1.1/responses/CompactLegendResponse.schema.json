@@ -1,0 +1,55 @@
+{
+  "$defs": {
+    "CLegendEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "description": "Legend code as printed (\"SS\"), \"\" when the legend has none",
+          "type": "string"
+        },
+        "name": {
+          "description": "The land-use name as printed",
+          "type": "string"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "table": {
+          "type": "string"
+        },
+        "code_cell": {
+          "type": "string"
+        },
+        "name_cell": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "page",
+        "table",
+        "code_cell",
+        "name_cell",
+        "confidence"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/CLegendEntry"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "entries"
+  ],
+  "type": "object"
+}

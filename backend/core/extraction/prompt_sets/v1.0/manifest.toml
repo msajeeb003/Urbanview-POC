@@ -1,0 +1,41 @@
+# Prompt set of AI document extraction (core.extraction.prompts). A changed prompt is a new
+# version in a new directory; every extraction item records the version that produced it.
+# Templates are Jinja2 (StrictUndefined). Place-specific words come only from the municipality
+# profile ([terminology], [extraction]); the templates carry none.
+prompt_version = "1.0"
+schema_version = "1.0"  # the canonical schema (core.extraction.SCHEMA_VERSION) responses feed
+
+system = "system.md"    # rules + planning glossary: first system block, cached per municipality
+fields = "fields.md"    # the field guide, appended to tasks that return planning fields
+context = "context.md"  # the document being read: closes the second (cached) system block
+user = "user.md"        # the pages
+
+[tasks.document]
+instructions = "tasks/document.md"
+response = "DocumentResponse"
+fields = true
+
+[tasks.block]
+instructions = "tasks/block.md"
+response = "BlocksResponse"
+fields = true
+
+[tasks.urban_parcel]
+instructions = "tasks/urban_parcel.md"
+response = "ParcelsResponse"
+fields = true
+
+[tasks.parameter_table]
+instructions = "tasks/parameter_table.md"
+response = "ParcelsResponse"
+fields = true
+
+[tasks.infrastructure]
+instructions = "tasks/infrastructure.md"
+response = "InfrastructureResponse"
+fields = false
+
+[tasks.land_use_legend]
+instructions = "tasks/land_use_legend.md"
+response = "LegendResponse"
+fields = false

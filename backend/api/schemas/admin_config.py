@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, date, datetime, timedelta
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -44,7 +44,12 @@ class AssumptionsIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     zone_id: int | None = Field(
-        default=None, gt=0, description="null = the municipality-wide default row"
+        default=None,
+        gt=0,
+        description=(
+            "null = the municipality-wide row: its range factors widen single-figure market "
+            "imports; it never supplies a zone's figures"
+        ),
     )
     land_rate: RateIn = Field(description="Land value per m² of parcel area")
     build_rate: RateIn = Field(description="Construction cost per m² GFA")
@@ -57,12 +62,15 @@ class AssumptionsIn(BaseModel):
     )
     source_date: date | None = None
     notes: str | None = Field(default=None, max_length=2000)
+    effective_from: date | None = Field(
+        default=None, description="The date the figures apply from (not in the future)"
+    )
 
-    @field_validator("source_date")
+    @field_validator("source_date", "effective_from")
     @classmethod
     def _not_in_the_future(cls, value: date | None) -> date | None:
         if value is not None and value > datetime.now(UTC).date() + timedelta(days=1):
-            raise ValueError("source_date is in the future")
+            raise ValueError("the date is in the future")
         return value
 
 
@@ -80,6 +88,14 @@ class AssumptionsUpdate(BaseModel):
     source: str | None = Field(default=None, min_length=1, max_length=200)
     source_date: date | None = None
     notes: str | None = Field(default=None, max_length=2000)
+    effective_from: date | None = None
+
+    @field_validator("source_date", "effective_from")
+    @classmethod
+    def _not_in_the_future(cls, value: date | None) -> date | None:
+        if value is not None and value > datetime.now(UTC).date() + timedelta(days=1):
+            raise ValueError("the date is in the future")
+        return value
 
     @model_validator(mode="after")
     def _something_changes(self) -> AssumptionsUpdate:
@@ -90,7 +106,9 @@ class AssumptionsUpdate(BaseModel):
 
 class AssumptionsOut(BaseModel):
     id: int
-    zone_id: int | None = Field(description="null = municipality-wide default")
+    zone_id: int | None = Field(
+        description="null = the municipality-wide row (range factors only, never a zone's figures)"
+    )
     zone_name: str | None = None
     version: int
     is_current: bool = Field(description="The row the panel and feasibility read")
@@ -104,6 +122,14 @@ class AssumptionsOut(BaseModel):
     source: str | None = None
     source_date: date | None = None
     notes: str | None = None
+    effective_from: date | None = None
+    rate_sources: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Per rate, once reviewed market inputs set it: source, source_date, market_data_id, "
+            "import_id, range_basis, effective_from (or set_by admin after a manual edit)"
+        ),
+    )
     created_by: str | None = None
     created_at: datetime
     retired_at: datetime | None = None

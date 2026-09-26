@@ -12,6 +12,7 @@ append-only ``audit_log`` row with the state before and after; so does every oth
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from typing import Any
@@ -30,6 +31,7 @@ from api.schemas.review import (
     ReviewCounters,
     ReviewItem,
     ReviewPage,
+    ReviewPrevious,
     ReviewSource,
     ReviewTarget,
     ReviewValue,
@@ -78,9 +80,18 @@ _ITEM_COLUMNS = """
            e.document_id, d.name AS document_name, d.source_url AS registry_url, d.file_key,
            d.page_count, d.page_images_rendered, e.source_page, e.source_bbox, e.source_note,
            e.raw_text, e.confidence, e.extracted_by, e.extracted_at, e.reviewer, e.reviewed_at,
-           e.review_note, e.published_value_id, count(*) OVER () AS total
+           e.review_note, e.published_value_id, e.flags, e.extraction_method, e.schema_version,
+           e.prompt_version, e.run_id, e.target_label, e.target_key, e.previous_item_id,
+           e.change, e.superseded_at, e.superseded_by_run_id,
+           p.review_state::text AS previous_state, p.value_text AS previous_value_text,
+           p.value_number AS previous_value_number, p.unit AS previous_unit,
+           p.amended_value_text AS previous_amended_text,
+           p.amended_value_number AS previous_amended_number,
+           p.amended_unit AS previous_amended_unit, p.run_id AS previous_run_id,
+           count(*) OVER () AS total
     FROM planning_parameter_extractions e
     JOIN planning_documents d ON d.id = e.document_id
+    LEFT JOIN planning_parameter_extractions p ON p.id = e.previous_item_id
     LEFT JOIN planning_fields f ON f.key = e.field_key
     LEFT JOIN urban_parcels u ON u.id = e.urban_parcel_id
     LEFT JOIN urban_blocks b ON b.id = COALESCE(e.block_id, u.block_id)
@@ -101,7 +112,7 @@ def _queue_sql(extra: str) -> str:
 ITEM_SQL = text(_queue_sql("AND e.id = :id"))
 ITEM_STATE_SQL = text(
     """
-    SELECT id, review_state::text AS review_state, published_value_id
+    SELECT id, review_state::text AS review_state, published_value_id, superseded_at
     FROM planning_parameter_extractions
     WHERE municipality_id = :m AND id = ANY(:ids)
     """
@@ -115,6 +126,18 @@ DECIDE_SQL = text(
         amended_value_text = :amended_text, amended_value_number = :amended_number,
         amended_unit = :amended_unit
     WHERE id = :id AND municipality_id = :m AND published_value_id IS NULL
+      AND superseded_at IS NULL
+    RETURNING id
+    """
+)
+# Approving a newer reading of a target retires the older approved item it replaces (the
+# previous run's), so the older value can never publish after the newer one.
+RETIRE_PREVIOUS_SQL = text(
+    """
+    UPDATE planning_parameter_extractions
+    SET superseded_by_run_id = :run_id, superseded_at = :at
+    WHERE id = :id AND municipality_id = :m AND published_value_id IS NULL
+      AND superseded_at IS NULL AND review_state IN ('approved', 'amended')
     RETURNING id
     """
 )
@@ -127,7 +150,7 @@ COUNTERS_SQL = """
            count(*) AS total
     FROM planning_parameter_extractions e
     JOIN planning_documents d ON d.id = e.document_id
-    WHERE e.municipality_id = :m {extra}
+    WHERE e.municipality_id = :m AND e.superseded_at IS NULL {extra}
     GROUP BY d.id, d.name
     ORDER BY pending DESC, d.name ASC, d.id ASC
 """
@@ -167,6 +190,26 @@ def _item_out(row: Mapping[str, Any], link: PageLinkOut | None) -> ReviewItem:
         amended = _value(
             row["amended_value_text"], row["amended_value_number"], row["amended_unit"] or unit
         )
+    previous = None
+    if row.get("previous_item_id") is not None and row.get("previous_state") is not None:
+        previous_amended = row["previous_state"] == "amended"
+        previous = ReviewPrevious(
+            id=row["previous_item_id"],
+            status=DB_TO_STATUS[row["previous_state"]],  # type: ignore[arg-type]
+            value=_value(
+                row["previous_amended_text"] if previous_amended else row["previous_value_text"],
+                row["previous_amended_number"]
+                if previous_amended
+                else row["previous_value_number"],
+                (row["previous_amended_unit"] if previous_amended else None)
+                or row["previous_unit"],
+            ),
+            run_id=row["previous_run_id"],
+        )
+    matched = not (
+        (row["entity_type"] == "urban_parcel" and row["urban_parcel_id"] is None)
+        or (row["entity_type"] == "block" and row["block_id"] is None)
+    )
     return ReviewItem(
         id=row["id"],
         status=status,  # type: ignore[arg-type]
@@ -185,6 +228,8 @@ def _item_out(row: Mapping[str, Any], link: PageLinkOut | None) -> ReviewItem:
             block_ref=row["block_ref"],
             zone_id=row["zone_id"],
             zone_name=row["zone_name"],
+            label=row.get("target_label"),
+            matched=matched,
         ),
         source=ReviewSource(
             document_id=row["document_id"],
@@ -195,14 +240,24 @@ def _item_out(row: Mapping[str, Any], link: PageLinkOut | None) -> ReviewItem:
             note=row["source_note"],
             raw_text=row["raw_text"],
             confidence=row["confidence"],
+            extraction_method=row.get("extraction_method"),
             link=link,
         ),
+        flags=list(row.get("flags") or []),
+        schema_version=row.get("schema_version"),
+        prompt_version=row.get("prompt_version"),
         extracted_by=row["extracted_by"],
         extracted_at=row["extracted_at"].astimezone(UTC),
         reviewed_by=row["reviewer"],
         reviewed_at=row["reviewed_at"].astimezone(UTC) if row["reviewed_at"] else None,
         review_note=row["review_note"],
         published=row["published_value_id"] is not None,
+        run_id=row.get("run_id"),
+        change=row.get("change"),
+        previous=previous,
+        superseded=row.get("superseded_at") is not None,
+        superseded_at=row["superseded_at"].astimezone(UTC) if row.get("superseded_at") else None,
+        superseded_by_run_id=row.get("superseded_by_run_id"),
     )
 
 
@@ -255,11 +310,21 @@ class ReviewService:
         entity_type: str | None = None,
         urban_parcel_id: int | None = None,
         source_page: int | None = None,
+        flag: str | None = None,
+        run_id: int | None = None,
+        change: str | None = None,
+        include_superseded: bool = False,
         limit: int = 50,
         offset: int = 0,
     ) -> ReviewPage:
         params: dict[str, Any] = {"m": self.municipality_id, "limit": limit, "offset": offset}
-        clauses: list[str] = []
+        clauses: list[str] = [] if include_superseded else ["AND e.superseded_at IS NULL"]
+        if run_id is not None:
+            clauses.append("AND e.run_id = :run_id")
+            params["run_id"] = run_id
+        if change is not None:
+            clauses.append("AND e.change = :change")
+            params["change"] = change
         if document_id is not None:
             clauses.append("AND e.document_id = :document_id")
             params["document_id"] = document_id
@@ -278,6 +343,9 @@ class ReviewService:
         if source_page is not None:
             clauses.append("AND e.source_page = :source_page")
             params["source_page"] = source_page
+        if flag is not None:
+            clauses.append("AND e.flags @> CAST(:flag AS jsonb)")
+            params["flag"] = json.dumps([flag])
         async with self.session_factory() as session:
             rows = (
                 (await session.execute(text(_queue_sql(" ".join(clauses))), params))
@@ -373,6 +441,16 @@ class ReviewService:
                 "The item has been published; changes go through a new extraction and publish",
                 details={"item_id": row["id"], "reason": "published"},
             )
+        if row.get("superseded_at") is not None:
+            raise ConflictError(
+                "The item was superseded by a later extraction run or decision; review the "
+                "current item instead",
+                details={
+                    "item_id": row["id"],
+                    "reason": "superseded",
+                    "superseded_by_run_id": row.get("superseded_by_run_id"),
+                },
+            )
         before = _snapshot(row)
         verb = {"approved": "approve", "amended": "amend", "rejected": "reject"}[state]
         updated = (
@@ -392,8 +470,23 @@ class ReviewService:
                 },
             )
         ).scalar_one_or_none()
-        if updated is None:  # raced with a publish between the read and the update
-            raise ConflictError("The item has just been published", details={"item_id": row["id"]})
+        if updated is None:  # raced with a publish or a superseding run
+            raise ConflictError(
+                "The item has just been published or superseded", details={"item_id": row["id"]}
+            )
+        retired = None
+        if state in ("approved", "amended") and row.get("previous_item_id") is not None:
+            retired = (
+                await session.execute(
+                    RETIRE_PREVIOUS_SQL,
+                    {
+                        "id": row["previous_item_id"],
+                        "m": self.municipality_id,
+                        "run_id": row.get("run_id"),
+                        "at": self.clock(),
+                    },
+                )
+            ).scalar_one_or_none()
         after_row = dict(row)
         after_row.update(
             review_state=state,
@@ -415,6 +508,8 @@ class ReviewService:
                 "entity_type": row["entity_type"],
                 "urban_parcel_id": row["urban_parcel_id"],
                 "source_page": row["source_page"],
+                "run_id": row.get("run_id"),
+                "superseded_previous_item_id": retired,
             },
             before=before,
             after=_snapshot(after_row),
@@ -444,6 +539,8 @@ class ReviewService:
                         skipped.append(BulkSkipped(id=item_id, reason="not_found"))
                     elif state["published_value_id"] is not None:
                         skipped.append(BulkSkipped(id=item_id, reason="published"))
+                    elif state["superseded_at"] is not None:
+                        skipped.append(BulkSkipped(id=item_id, reason="superseded"))
                     elif state["review_state"] != "pending_review":
                         skipped.append(BulkSkipped(id=item_id, reason="not_pending"))
                     else:
@@ -465,6 +562,7 @@ class ReviewService:
                     text(
                         "SELECT id FROM planning_parameter_extractions WHERE municipality_id = :m "
                         "AND review_state = 'pending_review' AND published_value_id IS NULL "
+                        "AND superseded_at IS NULL "
                         f"AND ({' OR '.join(selectors)}) ORDER BY id"
                     ),
                     params,

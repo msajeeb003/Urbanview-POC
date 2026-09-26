@@ -1,0 +1,45 @@
+# Prompt set of AI document extraction (core.extraction.prompts). A changed prompt is a new
+# version in a new directory; every extraction item records the version that produced it.
+# Templates are Jinja2 (StrictUndefined). Place-specific words come only from the municipality
+# profile ([terminology], [extraction]); the templates carry none.
+#
+# 1.1: compact answers (core.extraction.compact): per entity only the fields the pages state,
+# each a flat entry without nullable members. 1.0's nested schema was refused by the API as too
+# complex. Same canonical contract (schema 1.0).
+prompt_version = "1.1"
+schema_version = "1.0"  # the canonical schema (core.extraction.SCHEMA_VERSION) responses feed
+
+system = "system.md"    # rules + planning glossary: first system block, cached per municipality
+fields = "fields.md"    # the field guide, appended to tasks that return planning fields
+context = "context.md"  # the document being read: closes the second (cached) system block
+user = "user.md"        # the pages
+
+[tasks.document]
+instructions = "tasks/document.md"
+response = "CompactDocumentResponse"
+fields = true
+
+[tasks.block]
+instructions = "tasks/block.md"
+response = "CompactBlocksResponse"
+fields = true
+
+[tasks.urban_parcel]
+instructions = "tasks/urban_parcel.md"
+response = "CompactParcelsResponse"
+fields = true
+
+[tasks.parameter_table]
+instructions = "tasks/parameter_table.md"
+response = "CompactParcelsResponse"
+fields = true
+
+[tasks.infrastructure]
+instructions = "tasks/infrastructure.md"
+response = "CompactInfrastructureResponse"
+fields = false
+
+[tasks.land_use_legend]
+instructions = "tasks/land_use_legend.md"
+response = "CompactLegendResponse"
+fields = false

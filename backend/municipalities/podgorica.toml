@@ -50,12 +50,14 @@ english = "urban block"
 DUP = "Detaljni urbanistički plan (detailed urban plan)"
 PUP = "Prostorno-urbanistički plan (spatial-urban plan)"
 PGR = "Plan generalne regulacije (general regulation plan)"
+UP = "Urbanistički projekat (urban project)"
 
 # English names the public map shows after the abbreviation (the approved wireframe's copy)
 [terminology.document_types_en]
 DUP = "Detailed urban plan"
 PUP = "General urban plan"
 PGR = "General regulation plan"
+UP = "Urban project"
 
 [[sources]]
 id = "eregistri"
@@ -113,6 +115,73 @@ name = "Monstat"
 url = "https://www.monstat.org"
 provides = "Official statistics: selling prices and construction cost indicators"
 
+# --- AI extraction (core.extraction): how this place's planning documents are written ----------
+# Rendered into the extraction prompts (docs/specs/extraction-contract.md); the prompt templates
+# carry no place-specific words. Wording provisional until the client's planner reviews it.
+[extraction]
+language = "Montenegrin (Latin script)"
+# words dropped from the start of a block label to get its key ("Blok A", "UKUPNO BLOK A" -> "a")
+block_label_words = ["ukupno", "blok", "bloka", "zona", "zone"]
+glossary = [
+  { term = "indeks zauzetosti, koeficijent zauzetosti (IZ, iz)", meaning = "site coverage index: building footprint divided by the urban parcel area, printed as a plain decimal (0,4 or 0.4) or as a percentage (40 %). Field max_site_coverage_pct." },
+  { term = "indeks izgrađenosti, koeficijent izgrađenosti (II, Ii)", meaning = "floor area ratio: gross floor area divided by the urban parcel area (e.g. 1,2). Field max_far." },
+  { term = "UP, urbanistička parcela", meaning = "planned urban parcel, numbered as printed (UP 12, UP 51(a), UP 82 a, A99, A116/1). Field urban_parcel_number. Never a cadastral parcel." },
+  { term = "katastarska parcela (KP, kat. parc.), KO katastarska opština", meaning = "cadastral parcel, numbered within its cadastral municipality (KO); never reported as an urban parcel." },
+  { term = "blok, zona", meaning = "the plan's own subdivision grouping urban parcels (Blok A, Zona B, or the letter in a Blok / Zona column). Field block_ref." },
+  { term = "namjena, namjena površina, namjena objekta", meaning = "land use designation, as printed (stanovanje, stanovanje sa djelatn., mješovita namjena, centralne djelatnosti ...) or its legend code (SS, MN, CD). Field land_use." },
+  { term = "spratnost, max. spratnost, maksimalna spratnost", meaning = "number of floors in the local notation: Po podrum (basement), S suteren (semi-basement), G garaža (garage level), P prizemlje (ground floor), VP visoko prizemlje (raised ground floor), a number = that many upper floors, M mansarda, Pk potkrovlje (attic), Ps povučeni sprat (set-back floor); e.g. Po+P+6, S+P+3+M, 2Po+P+7. Field max_floors, copied as printed." },
+  { term = "visina objekta, visina vijenca, visina sljemena, kota", meaning = "building, cornice or ridge height (or level) in metres. Field max_height_m, only when a height in metres is printed." },
+  { term = "površina UP, površina urbanističke parcele, P parcele", meaning = "urban parcel area in m2. Field planned_parcel_area_m2." },
+  { term = "BRGP, BGP, bruto (razvijena) građevinska površina", meaning = "gross floor area in m2: not a field, and never used to compute a floor area ratio." },
+  { term = "površina prizemlja, površina osnove, osnova", meaning = "ground-floor or footprint area in m2: not a field, and never used to compute coverage." },
+  { term = "građevinska linija", meaning = "building line: where a building may stand. Its distance from the regulation line, in metres, is field building_line_m." },
+  { term = "regulaciona linija", meaning = "regulation line: the boundary between a parcel and a public area (street, square). How a parcel relates to it goes to public_area_relation." },
+  { term = "udaljenost od susjednih parcela, od granice parcele, od susjednih objekata", meaning = "distance from neighbouring parcels or buildings in metres. Field setback_neighbours_m." },
+  { term = "parkiranje, garažiranje, PM (parking mjesto), GM (garažno mjesto)", meaning = "parking requirement, as printed (e.g. 1 PM na 1 stan). Field parking_requirement." },
+  { term = "zelene površine, ozelenjenost, procenat zelenila", meaning = "share of the parcel kept as green area. Field min_green_area_pct." },
+  { term = "vodovod, kanalizacija (fekalna, atmosferska), elektroenergetska mreža, TS (trafostanica), toplovod, gasovod, TK (telekomunikacije), pristupna saobraćajnica, priključak", meaning = "water supply, sewerage (foul, storm water), electricity grid, substation, district heating, gas, telecom, access road, connection. Field utilities; the infrastructure task lists them one by one." },
+  { term = "postojeći, planirani, nadogradnja, dogradnja, rekonstrukcija", meaning = "existing, planned, extension upwards, extension sideways, reconstruction: the status of a building in a parameter table." },
+  { term = "Odluka o donošenju, Službeni list Crne Gore – opštinski propisi (Sl. list CG)", meaning = "adoption decision; official gazette of municipal regulations: the adoption reference (gazette_reference, decision_number, decision_date)." },
+  { term = "izmjene i dopune", meaning = "amendments and supplements: the document amends the document it names." },
+  { term = "predlog plana, nacrt plana", meaning = "plan proposal, draft: a document in preparation (status in_progress) unless the pages also show its adoption." },
+  { term = "nevažeći, van snage, prestaje da važi", meaning = "no longer valid, repealed (status superseded)." },
+  { term = "definisaće se konkursnim rješenjem, razrada, prema posebnom projektu", meaning = "to be defined by an architectural competition, a further elaboration or a separate project: the value is deferred." },
+  { term = "UKUPNO, ukupno blok, ukupno zona", meaning = "totals row (sums): not a parcel." },
+]
+# land-use wording -> UrbanView land-use class (core.extraction.schema.LandUseClass), first match
+# wins; case- and accent-insensitive regular expressions on the document's wording or legend name
+land_use_terms = [
+  { pattern = 'stanovanj\w*\s+(sa|i)\s+(djelatn|poslovanj)', category = "residential_mixed" },
+  { pattern = 'mjesovit', category = "mixed_use" },
+  { pattern = 'stanovanj|stambe', category = "residential" },
+  { pattern = 'centraln\w*\s+djelatn|poslovanj|poslovn|komercijal|trgovin|uslug', category = "central_activities" },
+  { pattern = 'turiz|hotel|ugostitelj', category = "tourism" },
+  { pattern = 'skolstv|obrazovanj|socijaln|vrtic', category = "education_social" },
+  { pattern = 'zdravstv', category = "health" },
+  { pattern = 'kultur', category = "culture" },
+  { pattern = 'vjersk|sakraln', category = "religious" },
+  { pattern = 'sport|rekreacij', category = "sport_recreation" },
+  { pattern = 'saobracaj|parking|garaz|pjesack|\bulic', category = "traffic_infrastructure" },
+  { pattern = 'zelen|\bpark', category = "green_space" },
+  { pattern = 'infrastruktur|trafostanic|\bts\b|komunaln|vodovod|kanalizacij', category = "utility_infrastructure" },
+  { pattern = 'proizvod|privred|industrij|skladist|zanat', category = "industry" },
+  { pattern = 'specijaln|posebn\w*\s+namjen|vojn', category = "special_purpose" },
+]
+
+[extraction.floor_notation]
+below_ground = ["Po", "S", "G"]
+ground = ["P", "VP"]
+attic = ["M", "Pk", "Ps"]
+
+# Planning sections (methodology step 2a–d) recognised in headings and table header rows by PDF
+# pre-processing (core.extraction.chunking), so the extraction reads them first. Regular
+# expressions on accent-folded lower-case text; Cyrillic is transliterated before matching.
+[extraction.sections]
+urban_parcels = ['urbanisti\w*\s+parcel', 'parcelacij', 'broj\s*up\b', '\bp\s*parcele\b']
+regulation = ['regulacij', 'nivelacij', 'gradjevinsk\w*\s+linij', '(indeks|koeficijent)\w*\s+(zauzetosti|izgradjenosti)', 'spratnost', 'visin\w*\s+objek', 'tehnick\w*\s+uslov', 'parametr']
+land_use = ['namjen']
+infrastructure = ['infrastruktur', 'vodovod', 'kanalizacij', 'elektroenerget', 'saobracaj', 'telekomunikac', 'toplifikac', 'hidrotehni']
+
 # --- GIS track (core.gis): what the plans of this place look like -----------------------------
 # Established by the week-1 geometry assessment (docs/gis/geometry-assessment.md). Patterns are
 # case-insensitive regular expressions (TOML literal strings) on accent-folded text: layer names
@@ -165,3 +234,44 @@ plan_labels = ['naziv[ _-]*dup', '^text igor$']
 zones = ['^granice[ _-]*plana$', 'plansko[ _-]*podrucje', 'planske[ _-]*zone']
 city_boundary = ['granica[ _-]*gup', 'granica[ _-]*grada']
 admin_boundaries = ['drzavna[ _-]*granica', 'opstinska[ _-]*granica', '^granice$', 'gradska[ _-]*opstina']
+
+# --- Market-data imports (core.market): how this place's market figures are labelled -----------
+# Patterns are regular expressions (TOML literal strings) on accent-folded lower-case words
+# (Cyrillic transliterated). The LLM step (core.market.llm_map) sees the same zone names and
+# aliases. Provisional until the zone definition (gate 2) and the client's range sheet are final.
+[market]
+statistics_source = "Monstat"
+# rows naming the whole municipality apply to every zone (each item flagged municipality_level)
+municipality_names = ["podgorica", "glavni grad podgorica", "glavni grad", "opstina podgorica", "capital city"]
+# plausible EUR per m² per metric: outside is flagged implausible for the reviewer, never dropped
+plausible_eur_m2 = { land_rate = [10, 5000], build_rate = [200, 3000], design_rate = [5, 400], sale_rate = [300, 10000] }
+
+# Which metrics each import kind may produce. Monstat's price breakdown of new dwellings states
+# the land share per m² of DWELLING floor area, not per m² of parcel, so statistics never set the
+# land rate; design & documentation costs are not published separately.
+[market.kind_metrics]
+statistics = ["sale_rate", "build_rate"]
+client_ranges = ["land_rate", "build_rate", "design_rate", "sale_rate"]
+listings = ["sale_rate", "land_rate"]
+
+# zone name -> other spellings seen in market tables and listings (matched whole, accent-folded)
+[market.zone_aliases]
+"Centar" = ["centar grada", "gradski centar", "city centre", "city center"]
+
+[market.headers]
+geography = ['\bzon', 'naselj', 'cetvrt', '\bkvart\b', 'lokacij', 'podrucj', 'opstin', 'mjesn\w* zajednic', '\bgrad\b', 'teritorij', 'district', 'neighbou?rhood', '\barea\b', 'location', 'municipal', '\bregion']
+land_rate = ['zemljist', '\bland\b', '\bplac', 'parcel']
+design_rate = ['projekt', 'dokumentacij', 'nadzor', 'design']
+build_rate = ['gradnj', 'izgradnj', 'konstrukc', 'construction', 'building cost', '\bbuild']
+sale_rate = ['prodaj', '\bsale', 'selling', 'asking', 'trazen\w* cijen', 'cijen\w* stan', 'prosjecn\w* cijen', 'trzisn\w* (cijen|vrijednost)', 'market (price|value)', '\bcijena\b', '\bprice\b']
+low = ['\bmin', '\blow', '\bnisk', '\bod\b', '\bdonj', '\bfrom\b', 'pesimist']
+high = ['\bmax', '\bhigh', '\bvisok', '\bdo\b', '\bgornj', '\bto\b', 'optimist']
+expected = ['ocekiv', 'expected', 'prosjek', 'prosjecn', 'average', '\bavg', 'sredn', '\bmid', 'median', 'medijan', 'realn']
+period = ['\bperiod', '\bgodin', 'kvartal', 'tromjesecj', 'polugodist', 'mjesec', 'datum', '\byear', 'quarter', '\bmonth', '\bdate']
+ignore = ['ostal\w* troskov', 'other cost', 'indeks', '\bindex', 'promjen', '\bchange', 'stop\w* rasta', '%', 'broj', 'number of', '\bcount']
+thousands = ['hiljad', 'thousand', '\b000\b']
+
+[market.periods]
+months = ["januar", "februar", "mart", "april", "maj", "jun", "jul", "avgust", "septembar", "oktobar", "novembar", "decembar"]
+quarter = ['kvartal', 'tromjesecj', 'kv']
+half = ['polugodist']

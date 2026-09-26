@@ -28,6 +28,7 @@ celery_app = Celery(
         "jobs.tasks.system",
         "jobs.tasks.ingestion",
         "jobs.tasks.extraction",
+        "jobs.tasks.market",
         "jobs.tasks.publish",
         "jobs.tasks.email",
     ],
@@ -52,6 +53,7 @@ celery_app.conf.update(
     ],
     task_routes={
         "jobs.tasks.extraction.*": {"queue": "extraction"},
+        "jobs.tasks.market.*": {"queue": "extraction"},
         "jobs.tasks.ingestion.*": {"queue": "geo"},
         "jobs.tasks.publish.*": {"queue": "publish"},
         "jobs.tasks.email.*": {"queue": "email"},

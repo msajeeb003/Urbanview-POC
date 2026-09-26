@@ -1,7 +1,8 @@
 """Expert review queue (roles admin, reviewer, expert) and the audit trail (admin, reviewer).
 
 - ``GET /v1/admin/review`` — paged queue of staged extracted items with everything needed to open
-  the cited page and check the value; filters: document, zone, status, entity, urban parcel, page;
+  the cited page and check the value (with the extraction validator's flags); filters: document,
+  zone, status, entity, urban parcel, page, flag;
 - ``GET /v1/admin/review/summary`` — pending / approved / amended / rejected per document and
   ``can_publish`` (no pending items and something approved);
 - ``POST /v1/admin/review/{id}/approve | amend | reject`` — one decision, one audit row with the
@@ -15,7 +16,7 @@ Nothing here writes to the serving tables; publishing is a separate job.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Path, Query, Response
 
@@ -59,16 +60,38 @@ async def list_review_items(
     entity_type: Annotated[EntityType | None, Query()] = None,
     urban_parcel_id: Annotated[int | None, Query(gt=0)] = None,
     source_page: Annotated[int | None, Query(ge=1)] = None,
+    flag: Annotated[
+        str | None,
+        Query(
+            max_length=60,
+            pattern=r"^[a-z_]+$",
+            description=(
+                "Items carrying this flag, e.g. low_confidence, target_unmatched, repeated_in_run"
+            ),
+        ),
+    ] = None,
+    run_id: Annotated[int | None, Query(gt=0, description="Items of one extraction run")] = None,
+    change: Annotated[
+        Literal["new", "same", "changed"] | None,
+        Query(description="Against the previous run's item for the same target and field"),
+    ] = None,
+    include_superseded: Annotated[
+        bool, Query(description="Also items a later run or decision superseded (history)")
+    ] = False,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ReviewPage:
     return await service.list_items(
+        run_id=run_id,
+        change=change,
+        include_superseded=include_superseded,
         document_id=document_id,
         zone_id=zone_id,
         status=status,
         entity_type=entity_type,
         urban_parcel_id=urban_parcel_id,
         source_page=source_page,
+        flag=flag,
         limit=limit,
         offset=offset,
     )

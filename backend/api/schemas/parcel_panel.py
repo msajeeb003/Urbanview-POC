@@ -199,7 +199,10 @@ class MarketView(BaseModel):
     title_me: str
     zone: ZoneRef | None = None
     scope: Literal["zone", "municipality"] = Field(
-        description="The zone's own row, or the municipality-wide default row"
+        description=(
+            "zone: the zone's own row (a municipality-wide row never stands in for a zone "
+            "since market imports, migration 0019)"
+        )
     )
     label_en: str
     label_me: str

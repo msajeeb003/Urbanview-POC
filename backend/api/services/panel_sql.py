@@ -82,30 +82,27 @@ amendments AS (
       AND a.status = 'in_progress'
 )"""
 
-# Current market inputs: the zone's row, else the municipality-wide default (zone_id null). Two
-# index-backed branches (the partial unique indexes) instead of an OR.
+# Current market inputs: the zone's own current row, nothing else. A zone without one has no
+# market figures (the panel says "no market data for this zone"); the municipality-wide row
+# (zone_id null) only holds the range factors single-figure market imports are widened with and
+# never stands in for a zone (core.market, docs/specs/market-data.md). Index-backed by the partial
+# unique index on the current zone rows. effective_from: the version's stated effective date,
+# else its creation time.
 _MARKET = """
 market AS (
-    SELECT id, zone_id, version, land_rate_eur_m2, build_rate_eur_m2, design_rate_eur_m2,
-           sale_rate_eur_m2, range_low_factor, range_high_factor, source, source_date,
-           land_rate_low_eur_m2, land_rate_high_eur_m2, build_rate_low_eur_m2,
-           build_rate_high_eur_m2, design_rate_low_eur_m2, design_rate_high_eur_m2,
-           sale_rate_low_eur_m2, sale_rate_high_eur_m2,
-           created_at AS effective_from
-    FROM (
-        SELECT f.*, 0 AS rank
-        FROM financial_assumptions f
-        WHERE f.municipality_id = :municipality_id
-          AND f.is_current
-          AND f.zone_id = (SELECT zone_id FROM zone_pick)
-        UNION ALL
-        SELECT f.*, 1 AS rank
-        FROM financial_assumptions f
-        WHERE f.municipality_id = :municipality_id
-          AND f.is_current
-          AND f.zone_id IS NULL
-    ) AS candidates
-    ORDER BY rank ASC, id DESC
+    SELECT f.id, f.zone_id, f.version, f.land_rate_eur_m2, f.build_rate_eur_m2,
+           f.design_rate_eur_m2, f.sale_rate_eur_m2, f.range_low_factor, f.range_high_factor,
+           f.source, f.source_date, f.rate_sources,
+           f.land_rate_low_eur_m2, f.land_rate_high_eur_m2, f.build_rate_low_eur_m2,
+           f.build_rate_high_eur_m2, f.design_rate_low_eur_m2, f.design_rate_high_eur_m2,
+           f.sale_rate_low_eur_m2, f.sale_rate_high_eur_m2,
+           COALESCE(f.effective_from::timestamp AT TIME ZONE 'UTC', f.created_at)
+               AS effective_from
+    FROM financial_assumptions f
+    WHERE f.municipality_id = :municipality_id
+      AND f.is_current
+      AND f.zone_id = (SELECT zone_id FROM zone_pick)
+    ORDER BY f.id DESC
     LIMIT 1
 )"""
 
@@ -115,7 +112,7 @@ _MARKET_COLUMN = """
         'build_rate_eur_m2', build_rate_eur_m2, 'design_rate_eur_m2', design_rate_eur_m2,
         'sale_rate_eur_m2', sale_rate_eur_m2, 'range_low_factor', range_low_factor,
         'range_high_factor', range_high_factor, 'source', source, 'source_date', source_date,
-        'effective_from', effective_from, 'version', version,
+        'effective_from', effective_from, 'version', version, 'rate_sources', rate_sources,
         'bounds', jsonb_build_object(
             'land', jsonb_build_array(land_rate_low_eur_m2, land_rate_high_eur_m2),
             'build', jsonb_build_array(build_rate_low_eur_m2, build_rate_high_eur_m2),

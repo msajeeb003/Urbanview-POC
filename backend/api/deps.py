@@ -13,6 +13,7 @@ from api.services.auth import MagicLinkService
 from api.services.email import EmailService
 from api.services.geocode import GeocodeService
 from api.services.jobs import JobService
+from api.services.market import MarketService
 from api.services.orders import OrderService
 from api.services.panel import PanelService
 from api.services.parcel_panel import ParcelPanelService
@@ -242,6 +243,18 @@ def get_review_service(request: Request) -> ReviewService:
 
 
 ReviewServiceDep = Annotated[ReviewService, Depends(get_review_service)]
+
+
+def get_market_service(request: Request) -> MarketService:
+    service = getattr(request.app.state, "market_service", None)
+    if service is None:
+        raise ServiceUnavailableError(
+            "Market-data imports need the planning database (LOCATION_RESOLVER=postgis)"
+        )
+    return service
+
+
+MarketServiceDep = Annotated[MarketService, Depends(get_market_service)]
 # Orders: admins and reviewers manage; experts see and deliver what is assigned to them.
 OrderStaffPrincipal = Annotated[
     Principal, Depends(require_role(Role.admin, Role.reviewer, Role.expert))

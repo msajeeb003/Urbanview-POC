@@ -69,6 +69,85 @@ class GisProfile(BaseModel):
     base_map_layers: dict[str, list[str]] = Field(default_factory=dict)
 
 
+class GlossaryEntry(BaseModel):
+    term: str
+    meaning: str
+
+
+class FloorNotation(BaseModel):
+    """Tokens of the local floor notation (``Po+P+6``), compared case-insensitively. Upper floors
+    are plain numbers; a count may prefix a below-ground token (``2Po``)."""
+
+    below_ground: list[str] = Field(default_factory=list)
+    ground: list[str] = Field(default_factory=list)
+    attic: list[str] = Field(default_factory=list)
+
+
+class LandUseTerm(BaseModel):
+    """A land-use wording pattern (regular expression on accent-folded lower-case text) and the
+    UrbanView land-use class it means (``core.extraction.schema.LandUseClass``)."""
+
+    pattern: str
+    category: str
+
+
+class ExtractionProfile(BaseModel):
+    """What AI document extraction needs to know about this place's documents (``core.extraction``):
+    their language, the planning terms the prompts explain, the floor notation and the land-use
+    wording. The prompt templates stay free of place-specific words."""
+
+    language: str
+    glossary: list[GlossaryEntry] = Field(default_factory=list)
+    floor_notation: FloorNotation = Field(default_factory=FloorNotation)
+    land_use_terms: list[LandUseTerm] = Field(default_factory=list)
+    # words dropped from the start of a block label to get its key ("Blok A", "UKUPNO BLOK A")
+    block_label_words: list[str] = Field(default_factory=list)
+    # planning section (urban_parcels, regulation, land_use, infrastructure) -> heading patterns
+    sections: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class MarketHeaders(BaseModel):
+    """Patterns (regular expressions on accent-folded lower-case words, Cyrillic transliterated)
+    that label the columns of market tables: the area column, the four metrics, the bounds,
+    periods, columns to leave alone, and the "in thousands" marker."""
+
+    geography: list[str] = Field(default_factory=list)
+    land_rate: list[str] = Field(default_factory=list)
+    build_rate: list[str] = Field(default_factory=list)
+    design_rate: list[str] = Field(default_factory=list)
+    sale_rate: list[str] = Field(default_factory=list)
+    low: list[str] = Field(default_factory=list)
+    high: list[str] = Field(default_factory=list)
+    expected: list[str] = Field(default_factory=list)
+    period: list[str] = Field(default_factory=list)
+    ignore: list[str] = Field(default_factory=list)
+    thousands: list[str] = Field(default_factory=list)
+
+
+class MarketPeriods(BaseModel):
+    """Local words of period labels (``IV kvartal 2025``, ``I polugodište``, ``septembar``);
+    the English ones are built in (``core.market.parse``)."""
+
+    months: list[str] = Field(default_factory=list, description="January first, 12 names")
+    quarter: list[str] = Field(default_factory=list)
+    half: list[str] = Field(default_factory=list)
+
+
+class MarketProfile(BaseModel):
+    """What market-data imports need to know about this place (``core.market``): who publishes
+    the official statistics, the names that mean the whole municipality, other spellings of the
+    zones, the words of table headers and periods, which metrics each import kind may give and
+    the plausible range of each metric (outside = flagged for the reviewer, never dropped)."""
+
+    statistics_source: str = "Official statistics"
+    municipality_names: list[str] = Field(default_factory=list)
+    zone_aliases: dict[str, list[str]] = Field(default_factory=dict)
+    kind_metrics: dict[str, list[str]] = Field(default_factory=dict)
+    plausible_eur_m2: dict[str, tuple[float, float]] = Field(default_factory=dict)
+    headers: MarketHeaders = Field(default_factory=MarketHeaders)
+    periods: MarketPeriods = Field(default_factory=MarketPeriods)
+
+
 class MunicipalityProfile(BaseModel):
     id: str
     name: str
@@ -91,8 +170,9 @@ class MunicipalityProfile(BaseModel):
     )
     terminology: Terminology
     sources: list[DataSource] = Field(default_factory=list)
-    # The profile file's [gis] table is tooling configuration for core.gis, read by
-    # load_gis_profile; this model (served by GET /v1/municipality) ignores it.
+    # The profile file's [gis], [extraction] and [market] tables are configuration for core.gis,
+    # core.extraction and core.market, read by load_gis_profile / load_extraction_profile /
+    # load_market_profile; this model (served by GET /v1/municipality) ignores them.
 
     def contains(self, lng: float, lat: float) -> bool:
         min_lng, min_lat, max_lng, max_lat = self.bounds
@@ -127,3 +207,18 @@ def load_gis_profile(municipality_id: str) -> GisProfile | None:
     """The profile's [gis] table (core.gis tooling), or None when the municipality has none."""
     table = _read_profile(municipality_id).get("gis")
     return None if table is None else GisProfile.model_validate(table)
+
+
+@cache
+def load_extraction_profile(municipality_id: str) -> ExtractionProfile | None:
+    """The profile's [extraction] table (core.extraction), or None when there is none."""
+    table = _read_profile(municipality_id).get("extraction")
+    return None if table is None else ExtractionProfile.model_validate(table)
+
+
+@cache
+def load_market_profile(municipality_id: str) -> MarketProfile:
+    """The profile's [market] table (core.market); an empty profile when there is none (every
+    table then needs the LLM step or fails to map)."""
+    table = _read_profile(municipality_id).get("market")
+    return MarketProfile() if table is None else MarketProfile.model_validate(table)

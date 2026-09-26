@@ -22,6 +22,7 @@ from api.schemas.admin import JobCostRow, JobCostSummary, JobList, JobOut
 from api.services.audit import write_audit
 from core.auth import Principal
 from core.errors import ConflictError, NotFoundError
+from core.extraction.runs import RUN_JSON
 from jobs.enqueue import ACTIVE_BY_KEY_SQL, JobDispatcher, redispatch
 
 JOB_STATUS_PATH = "/v1/admin/jobs/{id}"
@@ -36,10 +37,11 @@ JOB_JSON = """jsonb_build_object(
     'requested_by', j.requested_by, 'requested_at', j.requested_at, 'started_at', j.started_at,
     'finished_at', j.finished_at, 'error', j.error, 'result', j.result,
     'progress', j.progress,
+    'extraction_run', (SELECT {run} FROM extraction_runs r WHERE r.job_id = j.id),
     'cost', jsonb_build_object(
         'wall_time_ms', j.wall_time_ms, 'llm_model', j.llm_model,
         'llm_tokens_in', j.llm_tokens_in, 'llm_tokens_out', j.llm_tokens_out,
-        'estimated_cost_eur', j.estimated_cost_eur))"""
+        'estimated_cost_eur', j.estimated_cost_eur))""".replace("{run}", RUN_JSON)
 
 JOB_SQL = text(
     f"SELECT {JOB_JSON} AS job FROM pipeline_jobs j WHERE j.id = :id AND j.municipality_id = :m"

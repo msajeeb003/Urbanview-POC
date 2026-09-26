@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "prompt_version": "1.0",
+  "task": "parameter_table",
+  "entity_type": "urban_parcel",
+  "path": "urban_parcels[1].rules.max_site_coverage_pct",
+  "field_key": "max_site_coverage_pct",
+  "urban_parcel_number": "UP 2",
+  "block_ref": "A",
+  "leaf": {
+    "value": 100.0,
+    "unit": "%",
+    "raw_text": "1",
+    "source": {
+      "document_id": 1,
+      "page": 1,
+      "bbox": [687.9, 350.6, 693.5, 361.6],
+      "bbox_space": "pdf-points-bottom-left",
+      "table_ref": {"table": null, "row": "UP 2", "column": "Indeks zauzetosti", "cell": null}
+    },
+    "confidence": 0.93,
+    "extraction_method": "table",
+    "stated": {"value": "1", "unit": "ratio"},
+    "normalisation": ["ratio_to_percent"],
+    "derived": null,
+    "category": null,
+    "flags": []
+  }
+}

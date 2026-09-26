@@ -56,13 +56,17 @@ def test_dedupe_keys_name_the_target_and_the_checksum():
     assert dedupe_key("publish_approved", "publish_run", None) == "publish_approved:publish_run:-"
 
 
-def test_job_types_cover_the_four_tasks_and_queues():
+def test_job_types_cover_the_six_tasks_and_queues():
     assert set(JOB_TYPES) == {
         "extract_document",
+        "preprocess_file",
         "process_geometry",
         "publish_approved",
         "send_email",
+        "import_market_data",
     }
+    for name in ("preprocess_file", "import_market_data"):
+        assert (JOB_TYPES[name].queue, JOB_TYPES[name].kind) == ("extraction", "extract")
     assert {t.queue for t in JOB_TYPES.values()} == {"extraction", "geo", "publish", "email"}
     assert set(QUEUES) == {"default", "extraction", "geo", "publish", "email"}
     for spec in JOB_TYPES.values():

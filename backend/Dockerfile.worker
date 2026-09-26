@@ -34,7 +34,7 @@ COPY database /app/database
 COPY packages /app/packages
 
 WORKDIR /app/backend
-RUN pip install -e ".[dev,gis]"
+RUN pip install -e ".[dev,gis,ai]"
 
 # `celery inspect ping` answers only when the worker is connected to the broker and idle enough
 # to reply; the start period covers the broker connection retry.

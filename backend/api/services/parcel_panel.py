@@ -350,6 +350,8 @@ def market_view(market_raw: Mapping[str, Any] | None, zone: ZoneRef | None) -> M
     sale = _rate_range(market_raw, "sale")
     title = panel_text.PANEL_SECTIONS["market"]
     label = panel_text.MARKET_PARAMETER_LABELS["sale_rate_eur_m2"]
+    # the sale price's own provenance when a reviewed market input set it (core.market)
+    sale_source = (market_raw.get("rate_sources") or {}).get("sale_rate") or {}
     return MarketView(
         title_en=title.en,
         title_me=title.me,
@@ -361,8 +363,8 @@ def market_view(market_raw: Mapping[str, Any] | None, zone: ZoneRef | None) -> M
         sale_price_eur_m2=RangeValue(
             low=sale.low, expected=sale.expected, high=sale.high, kind=sale.kind
         ),
-        source=market_raw.get("source"),
-        source_date=_iso(market_raw.get("source_date")),
+        source=sale_source.get("source") or market_raw.get("source"),
+        source_date=_iso(sale_source.get("source_date") or market_raw.get("source_date")),
         effective_from=_iso(market_raw.get("effective_from")),
         version=_assumptions_version(market_raw),
     )

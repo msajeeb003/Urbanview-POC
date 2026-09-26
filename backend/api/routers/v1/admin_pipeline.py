@@ -5,10 +5,12 @@
 - ``POST /v1/admin/documents``: register a document version against a stored PDF;
   ``replaces_document_id`` creates the next version and retires the current one;
 - ``GET /v1/admin/files`` / ``/documents`` (+ ``/{id}``): listings with job history;
-- ``POST /v1/admin/documents/{id}/jobs/extract``, ``POST /v1/admin/files/{id}/jobs/geo``: queue
-  the extraction / geometry job (staging only): 202 with the job, or 200 with the existing job
-  when an identical one is already queued / running (idempotent); status, listing and retry
-  live in ``admin_jobs`` (``GET /v1/admin/jobs/{id}`` is the status URL);
+- ``POST /v1/admin/documents/{id}/jobs/extract``, ``POST /v1/admin/files/{id}/jobs/geo``,
+  ``POST /v1/admin/files/{id}/jobs/preprocess``: queue the extraction / geometry / PDF
+  pre-processing job (staging only): 202 with the job, or 200 with the existing job when an
+  identical one is already queued / running (idempotent); status, listing and retry live in
+  ``admin_jobs`` (``GET /v1/admin/jobs/{id}`` is the status URL). Files and documents carry the
+  pre-processing summary (``preprocessing``: vector / scanned pages, tables, chunks, sections);
 - ``PATCH /v1/admin/documents/{id}/coverage``: mark a document's coverage area live or not.
 
 Every action lands in ``audit_log``. Responses are ``Cache-Control: no-store``.
@@ -69,7 +71,10 @@ async def upload_file(
     service: AdminServiceDep,
     response: Response,
     file: Annotated[UploadFile, File(description="The file")],
-    kind: Annotated[FileKind, Form(description="planning_document | gis | cadastral_extract")],
+    kind: Annotated[
+        FileKind,
+        Form(description="planning_document | gis | cadastral_extract | market_data (.csv, .xlsx)"),
+    ],
 ) -> UploadResult:
     result = await service.upload_file(principal, kind, file)
     if not result.created:
@@ -110,6 +115,31 @@ async def enqueue_geo_job(
     principal: AdminPrincipal, service: AdminServiceDep, file_id: Id, response: Response
 ) -> JobOut:
     enqueued = await service.enqueue_geo(principal, file_id)
+    response.status_code = 202 if enqueued.created else 200
+    return enqueued.job
+
+
+@router.post(
+    "/files/{file_id}/jobs/preprocess",
+    status_code=202,
+    response_model=JobOut,
+    summary="Queue PDF pre-processing: pages, tables, scanned pages, chunks and page images",
+    responses={
+        **RESPONSES,
+        200: {"description": "An identical job is already queued or running; returned as is"},
+        409: {"description": "The file is not a planning-document PDF"},
+    },
+)
+async def enqueue_preprocess_job(
+    principal: AdminPrincipal,
+    service: AdminServiceDep,
+    file_id: Id,
+    response: Response,
+    force: Annotated[
+        bool, Query(description="Redo it even when the file's manifest is current")
+    ] = False,
+) -> JobOut:
+    enqueued = await service.enqueue_preprocess(principal, file_id, force=force)
     response.status_code = 202 if enqueued.created else 200
     return enqueued.job
 
@@ -184,17 +214,30 @@ async def set_coverage(
     "/documents/{document_id}/jobs/extract",
     status_code=202,
     response_model=JobOut,
-    summary="Queue the LLM extraction job for a document version (staging only)",
+    summary="Queue the LLM extraction run for a document version (staging only)",
     responses={
         **RESPONSES,
-        200: {"description": "An identical job is already queued or running; returned as is"},
+        200: {
+            "description": (
+                "Nothing new to do: the same file was already read with the same model, prompt "
+                "and schema versions (that run's job, with its summary), or an identical job is "
+                "queued or running (returned as is)"
+            )
+        },
         409: {"description": "The document has no stored file"},
     },
 )
 async def enqueue_extract_job(
-    principal: AdminPrincipal, service: AdminServiceDep, document_id: Id, response: Response
+    principal: AdminPrincipal,
+    service: AdminServiceDep,
+    document_id: Id,
+    response: Response,
+    force: Annotated[
+        bool,
+        Query(description="Read the file again even though an identical run already finished"),
+    ] = False,
 ) -> JobOut:
-    enqueued = await service.enqueue_extract(principal, document_id)
+    enqueued = await service.enqueue_extract(principal, document_id, force=force)
     response.status_code = 202 if enqueued.created else 200
     return enqueued.job
 

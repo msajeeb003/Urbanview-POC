@@ -197,6 +197,8 @@ async def test_queue_lists_everything_a_reviewer_needs(review_app):
         "block_ref": None,
         "zone_id": 1,
         "zone_name": "Centar",
+        "label": None,
+        "matched": True,
     }
     assert market_item["label_en"] == "Selling price per m²"
     assert market_item["extracted"] == {"text": None, "number": 2400.0, "unit": "EUR/m²"}
@@ -215,6 +217,98 @@ async def test_queue_lists_everything_a_reviewer_needs(review_app):
     assert as_reviewer.status_code == 200 and as_expert.status_code == 200
     assert anonymous.status_code == 401
     assert single.status_code == 200 and single.json()["id"] == 1
+
+
+async def test_contract_rows_queue_with_flags_versions_and_a_flag_filter(review_app):
+    """Rows from the extraction contract (core.extraction.staging) fit the table's constraints;
+    the queue shows their flags and versions, filters by flag, and the payload reads back."""
+    from core.extraction import cases as C
+    from core.extraction.normalise import Conventions
+    from core.extraction.response import ParcelsResponse
+    from core.extraction.schema import read_payload
+    from core.extraction.staging import to_staging_rows
+    from core.extraction.validate import assemble
+
+    page = C.text_page(
+        20, "Urbanistička parcela UP 12\nMaksimalni indeks izgrađenosti: 3,2\nSpratnost: P+5"
+    )
+    response = ParcelsResponse.model_validate(
+        {
+            "urban_parcels": [
+                C.parcel(
+                    C.v("UP 12", "Urbanistička parcela UP 12", page=20),
+                    max_far=C.v(
+                        "3,2",
+                        "Maksimalni indeks izgrađenosti: 3,2",
+                        page=20,
+                        unit="ratio",
+                        confidence=0.4,
+                    ),
+                    max_floors=C.v("P+5", "Spratnost: P+5", page=20),
+                )
+            ],
+        }
+    )
+    result = assemble(
+        "urban_parcel",
+        response,
+        pages=[page],
+        document_id=2,
+        municipality_id="podgorica",
+        conventions=Conventions.from_profile("podgorica"),
+        prompt_version="1.0",
+    )
+    plan = to_staging_rows(result, extracted_by="test", parcel_ids={"12": 1}, block_ids={})
+    assert len(plan.rows) == 2
+    json_columns = {"source_bbox", "flags", "payload"}
+    app = review_app
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        async with app.state.session_factory() as session:
+            columns = list(plan.rows[0])
+            values = ", ".join(
+                f"CAST(:{c} AS jsonb)"
+                if c in json_columns
+                else ("CAST(:review_state AS review_state)" if c == "review_state" else f":{c}")
+                for c in columns
+            )
+            for row in plan.rows:
+                params = {
+                    k: json.dumps(v) if k in json_columns and v is not None else v
+                    for k, v in row.items()
+                }
+                await session.execute(
+                    text(
+                        f"INSERT INTO planning_parameter_extractions ({', '.join(columns)}) "
+                        f"VALUES ({values})"
+                    ),
+                    params,
+                )
+            await session.commit()
+            stored = (
+                (
+                    await session.execute(
+                        text(
+                            "SELECT schema_version, payload FROM planning_parameter_extractions "
+                            "WHERE extracted_by = 'test' AND field_key = 'max_far'"
+                        )
+                    )
+                )
+                .mappings()
+                .one()
+            )
+        flagged = await client.get(
+            "/v1/admin/review", params={"flag": "low_confidence"}, headers=auth()
+        )
+        bad_flag = await client.get("/v1/admin/review", params={"flag": "Low-Conf"}, headers=auth())
+
+    assert read_payload(stored["schema_version"], stored["payload"]).leaf.value == 3.2
+    assert flagged.status_code == 200, flagged.text
+    [item] = flagged.json()["items"]
+    assert item["parameter_key"] == "max_far" and item["flags"] == ["low_confidence"]
+    assert (item["schema_version"], item["prompt_version"]) == ("1.0", "1.0")
+    assert item["source"]["extraction_method"] == "text" and item["source"]["page"] == 20
+    assert item["extracted"]["number"] == 3.2 and item["source"]["confidence"] == 0.4
+    assert bad_flag.status_code == 422
 
 
 # --- decisions ------------------------------------------------------------------------------------

@@ -1,0 +1,331 @@
+{
+  "$defs": {
+    "BlockEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "description": "The value exactly as printed; \"\" when status is deferred",
+          "type": "string"
+        },
+        "unit": {
+          "description": "How the value is printed: m, m2, ha, percent, ratio (an index as a plain decimal), none (a bare number), words (a value in words)",
+          "enum": [
+            "m",
+            "m2",
+            "ha",
+            "percent",
+            "ratio",
+            "none",
+            "words"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "description": "Verbatim, contiguous page text the value is read from (the cell text)",
+          "type": "string"
+        },
+        "page": {
+          "description": "Page number from the page marker",
+          "type": "integer"
+        },
+        "table": {
+          "description": "Table id as given (p7t1), \"\" when not from a table",
+          "type": "string"
+        },
+        "cell": {
+          "description": "Cell id as given (r4c11), \"\" when not from a table grid",
+          "type": "string"
+        },
+        "column": {
+          "description": "Column header as printed, \"\" when not from a table",
+          "type": "string"
+        },
+        "confidence": {
+          "description": "0 to 1: legible and belongs to this field and entity",
+          "type": "number"
+        },
+        "status": {
+          "description": "stated, or deferred (set later): then text says so",
+          "enum": [
+            "stated",
+            "deferred"
+          ],
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "area_m2",
+            "land_use",
+            "max_site_coverage_pct",
+            "max_far",
+            "max_height_m",
+            "max_floors",
+            "building_line_m",
+            "setback_neighbours_m",
+            "parking_requirement",
+            "min_green_area_pct",
+            "utilities",
+            "note"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "text",
+        "page",
+        "table",
+        "cell",
+        "column",
+        "confidence",
+        "status",
+        "field"
+      ],
+      "type": "object"
+    },
+    "CBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "description": "The block / plan zone label as printed",
+          "type": "string"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "table": {
+          "type": "string"
+        },
+        "label_cell": {
+          "type": "string"
+        },
+        "is_total_row": {
+          "description": "A totals row of the block (sums), not rules",
+          "type": "boolean"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "values": {
+          "items": {
+            "$ref": "#/$defs/BlockEntry"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "page",
+        "table",
+        "label_cell",
+        "is_total_row",
+        "confidence",
+        "values"
+      ],
+      "type": "object"
+    },
+    "CColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "table": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "header": {
+          "description": "Column header as printed",
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "urban_parcel_number",
+            "block_ref",
+            "planned_parcel_area_m2",
+            "land_use",
+            "max_site_coverage_pct",
+            "max_far",
+            "max_height_m",
+            "max_floors",
+            "building_line_m",
+            "setback_neighbours_m",
+            "parking_requirement",
+            "min_green_area_pct",
+            "utilities",
+            "none"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "page",
+        "header",
+        "field"
+      ],
+      "type": "object"
+    },
+    "CParcel": {
+      "additionalProperties": false,
+      "properties": {
+        "number": {
+          "description": "The urban parcel number exactly as printed",
+          "type": "string"
+        },
+        "page": {
+          "type": "integer"
+        },
+        "table": {
+          "description": "Table id, \"\" when not from a table",
+          "type": "string"
+        },
+        "number_cell": {
+          "description": "Cell id of the number, \"\" when none",
+          "type": "string"
+        },
+        "block": {
+          "description": "The block / plan zone as printed in its row, \"\" when none",
+          "type": "string"
+        },
+        "block_cell": {
+          "description": "Cell id of the block, \"\" when none",
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "values": {
+          "description": "Only the fields the pages state for it",
+          "items": {
+            "$ref": "#/$defs/ParcelEntry"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "number",
+        "page",
+        "table",
+        "number_cell",
+        "block",
+        "block_cell",
+        "confidence",
+        "values"
+      ],
+      "type": "object"
+    },
+    "ParcelEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "description": "The value exactly as printed; \"\" when status is deferred",
+          "type": "string"
+        },
+        "unit": {
+          "description": "How the value is printed: m, m2, ha, percent, ratio (an index as a plain decimal), none (a bare number), words (a value in words)",
+          "enum": [
+            "m",
+            "m2",
+            "ha",
+            "percent",
+            "ratio",
+            "none",
+            "words"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "description": "Verbatim, contiguous page text the value is read from (the cell text)",
+          "type": "string"
+        },
+        "page": {
+          "description": "Page number from the page marker",
+          "type": "integer"
+        },
+        "table": {
+          "description": "Table id as given (p7t1), \"\" when not from a table",
+          "type": "string"
+        },
+        "cell": {
+          "description": "Cell id as given (r4c11), \"\" when not from a table grid",
+          "type": "string"
+        },
+        "column": {
+          "description": "Column header as printed, \"\" when not from a table",
+          "type": "string"
+        },
+        "confidence": {
+          "description": "0 to 1: legible and belongs to this field and entity",
+          "type": "number"
+        },
+        "status": {
+          "description": "stated, or deferred (set later): then text says so",
+          "enum": [
+            "stated",
+            "deferred"
+          ],
+          "type": "string"
+        },
+        "field": {
+          "enum": [
+            "planned_parcel_area_m2",
+            "land_use",
+            "max_site_coverage_pct",
+            "max_far",
+            "max_height_m",
+            "max_floors",
+            "building_line_m",
+            "setback_neighbours_m",
+            "parking_requirement",
+            "min_green_area_pct",
+            "utilities",
+            "public_area_relation",
+            "other_condition"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "text",
+        "page",
+        "table",
+        "cell",
+        "column",
+        "confidence",
+        "status",
+        "field"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "urban_parcels": {
+      "items": {
+        "$ref": "#/$defs/CParcel"
+      },
+      "type": "array"
+    },
+    "blocks": {
+      "items": {
+        "$ref": "#/$defs/CBlock"
+      },
+      "type": "array"
+    },
+    "columns": {
+      "items": {
+        "$ref": "#/$defs/CColumn"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "urban_parcels",
+    "blocks",
+    "columns"
+  ],
+  "type": "object"
+}

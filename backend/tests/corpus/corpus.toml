@@ -1,0 +1,109 @@
+# The extraction evaluation corpus (README.md next to this file). One [[document]] per planning
+# document of the client's POC set (their shared "Initial GIS data" folder, mirrored in
+# docs/gis/source/, which is git-ignored: the PDFs never enter the repository). Paths are
+# relative to the source folder (CORPUS_SOURCE_DIR, default ../docs/gis/source from backend/);
+# sha256 pins the exact file the gold set was labelled from.
+#
+# [document.labelling] tells the gold-set builder (python -m core.extraction corpus label) how
+# to read the planning-parameter table: which header is which field (accent-folded header text,
+# `exact` or `prefix`), how the document prints units, which rows are parcels, block totals,
+# footnote rows and building sub-rows, and the wording of deferred values.
+
+municipality = "podgorica"
+fields = [
+  "block_ref",
+  "planned_parcel_area_m2",
+  "land_use",
+  "max_site_coverage_pct",
+  "max_far",
+  "max_height_m",
+  "max_floors",
+  "building_line_m",
+  "setback_neighbours_m",
+  "parking_requirement",
+  "min_green_area_pct",
+  "utilities",
+]
+
+[[document]]
+id = "novi-grad-1-2"
+name = 'Izmjena i dopuna DUP-a "Novi Grad 1 i 2" u Podgorici'
+type = "DUP"
+registry = "eRegistri #4182, https://lamp.gov.me/PlanningDocument/Details/4182"
+parameters = "02 Novi Grad 1 i 2/Novi Grad 1 i 2 - Urban parcels - Planning parameters.pdf"
+sha256 = "cd368d64de9d0f36554209fdc5ed6eb0317b3d0b4cd136fce7c656c177c9c089"
+pages = 12
+
+  [document.labelling]
+  number = { header = "broj up", match = "exact" }
+  block = { header = "blok", match = "exact" }
+  columns = [
+    { field = "planned_parcel_area_m2", header = "povrsina up", match = "exact", unit = "none" },
+    { field = "land_use", header = "namjena objekta", match = "exact", unit = "words" },
+    { field = "max_floors", header = "spratnost objekta", match = "exact", unit = "words" },
+    { field = "max_site_coverage_pct", header = "indeks zauzet", match = "prefix", unit = "ratio" },
+    { field = "max_far", header = "indeks izgradj", match = "prefix", unit = "none" },
+  ]
+  block_total = '^ukupno blok\b'
+  document_total = '^ukupno sve zone\b'
+  footnote_row = '^\*\*\*$'
+  deferred = 'definisa\w* se'
+  special_cases = [
+    "footnote rows: rows marked *** (after most parcels) hold extension areas of existing buildings, per the page note 'Redovi oznaceni sa *** predstavljaju površine za nadogradnju i dogradnju ...'; they are not parcels and no parcel value comes from them (UP 77 and UP 91 have such a row with a blank Blok cell instead of ***)",
+    "merged cells: IZ and II are printed once, centred over a parcel row and its *** row(s); UP 51(a)-(c), UP 81(a)-(d) and UP 85(a)-(f) share one area, land use, IZ and II printed once over the group, while floors differ per row: the values apply to every row they span",
+    "wrapped cells: areas wrap in the narrow column (5705.1 / 7 = 5705.17), floor notations too ('S+P+3+ / M', 'G+S+P+5+P / k' in small print)",
+    "deferred: UP 1 and UP 25 carry one merged cell 'definisaće se konkursnim rješenjem' (set by an architectural competition) over ground floor, floors, BGP and both indices; their land use adds '- prostor namjenjen za razradu konkursnim rjesenjem'",
+    "blank cells: UP 15 and UP 26 print no land use, UP 86 (sport i rekreacija) no floors or indices, UP 24 ('3S') and UP 33 ('S') no indices: nothing may be filled in",
+    "block totals: a 'UKUPNO BLOK A..F' row per block states the block's sums (areas, BGP, dwellings, employees); the last digit of a total often wraps into the bottom of its cell; 'UKUPNO SVE ZONE' on page 11 is the plan-wide total (not a block)",
+    "annex row: UP 58 is followed by an 'aneks' row (floors 3S+P+3) inside UP 58's merged IZ / II cell: not the parcel's floors",
+    "ratio indices: IZ printed as a plain ratio ('1' = 100 %), II as a plain number; UP 43 states IZ 0.7 with II 5.48 (as printed, not checked against the floors)",
+  ]
+  not_covered = [
+    "heights in metres, building lines, setbacks, parking, green area, utilities: not in this table (these fields must stay blank)",
+    "parameter ranges ('P+2 do P+4'): no range is printed in this document",
+    "parcels listed twice (superseded amendment vs current): every parcel number appears once",
+    "gazette, decision number and date, area: not on these pages",
+  ]
+
+[[document]]
+id = "stara-varos"
+name = 'Izmjene i dopune URBANISTIČKOG PROJEKTA „STARA VAROŠ" u Podgorici'
+type = "UP"
+registry = "eRegistri #4207, https://lamp.gov.me/PlanningDocument/Details/4207"
+parameters = "03 Stara Varoš/03 Stara Varoš - Urban parcels - Planning parameters.pdf"
+sha256 = "52ffc242b7cceb7ab97a6aa095f3879082ac3b049c0d3a00a19c43b0ffaf2066"
+pages = 57
+
+  [document.labelling]
+  number = { header = "broj up", match = "exact" }
+  block = { header = "zona", match = "exact" }
+  columns = [
+    { field = "planned_parcel_area_m2", header = "p parcele", match = "exact", unit = "none" },
+    { field = "land_use", header = "namjena", match = "exact", unit = "words" },
+    { field = "max_floors", header = "max. spratnost", match = "exact", unit = "words" },
+    { field = "max_site_coverage_pct", header = "iz - indeks zauzetosti", match = "exact", unit = "ratio" },
+    { field = "max_far", header = "ii - indeks izgradjenosti", match = "exact", unit = "none" },
+  ]
+  building_row = '^(planiran|postoje|dogradnj|nadogradnj|nadgradnj|rekonstruk|zamjen|uklanj)'
+  block_total = '^ukupno\b'
+  document_total = '^ukupno$'
+  special_cases = [
+    "building sub-rows: each parcel's buildings (status planirani / postojeći / dogradnja / nadogradnja / 'dogradnja i nadgradnja', footprint, koef., spratnost, BRGP per building) are printed ABOVE its bold parcel row (the sub-rows' osnova adds up to the parcel's površina osnove) and may start on the previous page; they carry no parcel number and no parcel value comes from them",
+    "floors trap: the sub-row printed just below a parcel row belongs to the next parcel and its 'spratnost' often differs from the parcel's 'max. spratnost' (A123 max P, next row P+1)",
+    "two floor columns: 'spratnost' belongs to a building row, 'max. spratnost' to the parcel",
+    "a floor range: F3289 (page 49) max. spratnost 'Po+P+5-7', its sub-rows P+7 / P+6 / P+5",
+    "floor notations with basement / attic / roof terrace: 2Po+P+7, Po+P+3+Pk, P+1+Pk, P+2+Ps, P+4+Ps",
+    "printed zeros: A166 (K) states IZ 0.0 and II 0.0 (a stated 0 is a value, not a blank)",
+    "IZ at or above 1: 1.0 on many parcels, 1.2 on F3360/1 (as printed)",
+    "land use as legend codes (SS, MN, U, CD, SV, VO, K, SR, TS): the legend is on the land-use sheet, not in this table",
+    "parcel numbers carry the zone letter (A99, F3398), with /n sub-numbers (D3080/1) and letter suffixes (A156a, E3147b); TS 5 has a space; the 'oznaka' letters a / b / c label buildings, not parcels",
+    "zone totals 'ukupno A'..'ukupno F' (area, objects, IZ, II ...); 'UKUPNO' on page 57 is the plan-wide total (not a block)",
+    "text layer: the parcel numbers of pages 25-56 are in a font our AutoCAD glyph-shift decoder mistook for shifted text ('D3078' read as 'aPMTU'); fixed in preprocess 1.1",
+  ]
+  not_covered = [
+    "heights in metres, building lines, setbacks, parking, green area, utilities: not in this table (these fields must stay blank)",
+    "ranges of the 'P+2 do P+4' kind: only the compact 'Po+P+5-7'",
+    "values stated once for a whole block: zone totals are sums, not rules",
+    "parcels listed twice: every parcel number appears once",
+    "gazette, decision number and date, area: not on these pages",
+  ]

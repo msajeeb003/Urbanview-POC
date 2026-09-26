@@ -25,6 +25,7 @@ dependencies = [
   "python-multipart>=0.0.9",
   "pypdf>=4.0",
   "jinja2>=3.1",
+  "openpyxl>=3.1",  # market-data imports: the client's range sheets (core.market)
 ]
 
 [project.optional-dependencies]
@@ -42,6 +43,10 @@ dev = [
 gis = [
   "pymupdf>=1.24",
   "shapely>=2.0",
+]
+# AI extraction (core.extraction): the Claude adapter; the worker installs it, the API does not
+ai = [
+  "anthropic>=1.8",
 ]
 
 [tool.setuptools.packages.find]
