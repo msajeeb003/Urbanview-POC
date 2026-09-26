@@ -272,5 +272,16 @@ class StaffUserOut(BaseModel):
     open_sessions: int = Field(description="Sessions neither revoked nor expired")
 
 
+class StaffMeOut(BaseModel):
+    """The signed-in principal: a staff user, or a configured service token."""
+
+    id: int | None = Field(default=None, description="staff_users.id; null for a service token")
+    email: str | None = None
+    display_name: str | None = None
+    role: Role
+    subject: str
+    via: Literal["session", "token"]
+
+
 class StaffUserList(BaseModel):
     items: list[StaffUserOut]

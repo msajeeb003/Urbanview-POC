@@ -12,12 +12,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query, Response
 
-from api.deps import AdminConfigServiceDep, AdminPrincipal
+from api.deps import AdminConfigServiceDep, AdminPrincipal, StaffPrincipal
 from api.schemas.admin_config import (
     AssumptionsIn,
     AssumptionsList,
     AssumptionsOut,
     AssumptionsUpdate,
+    StaffMeOut,
     StaffUserIn,
     StaffUserList,
     StaffUserOut,
@@ -211,6 +212,16 @@ async def create_user(
     principal: AdminPrincipal, service: AdminConfigServiceDep, payload: StaffUserIn
 ) -> StaffUserOut:
     return await service.create_user(principal, payload)
+
+
+# before /users/{user_id}: "me" is not an id
+@router.get(
+    "/users/me",
+    response_model=StaffMeOut,
+    summary="The signed-in staff member and role (every staff role)",
+)
+async def get_me(principal: StaffPrincipal, service: AdminConfigServiceDep) -> StaffMeOut:
+    return await service.me(principal)
 
 
 @router.get("/users/{user_id}", response_model=StaffUserOut, responses=RESPONSES)

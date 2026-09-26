@@ -760,3 +760,873 @@
 .lyr .subnm.nodatasub {
   color: var(--ink-3);
 }
+
+/* 16. Admin console (spec §9: "the admin view is the wireframe's overlay"; the account items and
+      the sign-in page are not in the mock). The admin bar's right side carries the signed-in user
+      + role chip, sign-out and, for admins, the audit log / users links before "← Back to map";
+      the sign-in page is one centred card built from `.card`, `.field` and `.cta`; the audit log
+      adds a filter row and a compact before → after list; empty tables and card notes are plain
+      text rows in the table's padding. */
+.adminbar .admin-account {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.adminbar .admin-who {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.adminbar .admin-who .st {
+  padding: 1px 7px;
+}
+.adminbar .admin-who-name {
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 220px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.admin-menu-head {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--paper-2);
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12.5px;
+}
+.admin-menu-role {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.admin-menu button {
+  text-align: left;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.admin-menu button:hover {
+  background: var(--paper);
+}
+.admin-note {
+  padding: 14px 18px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.admin-note a.abtn,
+.admin-account a.abtn,
+.audit-filters a.abtn {
+  text-decoration: none;
+}
+.tbl td.tbl-empty {
+  color: var(--ink-2);
+  font-size: 13.5px;
+}
+.admin-signin {
+  max-width: 440px;
+  margin: 48px auto 0;
+}
+.admin-signin-body {
+  padding: 18px;
+}
+.admin-signin-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.admin-signin-notice {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  margin: 0 0 14px;
+}
+.admin-signin .field .admin-signin-notice {
+  margin: 8px 0 0;
+}
+.admin-signin .cta {
+  justify-content: center;
+}
+.audit-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.audit-filters select,
+.audit-filters input {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-family: var(--body);
+  background: var(--white);
+  color: var(--ink);
+}
+.audit-filters input {
+  width: 200px;
+}
+.audit-changes {
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 460px;
+  overflow-wrap: anywhere;
+}
+.audit-changes .k,
+.audit-none {
+  color: var(--ink-2);
+}
+
+/* 17. Data sources (`/admin/data`, `/admin/data/documents/[id]`; not in the mock beyond the
+      sources card): the filter row, the documents table with one indented row per file, status
+      chips with their mono detail and reason, the drop zone with an upload list (progress bar per
+      file), the registration form's extras (textarea, field errors, picked files, version
+      history), the document page's facts grid and the "Add as" choice. Built from the mock's
+      tokens; errors use the ink-2 / danger text only, never a red surface. */
+.datafilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--paper-2);
+}
+.datafilters select,
+.datafilters input,
+.filetbl .rolesel,
+.uprow select,
+.pickedfiles select {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-family: var(--body);
+  background: var(--white);
+  color: var(--ink);
+}
+.datafilters input {
+  width: 220px;
+}
+.datafilters a.abtn,
+.pager a.abtn,
+.rowacts a.abtn,
+.docfacts a,
+.crumbs a {
+  text-decoration: none;
+}
+.doctbl td,
+.filetbl td {
+  vertical-align: middle;
+}
+.doctbl .docgroup + .docgroup .docrow td {
+  border-top: 1px solid var(--line);
+}
+.doctbl .docname {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.doctbl .docname:hover {
+  color: var(--brand-dark);
+  text-decoration: underline;
+}
+.doctbl .filerow td {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  font-size: 13px;
+}
+.doctbl .filerow td:first-child {
+  padding-left: 34px;
+}
+.fname {
+  display: block;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fmeta {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+.covtext {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.pillcell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  max-width: 300px;
+}
+.pillcell.muted {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.pillcell .pd {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.pillcell .pr {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--danger);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowacts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.rowacts .abtn,
+.cardhd .rowacts .abtn {
+  white-space: nowrap;
+}
+.abtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.pager {
+  justify-content: flex-end;
+  border-top: 1px solid var(--paper-2);
+}
+.dropzone {
+  border: 1.5px dashed var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  padding: 22px 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropzone:hover,
+.dropzone:focus-visible,
+.dropzone.over {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  outline: none;
+}
+.dropzone.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.dz-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.dz-hint {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.uplist,
+.pickedfiles {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.uprow {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  padding: 9px 12px;
+}
+.up-main,
+.pickedfiles li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pickedfiles li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  padding: 6px 12px;
+}
+.up-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.up-size {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.up-x {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: var(--ink-2);
+}
+.up-x:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+.up-bar {
+  height: 4px;
+  border-radius: 8px;
+  background: var(--paper-2);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.up-bar i {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+  transition: width 0.2s;
+}
+.uprow.duplicate .up-bar i {
+  background: var(--paid);
+}
+.uprow.error .up-bar {
+  display: none;
+}
+.up-status {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.uprow.error .up-status {
+  color: var(--danger);
+}
+.uprow.done .up-status {
+  color: var(--brand-dark);
+}
+.regform .field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 13px;
+  font-size: 14.5px;
+  font-family: var(--body);
+  background: var(--white);
+  resize: vertical;
+  outline: none;
+}
+.regform .field textarea:focus {
+  border-color: var(--brand);
+}
+.regform .field input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.ferr,
+.formmsg {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--danger);
+}
+.formmsg {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+}
+.regform .field .fieldlab {
+  margin-bottom: 8px;
+}
+.regform .pickedfiles {
+  margin: 0 0 10px;
+}
+.vertbl td {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.crumbs {
+  margin: -6px 0 12px;
+  font-size: 13px;
+}
+.crumbs a {
+  color: var(--ink-2);
+}
+.crumbs a:hover {
+  color: var(--ink);
+}
+.cardhd .rowacts {
+  flex: 0 1 auto;
+}
+.docfacts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 22px;
+  padding: 16px 18px;
+  margin: 0;
+}
+.docfacts .wide {
+  grid-column: span 2;
+}
+.docfacts dt {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 5px;
+}
+.docfacts dd {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.docfacts a {
+  color: var(--brand-dark);
+}
+.filedrop {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--paper-2);
+}
+.addas {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.addas .fieldlab {
+  margin: 0 6px 0 0;
+}
+.addas button {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--ink-2);
+}
+.addas button.on {
+  background: var(--brand-tint);
+  border-color: var(--brand);
+  color: var(--brand-dark);
+}
+.clearup {
+  margin-top: 10px;
+}
+@media (max-width: 1100px) {
+  .docfacts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.up-status a {
+  color: var(--brand-dark);
+}
+
+/* 18. AI review queue (`/admin/review`; the mock has the card and its `.review-item` rows): the
+      page fills the admin body — the card with the progress header (reviewed / total, Publish,
+      rollback, the data version on the map) and the filters, then three panes that scroll on
+      their own: the queue (the mock's rows, the selected one tinted), the item (value, AI value
+      struck through once amended, facts, decision, editors) and the cited page (`PdfPageView`
+      on the source viewer's styles). Hints and refusals are ink / gold, never red. */
+.rvscreen {
+  height: 100%;
+  min-height: 640px;
+  display: flex;
+  flex-direction: column;
+}
+.rvscreen > .card.rvcard {
+  flex: 0 0 auto;
+  margin-bottom: 14px;
+}
+.rvsplit {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(300px, 340px) minmax(320px, 390px) minmax(0, 1fr);
+  gap: 14px;
+}
+.rvsplit > .card {
+  margin: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rvlist-items {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.rvlist .review-item {
+  cursor: pointer;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+}
+.rvlist .review-item:first-child {
+  border-top: 0;
+}
+.rvlist .review-item:hover {
+  background: var(--paper);
+}
+.rvlist .review-item.sel {
+  background: var(--brand-tint);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.rvlist .review-item .rq {
+  font-size: 13.5px;
+  line-height: 1.3;
+}
+.rvlist .review-item.done .rq {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.rvlist .review-item .rsrc {
+  font-size: 11.5px;
+}
+.review-item .rvright {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex: 0 0 auto;
+  max-width: 46%;
+}
+.review-item .rvright .rextract {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rextract.rrejected {
+  text-decoration: line-through;
+  color: var(--ink-3);
+  background: var(--paper-2);
+}
+.rflag {
+  color: var(--paid);
+}
+.rvmore {
+  display: block;
+  margin: 12px auto;
+}
+.rvkeys {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.rvitem {
+  overflow-y: auto;
+}
+.rdetail {
+  padding: 16px 18px 18px;
+}
+.reyebrow {
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.rtitle {
+  font-family: var(--disp);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 6px 0 12px;
+}
+.rvalues {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.rvalues .rextract {
+  font-size: 18px;
+  padding: 6px 12px;
+}
+.rai {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.rai s {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--ink-3);
+}
+.rlab {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.rarrow {
+  color: var(--ink-3);
+}
+.rlow {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--paid);
+}
+.rlast {
+  margin-top: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.rnoteline {
+  display: block;
+  margin-top: 3px;
+  font-style: italic;
+}
+.racts {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0 4px;
+}
+.rkbd {
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  opacity: 0.75;
+}
+.reditor {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rrow {
+  display: flex;
+  gap: 8px;
+}
+.rinput,
+.runit {
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.rinput {
+  flex: 1;
+  min-width: 0;
+}
+textarea.rinput {
+  height: auto;
+  padding: 8px 10px;
+  font-family: var(--body);
+  font-size: 13.5px;
+  resize: vertical;
+}
+.rinput:focus,
+.runit:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+.rmsg {
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--paid-tint);
+  color: var(--ink);
+  font-size: 12.5px;
+}
+.rbtns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rkeys {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.rhint {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.rclosed {
+  margin: 14px 0 4px;
+}
+.rlink {
+  align-self: flex-start;
+  font-size: 12.5px;
+  color: var(--brand-dark);
+  text-decoration: underline;
+}
+.rbulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.rfacts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--paper-2);
+}
+.rfact.wide {
+  grid-column: 1 / -1;
+}
+.rfact dt {
+  margin-bottom: 3px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.rfact dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.rsub {
+  color: var(--ink-2);
+}
+.rraw {
+  display: block;
+  padding: 6px 9px;
+  border-left: 3px solid var(--brand);
+  border-radius: 0 8px 8px 0;
+  background: var(--paper);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  quotes: none;
+}
+.rhistory {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.rhnote {
+  color: var(--ink-2);
+}
+.rvpdf {
+  overflow: hidden;
+}
+.rvpdf .srctools {
+  padding: 8px 12px;
+  flex-wrap: wrap;
+}
+.rvpdf .srcpage {
+  padding: 12px;
+}
+.srcfit {
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+}
+.srcfit:hover:not(:disabled) {
+  color: var(--brand-dark);
+}
+.srcbtn.srccited {
+  font-size: 12px;
+  font-weight: 600;
+}
+.rprogress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--paper-2);
+}
+.rprog-count {
+  font-size: 13.5px;
+}
+.rbar {
+  max-width: 520px;
+  height: 6px;
+  margin: 6px 0 4px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--paper-2);
+}
+.rbar i {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+  transition: width 0.2s;
+}
+.rprog-chips {
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.rprog-publish {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.rconfirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.rprog-status {
+  grid-column: 1 / -1;
+  font-size: 12.5px;
+}
+.rvfilters .rvpage {
+  width: 70px;
+}
+@media (max-width: 1100px) {
+  .rvscreen {
+    height: auto;
+  }
+  .rvsplit {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+  .rvsplit > .card {
+    max-height: 70vh;
+  }
+  .rvsplit > .rvpdf {
+    grid-column: 1 / -1;
+    height: 75vh;
+    max-height: none;
+  }
+}

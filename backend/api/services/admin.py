@@ -17,6 +17,15 @@ registration with ``replaces_document_id`` retires that current version (``is_cu
 false``, its coverage taken offline) and inserts version n+1 in the same lineage, copying the
 previous coverage geometry so the geometry job can replace it. Previous versions stay, and the
 values that cite them stay with them.
+
+Files of a version (``planning_document_files``, migration 0022): a version has any number of
+stored files, each with a role (``text`` = read by the extraction job, ``drawing`` = by the
+geometry job, ``both``), and each file is extracted by its own run. ``planning_documents.file_id``
+stays the primary file (the first text / both PDF) for the document-level source viewer route and
+the page images. Files are added to the current version and removed from it until an item read
+from them is approved (removal supersedes the file's open items). ``DocumentOut.state`` says where
+the version stands: no_files, processing, ready_for_review, failed, published, reviewed,
+not_extracted.
 """
 
 from __future__ import annotations
@@ -28,7 +37,7 @@ import mimetypes
 import os
 import re
 import unicodedata
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
@@ -42,14 +51,19 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.concurrency import run_in_threadpool
 
 from api.schemas.admin import (
+    DocumentFileIn,
+    DocumentFileOut,
     DocumentIn,
     DocumentList,
     DocumentOut,
     ExtractionRunOut,
     FileKind,
     FileList,
+    FileRole,
     FileSummary,
+    ItemCounts,
     JobOut,
+    JobStateFilter,
     ReviewSummary,
     StoredFileOut,
     UploadResult,
@@ -234,8 +248,9 @@ def _file_sql(extra: str) -> str:
            f.uploaded_by, f.uploaded_at, f.preprocess -> 'summary' AS preprocessing,
            (SELECT {RUN_JSON} FROM extraction_runs r WHERE r.file_id = f.id
             ORDER BY r.id DESC LIMIT 1) AS extraction,
-           COALESCE((SELECT jsonb_agg(d.id ORDER BY d.id) FROM planning_documents d
-                     WHERE d.file_id = f.id), '[]'::jsonb) AS document_ids,
+           COALESCE((SELECT jsonb_agg(pf.document_id ORDER BY pf.document_id)
+                     FROM planning_document_files pf WHERE pf.file_id = f.id),
+                    '[]'::jsonb) AS document_ids,
            COALESCE((SELECT jsonb_agg({_JOB_JSON} ORDER BY j.requested_at DESC, j.id DESC)
                      FROM (SELECT * FROM pipeline_jobs p WHERE p.file_id = f.id
                            ORDER BY p.requested_at DESC, p.id DESC LIMIT :jobs_limit) j),
@@ -245,6 +260,106 @@ def _file_sql(extra: str) -> str:
     ORDER BY f.uploaded_at DESC, f.id DESC
     LIMIT :limit OFFSET :offset
     """
+
+
+# The extraction state of one file of a version, from its latest run (``lr``) and that run's job
+# (``xj``): the job decides while it exists (a manual retry re-queues a failed run's job; a job
+# whose message never reached the broker failed while its run still says queued).
+_EXTRACTION_STATE = """CASE WHEN lr.status IS NULL THEN 'none'
+             WHEN lr.status = 'ready_for_review' THEN 'ready_for_review'
+             WHEN xj.status = 'retrying' THEN 'retrying'
+             WHEN xj.status = 'queued' THEN 'queued'
+             WHEN xj.status = 'running' THEN 'extracting'
+             WHEN xj.status IN ('failed', 'cancelled') THEN 'failed'
+             ELSE lr.status END"""
+_ACTIVE_EXTRACTION = ("queued", "extracting", "retrying")
+
+# One row per document version: its files in display order, each with its latest extraction run
+# over this version (and the run's job), its latest geometry job, the review items read from it
+# and the served values citing it; plus the flags the document state is made of.
+_FILES_SQL = f"""
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+               'file_id', pf.file_id, 'role', pf.role, 'position', pf.position,
+               'is_primary', COALESCE(pf.file_id = d.file_id, false),
+               'kind', sf.kind, 'original_filename', sf.original_filename,
+               'mime_type', sf.mime_type, 'size_bytes', sf.size_bytes, 'sha256', sf.sha256,
+               'page_count', sf.page_count, 'uploaded_at', sf.uploaded_at,
+               'added_by', pf.added_by, 'added_at', pf.added_at,
+               'preprocessing', sf.preprocess -> 'summary',
+               'extraction_state', xs.state,
+               'extraction', (SELECT {RUN_JSON} FROM extraction_runs r WHERE r.id = lr.id),
+               'extraction_job', (SELECT {_JOB_JSON} FROM pipeline_jobs j WHERE j.id = xj.id),
+               'geometry_job', (SELECT {_JOB_JSON} FROM pipeline_jobs j WHERE j.id = gj.id),
+               'items', jsonb_build_object(
+                   'pending', ic.pending, 'approved', ic.approved, 'amended', ic.amended,
+                   'rejected', ic.rejected, 'published', ic.published, 'total', ic.total),
+               'values_cited', pv.n)
+             ORDER BY pf.position, pf.id), '[]'::jsonb) AS files,
+           count(pf.id) AS file_count,
+           COALESCE(bool_or(xs.state IN ('queued', 'extracting', 'retrying')), false)
+               AS extracting,
+           COALESCE(bool_or(xs.state = 'failed'), false) AS extraction_failed,
+           COALESCE(bool_or(xs.state = 'ready_for_review'), false) AS extraction_ready,
+           array_remove(array_agg(xj.status) || array_agg(gj.status), NULL) AS job_states
+    FROM planning_document_files pf
+    JOIN stored_files sf ON sf.id = pf.file_id
+    LEFT JOIN LATERAL (
+        SELECT r.id, r.status, r.job_id FROM extraction_runs r
+        WHERE r.municipality_id = d.municipality_id AND r.document_id = d.id
+          AND r.file_id = pf.file_id
+        ORDER BY r.id DESC LIMIT 1) lr ON true
+    LEFT JOIN pipeline_jobs xj ON xj.id = lr.job_id
+    CROSS JOIN LATERAL (SELECT {_EXTRACTION_STATE} AS state) xs
+    LEFT JOIN LATERAL (
+        SELECT g.id, g.status FROM pipeline_jobs g
+        WHERE g.municipality_id = d.municipality_id AND g.file_id = pf.file_id
+          AND g.type = 'process_geometry'
+        ORDER BY g.requested_at DESC, g.id DESC LIMIT 1) gj ON true
+    CROSS JOIN LATERAL (
+        SELECT count(*) FILTER (WHERE e.review_state = 'pending_review') AS pending,
+               count(*) FILTER (WHERE e.review_state = 'approved') AS approved,
+               count(*) FILTER (WHERE e.review_state = 'amended') AS amended,
+               count(*) FILTER (WHERE e.review_state = 'rejected') AS rejected,
+               count(*) FILTER (WHERE e.published_value_id IS NOT NULL) AS published,
+               count(*) AS total
+        FROM planning_parameter_extractions e
+        JOIN extraction_runs er ON er.id = e.run_id
+        WHERE e.document_id = d.id AND er.file_id = pf.file_id
+          AND e.superseded_at IS NULL) ic
+    CROSS JOIN LATERAL (
+        SELECT count(*) AS n FROM planning_parameter_values v
+        WHERE v.document_id = d.id AND v.source_file_id = pf.file_id) pv
+    WHERE pf.document_id = d.id
+"""
+_REVIEW_SQL = """
+    SELECT count(*) FILTER (WHERE e.review_state = 'pending_review') AS pending,
+           count(*) FILTER (WHERE e.review_state = 'approved') AS approved,
+           count(*) FILTER (WHERE e.review_state = 'amended') AS amended,
+           count(*) FILTER (WHERE e.review_state = 'rejected') AS rejected,
+           count(*) AS total,
+           count(*) FILTER (WHERE e.review_state IN ('approved', 'amended')
+                            AND e.published_value_id IS NULL) AS unpublished
+    FROM planning_parameter_extractions e
+    WHERE e.document_id = d.id AND e.superseded_at IS NULL
+"""
+# First match wins (the DocumentState vocabulary in api.schemas.admin).
+_STATE_SQL = """
+    SELECT CASE WHEN fa.file_count = 0 THEN 'no_files'
+                WHEN fa.extracting THEN 'processing'
+                WHEN rv.pending > 0 THEN 'ready_for_review'
+                WHEN fa.extraction_failed THEN 'failed'
+                WHEN rv.approved + rv.amended > 0 AND rv.unpublished = 0 THEN 'published'
+                WHEN rv.total > 0 THEN 'reviewed'
+                WHEN fa.extraction_ready THEN 'ready_for_review'
+                ELSE 'not_extracted' END AS state
+"""
+# The per-file job filter: the latest extraction and geometry job statuses of any file.
+JOB_STATE_FILTERS: dict[str, tuple[str, ...]] = {
+    "queued": ("queued",),
+    "running": ("running", "retrying"),
+    "succeeded": ("succeeded",),
+    "failed": ("failed", "cancelled"),
+}
 
 
 def _document_sql(extra: str) -> str:
@@ -266,8 +381,11 @@ def _document_sql(extra: str) -> str:
             ORDER BY r.id DESC LIMIT 1) AS extraction,
            COALESCE((SELECT jsonb_agg(jsonb_build_object(
                          'id', v.id, 'version', v.version, 'status', v.status::text,
-                         'is_current_version', v.is_current_version,
-                         'registered_at', v.registered_at) ORDER BY v.version, v.id)
+                         'is_current_version', v.is_current_version, 'name', v.name,
+                         'registered_by', v.registered_by, 'registered_at', v.registered_at,
+                         'file_count', (SELECT count(*) FROM planning_document_files vf
+                                        WHERE vf.document_id = v.id))
+                         ORDER BY v.version, v.id)
                      FROM planning_documents v
                      WHERE COALESCE(v.lineage_id, v.id) = COALESCE(d.lineage_id, d.id)),
                     '[]'::jsonb) AS versions,
@@ -275,17 +393,16 @@ def _document_sql(extra: str) -> str:
                      FROM (SELECT * FROM pipeline_jobs p WHERE p.document_id = d.id
                            ORDER BY p.requested_at DESC, p.id DESC LIMIT :jobs_limit) j),
                     '[]'::jsonb) AS jobs,
-           (SELECT jsonb_build_object(
-                'pending', count(*) FILTER (WHERE e.review_state = 'pending_review'),
-                'approved', count(*) FILTER (WHERE e.review_state = 'approved'),
-                'amended', count(*) FILTER (WHERE e.review_state = 'amended'),
-                'rejected', count(*) FILTER (WHERE e.review_state = 'rejected'),
-                'total', count(*))
-            FROM planning_parameter_extractions e
-            WHERE e.document_id = d.id AND e.superseded_at IS NULL) AS review
+           jsonb_build_object('pending', rv.pending, 'approved', rv.approved,
+                              'amended', rv.amended, 'rejected', rv.rejected,
+                              'total', rv.total) AS review,
+           fa.files, st.state, count(*) OVER () AS total
     FROM planning_documents d
     LEFT JOIN zones z ON z.id = d.zone_id
     LEFT JOIN stored_files f ON f.id = d.file_id
+    CROSS JOIN LATERAL ({_REVIEW_SQL}) rv
+    CROSS JOIN LATERAL ({_FILES_SQL}) fa
+    CROSS JOIN LATERAL ({_STATE_SQL}) st
     WHERE d.municipality_id = :m {extra}
     ORDER BY d.registered_at DESC NULLS LAST, d.id DESC
     LIMIT :limit OFFSET :offset
@@ -356,9 +473,93 @@ INSERT_DOCUMENT_SQL = text(
 )
 SET_LINEAGE_SQL = text("UPDATE planning_documents SET lineage_id = id WHERE id = :id")
 DOCUMENT_FOR_JOB_SQL = text(
-    "SELECT d.id, d.file_id, f.sha256 FROM planning_documents d "
-    "LEFT JOIN stored_files f ON f.id = d.file_id "
-    "WHERE d.id = :id AND d.municipality_id = :m"
+    """
+    SELECT d.id, d.file_id AS primary_file_id, pf.file_id, pf.role, sf.sha256, sf.kind
+    FROM planning_documents d
+    LEFT JOIN planning_document_files pf ON pf.document_id = d.id
+    LEFT JOIN stored_files sf ON sf.id = pf.file_id
+    WHERE d.id = :id AND d.municipality_id = :m
+    ORDER BY pf.position, pf.id
+    """
+)
+DOCUMENT_LOCK_SQL = text(
+    "SELECT id, is_current_version FROM planning_documents "
+    "WHERE id = :id AND municipality_id = :m FOR UPDATE"
+)
+DOCUMENT_FILES_SQL = text(
+    """
+    SELECT pf.file_id, pf.role, sf.kind, sf.object_key, sf.page_count
+    FROM planning_document_files pf JOIN stored_files sf ON sf.id = pf.file_id
+    WHERE pf.document_id = :id
+    ORDER BY pf.position, pf.id
+    """
+)
+NEXT_POSITION_SQL = text(
+    "SELECT COALESCE(max(position) + 1, 0) FROM planning_document_files WHERE document_id = :id"
+)
+INSERT_LINK_SQL = text(
+    """
+    INSERT INTO planning_document_files (municipality_id, document_id, file_id, role, position,
+                                         added_by, added_by_user_id, added_at)
+    VALUES (:m, :document_id, :file_id, :role, :position, :added_by, :added_by_user_id, :at)
+    ON CONFLICT (document_id, file_id) DO NOTHING
+    RETURNING file_id
+    """
+)
+LINK_SQL = text(
+    """
+    SELECT pf.role, sf.kind FROM planning_document_files pf
+    JOIN stored_files sf ON sf.id = pf.file_id
+    WHERE pf.document_id = :document_id AND pf.file_id = :file_id
+    FOR UPDATE OF pf
+    """
+)
+SET_ROLE_SQL = text(
+    "UPDATE planning_document_files SET role = :role "
+    "WHERE document_id = :document_id AND file_id = :file_id"
+)
+DELETE_LINK_SQL = text(
+    "DELETE FROM planning_document_files WHERE document_id = :document_id AND file_id = :file_id"
+)
+# The version's primary file follows its files (the first text / both PDF); page images were
+# rendered for the previous one, so they are no longer served.
+SET_PRIMARY_SQL = text(
+    """
+    UPDATE planning_documents
+    SET file_id = CAST(:file_id AS bigint), file_key = CAST(:file_key AS text),
+        page_count = CAST(:page_count AS integer), page_images_rendered = false
+    WHERE id = :id AND file_id IS DISTINCT FROM CAST(:file_id AS bigint)
+    """
+)
+# Why a file cannot leave its version: items read from it were accepted, served values cite it,
+# or its extraction is still running.
+DETACH_STATE_SQL = text(
+    f"""
+    SELECT
+      (SELECT count(*) FROM planning_parameter_extractions e
+       JOIN extraction_runs r ON r.id = e.run_id
+       WHERE e.document_id = :document_id AND r.file_id = :file_id
+         AND e.superseded_at IS NULL
+         AND (e.review_state IN ('approved', 'amended') OR e.published_value_id IS NOT NULL))
+          AS accepted,
+      (SELECT count(*) FROM planning_parameter_values v
+       WHERE v.document_id = :document_id AND v.source_file_id = :file_id) AS cited,
+      EXISTS (SELECT 1 FROM (SELECT r.status, r.job_id FROM extraction_runs r
+                             WHERE r.document_id = :document_id AND r.file_id = :file_id
+                             ORDER BY r.id DESC LIMIT 1) lr
+              LEFT JOIN pipeline_jobs xj ON xj.id = lr.job_id
+              WHERE ({_EXTRACTION_STATE}) IN ('queued', 'extracting', 'retrying')) AS active
+    """
+)
+SUPERSEDE_FILE_ITEMS_SQL = text(
+    """
+    UPDATE planning_parameter_extractions e
+    SET superseded_at = :at
+    FROM extraction_runs r
+    WHERE r.id = e.run_id AND e.document_id = :document_id AND r.file_id = :file_id
+      AND e.superseded_at IS NULL AND e.published_value_id IS NULL
+    RETURNING e.id
+    """
 )
 JOB_SQL = text(
     """
@@ -458,6 +659,8 @@ def _document_out(row: Mapping[str, Any]) -> DocumentOut:
         adopted_on=row["adopted_on"],
         file=FileSummary(**row["file"]) if row["file"] else None,
         page_count=row["page_count"],
+        files=[_document_file_out(f) for f in row.get("files") or []],
+        state=row.get("state") or "no_files",
         has_coverage=bool(row["has_coverage"]),
         coverage_live=bool(row["coverage_live"]),
         coverage_live_changed_at=row["coverage_live_changed_at"],
@@ -471,6 +674,122 @@ def _document_out(row: Mapping[str, Any]) -> DocumentOut:
         preprocessing=_preprocessing(row.get("preprocessing")),
         extraction=_extraction(row.get("extraction")),
     )
+
+
+def _document_file_out(raw: Mapping[str, Any]) -> DocumentFileOut:
+    """One file of a version as the admin screens show it (``_FILES_SQL``)."""
+    counts = raw.get("items") or {}
+    items = ItemCounts(**{k: int(counts.get(k) or 0) for k in ItemCounts.model_fields})
+    extraction = _extraction(raw.get("extraction"))
+    extraction_job = _job_out(raw["extraction_job"]) if raw.get("extraction_job") else None
+    geometry_job = _job_out(raw["geometry_job"]) if raw.get("geometry_job") else None
+    state = raw.get("extraction_state") or "none"
+    if items.approved or items.amended or items.published:
+        blocker: str | None = "items_accepted"
+    elif int(raw.get("values_cited") or 0):
+        blocker = "values_published"
+    elif state in _ACTIVE_EXTRACTION:
+        blocker = "extraction_active"
+    else:
+        blocker = None
+    error = None
+    if state == "failed":
+        error = (extraction.error if extraction else None) or (
+            extraction_job.error if extraction_job else None
+        )
+    preprocessing = _preprocessing(raw.get("preprocessing"))
+    return DocumentFileOut(
+        file_id=raw["file_id"],
+        role=raw["role"],
+        position=raw["position"],
+        is_primary=bool(raw.get("is_primary")),
+        kind=raw["kind"],
+        original_filename=raw["original_filename"],
+        mime_type=raw["mime_type"],
+        size_bytes=raw["size_bytes"],
+        sha256=raw["sha256"],
+        page_count=raw.get("page_count"),
+        scanned_pages=list(preprocessing.scanned_pages) if preprocessing else None,
+        uploaded_at=raw["uploaded_at"],
+        added_by=raw.get("added_by"),
+        added_at=raw["added_at"],
+        preprocessing=preprocessing,
+        extraction_state=state,
+        extraction_error=error,
+        extraction=extraction,
+        extraction_job=extraction_job,
+        geometry_job=geometry_job,
+        items=items,
+        can_remove=blocker is None,
+        remove_blocker=blocker,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _DocFile:
+    """A stored file on its way onto a version (checked by ``AdminService._checked_files``)."""
+
+    file_id: int
+    role: str
+    kind: str
+    object_key: str | None
+    page_count: int | None
+
+
+def _primary(files: Sequence[_DocFile]) -> _DocFile | None:
+    """The version's primary file: the first text / both PDF, else the first PDF."""
+    pdfs = [f for f in files if f.kind == FileKind.planning_document.value]
+    return next((f for f in pdfs if f.role != "drawing"), pdfs[0] if pdfs else None)
+
+
+def _extraction_file(
+    document_id: int, rows: Sequence[Mapping[str, Any]], file_id: int | None
+) -> Mapping[str, Any]:
+    """The file an extraction reads: the one asked for (a PDF of the version that is not a
+    drawing), or by default the primary file when it is read as text, else the first text / both
+    PDF."""
+    details: dict[str, Any] = {"document_id": document_id}
+    files = [r for r in rows if r["file_id"] is not None]
+    if file_id is None:
+        readable = [
+            r
+            for r in files
+            if r["kind"] == FileKind.planning_document.value and r["role"] != "drawing"
+        ]
+        primary = rows[0]["primary_file_id"]
+        chosen = next((r for r in readable if r["file_id"] == primary), None) or next(
+            iter(readable), None
+        )
+        if chosen is None:
+            raise ConflictError(
+                "The document has no file to extract; upload the PDF and add it to the document "
+                "first",
+                details={**details, "reason": "no_file"},
+            )
+        return chosen
+    details["file_id"] = file_id
+    chosen = next((r for r in files if r["file_id"] == file_id), None)
+    if chosen is None:
+        raise NotFoundError(
+            f"File {file_id} is not a file of document {document_id}", details=details
+        )
+    if chosen["kind"] != FileKind.planning_document.value:
+        raise ConflictError(
+            "Only PDFs are extracted; a GIS file goes to the geometry job",
+            details={**details, "reason": "not_a_pdf"},
+        )
+    if chosen["role"] == "drawing":
+        raise ConflictError(
+            "The file is a drawing (read by the geometry job); set its role to text or both to "
+            "extract it",
+            details={**details, "reason": "drawing_file"},
+        )
+    return chosen
+
+
+def _like(term: str) -> str:
+    escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
 
 
 def _review_summary(raw: Mapping[str, Any] | None) -> ReviewSummary:
@@ -669,21 +988,9 @@ class AdminService:
                         "msg": f"type must be one of {', '.join(sorted(known_types))}",
                     }
                 )
-            file_row = (
-                (await session.execute(FILE_REF_SQL, {"m": m, "id": payload.file_id}))
-                .mappings()
-                .first()
+            files = await self._checked_files(
+                session, payload.files, problems, legacy_file_id=payload.file_id
             )
-            if file_row is None:
-                problems.append({"loc": ["body", "file_id"], "msg": "no such stored file"})
-            elif file_row["kind"] != FileKind.planning_document.value:
-                problems.append(
-                    {
-                        "loc": ["body", "file_id"],
-                        "msg": f"the file is a {file_row['kind']}; a planning_document PDF "
-                        "is required",
-                    }
-                )
             if payload.zone_id is not None and not await self._exists(
                 session, ZONE_EXISTS_SQL, payload.zone_id
             ):
@@ -721,6 +1028,7 @@ class AdminService:
             if problems:
                 raise _validation_error(problems)
 
+            primary = _primary(files)
             now = self.clock()
             if previous is not None:
                 await session.execute(
@@ -741,9 +1049,9 @@ class AdminService:
                         else (previous["zone_id"] if previous is not None else None),
                         "amends_document_id": payload.amends_document_id,
                         "previous_id": previous["id"] if previous is not None else None,
-                        "file_id": file_row["id"],
-                        "file_key": file_row["object_key"],
-                        "page_count": file_row["page_count"],
+                        "file_id": primary.file_id if primary is not None else None,
+                        "file_key": primary.object_key if primary is not None else None,
+                        "page_count": primary.page_count if primary is not None else None,
                         "lineage_id": previous["lineage_id"] if previous is not None else None,
                         "version": (previous["version"] + 1) if previous is not None else 1,
                         "licence_note": payload.licence_note,
@@ -755,6 +1063,7 @@ class AdminService:
             ).scalar_one()
             if previous is None:
                 await session.execute(SET_LINEAGE_SQL, {"id": new_id})
+            await self._link_files(session, principal, int(new_id), files, now)
             await self._audit(
                 session,
                 principal,
@@ -765,7 +1074,8 @@ class AdminService:
                     "name": payload.name.strip(),
                     "type": doc_type,
                     "status": payload.status,
-                    "file_id": file_row["id"],
+                    "file_id": primary.file_id if primary is not None else None,
+                    "files": [{"file_id": f.file_id, "role": f.role} for f in files],
                     "version": (previous["version"] + 1) if previous is not None else 1,
                     "replaces_document_id": previous["id"] if previous is not None else None,
                 },
@@ -802,6 +1112,10 @@ class AdminService:
         status: str | None = None,
         lineage_id: int | None = None,
         include_previous: bool = False,
+        zone_id: int | None = None,
+        state: str | None = None,
+        job_state: JobStateFilter | None = None,
+        q: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> DocumentList:
@@ -820,13 +1134,30 @@ class AdminService:
             params["lineage_id"] = lineage_id
         if not include_previous:
             clauses.append("AND d.is_current_version")
+        if zone_id is not None:
+            clauses.append("AND d.zone_id = :zone_id")
+            params["zone_id"] = zone_id
+        if state is not None:
+            clauses.append("AND st.state = :state")
+            params["state"] = state
+        if job_state is not None:
+            clauses.append("AND fa.job_states && CAST(:job_states AS text[])")
+            params["job_states"] = list(JOB_STATE_FILTERS[job_state])
+        if q is not None and q.strip():
+            clauses.append("AND d.name ILIKE :q ESCAPE '\\'")
+            params["q"] = _like(q.strip())
         async with self.session_factory() as session:
             rows = (
                 (await session.execute(text(_document_sql(" ".join(clauses))), params))
                 .mappings()
                 .all()
             )
-        return DocumentList(items=[_document_out(r) for r in rows], limit=limit, offset=offset)
+        return DocumentList(
+            items=[_document_out(r) for r in rows],
+            total=int(rows[0]["total"]) if rows else 0,
+            limit=limit,
+            offset=offset,
+        )
 
     async def set_coverage_live(
         self, principal: Principal, document_id: int, live: bool
@@ -873,44 +1204,295 @@ class AdminService:
             await session.commit()
         return await self.get_document(document_id)
 
+    # --- files of a version -----------------------------------------------------------------------
+
+    async def attach_files(
+        self, principal: Principal, document_id: int, entries: Sequence[DocumentFileIn]
+    ) -> tuple[DocumentOut, list[int]]:
+        """Put stored files on the current version of a document. Idempotent: a file already on
+        it stays as it is (role included); the ids actually added come back with the document."""
+        async with self.session_factory() as session:
+            await self._lock_current(session, document_id)
+            problems: list[dict[str, Any]] = []
+            files = await self._checked_files(session, entries, problems)
+            if problems:
+                raise _validation_error(problems)
+            added = await self._link_files(session, principal, document_id, files, self.clock())
+            if added:
+                await self._sync_primary(session, document_id)
+                await self._audit(
+                    session,
+                    principal,
+                    "document.file_attach",
+                    "planning_document",
+                    document_id,
+                    {
+                        "files": [
+                            {"file_id": f.file_id, "role": f.role}
+                            for f in files
+                            if f.file_id in added
+                        ]
+                    },
+                )
+            await session.commit()
+        return await self.get_document(document_id), added
+
+    async def set_file_role(
+        self, principal: Principal, document_id: int, file_id: int, role: FileRole
+    ) -> DocumentOut:
+        """What a file of the current version is read for: text, drawing or both."""
+        async with self.session_factory() as session:
+            await self._lock_current(session, document_id)
+            link = await self._link(session, document_id, file_id)
+            if link["kind"] == FileKind.gis.value and role != "drawing":
+                raise _validation_error(
+                    [
+                        {
+                            "loc": ["body", "role"],
+                            "msg": "a GIS file is read by the geometry job only: its role must "
+                            "be drawing",
+                        }
+                    ]
+                )
+            if link["role"] != role:
+                await session.execute(
+                    SET_ROLE_SQL, {"document_id": document_id, "file_id": file_id, "role": role}
+                )
+                await self._sync_primary(session, document_id)
+                await self._audit(
+                    session,
+                    principal,
+                    "document.file_role",
+                    "planning_document",
+                    document_id,
+                    {"file_id": file_id},
+                    before={"role": link["role"]},
+                    after={"role": role},
+                )
+            await session.commit()
+        return await self.get_document(document_id)
+
+    async def detach_file(
+        self, principal: Principal, document_id: int, file_id: int
+    ) -> DocumentOut:
+        """Take a file off the current version. Refused (409) once an item read from it was
+        approved or amended, while served values cite it and while its extraction runs; its
+        other open items are superseded (they leave the review queue). The stored file stays."""
+        async with self.session_factory() as session:
+            await self._lock_current(session, document_id)
+            link = await self._link(session, document_id, file_id)
+            params = {"document_id": document_id, "file_id": file_id}
+            state = (await session.execute(DETACH_STATE_SQL, params)).mappings().one()
+            details = {"document_id": document_id, "file_id": file_id}
+            if state["accepted"]:
+                raise ConflictError(
+                    "Items read from this file were approved; it can no longer be removed",
+                    details={**details, "reason": "items_accepted", "items": state["accepted"]},
+                )
+            if state["cited"]:
+                raise ConflictError(
+                    "Published values cite this file; it can no longer be removed",
+                    details={**details, "reason": "values_published", "values": state["cited"]},
+                )
+            if state["active"]:
+                raise ConflictError(
+                    "The file is being extracted; remove it once the job has finished",
+                    details={**details, "reason": "extraction_active"},
+                )
+            superseded = (
+                await session.execute(SUPERSEDE_FILE_ITEMS_SQL, {**params, "at": self.clock()})
+            ).all()
+            await session.execute(DELETE_LINK_SQL, params)
+            await self._sync_primary(session, document_id)
+            await self._audit(
+                session,
+                principal,
+                "document.file_detach",
+                "planning_document",
+                document_id,
+                {"file_id": file_id, "role": link["role"], "items_superseded": len(superseded)},
+            )
+            await session.commit()
+        return await self.get_document(document_id)
+
+    async def _lock_current(self, session: AsyncSession, document_id: int) -> None:
+        row = (
+            (
+                await session.execute(
+                    DOCUMENT_LOCK_SQL, {"m": self.municipality_id, "id": document_id}
+                )
+            )
+            .mappings()
+            .first()
+        )
+        if row is None:
+            raise NotFoundError(
+                f"No planning document with id {document_id}",
+                details={"document_id": document_id},
+            )
+        if not row["is_current_version"]:
+            raise ConflictError(
+                "Only the current version of a document takes file changes",
+                details={"document_id": document_id, "reason": "not_current_version"},
+            )
+
+    async def _link(
+        self, session: AsyncSession, document_id: int, file_id: int
+    ) -> Mapping[str, Any]:
+        link = (
+            (await session.execute(LINK_SQL, {"document_id": document_id, "file_id": file_id}))
+            .mappings()
+            .first()
+        )
+        if link is None:
+            raise NotFoundError(
+                f"File {file_id} is not a file of document {document_id}",
+                details={"document_id": document_id, "file_id": file_id},
+            )
+        return link
+
+    async def _checked_files(
+        self,
+        session: AsyncSession,
+        entries: Sequence[DocumentFileIn],
+        problems: list[dict[str, Any]],
+        *,
+        legacy_file_id: int | None = None,
+    ) -> list[_DocFile]:
+        """The stored files to put on a version: planning-document PDFs in any role, GIS files as
+        drawings only. Problems are appended for the caller's 422 (``file_id`` of the single-file
+        form keeps its own location and wording)."""
+        checked: list[_DocFile] = []
+        for index, entry in enumerate(entries):
+            legacy = legacy_file_id is not None and entry.file_id == legacy_file_id
+            loc: list[Any] = ["body", "file_id"] if legacy else ["body", "files", index, "file_id"]
+            row = (
+                (
+                    await session.execute(
+                        FILE_REF_SQL, {"m": self.municipality_id, "id": entry.file_id}
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            if row is None:
+                problems.append({"loc": loc, "msg": "no such stored file"})
+                continue
+            kind = row["kind"]
+            if kind == FileKind.planning_document.value or (
+                kind == FileKind.gis.value and entry.role == "drawing"
+            ):
+                checked.append(
+                    _DocFile(int(row["id"]), entry.role, kind, row["object_key"], row["page_count"])
+                )
+            elif kind == FileKind.gis.value and not legacy:
+                problems.append(
+                    {
+                        "loc": ["body", "files", index, "role"],
+                        "msg": "a GIS file is read by the geometry job only: its role must be "
+                        "drawing",
+                    }
+                )
+            else:
+                problems.append(
+                    {
+                        "loc": loc,
+                        "msg": f"the file is a {kind}; a planning_document PDF is required "
+                        "(GIS files only as drawings)",
+                    }
+                )
+        return checked
+
+    async def _link_files(
+        self,
+        session: AsyncSession,
+        principal: Principal,
+        document_id: int,
+        files: Sequence[_DocFile],
+        at: datetime,
+    ) -> list[int]:
+        position = int((await session.execute(NEXT_POSITION_SQL, {"id": document_id})).scalar_one())
+        added: list[int] = []
+        for f in files:
+            new = (
+                await session.execute(
+                    INSERT_LINK_SQL,
+                    {
+                        "m": self.municipality_id,
+                        "document_id": document_id,
+                        "file_id": f.file_id,
+                        "role": f.role,
+                        "position": position,
+                        "added_by": principal.subject,
+                        "added_by_user_id": principal.user_id,
+                        "at": at,
+                    },
+                )
+            ).scalar_one_or_none()
+            if new is not None:
+                added.append(int(new))
+                position += 1
+        return added
+
+    async def _sync_primary(self, session: AsyncSession, document_id: int) -> None:
+        rows = (await session.execute(DOCUMENT_FILES_SQL, {"id": document_id})).mappings().all()
+        primary = _primary(
+            [
+                _DocFile(int(r["file_id"]), r["role"], r["kind"], r["object_key"], r["page_count"])
+                for r in rows
+            ]
+        )
+        await session.execute(
+            SET_PRIMARY_SQL,
+            {
+                "id": document_id,
+                "file_id": primary.file_id if primary is not None else None,
+                "file_key": primary.object_key if primary is not None else None,
+                "page_count": primary.page_count if primary is not None else None,
+            },
+        )
+
     # --- jobs ------------------------------------------------------------------------------------
 
     async def enqueue_extract(
-        self, principal: Principal, document_id: int, *, force: bool = False
+        self,
+        principal: Principal,
+        document_id: int,
+        *,
+        file_id: int | None = None,
+        force: bool = False,
     ) -> EnqueuedJob:
-        """Queue one extraction run of the document version's file. Idempotent: the run that
-        already read the same file with the same model, prompt and schema versions answers
-        (unless ``force``), and an identical job still queued / running is returned as it is."""
+        """Queue one extraction run over a file of the document version (default: its primary
+        text file). Idempotent: the run that already read the same file with the same model,
+        prompt and schema versions answers (unless ``force``), and an identical job still queued /
+        running is returned as it is."""
         async with self.session_factory() as session:
-            doc = (
+            rows = (
                 (
                     await session.execute(
                         DOCUMENT_FOR_JOB_SQL, {"m": self.municipality_id, "id": document_id}
                     )
                 )
                 .mappings()
-                .first()
+                .all()
             )
-            if doc is None:
+            if not rows:
                 raise NotFoundError(
                     f"No planning document with id {document_id}",
                     details={"document_id": document_id},
                 )
-            if doc["file_id"] is None:
-                raise ConflictError(
-                    "The document has no stored file; upload the PDF and register it first",
-                    details={"document_id": document_id, "reason": "no_file"},
-                )
+            chosen = _extraction_file(document_id, rows, file_id)
             if not force:
                 done = await reusable_run(
                     session,
                     municipality_id=self.municipality_id,
                     document_id=document_id,
-                    sha256=doc["sha256"],
+                    sha256=chosen["sha256"],
                     model=self.extraction_model,
                 )
                 if done is not None:
                     return EnqueuedJob(job=await self.get_job(int(done["job_id"])), created=False)
+        target_file = int(chosen["file_id"])
 
         async def create_run(session: AsyncSession, job_id: int) -> None:
             await insert_run(
@@ -919,6 +1501,7 @@ class AdminService:
                 document_id=document_id,
                 job_id=job_id,
                 model=self.extraction_model,
+                file_id=target_file,
             )
 
         return await self._enqueue(
@@ -926,10 +1509,11 @@ class AdminService:
             "extract_document",
             target_type="document",
             target_id=document_id,
-            payload={"document_id": document_id, "file_id": doc["file_id"]},
+            payload={"document_id": document_id, "file_id": target_file},
             document_id=document_id,
-            checksum=doc["sha256"],
-            key=run_dedupe_key(document_id, doc["sha256"], self.extraction_model),
+            file_id=target_file,
+            checksum=chosen["sha256"],
+            key=run_dedupe_key(document_id, chosen["sha256"], self.extraction_model),
             also_on_created=create_run,
         )
 

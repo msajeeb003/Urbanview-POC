@@ -153,6 +153,51 @@ class StoredFile(Base):
     )
 
 
+FILE_ROLES: tuple[str, ...] = ("text", "drawing", "both")
+
+
+class PlanningDocumentFile(Base):
+    """A stored file of a planning document version (migration 0022) and what it is read for:
+    ``text`` (the extraction job), ``drawing`` (the geometry job) or ``both``. Each file is
+    extracted on its own; ``planning_documents.file_id`` stays the version's primary file."""
+
+    __tablename__ = "planning_document_files"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    municipality_id: Mapped[str] = mapped_column(Text, nullable=False)
+    document_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("planning_documents.id", ondelete="CASCADE"), nullable=False
+    )
+    file_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("stored_files.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        server_default=text("'text'"),
+        comment="text (extraction) | drawing (geometry) | both",
+    )
+    position: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default=text("0"),
+        comment="display order within the version",
+    )
+    added_by: Mapped[str | None] = mapped_column(Text, comment="principal subject")
+    added_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("staff_users.id", ondelete="SET NULL")
+    )
+    added_at: Mapped[datetime] = _timestamp(nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('text', 'drawing', 'both')", name="ck_planning_document_files_role"
+        ),
+        Index("uq_planning_document_files_document_file", "document_id", "file_id", unique=True),
+        Index("ix_planning_document_files_file", "file_id"),
+    )
+
+
 class PipelineJob(Base):
     """One background job (``jobs/``): what to run, on what, its lifecycle and what it cost."""
 

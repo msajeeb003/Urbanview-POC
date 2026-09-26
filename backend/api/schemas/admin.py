@@ -11,6 +11,24 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from core.extraction.manifest import PreprocessSummary
 
 DocumentStatus = Literal["adopted", "in_progress", "superseded"]
+FileRole = Literal["text", "drawing", "both"]
+# Where a document stands in the pipeline (DocumentOut.state), first match wins: no file
+# attached; an extraction queued / running; items waiting for review; a file's latest extraction
+# failed; everything accepted is published; everything is decided; a finished run with nothing
+# to review yet; files never extracted.
+DocumentState = Literal[
+    "no_files",
+    "processing",
+    "ready_for_review",
+    "failed",
+    "published",
+    "reviewed",
+    "not_extracted",
+]
+# The per-file job filter of the documents list: the latest extraction / geometry job of a file.
+JobStateFilter = Literal["queued", "running", "succeeded", "failed"]
+# One file's extraction, from its latest run and that run's job (the job decides while it exists).
+ExtractionState = Literal["none", "queued", "extracting", "retrying", "ready_for_review", "failed"]
 JobKind = Literal["extract", "geo", "publish", "email"]
 JobType = Literal[
     "extract_document",
@@ -213,10 +231,51 @@ class FileSummary(BaseModel):
     uploaded_at: datetime
 
 
+class DocumentFileIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    file_id: int = Field(gt=0, description="A stored planning_document PDF (or a gis file)")
+    role: FileRole = Field(
+        default="text",
+        description="text = read by the extraction job, drawing = by the geometry job, both",
+    )
+
+
+class DocumentFilesIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    files: list[DocumentFileIn] = Field(min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def _distinct(self) -> DocumentFilesIn:
+        ids = [f.file_id for f in self.files]
+        if len(ids) != len(set(ids)):
+            raise ValueError("a file is listed more than once")
+        return self
+
+
+class DocumentFileRoleIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: FileRole
+
+
 class DocumentIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    file_id: int = Field(gt=0, description="A stored file of kind planning_document")
+    file_id: int | None = Field(
+        default=None,
+        gt=0,
+        description="Single-file form (kept for older clients): the same as files=[{file_id}]",
+    )
+    files: list[DocumentFileIn] = Field(
+        default_factory=list,
+        max_length=50,
+        description=(
+            "The version's files in display order; more can be attached later "
+            "(POST /v1/admin/documents/{id}/files). The first text / both PDF is the primary file"
+        ),
+    )
     name: str = Field(min_length=1, max_length=300)
     type: str = Field(
         min_length=1,
@@ -245,13 +304,26 @@ class DocumentIn(BaseModel):
             raise ValueError("adopted_on cannot be in the future")
         return value
 
+    @model_validator(mode="after")
+    def _one_file_list(self) -> DocumentIn:
+        """``file_id`` joins ``files`` (first, as a text file) unless it is listed there."""
+        if self.file_id is not None and all(f.file_id != self.file_id for f in self.files):
+            self.files = [DocumentFileIn(file_id=self.file_id, role="text"), *self.files]
+        ids = [f.file_id for f in self.files]
+        if len(ids) != len(set(ids)):
+            raise ValueError("a file is listed more than once")
+        return self
+
 
 class VersionRef(BaseModel):
     id: int
     version: int
     status: DocumentStatus
     is_current_version: bool
+    name: str | None = None
+    registered_by: str | None = None
     registered_at: datetime | None = None
+    file_count: int = 0
 
 
 class ReviewSummary(BaseModel):
@@ -264,6 +336,58 @@ class ReviewSummary(BaseModel):
     total: int
     can_publish: bool = Field(description="No pending items and at least one approved / amended")
     publish_blockers: list[str] = Field(default_factory=list)
+
+
+class ItemCounts(BaseModel):
+    """Review items read from one file of the document (not superseded)."""
+
+    pending: int = 0
+    approved: int = 0
+    amended: int = 0
+    rejected: int = 0
+    published: int = 0
+    total: int = 0
+
+
+class DocumentFileOut(BaseModel):
+    """One file of a document version with where it stands: its latest extraction run (and that
+    run's job), its latest geometry job, the review items read from it and whether it may be
+    removed (not once any of its items is approved, amended or published)."""
+
+    file_id: int
+    role: FileRole
+    position: int
+    is_primary: bool = Field(description="The version's primary file (planning_documents.file_id)")
+    kind: FileKind
+    original_filename: str
+    mime_type: str
+    size_bytes: int
+    sha256: str
+    page_count: int | None = None
+    scanned_pages: list[int] | None = Field(
+        default=None, description="From the PDF pre-processing; null until it has run"
+    )
+    uploaded_at: datetime
+    added_by: str | None = None
+    added_at: datetime
+    preprocessing: PreprocessSummary | None = None
+    extraction_state: ExtractionState = Field(
+        default="none",
+        description="none | queued | extracting | retrying | ready_for_review | failed",
+    )
+    extraction_error: str | None = Field(default=None, description="Why it failed")
+    extraction: ExtractionRunOut | None = Field(
+        default=None, description="The latest extraction run of this file for this version"
+    )
+    extraction_job: JobOut | None = Field(default=None, description="That run's job")
+    geometry_job: JobOut | None = Field(
+        default=None, description="The latest process_geometry job of the file"
+    )
+    items: ItemCounts = Field(default_factory=ItemCounts)
+    can_remove: bool
+    remove_blocker: str | None = Field(
+        default=None, description="items_accepted | values_published | extraction_active"
+    )
 
 
 class DocumentOut(BaseModel):
@@ -281,8 +405,18 @@ class DocumentOut(BaseModel):
     amends_document_id: int | None = None
     licence_note: str | None = None
     adopted_on: date | None = None
-    file: FileSummary | None = None
+    file: FileSummary | None = Field(default=None, description="The primary file")
     page_count: int | None = None
+    files: list[DocumentFileOut] = Field(
+        default_factory=list, description="Every file of this version, in display order"
+    )
+    state: DocumentState = Field(
+        default="no_files",
+        description=(
+            "no_files | processing | ready_for_review | failed | published | reviewed | "
+            "not_extracted (first match, in that order)"
+        ),
+    )
     has_coverage: bool = Field(description="A coverage geometry exists (geometry job ran / seeded)")
     coverage_live: bool = Field(description="Takes part in location resolution")
     coverage_live_changed_at: datetime | None = None
@@ -311,6 +445,7 @@ class DocumentOut(BaseModel):
 
 class DocumentList(BaseModel):
     items: list[DocumentOut]
+    total: int = Field(default=0, description="Matching documents before paging")
     limit: int
     offset: int
 

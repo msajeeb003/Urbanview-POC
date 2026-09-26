@@ -305,7 +305,8 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   silently. Loading: a page-shaped shimmer; failure: "This page could not be loaded." + Retry,
   never red. `source_reference_opened { document_id, page, value_id? }` once per open. The
   object store must allow CORS `GET` with `Range` and expose `Accept-Ranges`, `Content-Range`,
-  `Content-Length` (as for the tiles). The admin review queue will reuse the component.
+  `Content-Length` (as for the tiles). PDF.js loading, the document cache and the box maths are
+  shared with the admin review queue's `PdfPageView` (`lib/pdf.ts`).
 - Text-valued rows (`PanelRow text`) may wrap: the mock's `.pv` is `nowrap` for its short strings;
   real land-use texts are longer. A value that fits looks exactly as in the mock.
 - **Cadastral parcel** (`cadastral-panel.tsx`, `renderPanelCadastral`, `GET /v1/panel?type=cadastral`):
@@ -502,6 +503,112 @@ your access"); the pilot records intent and unlocks for the session (see "Inform
 **CTA stack**: gold "Order expert analysis" + price (€100 ≤ 500 m², €200 above, from the API's
 pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 
+## Admin console (`/admin/*`: `src/app/(shell)/admin/`, `src/components/admin/`, `src/lib/admin/`, `src/auth.ts`, `src/proxy.ts`)
+
+- **Routes in the shell.** `src/app/(shell)/layout.tsx` is the layout of `/` and `/admin/*`, so the
+  map stays mounted under the console (the wireframe's `.admin` overlay over the main row). The
+  admin pages arrive as `AppShell`'s children and render inside `AdminOverlay` when the path starts
+  with `/admin`; the store's `view` mirrors the route both ways (the topbar's Map / Admin, the
+  pill and ⌘K call `setView`, which navigates). Tabs are routes: `/admin/overview`, `/review`,
+  `/rules`, `/assumptions`, `/engine`, `/orders`, `/data`; plus `/admin/audit`, `/admin/users`,
+  `/admin/login` and `/admin/no-access`. `/admin` goes to the role's first tab.
+- **Sign-in: magic links only (Auth.js v5, `src/auth.ts`).** The backend owns the link: the form's
+  server action posts `POST /v1/auth/magic-link` (always 202, same "Check your email" for any
+  well-formed address: no enumeration), the backend's `magic_link` e-mail opens
+  `${ADMIN_BASE_URL}/login?token=…` (ADMIN_BASE_URL = site + `/admin`), and that page exchanges the
+  single-use token (15 min) once through the Credentials provider `magic-link` →
+  `POST /v1/auth/magic-link/exchange` → staff bearer token → `GET /v1/admin/users/me` for the role.
+  A Credentials provider rather than Auth.js's Email provider: the Email provider would mint its
+  own tokens and need a database adapter; the backend already issues, stores and consumes them.
+  Sessions are JWTs (encrypted, httpOnly cookie, `AUTH_SESSION_MAX_AGE`, 24 h). The backend token
+  stays inside the JWT: the `session` callback (what `/api/auth/session` returns) carries name,
+  e-mail and role only; server code reads the token with `lib/admin/session.ts`
+  (`staffApiToken`, Auth.js `decode` on the session cookie). The role is re-read from `/me` every
+  5 minutes (a changed role or a deactivated user takes effect; 401 = signed out). Sign-out (server
+  action) clears the cookie and the `signOut` event revokes the backend session
+  (`POST /v1/auth/sign-out`). Env: `AUTH_SECRET` (server only), `AUTH_URL` / `AUTH_TRUST_HOST`
+  behind Caddy, `API_INTERNAL_BASE_URL`.
+- **Roles** (`lib/admin/sections.ts`, the one table the proxy, the tab row and the pages read):
+  admin = every tab + audit log + users; reviewer = Overview, AI review queue, Planning rules
+  (read), Data sources (full use: the data sources ticket); expert = Orders only (the API returns
+  only the orders assigned to them). Where the admin spec and the ticket disagreed, the ticket's
+  acceptance won: an expert sees
+  only Orders (no Overview, no unassigned orders). Guards: `src/proxy.ts` (Next 16's renamed
+  middleware; no session → `/admin/login?callbackUrl=`, a section outside the role → a rewrite to
+  the plain "You don't have access to this section" card under the same URL), each page's
+  `guard(section)`, and the API's own 403 on every `/v1/admin/*` route.
+- **Data** comes from the Next server (`lib/admin/api.ts` `adminGet`: the staff bearer token, 401
+  → sign-in, 403 → no access); nothing staff-only reaches the browser. Overview reads
+  `GET /v1/admin/overview` (admins and reviewers: parcels, documents adopted / in progress,
+  pending AI review, paid orders + revenue, and per district = zone: documents, extraction
+  Queued / In progress / Done, expert review %, Live Yes / Partial / No); Orders
+  `GET /v1/admin/orders`; Audit log `GET /v1/admin/audit` (filters entity type and actor as a GET
+  form, 50 per page, before → after as the changed keys); Users `GET /v1/admin/users`. Planning
+  rules, Financial assumptions and Calculation engine are the wireframe's card headers over "Not
+  connected yet." (their tickets); action buttons are hidden for read-only roles.
+- **AI review queue** (`/admin/review`; `components/admin/review/*`, rules in
+  `lib/admin/review.ts`, calls in `lib/admin/review-actions.ts`): the wireframe's card ("AI
+  extraction — review queue", "100% of extracted values need expert approval before they
+  publish", "N pending"), a progress header (n of N reviewed for the document in view, counters,
+  Publish for admins only once the document has nothing pending — until then a "n pending before
+  publish" chip with a tooltip — the job's step while it runs, the data version the map serves,
+  "Rollback to previous" with an inline confirmation, "Corrected values reach the map only after a
+  publish"), filters (document with its pending count, status, zone, target type, page, order:
+  pending first / page then parcel / low confidence first; `?document=&file=` from Data sources),
+  then three panes that scroll on their own: the queue (the mock's `.review-item` rows: "Max floor
+  area ratio (II) — UP 12", "DUP … · p.14", the value chip; ⚑ low confidence), the item (value, AI
+  value struck through next to a correction, parameter labels, unit, target, the raw text,
+  confidence and the checker's flags, source page and file, the run's job and cost, the last
+  decision's actor, time and note, the item's audit trail on demand, bulk "approve all pending on
+  this page / of this parcel") and the cited page (`components/source/pdf-page-view.tsx`: PDF.js
+  from the item's signed link, the value's box, prev / next, zoom, fit, "Cited p.N", Open PDF; a
+  document is loaded once per file, `lib/pdf.ts`). Keyboard: j / k or ↓ / ↑ move, Enter approves
+  and moves to the next pending item at once (sent in the background, undone with a toast if
+  refused), e amends (an editor per parameter: a number with its unit, the floor notation "P+5+Pk",
+  a land-use designation from the document's own wordings or typed, free text; a note is
+  required), r rejects (reason required), n next pending, Esc closes, Ctrl+Enter saves. Toasts
+  "Approved", "Amended", "Rejected"; refusals in plain words, never red. The queue keeps its own
+  state (200 items a page, "Load more"); decisions answer the item and the document's counters.
+  Styles: block 18 of `overrides.css`. Tests: `lib/admin/review.test.ts`.
+- **Data sources** (`/admin/data`, `/admin/data/documents/[id]`; `components/admin/data/*`, rules
+  in `lib/admin/data.ts`, writes in `lib/admin/data-actions.ts`): the wireframe's sources card
+  (Source / Provides / Format / Status, "+ Upload document") and the planning documents: one row
+  per current version (name → its page, zone, type, status, version, files, overall state,
+  coverage, actions Queue extraction / Queue geometry / Mark live · not live / New version…) with
+  one indented row per file (extraction and geometry: queued / running / succeeded / failed with
+  attempts, cost and the reason; Retry, Extract, Rerun, "Review n →" = `/admin/review?document=
+  &file=`). Filters zone / status / state / job state / name in the URL (`next/form`). The
+  document page: facts, "Add as" text / drawing / both + drop zone (PDF only, several at once:
+  each file uploads, joins the version and, unless a drawing, is queued for extraction), the
+  files table (role select, pages, scanned pages, extraction, cost, geometry, Remove disabled
+  with the API's reason once an item was approved) and the version history. "+ Upload document"
+  takes PDFs, GIS files and cadastral extracts (kind from the extension, editable), a progress
+  bar each; a known checksum is "Already uploaded" with a link to its document, never an error;
+  PDFs continue to "Register a planning document" (name, type from the profile, DUP / PUP / PGR
+  first, status, zone, adoption date, source default eRegistri + registry link, licence /
+  permission note, files with roles; "New version…" starts from the current version and shows
+  the history). Uploads go through `app/api/admin/files/route.ts` (same-origin, staff role,
+  multipart streamed to `POST /v1/admin/files` with the staff token; XHR for progress; server
+  actions cap bodies); every other write is a server action that answers `{ok, message}` (toast)
+  and re-reads the page (`revalidatePath`), forms keep what was typed on failure. `AutoRefresh`
+  re-reads the page every 3 s while a job is queued / running and stops after. Styles: block 17
+  of `overrides.css`. Tests: `lib/admin/data.test.ts`.
+- **Components** (`components/admin/parts.tsx`, the wireframe's markup): `AdminCard` (`.card >
+  .cardhd` h3 + `.sub` + right-side action), `DataTable` (`.tbl`, `.mono` cells for numbers and
+  references), `StatusChip` (`.st.ok | .pend | .rev`), `AdminButton` (`.abtn`, `ghost`, `sm`),
+  `StatCard` (`.astat`), `NoAccess`, `AdminUnavailable`; `admin-frame.tsx` (the bar: title, tabs
+  the role may open, account button, "← Back to map"), `account-menu.tsx` (not in the mock: role
+  chip + name, menu with the e-mail, audit log / users for admins, sign-out; fixed-positioned
+  because `.adminbar` scrolls horizontally, and compact so the bar fits at 1440 px), `sign-in.tsx`
+  ("Send magic link" → "Check your email"; the link state "Signing you in…" or the invalid-link
+  note). Words and chips of the tables: `lib/admin/format.ts`. Styles not in the mock: block 16 of
+  `overrides.css`.
+- First admin on a server: `python -m core.staff add --email <e-mail> --role admin` (backend).
+  Tests: `lib/admin/sections.test.ts` (tabs per role, guard decisions, callback URLs),
+  `lib/admin/format.test.ts`, `lib/admin/data.test.ts`, `lib/admin/review.test.ts`; backend
+  `tests/integration/test_admin_console_postgis.py`, `test_document_files_postgis.py`,
+  `test_review_queue_postgis.py`.
+
 ## Rules the frontend must keep
 
 - **Uncovered is not an error.** A location outside coverage answers 200 `covered: false`: hide
@@ -555,7 +662,7 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 |---|---|
 | `src/app/layout.tsx` | fonts, CSS order (globals → wireframe → overrides), providers |
 | `src/app/page.tsx` | server-reads `/v1/municipality` (1.5 s timeout, never blocks) → `AppShell` |
-| `src/components/shell/*` | `app-shell` (frame, ⌘K, intro toast, `?parcel=` sync), `topbar`, `search-box`, `layer-rail`, `legend`, `map-view` (Mapbox + PMTiles, click / hover / highlight, `map_loaded`), `map-chrome`, `info-panel` (selection → panel variant, empty state, bottom sheet), `ai-assistant` (shell, `openAiWith` drafts), `methodology-modal`, `access-modal` ("Choose your access"), `engine-modal` ("How the figures are calculated"), `admin-overlay` (tab placeholders), `hosts` (modal + toast) |
+| `src/components/shell/*` | `app-shell` (frame, ⌘K, intro toast, `?parcel=` sync), `topbar`, `search-box`, `layer-rail`, `legend`, `map-view` (Mapbox + PMTiles, click / hover / highlight, `map_loaded`), `map-chrome`, `info-panel` (selection → panel variant, empty state, bottom sheet), `ai-assistant` (shell, `openAiWith` drafts), `methodology-modal`, `access-modal` ("Choose your access"), `engine-modal` ("How the figures are calculated"), `admin-overlay` (the `/admin` routes' container), `hosts` (modal + toast) |
 | `src/components/panel/*` | S3 panel variants: `zone-panel`, `document-panel`, `cadastral-panel`, `urban-panel`, `panel-parts` (header, loading / unavailable, status chip, `panel_viewed`, meta and height text), `parcel-parts` (comparison card, row source icon, parcel CTA stack, zone type), `market-section` (Group 2 locked / unlocked), `assumption-sandbox` ("◐ Test your own assumptions") |
 | `src/lib/assumptions.ts` | the sandbox's sliders, bounds and validation, and the live recalculation through the shared engine package (`recalculateFeasibility`) |
 | `src/lib/order.ts` | `requestOrder`: every order button → the S4 modal for the parcel on screen, `order_started` |
@@ -583,8 +690,9 @@ From `frontend/` (or the root with `-w @urbanview/frontend`): `npm run dev`, `bu
 + tests). `predev` / `prebuild` generate `public/map/urbanview-pmtiles.js` and copy the PDF.js
 worker to `public/pdfjs/`. Env: `.env.example` (`NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_MAPBOX_TOKEN`,
 `NEXT_PUBLIC_MAPBOX_STYLE`, `NEXT_PUBLIC_ANALYTICS_ENABLED`, `NEXT_PUBLIC_DEFAULT_LANG`, optional
-`API_INTERNAL_BASE_URL`). Server image: `frontend/Dockerfile` (build context = repo root,
+`API_INTERNAL_BASE_URL`, and for the admin console `AUTH_SECRET`, `AUTH_SESSION_MAX_AGE`). Server image: `frontend/Dockerfile` (build context = repo root,
 `NEXT_OUTPUT=standalone` switches `next.config.ts` to a standalone server traced from the root;
-`NEXT_PUBLIC_*` are build args; `deploy/README.md`). Routes: `/` (the map), `/?parcel=<Parcel ID>`, `/orders/<reference>` (the
+`NEXT_PUBLIC_*` are build args; `deploy/README.md`). Routes: `/` (the map), `/?parcel=<Parcel ID>`, `/admin/*` (the admin
+console, see its section), `/orders/<reference>` (the
 public order page; `/order/<reference>` redirects there, `next.config.ts`).
 Without a Mapbox token the map area shows the wireframe background and the chrome only.

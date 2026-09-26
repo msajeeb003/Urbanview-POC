@@ -298,7 +298,9 @@ ELIGIBLE_ITEMS_SQL = """
                 ELSE e.value_text END AS value_text,
            CASE WHEN e.review_state = 'amended' THEN e.amended_value_number
                 ELSE e.value_number END AS value_number,
-           COALESCE(e.amended_unit, e.unit) AS unit, e.source_page, e.source_bbox, e.source_note
+           COALESCE(e.amended_unit, e.unit) AS unit, e.source_page, e.source_bbox, e.source_note,
+           COALESCE((SELECT r.file_id FROM extraction_runs r WHERE r.id = e.run_id), d.file_id)
+               AS source_file_id
     FROM planning_parameter_extractions e
     JOIN planning_documents d ON d.id = e.document_id AND d.is_current_version
     JOIN planning_fields f ON f.key = e.field_key AND NOT f.computed
@@ -346,10 +348,10 @@ CARRY_FORWARD_SQL = text(
     WITH eligible AS ({ELIGIBLE_ITEMS_SQL})
     INSERT INTO planning_parameter_values (municipality_id, document_id, urban_parcel_id,
         block_id, zone_id, field_key, value_text, value_number, unit, source_page, source_bbox,
-        source_note, publish_version_id, dataset_version)
+        source_note, source_file_id, publish_version_id, dataset_version)
     SELECT v.municipality_id, v.document_id, v.urban_parcel_id, v.block_id, v.zone_id,
            v.field_key, v.value_text, v.value_number, v.unit, v.source_page, v.source_bbox,
-           v.source_note, :new_version, v.dataset_version
+           v.source_note, v.source_file_id, :new_version, v.dataset_version
     FROM planning_parameter_values v
     JOIN planning_documents d ON d.id = v.document_id AND d.is_current_version
     WHERE v.municipality_id = :m AND v.publish_version_id = :prev_version
@@ -367,10 +369,10 @@ INSERT_VALUE_SQL = text(
     """
     INSERT INTO planning_parameter_values (municipality_id, document_id, urban_parcel_id,
         block_id, zone_id, field_key, value_text, value_number, unit, source_page, source_bbox,
-        source_note, publish_version_id)
+        source_note, source_file_id, publish_version_id)
     VALUES (:m, :document_id, :urban_parcel_id, :block_id, :zone_id, :field_key, :value_text,
             :value_number, :unit, :source_page, CAST(:source_bbox AS jsonb), :source_note,
-            :new_version)
+            :source_file_id, :new_version)
     RETURNING id
     """
 )
@@ -951,6 +953,7 @@ class PublishPipeline:
                         if item["source_bbox"] is not None
                         else None,
                         "source_note": item["source_note"],
+                        "source_file_id": item["source_file_id"],
                         "new_version": version_id,
                     },
                 )

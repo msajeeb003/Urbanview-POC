@@ -31,7 +31,9 @@ from api.schemas.review import (
     RejectIn,
     ReviewCounters,
     ReviewItem,
+    ReviewOptions,
     ReviewPage,
+    ReviewSort,
     ReviewStatus,
 )
 
@@ -71,6 +73,9 @@ async def list_review_items(
         ),
     ] = None,
     run_id: Annotated[int | None, Query(gt=0, description="Items of one extraction run")] = None,
+    file_id: Annotated[
+        int | None, Query(gt=0, description="Items read from one file of the document")
+    ] = None,
     change: Annotated[
         Literal["new", "same", "changed"] | None,
         Query(description="Against the previous run's item for the same target and field"),
@@ -78,11 +83,23 @@ async def list_review_items(
     include_superseded: Annotated[
         bool, Query(description="Also items a later run or decision superseded (history)")
     ] = False,
+    sort: Annotated[
+        ReviewSort,
+        Query(
+            description=(
+                "pending: pending first, then file / page / parcel / field (default); page: file / "
+                "page / parcel / field whatever the status; confidence: pending first, lowest "
+                "confidence first"
+            )
+        ),
+    ] = "pending",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ReviewPage:
     return await service.list_items(
+        sort=sort,
         run_id=run_id,
+        file_id=file_id,
         change=change,
         include_superseded=include_superseded,
         document_id=document_id,
@@ -108,6 +125,21 @@ async def review_summary(
     document_id: Annotated[int | None, Query(gt=0)] = None,
 ) -> list[ReviewCounters]:
     return await service.counters(document_id=document_id)
+
+
+@router.get(
+    "/review/options",
+    response_model=ReviewOptions,
+    summary="The wordings a document already uses for a text field (the amend select)",
+    responses=RESPONSES,
+)
+async def review_options(
+    principal: ReviewerPrincipal,
+    service: ReviewServiceDep,
+    document_id: Annotated[int, Query(gt=0)],
+    field_key: Annotated[str, Query(min_length=1, max_length=60, pattern=r"^[a-z_]+$")],
+) -> ReviewOptions:
+    return await service.options(document_id=document_id, field_key=field_key)
 
 
 @router.post(

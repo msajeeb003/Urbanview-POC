@@ -30,8 +30,11 @@ from api.schemas.review import (
     PageLinkOut,
     ReviewCounters,
     ReviewItem,
+    ReviewOption,
+    ReviewOptions,
     ReviewPage,
     ReviewPrevious,
+    ReviewRun,
     ReviewSource,
     ReviewTarget,
     ReviewValue,
@@ -77,11 +80,20 @@ _ITEM_COLUMNS = """
            e.amended_unit, e.urban_parcel_id, u.urban_parcel_number,
            COALESCE(e.block_id, u.block_id) AS block_id, b.block_ref,
            COALESCE(e.zone_id, b.zone_id, d.zone_id) AS zone_id, z.name AS zone_name,
-           e.document_id, d.name AS document_name, d.source_url AS registry_url, d.file_key,
-           d.page_count, d.page_images_rendered, e.source_page, e.source_bbox, e.source_note,
+           e.document_id, d.name AS document_name, d.source_url AS registry_url,
+           COALESCE(sf.object_key, d.file_key) AS file_key,
+           CASE WHEN sf.id IS NULL THEN d.page_count ELSE sf.page_count END AS page_count,
+           (d.page_images_rendered AND (sf.id IS NULL OR sf.id = d.file_id))
+               AS page_images_rendered,
+           COALESCE(sf.id, d.file_id) AS source_file_id,
+           COALESCE(sf.original_filename, df.original_filename) AS source_file_name,
+           e.source_page, e.source_bbox, e.source_note,
            e.raw_text, e.confidence, e.extracted_by, e.extracted_at, e.reviewer, e.reviewed_at,
            e.review_note, e.published_value_id, e.flags, e.extraction_method, e.schema_version,
            e.prompt_version, e.run_id, e.target_label, e.target_key, e.previous_item_id,
+           er.job_id AS run_job_id, er.model_version AS run_model_version,
+           er.estimated_cost_eur AS run_cost, er.items_written AS run_items,
+           er.finished_at AS run_finished_at,
            e.change, e.superseded_at, e.superseded_by_run_id,
            p.review_state::text AS previous_state, p.value_text AS previous_value_text,
            p.value_number AS previous_value_number, p.unit AS previous_unit,
@@ -91,6 +103,9 @@ _ITEM_COLUMNS = """
            count(*) OVER () AS total
     FROM planning_parameter_extractions e
     JOIN planning_documents d ON d.id = e.document_id
+    LEFT JOIN extraction_runs er ON er.id = e.run_id
+    LEFT JOIN stored_files sf ON sf.id = er.file_id
+    LEFT JOIN stored_files df ON df.id = d.file_id
     LEFT JOIN planning_parameter_extractions p ON p.id = e.previous_item_id
     LEFT JOIN planning_fields f ON f.key = e.field_key
     LEFT JOIN urban_parcels u ON u.id = e.urban_parcel_id
@@ -98,15 +113,25 @@ _ITEM_COLUMNS = """
     LEFT JOIN zones z ON z.id = COALESCE(e.zone_id, b.zone_id, d.zone_id)
     WHERE e.municipality_id = :m
 """
-_ITEM_ORDER = """
-    ORDER BY (e.review_state = 'pending_review') DESC, e.document_id ASC,
-             e.source_page ASC NULLS LAST, e.id ASC
-    LIMIT :limit OFFSET :offset
-"""
+# Within a document: its file, the page, the parcel (natural order: "UP 9" before "UP 12"), the
+# field's dictionary order.
+_PAGE_ORDER = """e.document_id ASC, COALESCE(er.file_id, d.file_id) ASC NULLS FIRST,
+             e.source_page ASC NULLS LAST,
+             CAST(substring(COALESCE(u.urban_parcel_number, e.target_label) from '[0-9]+')
+                  AS integer) ASC NULLS LAST,
+             COALESCE(u.urban_parcel_number, e.target_label, b.block_ref) ASC NULLS LAST,
+             f.sort_order ASC NULLS LAST, e.id ASC"""
+_ITEM_ORDERS = {
+    "pending": f"(e.review_state = 'pending_review') DESC, {_PAGE_ORDER}",
+    "page": _PAGE_ORDER,
+    "confidence": f"(e.review_state = 'pending_review') DESC, e.confidence ASC NULLS LAST, "
+    f"{_PAGE_ORDER}",
+}
 
 
-def _queue_sql(extra: str) -> str:
-    return _ITEM_COLUMNS + extra + _ITEM_ORDER
+def _queue_sql(extra: str, sort: str = "pending") -> str:
+    order = _ITEM_ORDERS[sort]
+    return f"{_ITEM_COLUMNS}{extra}\n    ORDER BY {order}\n    LIMIT :limit OFFSET :offset\n"
 
 
 ITEM_SQL = text(_queue_sql("AND e.id = :id"))
@@ -139,6 +164,22 @@ RETIRE_PREVIOUS_SQL = text(
     WHERE id = :id AND municipality_id = :m AND published_value_id IS NULL
       AND superseded_at IS NULL AND review_state IN ('approved', 'amended')
     RETURNING id
+    """
+)
+# The wordings a document's items already carry for one field (effective value: amended if
+# amended), most frequent first.
+OPTIONS_SQL = text(
+    """
+    SELECT CASE WHEN e.review_state = 'amended' THEN e.amended_value_text
+                ELSE e.value_text END AS value, count(*) AS n
+    FROM planning_parameter_extractions e
+    WHERE e.municipality_id = :m AND e.document_id = :document_id AND e.field_key = :field_key
+      AND e.superseded_at IS NULL AND e.review_state <> 'rejected'
+      AND CASE WHEN e.review_state = 'amended' THEN e.amended_value_text
+               ELSE e.value_text END IS NOT NULL
+    GROUP BY 1
+    ORDER BY n DESC, value ASC
+    LIMIT 200
     """
 )
 COUNTERS_SQL = """
@@ -183,6 +224,19 @@ def _labels(row: Mapping[str, Any]) -> tuple[str, str, str]:
 def _item_out(row: Mapping[str, Any], link: PageLinkOut | None) -> ReviewItem:
     label_en, label_me, value_type = _labels(row)
     unit = row["unit"] or row["field_unit"]
+    run = None
+    if row.get("run_id") is not None:
+        cost = row.get("run_cost")
+        run = ReviewRun(
+            id=row["run_id"],
+            job_id=row.get("run_job_id"),
+            model_version=row.get("run_model_version"),
+            estimated_cost_eur=float(cost) if cost is not None else None,
+            items_written=row.get("run_items"),
+            finished_at=row["run_finished_at"].astimezone(UTC)
+            if row.get("run_finished_at")
+            else None,
+        )
     extracted = _value(row["value_text"], row["value_number"], unit)
     amended = None
     status = DB_TO_STATUS[row["review_state"]]
@@ -217,6 +271,7 @@ def _item_out(row: Mapping[str, Any], link: PageLinkOut | None) -> ReviewItem:
         label_en=label_en,
         label_me=label_me,
         value_type=value_type,  # type: ignore[arg-type]
+        field_unit=row.get("field_unit"),
         extracted=extracted,
         amended=amended,
         effective=amended or extracted,
@@ -235,6 +290,8 @@ def _item_out(row: Mapping[str, Any], link: PageLinkOut | None) -> ReviewItem:
             document_id=row["document_id"],
             document_name=row["document_name"],
             registry_url=row["registry_url"],
+            file_id=row.get("source_file_id"),
+            file_name=row.get("source_file_name"),
             page=row["source_page"],
             bbox=row["source_bbox"],
             note=row["source_note"],
@@ -253,6 +310,7 @@ def _item_out(row: Mapping[str, Any], link: PageLinkOut | None) -> ReviewItem:
         review_note=row["review_note"],
         published=row["published_value_id"] is not None,
         run_id=row.get("run_id"),
+        run=run,
         change=row.get("change"),
         previous=previous,
         superseded=row.get("superseded_at") is not None,
@@ -312,8 +370,10 @@ class ReviewService:
         source_page: int | None = None,
         flag: str | None = None,
         run_id: int | None = None,
+        file_id: int | None = None,
         change: str | None = None,
         include_superseded: bool = False,
+        sort: str = "pending",
         limit: int = 50,
         offset: int = 0,
     ) -> ReviewPage:
@@ -322,6 +382,9 @@ class ReviewService:
         if run_id is not None:
             clauses.append("AND e.run_id = :run_id")
             params["run_id"] = run_id
+        if file_id is not None:
+            clauses.append("AND COALESCE(er.file_id, d.file_id) = :file_id")
+            params["file_id"] = file_id
         if change is not None:
             clauses.append("AND e.change = :change")
             params["change"] = change
@@ -348,7 +411,16 @@ class ReviewService:
             params["flag"] = json.dumps([flag])
         async with self.session_factory() as session:
             rows = (
-                (await session.execute(text(_queue_sql(" ".join(clauses))), params))
+                (
+                    await session.execute(
+                        text(
+                            _queue_sql(
+                                " ".join(clauses), sort if sort in _ITEM_ORDERS else "pending"
+                            )
+                        ),
+                        params,
+                    )
+                )
                 .mappings()
                 .all()
             )
@@ -576,6 +648,22 @@ class ReviewService:
                 approved.append(item_id)
             await session.commit()
         return BulkResult(approved=approved, skipped=skipped)
+
+    # --- options ---------------------------------------------------------------------------------
+
+    async def options(self, *, document_id: int, field_key: str) -> ReviewOptions:
+        async with self.session_factory() as session:
+            rows = (
+                await session.execute(
+                    OPTIONS_SQL,
+                    {"m": self.municipality_id, "document_id": document_id, "field_key": field_key},
+                )
+            ).all()
+        return ReviewOptions(
+            document_id=document_id,
+            field_key=field_key,
+            values=[ReviewOption(value=str(r[0]), count=int(r[1])) for r in rows],
+        )
 
     # --- counters --------------------------------------------------------------------------------
 

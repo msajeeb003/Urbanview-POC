@@ -13,10 +13,12 @@ import { useShell } from "@/lib/store";
 
 import { IconAdmin, IconMap } from "../ui/icons";
 
+import { useAdminRoute } from "./app-shell";
 import { SearchBox } from "./search-box";
 
 export const Topbar = forwardRef<HTMLInputElement>(function Topbar(_, searchRef) {
-  const view = useShell((s) => s.view);
+  // the route decides (`/admin/*` is the console), so the server render is already right
+  const view = useAdminRoute() ? "admin" : "map";
   const setView = useShell((s) => s.setView);
   const { data: profile } = useMunicipality();
   const { lang, setLang } = useLang();

@@ -13,6 +13,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 ReviewStatus = Literal["pending", "approved", "amended", "rejected"]
 EntityType = Literal["urban_parcel", "zone", "block", "document", "market_data"]
+# Queue order: pending first then page / parcel / field (default); page / parcel / field whatever
+# the status; pending first then the lowest confidence.
+ReviewSort = Literal["pending", "page", "confidence"]
 
 
 class ReviewValue(BaseModel):
@@ -62,6 +65,11 @@ class ReviewSource(BaseModel):
     document_id: int
     document_name: str
     registry_url: str | None = None
+    file_id: int | None = Field(
+        default=None,
+        description="The stored file the value was read from (a document may have several)",
+    )
+    file_name: str | None = None
     page: int | None = None
     bbox: list[float] | None = None
     bbox_space: Literal["pdf-points-bottom-left"] = "pdf-points-bottom-left"
@@ -76,6 +84,17 @@ class ReviewSource(BaseModel):
     )
 
 
+class ReviewRun(BaseModel):
+    """The extraction run that wrote the item: its job and what the whole run cost."""
+
+    id: int
+    job_id: int | None = None
+    model_version: str | None = None
+    estimated_cost_eur: float | None = Field(default=None, description="The whole run's cost")
+    items_written: int | None = None
+    finished_at: datetime | None = None
+
+
 class ReviewItem(BaseModel):
     id: int
     status: ReviewStatus
@@ -83,6 +102,9 @@ class ReviewItem(BaseModel):
     label_en: str
     label_me: str
     value_type: Literal["text", "number"]
+    field_unit: str | None = Field(
+        default=None, description="The field dictionary's unit (the canonical one: %, m, m²)"
+    )
     extracted: ReviewValue = Field(description="The AI value; never overwritten")
     amended: ReviewValue | None = Field(default=None, description="The reviewer's corrected value")
     effective: ReviewValue = Field(
@@ -110,6 +132,7 @@ class ReviewItem(BaseModel):
     run_id: int | None = Field(
         default=None, description="The extraction run that wrote it; null = manual or seeded"
     )
+    run: ReviewRun | None = Field(default=None, description="That run's job and cost")
     change: Literal["new", "same", "changed"] | None = Field(
         default=None, description="Against the previous run's item for the same target and field"
     )
@@ -188,6 +211,20 @@ class BulkSkipped(BaseModel):
 class BulkResult(BaseModel):
     approved: list[int]
     skipped: list[BulkSkipped]
+
+
+class ReviewOption(BaseModel):
+    value: str
+    count: int = Field(description="Items of the document carrying it (not superseded)")
+
+
+class ReviewOptions(BaseModel):
+    """The wordings a document already uses for a text field (e.g. its land-use designations),
+    most frequent first: what the reviewer picks from when correcting a value."""
+
+    document_id: int
+    field_key: str
+    values: list[ReviewOption]
 
 
 class ReviewCounters(BaseModel):

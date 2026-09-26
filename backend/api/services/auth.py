@@ -46,6 +46,15 @@ INSERT_SESSION_SQL = text(
     """
 )
 LAST_LOGIN_SQL = text("UPDATE staff_users SET last_login_at = now() WHERE id = :user_id")
+REVOKE_SESSION_SQL = text(
+    """
+    UPDATE staff_sessions s SET revoked_at = now()
+    FROM staff_users u
+    WHERE s.token_hash = :token_hash AND s.revoked_at IS NULL AND u.id = s.user_id
+      AND u.municipality_id = :m
+    RETURNING u.id AS user_id, u.email
+    """
+)
 
 
 class MagicLinkService:
@@ -95,6 +104,33 @@ class MagicLinkService:
                 requested_by_user_id=int(user["id"]),
             )
         return ACCEPTED
+
+    async def sign_out(self, session_token: str | None) -> None:
+        """End a staff session (the admin console's sign-out). Unknown, expired or already
+        revoked tokens answer the same way: there is nothing to tell a caller."""
+        if not session_token:
+            return
+        async with self.session_factory() as session:
+            row = (
+                (
+                    await session.execute(
+                        REVOKE_SESSION_SQL,
+                        {"token_hash": hash_token(session_token), "m": self.municipality_id},
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            if row is not None:
+                await write_audit(
+                    session,
+                    municipality_id=self.municipality_id,
+                    action="auth.logout",
+                    actor=row["email"],
+                    entity_type="staff_user",
+                    entity_id=int(row["user_id"]),
+                )
+            await session.commit()
 
     async def exchange(self, token: str) -> SessionOut:
         token_hash = hash_token(token.strip())

@@ -22,7 +22,7 @@ x-app-env: &app-env
   # Caddy is the only way in: client addresses come from X-Forwarded-For (rate limiting)
   TRUST_PROXY_HEADERS: "true"
   ORDER_PUBLIC_BASE_URL: https://${SITE_DOMAIN}
-  ADMIN_BASE_URL: https://${SITE_DOMAIN}
+  ADMIN_BASE_URL: https://${SITE_DOMAIN}/admin   # magic links open /admin/login?token=…
 
 x-app-build: &app-build
   context: ..
@@ -66,8 +66,13 @@ services:
         NEXT_PUBLIC_DEFAULT_LANG: ${NEXT_PUBLIC_DEFAULT_LANG:-en}
     restart: unless-stopped
     environment:
-      # server-side fetches (profile, tile pointer) go straight to the API container
+      # server-side fetches (profile, tile pointer, the admin console) go straight to the API container
       API_INTERNAL_BASE_URL: http://api:8000
+      # the admin console's sign-in (Auth.js): the secret encrypts the session cookie
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in deploy/.env (openssl rand -base64 32)}
+      AUTH_URL: https://${SITE_DOMAIN}
+      AUTH_TRUST_HOST: "true"
+      AUTH_SESSION_MAX_AGE: ${AUTH_SESSION_MAX_AGE:-86400}
     depends_on:
       - api
 

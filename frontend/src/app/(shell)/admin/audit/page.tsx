@@ -1,0 +1,130 @@
+import { AdminCard, AdminUnavailable, DataTable } from "@/components/admin/parts";
+import { AdminAccessDenied, adminGet } from "@/lib/admin/api";
+import { auditChanges, utcStamp } from "@/lib/admin/format";
+import { guard } from "@/lib/admin/guard";
+import type { AuditEntry, AuditPage } from "@/lib/api/types";
+
+// The audit trail (admins): who changed what and when, from GET /v1/admin/audit (append-only).
+// Filters are a plain GET form, so a filtered view is a link.
+const PAGE = 50;
+const ENTITY_TYPES = [
+  "staff_user",
+  "planning_document",
+  "stored_file",
+  "pipeline_job",
+  "extraction_run",
+  "planning_parameter_extraction",
+  "financial_assumptions",
+  "zone_parameter_set",
+  "publish_version",
+  "order",
+  "email",
+];
+
+type Params = Record<string, string | string[] | undefined>;
+const one = (v: string | string[] | undefined) => ((Array.isArray(v) ? v[0] : v) ?? "").trim();
+
+function Changes({ entry }: { entry: AuditEntry }) {
+  const changes = auditChanges(entry.before, entry.after);
+  if (changes.length === 0) return <span className="audit-none">{entry.note ?? "—"}</span>;
+  return (
+    <ul className="audit-changes">
+      {changes.map((c) => (
+        <li key={c.key}>
+          <span className="k">{c.key}</span> {c.from} → {c.to}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export default async function AuditPageView({ searchParams }: { searchParams: Promise<Params> }) {
+  const access = await guard("audit");
+  if (access.denied) return access.denied;
+  const params = await searchParams;
+  const entity = one(params.entity);
+  const actor = one(params.actor);
+  const offset = Math.max(0, Number.parseInt(one(params.offset) || "0", 10) || 0);
+
+  let page: AuditPage;
+  try {
+    page = await adminGet<AuditPage>("/v1/admin/audit", {
+      entity_type: entity || undefined,
+      actor: actor || undefined,
+      limit: PAGE,
+      offset,
+    });
+  } catch (err) {
+    if (err instanceof AdminAccessDenied) return null;
+    return <AdminUnavailable what="Audit log" />;
+  }
+  const link = (next: number) => {
+    const q = new URLSearchParams();
+    if (entity) q.set("entity", entity);
+    if (actor) q.set("actor", actor);
+    if (next) q.set("offset", String(next));
+    const s = q.toString();
+    return s ? `/admin/audit?${s}` : "/admin/audit";
+  };
+  const more = page.items.length === PAGE;
+
+  return (
+    <AdminCard
+      title="Audit log"
+      sub="Who changed what and when · append-only"
+      action={
+        <form className="audit-filters" method="get" action="/admin/audit">
+          <select name="entity" defaultValue={entity} aria-label="Entity">
+            <option value="">All entities</option>
+            {ENTITY_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <input name="actor" defaultValue={actor} placeholder="Actor (e-mail or token)" aria-label="Actor" />
+          <button type="submit" className="abtn sm">
+            Filter
+          </button>
+          {(entity || actor) && (
+            <a className="abtn sm ghost" href="/admin/audit">
+              Clear
+            </a>
+          )}
+        </form>
+      }
+    >
+      <DataTable<AuditEntry>
+        rows={page.items}
+        rowKey={(e) => e.id}
+        empty="No audited changes match these filters."
+        columns={[
+          { key: "time", label: "Time (UTC)", mono: true, render: (e) => utcStamp(e.created_at) },
+          { key: "actor", label: "Actor", render: (e) => e.actor },
+          { key: "action", label: "Action", mono: true, render: (e) => e.action },
+          {
+            key: "entity",
+            label: "Entity",
+            mono: true,
+            render: (e) => (e.entity_type ? `${e.entity_type}${e.entity_id != null ? ` #${e.entity_id}` : ""}` : "—"),
+          },
+          { key: "change", label: "Before → after", render: (e) => <Changes entry={e} /> },
+        ]}
+      />
+      {(offset > 0 || more) && (
+        <div className="admin-note">
+          {offset > 0 && (
+            <a className="abtn sm ghost" href={link(Math.max(0, offset - PAGE))}>
+              ← Newer
+            </a>
+          )}
+          {more && (
+            <a className="abtn sm ghost" href={link(offset + PAGE)}>
+              Older →
+            </a>
+          )}
+        </div>
+      )}
+    </AdminCard>
+  );
+}

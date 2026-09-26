@@ -15,6 +15,7 @@ from api.services.geocode import GeocodeService
 from api.services.jobs import JobService
 from api.services.market import MarketService
 from api.services.orders import OrderService
+from api.services.overview import OverviewService
 from api.services.panel import PanelService
 from api.services.parcel_panel import ParcelPanelService
 from api.services.publish import PublishService
@@ -224,11 +225,28 @@ def get_admin_config_service(request: Request) -> AdminConfigService:
 
 
 AdminConfigServiceDep = Annotated[AdminConfigService, Depends(get_admin_config_service)]
+# any signed-in staff member (the admin console's own account routes)
+StaffPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer, Role.expert))]
+
+
+def get_overview_service(request: Request) -> OverviewService:
+    service = getattr(request.app.state, "overview_service", None)
+    if service is None:
+        raise ServiceUnavailableError(
+            "The admin overview needs the planning database (LOCATION_RESOLVER=postgis)"
+        )
+    return service
+
+
+OverviewServiceDep = Annotated[OverviewService, Depends(get_overview_service)]
 # Expert review: every staff role may decide; the audit trail is for admins and reviewers.
 ReviewerPrincipal = Annotated[
     Principal, Depends(require_role(Role.admin, Role.reviewer, Role.expert))
 ]
 AuditReaderPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
+# The data pipeline (files, document versions and their files, jobs, the coverage switch): the
+# admin console's "Data sources" screen, used by admins and reviewers.
+PipelinePrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
 # the publish button: admins and (expert) reviewers
 PublisherPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
 

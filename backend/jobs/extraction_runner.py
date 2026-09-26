@@ -80,12 +80,16 @@ REPEATED = "repeated_in_run"  # the run read the same target and field more than
 # --- SQL ------------------------------------------------------------------------------------------
 
 RUN_BY_JOB_SQL = text("SELECT * FROM extraction_runs WHERE job_id = :job_id")
+# The document version and the file the run reads (runs made before migration 0022 have the
+# version's primary file); ``attached`` = the file is still one of the version's files.
 DOCUMENT_SQL = text(
     """
-    SELECT d.id, d.name, d.type, d.file_id, d.version, COALESCE(d.lineage_id, d.id) AS lineage_id,
-           f.sha256, f.kind, f.preprocess
+    SELECT d.id, d.name, d.type, f.id AS file_id, d.version,
+           COALESCE(d.lineage_id, d.id) AS lineage_id, f.sha256, f.kind, f.preprocess,
+           EXISTS (SELECT 1 FROM planning_document_files pf
+                   WHERE pf.document_id = d.id AND pf.file_id = f.id) AS attached
     FROM planning_documents d
-    LEFT JOIN stored_files f ON f.id = d.file_id
+    LEFT JOIN stored_files f ON f.id = COALESCE(CAST(:file_id AS bigint), d.file_id)
     WHERE d.municipality_id = :m AND d.id = :id
     """
 )
@@ -191,8 +195,10 @@ INSERT_ITEM_SQL = text(
         :target_label, :target_key, :previous_item_id, :change)
     """
 )
-# What this run replaces: every open item of an older version of the document or of a run over
-# another file of this version; of a run over the same file only the pending items.
+# What this run replaces: the pending items of earlier runs over the same file of this version
+# (decisions stay), and every open item of older versions of the document. The version's other
+# files are read by their own runs and keep their items; a file taken off the version had its
+# open items superseded then (AdminService.detach_file).
 SUPERSEDE_SQL = text(
     """
     UPDATE planning_parameter_extractions e
@@ -201,8 +207,8 @@ SUPERSEDE_SQL = text(
     WHERE r.id = e.run_id AND d.id = e.document_id AND e.municipality_id = :m
       AND e.run_id <> :run_id AND e.superseded_at IS NULL AND e.published_value_id IS NULL
       AND r.lineage_id = :lineage_id
-      AND ((e.document_id = :document_id
-            AND (r.file_sha256 <> :sha256 OR e.review_state = 'pending_review'))
+      AND ((e.document_id = :document_id AND r.file_id = :file_id
+            AND e.review_state = 'pending_review')
            OR (e.document_id <> :document_id AND d.version < :version))
     RETURNING e.id, e.run_id
     """
@@ -351,12 +357,14 @@ class ExtractionRunner:
         async with self.session_factory() as session:
             row = (await session.execute(RUN_BY_JOB_SQL, {"job_id": job.id})).mappings().first()
             if row is None:
+                file_id = job.payload.get("file_id") or job.file_id
                 run_id = await insert_run(
                     session,
                     municipality_id=self.municipality_id,
                     document_id=document_id,
                     job_id=job.id,
                     model=self.model_name,
+                    file_id=int(file_id) if file_id else None,
                     prompt_version=self.prompt_version,
                 )
                 if run_id is None:
@@ -449,7 +457,8 @@ class ExtractionRunner:
             document = (
                 (
                     await session.execute(
-                        DOCUMENT_SQL, {"m": self.municipality_id, "id": document_id}
+                        DOCUMENT_SQL,
+                        {"m": self.municipality_id, "id": document_id, "file_id": run["file_id"]},
                     )
                 )
                 .mappings()
@@ -461,6 +470,8 @@ class ExtractionRunner:
             raise ExtractionFailed(f"the file of document {document_id} is not a planning PDF")
         if document["sha256"] != run["file_sha256"]:
             raise ExtractionFailed("the document's file changed since the extraction was queued")
+        if not document["attached"]:
+            raise ExtractionFailed("the file was removed from the document after it was queued")
 
         manifest, pages = await self._pages(document)
         skipped_pages = list(manifest.summary.unread_pages)
@@ -724,7 +735,7 @@ class ExtractionRunner:
                         "at": now,
                         "lineage_id": document["lineage_id"],
                         "document_id": document_id,
-                        "sha256": document["sha256"],
+                        "file_id": document["file_id"],
                         "version": document["version"],
                     },
                 )

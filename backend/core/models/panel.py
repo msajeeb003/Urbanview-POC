@@ -357,6 +357,13 @@ class PlanningParameterValue(Base):
         JSONB, comment="[x0, y0, x1, y1] in PDF points, origin bottom-left"
     )
     source_note: Mapped[str | None] = mapped_column(Text, comment="e.g. table 3 – UP 12")
+    # Migration 0022: a document version can have several files; the value cites the one it was
+    # read from (the item's extraction run). Null on seeded rows = the document's file_key.
+    source_file_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("stored_files.id", ondelete="SET NULL"),
+        comment="the stored file the value is cited from; null = the document's file_key",
+    )
     publish_version_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("publish_versions.id", ondelete="RESTRICT"),

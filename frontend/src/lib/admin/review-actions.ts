@@ -1,0 +1,212 @@
+"use server";
+
+/**
+ * Server actions of the AI review queue. Every call goes to the staff API with the signed-in
+ * member's bearer token (the API audits each decision: actor, before / after, the note). They
+ * answer data, not a page refresh: the queue keeps its own state so a reviewer moves through
+ * hundreds of items without the page re-rendering; a decision answers the updated item and the
+ * document's counters. Refusals come back as `{ok: false, message}` in plain words.
+ *
+ * Publishing and rolling back are admin actions here (the spec's "Publish (admin only)"), checked
+ * again on the server; the API itself also lets reviewers publish.
+ */
+import { unstable_rethrow } from "next/navigation";
+
+import type {
+  AdminJob,
+  AuditPage,
+  BulkResult,
+  PublishStatus,
+  ReviewCounters,
+  ReviewItem,
+  ReviewOptions,
+  ReviewPage,
+} from "@/lib/api/types";
+
+import { adminGet, adminSend } from "./api";
+import { explainReviewProblem, QUEUE_PAGE, reviewQuery, type ReviewFilters } from "./review";
+import { canOpen } from "./sections";
+import { currentStaff } from "./session";
+
+export type Result<T> = { ok: true; message: string; data: T } | { ok: false; message: string };
+
+async function reviewer(): Promise<string | null> {
+  const staff = await currentStaff();
+  return staff && canOpen(staff.role, "review") ? null : "Your role cannot review extracted values.";
+}
+
+async function admin(): Promise<string | null> {
+  const staff = await currentStaff();
+  return staff?.role === "admin" ? null : "Only an administrator publishes.";
+}
+
+async function counters(documentId: number): Promise<ReviewCounters | null> {
+  try {
+    const rows = await adminGet<ReviewCounters[]>("/v1/admin/review/summary", { document_id: documentId });
+    return rows[0] ?? null;
+  } catch (err) {
+    unstable_rethrow(err);
+    return null;
+  }
+}
+
+export interface Decision {
+  item: ReviewItem;
+  counters: ReviewCounters | null;
+}
+
+async function decide(
+  path: string,
+  body: unknown,
+  message: string,
+): Promise<Result<Decision>> {
+  const denied = await reviewer();
+  if (denied) return { ok: false, message: denied };
+  const result = await adminSend<ReviewItem>("POST", path, body);
+  if (!result.ok) return { ok: false, message: explainReviewProblem(result) };
+  return { ok: true, message, data: { item: result.data, counters: await counters(result.data.source.document_id) } };
+}
+
+/** `POST /v1/admin/review/{id}/approve`: the AI value as extracted. */
+export async function approveAction(itemId: number, note?: string): Promise<Result<Decision>> {
+  return decide(`/v1/admin/review/${itemId}/approve`, note ? { note } : {}, "Approved");
+}
+
+/** `POST /v1/admin/review/{id}/amend`: a corrected value (typed per parameter) and the note. */
+export async function amendAction(
+  itemId: number,
+  correction: { value: number | string; unit: string | null; note: string },
+): Promise<Result<Decision>> {
+  if (!correction.note.trim()) return { ok: false, message: "Say what was wrong: a note is required with a correction." };
+  return decide(
+    `/v1/admin/review/${itemId}/amend`,
+    { value: correction.value, unit: correction.unit, note: correction.note.trim() },
+    "Amended",
+  );
+}
+
+/** `POST /v1/admin/review/{id}/reject`: the value stays out; the reason is required. */
+export async function rejectAction(itemId: number, note: string): Promise<Result<Decision>> {
+  if (!note.trim()) return { ok: false, message: "Give the reason for rejecting." };
+  return decide(`/v1/admin/review/${itemId}/reject`, { note: note.trim() }, "Rejected");
+}
+
+/** `POST /v1/admin/review/bulk-approve` for the given items (one page, one parcel). */
+export async function bulkApproveAction(
+  itemIds: number[],
+  documentId: number,
+): Promise<Result<{ approved: number[]; skipped: number; counters: ReviewCounters | null }>> {
+  const denied = await reviewer();
+  if (denied) return { ok: false, message: denied };
+  if (!itemIds.length) return { ok: false, message: "Nothing pending to approve here." };
+  const result = await adminSend<BulkResult>("POST", "/v1/admin/review/bulk-approve", { item_ids: itemIds.slice(0, 500) });
+  if (!result.ok) return { ok: false, message: explainReviewProblem(result) };
+  const { approved, skipped } = result.data;
+  return {
+    ok: true,
+    message: `Approved ${approved.length} item${approved.length === 1 ? "" : "s"}${skipped.length ? ` (${skipped.length} already decided)` : ""}`,
+    data: { approved, skipped: skipped.length, counters: await counters(documentId) },
+  };
+}
+
+/** The next page of the queue for the same filters. */
+export async function loadQueueAction(filters: ReviewFilters, offset: number): Promise<Result<ReviewPage>> {
+  const denied = await reviewer();
+  if (denied) return { ok: false, message: denied };
+  try {
+    const page = await adminGet<ReviewPage>("/v1/admin/review", reviewQuery(filters, Math.max(0, offset)));
+    return { ok: true, message: `${page.items.length} more of ${page.total}`, data: page };
+  } catch (err) {
+    unstable_rethrow(err);
+    return { ok: false, message: `The next ${QUEUE_PAGE} items could not be loaded. Try again in a moment.` };
+  }
+}
+
+/** One item again: a freshly signed page link (they expire) and its current decision. */
+export async function itemAction(itemId: number): Promise<Result<ReviewItem>> {
+  const denied = await reviewer();
+  if (denied) return { ok: false, message: denied };
+  try {
+    return { ok: true, message: "", data: await adminGet<ReviewItem>(`/v1/admin/review/${itemId}`) };
+  } catch (err) {
+    unstable_rethrow(err);
+    return { ok: false, message: "The item could not be loaded." };
+  }
+}
+
+/** The wordings a document already uses for a text field (the land-use select). */
+export async function optionsAction(documentId: number, fieldKey: string): Promise<Result<ReviewOptions>> {
+  const denied = await reviewer();
+  if (denied) return { ok: false, message: denied };
+  try {
+    const data = await adminGet<ReviewOptions>("/v1/admin/review/options", { document_id: documentId, field_key: fieldKey });
+    return { ok: true, message: "", data };
+  } catch (err) {
+    unstable_rethrow(err);
+    return { ok: false, message: "The document's wordings could not be loaded; type the value instead." };
+  }
+}
+
+/** Every document's counters (the progress header after bulk work). */
+export async function countersAction(): Promise<Result<ReviewCounters[]>> {
+  const denied = await reviewer();
+  if (denied) return { ok: false, message: denied };
+  try {
+    return { ok: true, message: "", data: await adminGet<ReviewCounters[]>("/v1/admin/review/summary") };
+  } catch (err) {
+    unstable_rethrow(err);
+    return { ok: false, message: "The counters could not be loaded." };
+  }
+}
+
+/** `GET /v1/admin/publish`: the current data version, the active or last job, what blocks. */
+export async function publishStatusAction(): Promise<Result<PublishStatus>> {
+  const denied = await reviewer();
+  if (denied) return { ok: false, message: denied };
+  try {
+    return { ok: true, message: "", data: await adminGet<PublishStatus>("/v1/admin/publish") };
+  } catch (err) {
+    unstable_rethrow(err);
+    return { ok: false, message: "The publish status could not be loaded." };
+  }
+}
+
+/** `POST /v1/admin/publish`: one publish job (every document's approved values). */
+export async function publishAction(): Promise<Result<AdminJob>> {
+  const denied = await admin();
+  if (denied) return { ok: false, message: denied };
+  const result = await adminSend<AdminJob>("POST", "/v1/admin/publish", {});
+  if (!result.ok) {
+    const details = result.details as { documents?: { document_name: string; pending: number }[] } | undefined;
+    if (result.status === 409 && details?.documents?.length) {
+      const names = details.documents.slice(0, 3).map((d) => `${d.document_name} (${d.pending} pending)`);
+      return { ok: false, message: `Publishing waits for: ${names.join(", ")}${details.documents.length > 3 ? " …" : ""}` };
+    }
+    return { ok: false, message: explainReviewProblem(result) };
+  }
+  return { ok: true, message: result.status === 202 ? "Publishing started" : "A publish is already running", data: result.data };
+}
+
+/** `POST /v1/admin/publish/rollback`: back to the version before the current one (answers the
+ * publish status after the flip). */
+export async function rollbackAction(versionId?: number): Promise<Result<PublishStatus>> {
+  const denied = await admin();
+  if (denied) return { ok: false, message: denied };
+  const result = await adminSend<PublishStatus>("POST", "/v1/admin/publish/rollback", versionId ? { version_id: versionId } : {});
+  if (!result.ok) return { ok: false, message: explainReviewProblem(result) };
+  const label = result.data.current?.label;
+  return { ok: true, message: label ? `The map serves ${label} again` : "Rolled back", data: result.data };
+}
+
+/** The item's audit trail (`GET /v1/admin/audit`, entity `extraction_item`): every decision. */
+export async function historyAction(itemId: number): Promise<Result<AuditPage>> {
+  const denied = await reviewer();
+  if (denied) return { ok: false, message: denied };
+  try {
+    const data = await adminGet<AuditPage>("/v1/admin/audit", { entity_type: "extraction_item", entity_id: itemId, limit: 20 });
+    return { ok: true, message: "", data };
+  } catch (err) {
+    unstable_rethrow(err);
+    return { ok: false, message: "The history could not be loaded." };
+  }
+}

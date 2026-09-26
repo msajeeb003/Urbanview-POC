@@ -13,6 +13,7 @@ from core.db import Base
 from core.models.admin import (
     AuditLogEntry,
     PipelineJob,
+    PlanningDocumentFile,
     StaffLoginToken,
     StaffSession,
     StaffUser,
@@ -66,6 +67,7 @@ __all__ = [
     "Order",
     "ParcelLink",
     "PlanningDocument",
+    "PlanningDocumentFile",
     "PlanningDocumentStatus",
     "PlanningField",
     "PlanningParameterExtraction",

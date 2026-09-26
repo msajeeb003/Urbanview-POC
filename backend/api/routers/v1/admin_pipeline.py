@@ -1,11 +1,17 @@
-"""Staff pipeline API (role ``admin``): files, planning document versions, jobs, coverage.
+"""Staff pipeline API (roles ``admin`` and ``reviewer``): files, planning document versions and
+their files, jobs, coverage.
 
 - ``POST /v1/admin/files`` (multipart ``file`` + ``kind``): upload to the private bucket,
   de-duplicated by SHA-256 (201 new, 200 when the checksum was already known);
-- ``POST /v1/admin/documents``: register a document version against a stored PDF;
+- ``POST /v1/admin/documents``: register a document version with its stored files (``files``:
+  file id + role text | drawing | both; none is fine, they can follow);
   ``replaces_document_id`` creates the next version and retires the current one;
+- ``POST /v1/admin/documents/{id}/files``, ``PATCH`` / ``DELETE .../files/{file_id}``: add
+  files to the current version, change what a file is read for, take one off (409 once an item
+  read from it was approved);
 - ``GET /v1/admin/files`` / ``/documents`` (+ ``/{id}``): listings with job history;
-- ``POST /v1/admin/documents/{id}/jobs/extract``, ``POST /v1/admin/files/{id}/jobs/geo``,
+- ``POST /v1/admin/documents/{id}/jobs/extract[?file_id=]`` (one run per file),
+  ``POST /v1/admin/files/{id}/jobs/geo``,
   ``POST /v1/admin/files/{id}/jobs/preprocess``: queue the extraction / geometry / PDF
   pre-processing job (staging only): 202 with the job, or 200 with the existing job when an
   identical one is already queued / running (idempotent); status, listing and retry live in
@@ -22,16 +28,20 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Path, Query, Response, UploadFile
 
-from api.deps import AdminPrincipal, AdminServiceDep
+from api.deps import AdminServiceDep, PipelinePrincipal
 from api.schemas.admin import (
     CoverageIn,
+    DocumentFileRoleIn,
+    DocumentFilesIn,
     DocumentIn,
     DocumentList,
     DocumentOut,
+    DocumentState,
     DocumentStatus,
     FileKind,
     FileList,
     JobOut,
+    JobStateFilter,
     StoredFileOut,
     UploadResult,
 )
@@ -45,7 +55,7 @@ router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(_no_st
 
 RESPONSES = {
     401: {"description": "Missing or unknown bearer token (`unauthorized`)"},
-    403: {"description": "The principal's role is not admin (`forbidden`)"},
+    403: {"description": "The principal is neither admin nor reviewer (`forbidden`)"},
     503: {"description": "Database, object storage or job queue unavailable"},
 }
 Id = Annotated[int, Path(gt=0)]
@@ -67,7 +77,7 @@ Id = Annotated[int, Path(gt=0)]
     },
 )
 async def upload_file(
-    principal: AdminPrincipal,
+    principal: PipelinePrincipal,
     service: AdminServiceDep,
     response: Response,
     file: Annotated[UploadFile, File(description="The file")],
@@ -84,7 +94,7 @@ async def upload_file(
 
 @router.get("/files", response_model=FileList, summary="Stored files with their job history")
 async def list_files(
-    principal: AdminPrincipal,
+    principal: PipelinePrincipal,
     service: AdminServiceDep,
     kind: Annotated[FileKind | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
@@ -95,7 +105,7 @@ async def list_files(
 
 @router.get("/files/{file_id}", response_model=StoredFileOut, responses=RESPONSES)
 async def get_file(
-    principal: AdminPrincipal, service: AdminServiceDep, file_id: Id
+    principal: PipelinePrincipal, service: AdminServiceDep, file_id: Id
 ) -> StoredFileOut:
     return await service.get_file(file_id)
 
@@ -112,7 +122,7 @@ async def get_file(
     },
 )
 async def enqueue_geo_job(
-    principal: AdminPrincipal, service: AdminServiceDep, file_id: Id, response: Response
+    principal: PipelinePrincipal, service: AdminServiceDep, file_id: Id, response: Response
 ) -> JobOut:
     enqueued = await service.enqueue_geo(principal, file_id)
     response.status_code = 202 if enqueued.created else 200
@@ -131,7 +141,7 @@ async def enqueue_geo_job(
     },
 )
 async def enqueue_preprocess_job(
-    principal: AdminPrincipal,
+    principal: PipelinePrincipal,
     service: AdminServiceDep,
     file_id: Id,
     response: Response,
@@ -151,16 +161,21 @@ async def enqueue_preprocess_job(
     "/documents",
     status_code=201,
     response_model=DocumentOut,
-    summary="Register a planning document version against a stored PDF",
+    summary="Register a planning document version with its stored files",
     responses={
         **RESPONSES,
         404: {"description": "`replaces_document_id` does not exist"},
         409: {"description": "`replaces_document_id` is not the current version"},
-        422: {"description": "Unknown type / zone / file, or the file is not a planning PDF"},
+        422: {
+            "description": (
+                "Unknown type / zone / file, a file that is not a planning PDF (GIS files only "
+                "as drawings), or a file listed twice"
+            )
+        },
     },
 )
 async def register_document(
-    principal: AdminPrincipal, service: AdminServiceDep, payload: DocumentIn
+    principal: PipelinePrincipal, service: AdminServiceDep, payload: DocumentIn
 ) -> DocumentOut:
     return await service.register_document(principal, payload)
 
@@ -171,11 +186,20 @@ async def register_document(
     summary="Planning documents (current versions unless include_previous) with job history",
 )
 async def list_documents(
-    principal: AdminPrincipal,
+    principal: PipelinePrincipal,
     service: AdminServiceDep,
     status: Annotated[DocumentStatus | None, Query()] = None,
     lineage_id: Annotated[int | None, Query(gt=0)] = None,
     include_previous: Annotated[bool, Query()] = False,
+    zone_id: Annotated[int | None, Query(gt=0)] = None,
+    state: Annotated[
+        DocumentState | None, Query(description="Where the version stands (DocumentOut.state)")
+    ] = None,
+    job_state: Annotated[
+        JobStateFilter | None,
+        Query(description="Some file's latest extraction or geometry job is in this state"),
+    ] = None,
+    q: Annotated[str | None, Query(max_length=200, description="Part of the name")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> DocumentList:
@@ -183,6 +207,10 @@ async def list_documents(
         status=status,
         lineage_id=lineage_id,
         include_previous=include_previous,
+        zone_id=zone_id,
+        state=state,
+        job_state=job_state,
+        q=q,
         limit=limit,
         offset=offset,
     )
@@ -190,9 +218,77 @@ async def list_documents(
 
 @router.get("/documents/{document_id}", response_model=DocumentOut, responses=RESPONSES)
 async def get_document(
-    principal: AdminPrincipal, service: AdminServiceDep, document_id: Id
+    principal: PipelinePrincipal, service: AdminServiceDep, document_id: Id
 ) -> DocumentOut:
     return await service.get_document(document_id)
+
+
+@router.post(
+    "/documents/{document_id}/files",
+    status_code=201,
+    response_model=DocumentOut,
+    summary="Add stored files to the current version of a document",
+    responses={
+        **RESPONSES,
+        200: {"description": "Every file was already on the version; nothing changed"},
+        404: {"description": "No such document"},
+        409: {"description": "Not the current version (`not_current_version`)"},
+        422: {"description": "Unknown file, not a planning PDF, or a GIS file not as a drawing"},
+    },
+)
+async def attach_document_files(
+    principal: PipelinePrincipal,
+    service: AdminServiceDep,
+    document_id: Id,
+    payload: DocumentFilesIn,
+    response: Response,
+) -> DocumentOut:
+    document, added = await service.attach_files(principal, document_id, payload.files)
+    response.status_code = 201 if added else 200
+    return document
+
+
+@router.patch(
+    "/documents/{document_id}/files/{file_id}",
+    response_model=DocumentOut,
+    summary="Change what a file of the current version is read for (text, drawing, both)",
+    responses={
+        **RESPONSES,
+        404: {"description": "No such document, or the file is not on it"},
+        409: {"description": "Not the current version"},
+        422: {"description": "A GIS file can only be a drawing"},
+    },
+)
+async def set_document_file_role(
+    principal: PipelinePrincipal,
+    service: AdminServiceDep,
+    document_id: Id,
+    file_id: Id,
+    payload: DocumentFileRoleIn,
+) -> DocumentOut:
+    return await service.set_file_role(principal, document_id, file_id, payload.role)
+
+
+@router.delete(
+    "/documents/{document_id}/files/{file_id}",
+    response_model=DocumentOut,
+    summary="Take a file off the current version (its open review items are superseded)",
+    responses={
+        **RESPONSES,
+        404: {"description": "No such document, or the file is not on it"},
+        409: {
+            "description": (
+                "Not the current version, items read from the file were approved "
+                "(`items_accepted`), published values cite it (`values_published`) or it is "
+                "being extracted (`extraction_active`)"
+            )
+        },
+    },
+)
+async def remove_document_file(
+    principal: PipelinePrincipal, service: AdminServiceDep, document_id: Id, file_id: Id
+) -> DocumentOut:
+    return await service.detach_file(principal, document_id, file_id)
 
 
 @router.patch(
@@ -205,7 +301,7 @@ async def get_document(
     },
 )
 async def set_coverage(
-    principal: AdminPrincipal, service: AdminServiceDep, document_id: Id, payload: CoverageIn
+    principal: PipelinePrincipal, service: AdminServiceDep, document_id: Id, payload: CoverageIn
 ) -> DocumentOut:
     return await service.set_coverage_live(principal, document_id, payload.live)
 
@@ -214,7 +310,7 @@ async def set_coverage(
     "/documents/{document_id}/jobs/extract",
     status_code=202,
     response_model=JobOut,
-    summary="Queue the LLM extraction run for a document version (staging only)",
+    summary="Queue the LLM extraction run over one file of a document version (staging only)",
     responses={
         **RESPONSES,
         200: {
@@ -224,20 +320,30 @@ async def set_coverage(
                 "queued or running (returned as is)"
             )
         },
-        409: {"description": "The document has no stored file"},
+        404: {"description": "No such document, or `file_id` is not one of its files"},
+        409: {
+            "description": (
+                "No file to extract (`no_file`), or the file is a drawing (`drawing_file`) or "
+                "not a PDF (`not_a_pdf`)"
+            )
+        },
     },
 )
 async def enqueue_extract_job(
-    principal: AdminPrincipal,
+    principal: PipelinePrincipal,
     service: AdminServiceDep,
     document_id: Id,
     response: Response,
+    file_id: Annotated[
+        int | None,
+        Query(gt=0, description="The file to read (default: the version's primary text file)"),
+    ] = None,
     force: Annotated[
         bool,
         Query(description="Read the file again even though an identical run already finished"),
     ] = False,
 ) -> JobOut:
-    enqueued = await service.enqueue_extract(principal, document_id, force=force)
+    enqueued = await service.enqueue_extract(principal, document_id, file_id=file_id, force=force)
     response.status_code = 202 if enqueued.created else 200
     return enqueued.job
 

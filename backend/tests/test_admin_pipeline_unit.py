@@ -121,6 +121,7 @@ async def test_staff_sessions_pass_the_role_gate():
         {
             "sess-admin-0001": Principal("ana@example.com", Role.admin, user_id=7),
             "sess-review-001": Principal("bob@example.com", Role.reviewer, user_id=8),
+            "sess-expert-001": Principal("eve@example.com", Role.expert, user_id=9),
         }
     )
     app = make_app(make_settings(rate_limit_requests=100), make_redis(), staff_authenticator=staff)
@@ -131,12 +132,17 @@ async def test_staff_sessions_pass_the_role_gate():
         reviewer = await client.get(
             "/v1/admin/files", headers={"Authorization": "Bearer sess-review-001"}
         )
+        expert = await client.get(
+            "/v1/admin/files", headers={"Authorization": "Bearer sess-expert-001"}
+        )
         unknown = await client.get("/v1/admin/files", headers={"Authorization": "Bearer nope"})
         anonymous = await client.get("/v1/admin/files")
-    # the gate passed for the admin session; the staff API itself needs PostGIS (503 in nodata)
+    # the gate passed for the admin and reviewer sessions (the Data sources screen is theirs);
+    # the staff API itself needs PostGIS (503 in nodata)
     assert admin.status_code == 503
     assert admin.json()["error"]["code"] == "service_unavailable"
-    assert reviewer.status_code == 403
+    assert reviewer.status_code == 503
+    assert expert.status_code == 403
     assert unknown.status_code == 401 and anonymous.status_code == 401
 
 

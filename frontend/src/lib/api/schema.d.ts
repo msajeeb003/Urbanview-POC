@@ -259,6 +259,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Parcels, documents, pending review, paid orders and the pipeline per district */
+        get: operations["get_overview_v1_admin_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/files": {
         parameters: {
             query?: never;
@@ -338,7 +355,7 @@ export interface paths {
         /** Planning documents (current versions unless include_previous) with job history */
         get: operations["list_documents_v1_admin_documents_get"];
         put?: never;
-        /** Register a planning document version against a stored PDF */
+        /** Register a planning document version with its stored files */
         post: operations["register_document_v1_admin_documents_post"];
         delete?: never;
         options?: never;
@@ -361,6 +378,41 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/documents/{document_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add stored files to the current version of a document */
+        post: operations["attach_document_files_v1_admin_documents__document_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/documents/{document_id}/files/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Take a file off the current version (its open review items are superseded) */
+        delete: operations["remove_document_file_v1_admin_documents__document_id__files__file_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change what a file of the current version is read for (text, drawing, both) */
+        patch: operations["set_document_file_role_v1_admin_documents__document_id__files__file_id__patch"];
         trace?: never;
     };
     "/v1/admin/documents/{document_id}/coverage": {
@@ -389,7 +441,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Queue the LLM extraction run for a document version (staging only) */
+        /** Queue the LLM extraction run over one file of a document version (staging only) */
         post: operations["enqueue_extract_job_v1_admin_documents__document_id__jobs_extract_post"];
         delete?: never;
         options?: never;
@@ -609,6 +661,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in staff member and role (every staff role) */
+        get: operations["get_me_v1_admin_users_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/users/{user_id}": {
         parameters: {
             query?: never;
@@ -815,6 +884,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/review/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The wordings a document already uses for a text field (the amend select) */
+        get: operations["review_options_v1_admin_review_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/review/bulk-approve": {
         parameters: {
             query?: never;
@@ -945,6 +1031,23 @@ export interface paths {
         put?: never;
         /** Exchange a login link for a session */
         post: operations["exchange_magic_link_v1_auth_magic_link_exchange_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sign-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End the staff session of the bearer token */
+        post: operations["sign_out_v1_auth_sign_out_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2055,6 +2158,46 @@ export interface components {
             /** Share Pct */
             share_pct: number;
         };
+        /** DistrictStatus */
+        DistrictStatus: {
+            /** Zone Id */
+            zone_id: number;
+            /** Name */
+            name: string;
+            /** Zone Type */
+            zone_type: string | null;
+            /** Documents */
+            documents: number;
+            /** Documents Adopted */
+            documents_adopted: number;
+            /**
+             * Extraction
+             * @description none: the zone has no documents; queued: nothing extracted yet; in_progress: runs going or only part of the documents read; done: every document read
+             * @enum {string}
+             */
+            extraction: "none" | "queued" | "in_progress" | "done";
+            /** Extraction Done */
+            extraction_done: number;
+            /** Extraction Running */
+            extraction_running: number;
+            /** Extraction Failed */
+            extraction_failed: number;
+            /** Review Items */
+            review_items: number;
+            /**
+             * Review Pct
+             * @description Reviewed / extracted items, 0-100; null when nothing was extracted
+             */
+            review_pct: number | null;
+            /**
+             * Live
+             * @description Adopted documents with a live coverage: all of them, some, none
+             * @enum {string}
+             */
+            live: "yes" | "partial" | "no";
+            /** Documents Live */
+            documents_live: number;
+        };
         /** DocumentCounts */
         DocumentCounts: {
             /** Documents */
@@ -2115,13 +2258,123 @@ export interface components {
              */
             file_available: boolean;
         };
+        /** DocumentFileIn */
+        DocumentFileIn: {
+            /**
+             * File Id
+             * @description A stored planning_document PDF (or a gis file)
+             */
+            file_id: number;
+            /**
+             * Role
+             * @description text = read by the extraction job, drawing = by the geometry job, both
+             * @default text
+             * @enum {string}
+             */
+            role: "text" | "drawing" | "both";
+        };
+        /**
+         * DocumentFileOut
+         * @description One file of a document version with where it stands: its latest extraction run (and that
+         *     run's job), its latest geometry job, the review items read from it and whether it may be
+         *     removed (not once any of its items is approved, amended or published).
+         */
+        DocumentFileOut: {
+            /** File Id */
+            file_id: number;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "text" | "drawing" | "both";
+            /** Position */
+            position: number;
+            /**
+             * Is Primary
+             * @description The version's primary file (planning_documents.file_id)
+             */
+            is_primary: boolean;
+            kind: components["schemas"]["FileKind"];
+            /** Original Filename */
+            original_filename: string;
+            /** Mime Type */
+            mime_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Sha256 */
+            sha256: string;
+            /** Page Count */
+            page_count?: number | null;
+            /**
+             * Scanned Pages
+             * @description From the PDF pre-processing; null until it has run
+             */
+            scanned_pages?: number[] | null;
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
+            /** Added By */
+            added_by?: string | null;
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
+            preprocessing?: components["schemas"]["PreprocessSummary"] | null;
+            /**
+             * Extraction State
+             * @description none | queued | extracting | retrying | ready_for_review | failed
+             * @default none
+             * @enum {string}
+             */
+            extraction_state: "none" | "queued" | "extracting" | "retrying" | "ready_for_review" | "failed";
+            /**
+             * Extraction Error
+             * @description Why it failed
+             */
+            extraction_error?: string | null;
+            /** @description The latest extraction run of this file for this version */
+            extraction?: components["schemas"]["ExtractionRunOut"] | null;
+            /** @description That run's job */
+            extraction_job?: components["schemas"]["JobOut"] | null;
+            /** @description The latest process_geometry job of the file */
+            geometry_job?: components["schemas"]["JobOut"] | null;
+            items?: components["schemas"]["api__schemas__admin__ItemCounts"];
+            /** Can Remove */
+            can_remove: boolean;
+            /**
+             * Remove Blocker
+             * @description items_accepted | values_published | extraction_active
+             */
+            remove_blocker?: string | null;
+        };
+        /** DocumentFileRoleIn */
+        DocumentFileRoleIn: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "text" | "drawing" | "both";
+        };
+        /** DocumentFilesIn */
+        DocumentFilesIn: {
+            /** Files */
+            files: components["schemas"]["DocumentFileIn"][];
+        };
         /** DocumentIn */
         DocumentIn: {
             /**
              * File Id
-             * @description A stored file of kind planning_document
+             * @description Single-file form (kept for older clients): the same as files=[{file_id}]
              */
-            file_id: number;
+            file_id?: number | null;
+            /**
+             * Files
+             * @description The version's files in display order; more can be attached later (POST /v1/admin/documents/{id}/files). The first text / both PDF is the primary file
+             */
+            files?: components["schemas"]["DocumentFileIn"][];
             /** Name */
             name: string;
             /**
@@ -2162,6 +2415,12 @@ export interface components {
         DocumentList: {
             /** Items */
             items: components["schemas"]["DocumentOut"][];
+            /**
+             * Total
+             * @description Matching documents before paging
+             * @default 0
+             */
+            total: number;
             /** Limit */
             limit: number;
             /** Offset */
@@ -2203,9 +2462,22 @@ export interface components {
             licence_note?: string | null;
             /** Adopted On */
             adopted_on?: string | null;
+            /** @description The primary file */
             file?: components["schemas"]["FileSummary"] | null;
             /** Page Count */
             page_count?: number | null;
+            /**
+             * Files
+             * @description Every file of this version, in display order
+             */
+            files?: components["schemas"]["DocumentFileOut"][];
+            /**
+             * State
+             * @description no_files | processing | ready_for_review | failed | published | reviewed | not_extracted (first match, in that order)
+             * @default no_files
+             * @enum {string}
+             */
+            state: "no_files" | "processing" | "ready_for_review" | "failed" | "published" | "reviewed" | "not_extracted";
             /**
              * Has Coverage
              * @description A coverage geometry exists (geometry job ran / seeded)
@@ -3136,35 +3408,6 @@ export interface components {
             /** Sessions */
             sessions: number;
         };
-        /** ItemCounts */
-        ItemCounts: {
-            /**
-             * Pending
-             * @default 0
-             */
-            pending: number;
-            /**
-             * Approved
-             * @default 0
-             */
-            approved: number;
-            /**
-             * Amended
-             * @default 0
-             */
-            amended: number;
-            /**
-             * Rejected
-             * @default 0
-             */
-            rejected: number;
-            /**
-             * Applied
-             * @description Approved or amended items that wrote a version
-             * @default 0
-             */
-            applied: number;
-        };
         /**
          * JobCostOut
          * @description What the job cost; fields stay ``null`` until it has run (and succeeded, for LLM cost).
@@ -3643,7 +3886,7 @@ export interface components {
             created_at: string;
             /** Normalised At */
             normalised_at?: string | null;
-            items?: components["schemas"]["ItemCounts"];
+            items?: components["schemas"]["api__schemas__market__ItemCounts"];
             /**
              * Report
              * @description Detail only: items made, every row / column left out with its reason, issues, the sheet mappings and the LLM's calls and tokens
@@ -3804,7 +4047,7 @@ export interface components {
             items: components["schemas"]["MarketItemOut"][];
             /** Total */
             total: number;
-            counts: components["schemas"]["ItemCounts"];
+            counts: components["schemas"]["api__schemas__market__ItemCounts"];
         };
         /** MarketRange */
         MarketRange: {
@@ -4311,6 +4554,52 @@ export interface components {
             construction_cost_eur_m2: boolean;
             /** Sale Price Eur M2 */
             sale_price_eur_m2: boolean;
+        };
+        /** OverviewOut */
+        OverviewOut: {
+            /** Municipality Id */
+            municipality_id: string;
+            /** Municipality Name */
+            municipality_name: string;
+            totals: components["schemas"]["OverviewTotals"];
+            /** Districts */
+            districts: components["schemas"]["DistrictStatus"][];
+        };
+        /** OverviewTotals */
+        OverviewTotals: {
+            /**
+             * Parcels
+             * @description Cadastral parcels ingested
+             */
+            parcels: number;
+            /**
+             * Documents
+             * @description Planning documents (current versions)
+             */
+            documents: number;
+            /** Documents Adopted */
+            documents_adopted: number;
+            /** Documents In Progress */
+            documents_in_progress: number;
+            /** Documents Superseded */
+            documents_superseded: number;
+            /**
+             * Pending Review
+             * @description AI-extracted items waiting for an expert
+             */
+            pending_review: number;
+            /**
+             * Paid Orders
+             * @description Orders paid, in progress or delivered
+             */
+            paid_orders: number;
+            /** Paid Orders Last 7 Days */
+            paid_orders_last_7_days: number;
+            /**
+             * Revenue Eur
+             * @description Received amounts (the price where none was recorded)
+             */
+            revenue_eur: number;
         };
         /** PageFailure */
         PageFailure: {
@@ -5104,6 +5393,11 @@ export interface components {
              * @enum {string}
              */
             value_type: "text" | "number";
+            /**
+             * Field Unit
+             * @description The field dictionary's unit (the canonical one: %, m, m²)
+             */
+            field_unit?: string | null;
             /** @description The AI value; never overwritten */
             extracted: components["schemas"]["ReviewValue"];
             /** @description The reviewer's corrected value */
@@ -5150,6 +5444,8 @@ export interface components {
              * @description The extraction run that wrote it; null = manual or seeded
              */
             run_id?: number | null;
+            /** @description That run's job and cost */
+            run?: components["schemas"]["ReviewRun"] | null;
             /**
              * Change
              * @description Against the previous run's item for the same target and field
@@ -5166,6 +5462,29 @@ export interface components {
             superseded_at?: string | null;
             /** Superseded By Run Id */
             superseded_by_run_id?: number | null;
+        };
+        /** ReviewOption */
+        ReviewOption: {
+            /** Value */
+            value: string;
+            /**
+             * Count
+             * @description Items of the document carrying it (not superseded)
+             */
+            count: number;
+        };
+        /**
+         * ReviewOptions
+         * @description The wordings a document already uses for a text field (e.g. its land-use designations),
+         *     most frequent first: what the reviewer picks from when correcting a value.
+         */
+        ReviewOptions: {
+            /** Document Id */
+            document_id: number;
+            /** Field Key */
+            field_key: string;
+            /** Values */
+            values: components["schemas"]["ReviewOption"][];
         };
         /** ReviewPage */
         ReviewPage: {
@@ -5195,6 +5514,27 @@ export interface components {
             /** Run Id */
             run_id?: number | null;
         };
+        /**
+         * ReviewRun
+         * @description The extraction run that wrote the item: its job and what the whole run cost.
+         */
+        ReviewRun: {
+            /** Id */
+            id: number;
+            /** Job Id */
+            job_id?: number | null;
+            /** Model Version */
+            model_version?: string | null;
+            /**
+             * Estimated Cost Eur
+             * @description The whole run's cost
+             */
+            estimated_cost_eur?: number | null;
+            /** Items Written */
+            items_written?: number | null;
+            /** Finished At */
+            finished_at?: string | null;
+        };
         /** ReviewSource */
         ReviewSource: {
             /** Document Id */
@@ -5203,6 +5543,13 @@ export interface components {
             document_name: string;
             /** Registry Url */
             registry_url?: string | null;
+            /**
+             * File Id
+             * @description The stored file the value was read from (a document may have several)
+             */
+            file_id?: number | null;
+            /** File Name */
+            file_name?: string | null;
             /** Page */
             page?: number | null;
             /** Bbox */
@@ -5458,6 +5805,29 @@ export interface components {
              * @description e.g. 'table 3 – UP 12'
              */
             note: string | null;
+        };
+        /**
+         * StaffMeOut
+         * @description The signed-in principal: a staff user, or a configured service token.
+         */
+        StaffMeOut: {
+            /**
+             * Id
+             * @description staff_users.id; null for a service token
+             */
+            id?: number | null;
+            /** Email */
+            email?: string | null;
+            /** Display Name */
+            display_name?: string | null;
+            role: components["schemas"]["Role"];
+            /** Subject */
+            subject: string;
+            /**
+             * Via
+             * @enum {string}
+             */
+            via: "session" | "token";
         };
         /** StaffUserIn */
         StaffUserIn: {
@@ -5872,8 +6242,17 @@ export interface components {
             status: "adopted" | "in_progress" | "superseded";
             /** Is Current Version */
             is_current_version: boolean;
+            /** Name */
+            name?: string | null;
+            /** Registered By */
+            registered_by?: string | null;
             /** Registered At */
             registered_at?: string | null;
+            /**
+             * File Count
+             * @default 0
+             */
+            file_count: number;
         };
         /** ZoneCoverage */
         ZoneCoverage: {
@@ -6370,6 +6749,42 @@ export interface components {
             /** Max Floors */
             max_floors?: number | null;
         };
+        /**
+         * ItemCounts
+         * @description Review items read from one file of the document (not superseded).
+         */
+        api__schemas__admin__ItemCounts: {
+            /**
+             * Pending
+             * @default 0
+             */
+            pending: number;
+            /**
+             * Approved
+             * @default 0
+             */
+            approved: number;
+            /**
+             * Amended
+             * @default 0
+             */
+            amended: number;
+            /**
+             * Rejected
+             * @default 0
+             */
+            rejected: number;
+            /**
+             * Published
+             * @default 0
+             */
+            published: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+        };
         /** EngineInfo */
         api__schemas__feasibility__EngineInfo: {
             /**
@@ -6414,6 +6829,35 @@ export interface components {
              * @enum {string}
              */
             status: "adopted" | "in_progress" | "superseded";
+        };
+        /** ItemCounts */
+        api__schemas__market__ItemCounts: {
+            /**
+             * Pending
+             * @default 0
+             */
+            pending: number;
+            /**
+             * Approved
+             * @default 0
+             */
+            approved: number;
+            /**
+             * Amended
+             * @default 0
+             */
+            amended: number;
+            /**
+             * Rejected
+             * @default 0
+             */
+            rejected: number;
+            /**
+             * Applied
+             * @description Approved or amended items that wrote a version
+             * @default 0
+             */
+            applied: number;
         };
         /** DocumentRef */
         api__schemas__panel__DocumentRef: {
@@ -7072,6 +7516,37 @@ export interface operations {
             };
         };
     };
+    get_overview_v1_admin_overview_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_files_v1_admin_files_get: {
         parameters: {
             query?: {
@@ -7145,7 +7620,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The principal's role is not admin (`forbidden`) */
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7204,7 +7679,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The principal's role is not admin (`forbidden`) */
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7265,7 +7740,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The principal's role is not admin (`forbidden`) */
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7336,7 +7811,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The principal's role is not admin (`forbidden`) */
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7374,6 +7849,13 @@ export interface operations {
                 status?: ("adopted" | "in_progress" | "superseded") | null;
                 lineage_id?: number | null;
                 include_previous?: boolean;
+                zone_id?: number | null;
+                /** @description Where the version stands (DocumentOut.state) */
+                state?: ("no_files" | "processing" | "ready_for_review" | "failed" | "published" | "reviewed" | "not_extracted") | null;
+                /** @description Some file's latest extraction or geometry job is in this state */
+                job_state?: ("queued" | "running" | "succeeded" | "failed") | null;
+                /** @description Part of the name */
+                q?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -7436,7 +7918,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The principal's role is not admin (`forbidden`) */
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7457,7 +7939,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Unknown type / zone / file, or the file is not a planning PDF */
+            /** @description Unknown type / zone / file, a file that is not a planning PDF (GIS files only as drawings), or a file listed twice */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7502,7 +7984,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The principal's role is not admin (`forbidden`) */
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7517,6 +7999,223 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Database, object storage or job queue unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    attach_document_files_v1_admin_documents__document_id__files_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentFilesIn"];
+            };
+        };
+        responses: {
+            /** @description Every file was already on the version; nothing changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not the current version (`not_current_version`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown file, not a planning PDF, or a GIS file not as a drawing */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Database, object storage or job queue unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    remove_document_file_v1_admin_documents__document_id__files__file_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                document_id: number;
+                file_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or the file is not on it */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not the current version, items read from the file were approved (`items_accepted`), published values cite it (`values_published`) or it is being extracted (`extraction_active`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Database, object storage or job queue unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_document_file_role_v1_admin_documents__document_id__files__file_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                document_id: number;
+                file_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentFileRoleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or the file is not on it */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not the current version */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A GIS file can only be a drawing */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Database, object storage or job queue unavailable */
             503: {
@@ -7560,7 +8259,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The principal's role is not admin (`forbidden`) */
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7595,6 +8294,8 @@ export interface operations {
     enqueue_extract_job_v1_admin_documents__document_id__jobs_extract_post: {
         parameters: {
             query?: {
+                /** @description The file to read (default: the version's primary text file) */
+                file_id?: number | null;
                 /** @description Read the file again even though an identical run already finished */
                 force?: boolean;
             };
@@ -7631,14 +8332,21 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The principal's role is not admin (`forbidden`) */
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The document has no stored file */
+            /** @description No such document, or `file_id` is not one of its files */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No file to extract (`no_file`), or the file is a drawing (`drawing_file`) or not a PDF (`not_a_pdf`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8688,6 +9396,37 @@ export interface operations {
             };
         };
     };
+    get_me_v1_admin_users_me_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_user_v1_admin_users__user_id__get: {
         parameters: {
             query?: never;
@@ -9383,10 +10122,14 @@ export interface operations {
                 flag?: string | null;
                 /** @description Items of one extraction run */
                 run_id?: number | null;
+                /** @description Items read from one file of the document */
+                file_id?: number | null;
                 /** @description Against the previous run's item for the same target and field */
                 change?: ("new" | "same" | "changed") | null;
                 /** @description Also items a later run or decision superseded (history) */
                 include_superseded?: boolean;
+                /** @description pending: pending first, then file / page / parcel / field (default); page: file / page / parcel / field whatever the status; confidence: pending first, lowest confidence first */
+                sort?: "pending" | "page" | "confidence";
                 limit?: number;
                 offset?: number;
             };
@@ -9439,6 +10182,68 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ReviewCounters"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_options_v1_admin_review_options_get: {
+        parameters: {
+            query: {
+                document_id: number;
+                field_key: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewOptions"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not review (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such item (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The item has been published; decisions are closed (`conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -9874,6 +10679,35 @@ export interface operations {
             };
             /** @description Invalid, expired or already used link */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_out_v1_auth_sign_out_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

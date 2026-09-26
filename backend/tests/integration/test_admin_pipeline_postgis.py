@@ -294,7 +294,7 @@ async def test_jobs_are_enqueued_with_celery_mocked(admin_app, dispatcher):
 
     assert job["kind"] == "extract" and job["status"] == "queued"
     assert job["type"] == "extract_document" and job["queue"] == "extraction"
-    assert job["document_id"] == doc["id"] and job["file_id"] is None
+    assert job["document_id"] == doc["id"] and job["file_id"] == file["id"]
     assert job["celery_task_id"] == f"task-{job['id']}"
     assert job["status_url"] == f"/v1/admin/jobs/{job['id']}"
     assert job["requested_by"] == "ops"
@@ -408,7 +408,7 @@ async def test_staff_sessions_are_principals(admin_app):
     assert as_ana.status_code == 200
     assert uploaded.status_code == 201, uploaded.text
     assert uploader[0] == "ana@example.com" and uploader[1] is not None
-    assert as_bob.status_code == 403
+    assert as_bob.status_code == 200  # reviewers use the Data sources screen too
     assert as_expired.status_code == 401
     assert revoked >= 1 and after_revoke.status_code == 401
     with pytest.raises(LookupError):

@@ -52,3 +52,43 @@ export type OrderPricing = S["OrderPricing"];
 export type PlanningField = S["PlanningField"];
 export type Areas = S["Areas"];
 export type UrbanLink = S["UrbanLink"];
+
+// --- the admin console (staff routes; called from the Next server with the staff session) ---
+export type StaffMe = S["StaffMeOut"];
+export type StaffSession = S["SessionOut"];
+export type AdminOverview = S["OverviewOut"];
+export type DistrictStatus = S["DistrictStatus"];
+export type AuditPage = S["AuditPage"];
+export type AuditEntry = S["AuditEntry"];
+export type OrderList = S["OrderList"];
+export type StaffUserList = S["StaffUserList"];
+
+// --- Data sources: files, planning document versions and their files, pipeline jobs ---
+export type AdminDocument = S["DocumentOut"];
+export type AdminDocumentFile = S["DocumentFileOut"];
+export type AdminDocumentList = S["DocumentList"];
+export type AdminJob = S["JobOut"];
+export type AdminVersionRef = S["VersionRef"];
+export type StoredFile = S["StoredFileOut"];
+export type UploadResult = S["UploadResult"];
+export type DocumentState = NonNullable<S["DocumentOut"]["state"]>;
+export type DocumentStatus = S["DocumentOut"]["status"];
+export type ExtractionState = NonNullable<S["DocumentFileOut"]["extraction_state"]>;
+export type FileRole = S["DocumentFileOut"]["role"];
+export type JobStateFilter = NonNullable<
+  NonNullable<paths["/v1/admin/documents"]["get"]["parameters"]["query"]>["job_state"]
+>;
+
+// --- AI review queue and publishing ---
+export type ReviewItem = S["ReviewItem"];
+export type ReviewPage = S["ReviewPage"];
+export type ReviewValue = S["ReviewValue"];
+export type ReviewTarget = S["ReviewTarget"];
+export type ReviewCounters = S["ReviewCounters"];
+export type ReviewOptions = S["ReviewOptions"];
+export type ReviewStatus = S["ReviewItem"]["status"];
+export type ReviewEntityType = S["ReviewTarget"]["entity_type"];
+export type ReviewSort = NonNullable<NonNullable<paths["/v1/admin/review"]["get"]["parameters"]["query"]>["sort"]>;
+export type BulkResult = S["BulkResult"];
+export type PublishStatus = S["PublishStatus"];
+export type PublishVersion = S["PublishVersionOut"];

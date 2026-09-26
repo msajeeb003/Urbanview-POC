@@ -29,6 +29,7 @@ from api.services.geocode import GeocodeService
 from api.services.jobs import JobService
 from api.services.market import MarketService
 from api.services.orders import OrderService
+from api.services.overview import OverviewService
 from api.services.panel import PanelService
 from api.services.panel_cache import PanelCache
 from api.services.parcel_panel import ParcelPanelService
@@ -193,6 +194,9 @@ def create_app(
                 session_ttl_days=settings.staff_session_days,
             )
             app.state.admin_config_service = AdminConfigService(
+                app.state.session_factory, municipality=municipality
+            )
+            app.state.overview_service = OverviewService(
                 app.state.session_factory, municipality=municipality
             )
             app.state.review_service = ReviewService(

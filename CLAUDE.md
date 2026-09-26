@@ -19,7 +19,7 @@ wireframe, brand SVGs, specs; the client's planning PDFs in `docs/gis/source/`).
 | `backend/` | FastAPI app (`api/`: app factory, routers under `/v1`, schemas, services), `core/` (settings, logging, errors, middleware, db, models, `engine/` feasibility formulas, `geocode/` geocoding providers, `gis/` geometry assessment, `extraction/` the AI extraction contract, redis, storage, mail, municipality profiles, seeds loader), `jobs/` (Celery: ingestion, extraction, publish), `municipalities/<id>.toml`, `tests/` (unit) and `tests/integration/` (PostGIS). Python venv: `backend/.venv`. |
 | `database/` | Alembic (`alembic.ini`, `migrations/`), seed datasets (`seeds/podgorica_sample/*.geojson` for the geometry tables, `*.json` for the panel tables), compose init SQL (`docker/initdb/`), `scripts/dev_postgis.py` (portable PostGIS for Docker-less machines). |
 | `frontend/` | Public map: Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Radix) + Mapbox GL JS + TanStack Query, npm workspace `@urbanview/frontend`. Its own `frontend/CLAUDE.md` holds the tokens, dimensions, layer list, panel field lists and frontend rules. |
-| `admin/` | Staff tool, Next.js + Auth.js, roles admin / reviewer / expert (reserved, P1). |
+| `admin/` | Reserved; the staff tool is built into `frontend/` as the admin console (`/admin/*`, Auth.js magic links, roles admin / reviewer / expert). |
 | `packages/` | `feasibility-engine/`: the shared TypeScript feasibility engine (npm workspace of the root `package.json`) and `fixtures/feasibility-cases.json`, the fixture file both engines are held to. |
 | `deploy/` | Production on one server (Hetzner Cloud): `compose.yml` (Caddy HTTPS → web / api / MinIO; worker, PostGIS, Redis internal), `Caddyfile`, `.env.example`, `server-setup.sh`, `deploy.sh` (pull + rebuild + migrate), `backup.sh`, `README.md` (step by step). |
 | root | `docker-compose.yml`, `Makefile`, `ruff.toml`, `package.json` (npm workspaces: `packages/*`, `frontend`), `README.md`, this file. |
@@ -305,7 +305,11 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   `planning_documents.page_images_rendered`, otherwise the PDF with a `#page=N` anchor
   (`kind: pdf_page`). Object keys never leave the API, the bucket stays private, responses are
   `Cache-Control: no-store`, `expires_at` says when the link dies. The value route adds the
-  value's `bbox` (PDF points, origin bottom-left), `note`, field labels and the value itself.
+  value's `bbox` (PDF points, origin bottom-left), `note`, field labels and the value itself, and
+  opens the file the value cites (`planning_parameter_values.source_file_id`, set by the publish
+  job from the item's run, migration 0022; null = the document's `file_key`; page images only for
+  the primary file). The review queue's page link follows the item's run file the same way
+  (`source.file_id` / `file_name`, filter `file_id`); the parcel panel's `source.file_id` too.
 - **Existence is decided by the database, never by probing storage** (migration 0004, set by the
   ingestion job): `planning_documents.file_key` (null = not stored), `page_count` (null =
   unknown: any page ≥ 1 of the PDF is served; page images need a known count),
@@ -377,7 +381,8 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
 
 ## Staff pipeline API (`api/services/admin.py`, `api/routers/v1/admin_pipeline.py`, `core/auth.py`, `core/staff.py`)
 
-- **Principals** (role `admin` on every route below): configured service tokens
+- **Principals** (roles `admin` and `reviewer` on every route below, `PipelinePrincipal`: the
+  admin console's Data sources screen is theirs; experts get 403): configured service tokens
   (`ADMIN_API_TOKENS`) or **staff sessions**, the users / roles model of migration 0006
   (`staff_users`: e-mail, role admin | reviewer | expert, active flag; `staff_sessions`: SHA-256
   token hashes with expiry / revocation). `api.deps.require_role` tries the config tokens, then
@@ -398,7 +403,27 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   that cite them stay. `type` must be a key of the profile's `document_types`; `zone_id`,
   `file_id` (a planning_document PDF) and `amends_document_id` must exist (422 otherwise).
   `coverage_geom` is nullable since 0006 (registered before the geometry job ran).
-- **Jobs.** `POST /v1/admin/documents/{id}/jobs/extract`, `POST /v1/admin/files/{id}/jobs/geo`
+- **Files of a version** (`planning_document_files`, migration 0022): a version has any number
+  of stored files, each with a `role`: `text` (read by the extraction job), `drawing` (the
+  geometry job) or `both`; GIS files only as drawings. `DocumentIn.files` = `[{file_id, role}]`
+  (none is fine; `file_id` alone still works = one text file). `planning_documents.file_id` /
+  `file_key` / `page_count` stay the **primary** file (the first text / both PDF, re-chosen when
+  files change; page images are then no longer served). `POST /v1/admin/documents/{id}/files`
+  (201; 200 when every file was already on it: idempotent, the role kept), `PATCH
+  .../files/{file_id} {role}`, `DELETE .../files/{file_id}` (only the current version; 409
+  `items_accepted` once an item read from the file was approved / amended, `values_published`,
+  `extraction_active`; its other open items are superseded, the stored file stays). Audited
+  `document.file_attach`, `document.file_role`, `document.file_detach`. `DocumentOut.files[]`: per
+  file its latest extraction run of the version + that run's job, `extraction_state` none |
+  queued | extracting | retrying | ready_for_review | failed (the job decides while it exists) and
+  `extraction_error`, the latest `process_geometry` job, review `items` read from it, scanned
+  pages, `can_remove` / `remove_blocker`. `DocumentOut.state` (first match): no_files, processing,
+  ready_for_review, failed, published, reviewed, not_extracted. The list filters `zone_id`,
+  `state`, `job_state` (queued | running | succeeded | failed: a file's latest extraction or
+  geometry job), `q` (name) and answers `total`. Tests:
+  `tests/integration/test_document_files_postgis.py`.
+- **Jobs.** `POST /v1/admin/documents/{id}/jobs/extract[?file_id=]` (one run per file; default
+  the primary text file; 409 `drawing_file` / `not_a_pdf`), `POST /v1/admin/files/{id}/jobs/geo`
   and `POST /v1/admin/files/{id}/jobs/preprocess[?force=true]` go through
   `jobs.enqueue.enqueue_job` (see "Background jobs"): one `pipeline_jobs` row (`extract_document`
   and `preprocess_file` on `extraction`, `process_geometry` on `geo`), committed, then the Celery
@@ -469,7 +494,13 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   confidence, `extraction_method`) and a signed `link` to the cited page (same rule as the source
   viewer: `api.services.source.signed_page_link`), plus the extraction validator's `flags` and
   the item's `schema_version` / `prompt_version` (migration 0017); `?flag=low_confidence`
-  filters (see "AI extraction contract").
+  filters (see "AI extraction contract"). For the admin console: `sort` pending (default: pending
+  first, then file / page / parcel in natural order / field) | page (the same without the status)
+  | confidence (pending first, lowest confidence first); every item carries `field_unit` (the
+  dictionary's unit) and `run` (its extraction run's job id, model version, whole-run cost and
+  items written); `GET /v1/admin/review/options?document_id=&field_key=` lists the wordings the
+  document's items already carry for a text field, most frequent first (the land-use select of
+  a correction). Tests: `tests/integration/test_review_queue_postgis.py`.
 - **Decisions never overwrite the AI value.** `POST .../approve` accepts it, `.../amend`
   (`{value, unit?, note?}`, typed to the parameter: numbers stay numbers, texts texts) stores
   the correction alongside and sets `amended`, `.../reject` (`{note}` required) keeps it out
@@ -628,7 +659,9 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   an identical queued / running job answers 200 (`core.extraction.runs.run_dedupe_key`).
   Status: queued -> extracting -> ready_for_review | failed (`DocumentOut.extraction`,
   `StoredFileOut.extraction`, `JobOut.extraction_run`).
-- **Pipeline** (`ExtractionRunner`): the manifest (the PDF stage first when missing or stale),
+- **Pipeline** (`ExtractionRunner`): the run reads its own file (`extraction_runs.file_id`, one
+  of the version's files; refused when it was taken off the version since), the manifest (the PDF
+  stage first when missing or stale),
   every chunk whose plan suggests tasks, once per task (land-use legend first; chunks without
   planning content counted, not read; more than `EXTRACTION_MAX_CHUNKS` steps fail),
   `run_task` per step, targets matched to the document's urban parcels / blocks by
@@ -648,9 +681,10 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   steps only.
 - **Re-extraction never deletes:** new items link to the previous reading of the target and
   field in the lineage (`previous_item_id`, `change` new | same | changed). On completion the run
-  supersedes (`superseded_at`, `superseded_by_run_id`): pending items of runs over the same file
-  (older prompt / schema / model; decisions stay), every open item of runs over another file of
-  the version and of older versions; published, manual and seeded items never. Approving a
+  supersedes (`superseded_at`, `superseded_by_run_id`): pending items of earlier runs over the
+  same file of the version (older prompt / schema / model; decisions stay) and every open item of
+  older versions; the version's other files keep theirs (each file has its own runs; a file taken
+  off the version had its open items superseded then); published, manual and seeded items never. Approving a
   newer reading retires the older approved item. Superseded items leave the queue, counters,
   `can_publish` and the publish job.
 - **Tracking:** the run row (model version, versions, pages processed / skipped / failed,
@@ -796,6 +830,17 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   {token}` consumes it once and returns a staff session bearer token (`staff_sessions`,
   `STAFF_SESSION_DAYS`) with the user; 401 for unknown / used / expired. Audited
   `auth.magic_link_requested`, `auth.login`.
+- **The admin console** (`frontend/`, `/admin/*`, see `frontend/CLAUDE.md`) signs staff in with
+  these links through Auth.js (`ADMIN_BASE_URL` = site + `/admin`, so links open
+  `/admin/login?token=…`): `GET /v1/admin/users/me` (every staff role) answers the principal
+  (`id`, `email`, `display_name`, `role`, `subject`, `via` session | token) the console takes its
+  role from; `POST /v1/auth/sign-out` (bearer) revokes that staff session (204 whatever the token,
+  audited `auth.logout`); `GET /v1/admin/overview` (admins, reviewers;
+  `api/services/overview.py`, two statements) gives the Overview tab's totals (parcels, documents
+  by status, pending review, paid orders and revenue) and the pipeline per district = zone
+  (documents, the latest extraction run per document → none | queued | in_progress | done,
+  reviewed / extracted items %, live yes | partial | no for adopted documents with a live
+  coverage). Tests: `tests/integration/test_admin_console_postgis.py`.
 - Tests: `tests/test_mail_unit.py` (every template against fixture data, policy, MIME, provider
   ids, the job body on the in-memory repository) and `tests/integration/test_mail_postgis.py`
   (through the API with eager Celery and a transport double: log rows with provider ids, jobs,

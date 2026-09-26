@@ -19,7 +19,6 @@ import { readJson, safeSessionStorage, writeJson } from "./storage";
  */
 export const MARKET_DATA_FREE = process.env.NEXT_PUBLIC_MARKET_DATA_FREE === "true";
 
-export type AdminTab = "over" | "review" | "rules" | "fin" | "engine" | "orders" | "data";
 
 export interface LngLat {
   lng: number;
@@ -129,7 +128,6 @@ interface ShellState {
   orderDraft: OrderDraft;
 
   view: "map" | "admin";
-  adminTab: AdminTab;
   aiOpen: boolean;
   /** A question a panel CTA put into the assistant's input (`id` changes per request). */
   aiDraft: { id: number; text: string } | null;
@@ -163,7 +161,6 @@ interface ShellState {
   setLayers(layers: Record<LayerId, boolean>): void;
   setChoropleth(kind: keyof ChoroplethState, value: string): void;
   setView(view: "map" | "admin"): void;
-  setAdminTab(tab: AdminTab): void;
   setAiOpen(open: boolean): void;
   /** Market-data entitlement; in the pilot the access modal's "Subscribe" turns it on (intent only, no checkout). */
   setMarketUnlocked(on: boolean): void;
@@ -224,7 +221,6 @@ export const useShell = create<ShellState>()((set) => ({
   orderDraft: EMPTY_DRAFT,
 
   view: "map",
-  adminTab: "over",
   aiOpen: false,
   aiDraft: null,
 
@@ -252,7 +248,6 @@ export const useShell = create<ShellState>()((set) => ({
   setLayers: (layers) => set({ layers }),
   setChoropleth: (kind, value) => set((s) => ({ choropleth: { ...s.choropleth, [kind]: value } })),
   setView: (view) => set({ view }),
-  setAdminTab: (adminTab) => set({ adminTab }),
   setAiOpen: (aiOpen) => set({ aiOpen }),
   setMarketUnlocked: (marketUnlocked) => set({ marketUnlocked }),
   setAssumptionEdit: (key, value) =>

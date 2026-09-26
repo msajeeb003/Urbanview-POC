@@ -2,8 +2,9 @@
 
 /**
  * The source viewer: the cited page of a planning document, in the app, with the cited value
- * highlighted. One component for the public panel (every source chip and row source icon, the
- * document lists) and, later, the admin review queue.
+ * highlighted, for the public panel (every source chip and row source icon, the document lists).
+ * The admin review queue shows cited pages with `PdfPageView` on the same PDF.js loader
+ * (`lib/pdf.ts`).
  *
  * - Asks the API for one short-lived signed link: `GET /v1/source/value/{value_id}` (adds the
  *   value's bbox, note and label) or `GET /v1/source/{document_id}/page/{page}`; object keys never
@@ -26,26 +27,13 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "re
 import { useTrack } from "@/lib/analytics/react";
 import { api } from "@/lib/api/endpoints";
 import type { SourcePage } from "@/lib/api/types";
+import { loadPdfJs } from "@/lib/pdf";
 
 import { DocStatusChip } from "../panel/panel-parts";
 import { IconDoc } from "../ui/icons";
 import { ModalHead } from "../ui/modal";
 
 import type { SourceTarget } from "@/lib/source";
-
-type PdfJs = typeof import("pdfjs-dist");
-
-let pdfjsPromise: Promise<PdfJs> | null = null;
-
-/** PDF.js on first use only (its own chunk), with the worker copied to /pdfjs/ at build time. */
-function loadPdfJs(): Promise<PdfJs> {
-  pdfjsPromise ??= import("pdfjs-dist/legacy/build/pdf.mjs").then((mod) => {
-    const pdfjs = mod as unknown as PdfJs;
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
-    return pdfjs;
-  });
-  return pdfjsPromise;
-}
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 4;

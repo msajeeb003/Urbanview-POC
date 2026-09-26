@@ -96,10 +96,14 @@ VALUE_SQL = text(
            COALESCE(v.unit, f.unit) AS unit, v.urban_parcel_id, v.source_page, v.source_bbox,
            v.source_note,
            d.id, d.name, d.status::text AS status, d.source_url AS registry_url,
-           d.file_key, d.page_count, d.page_images_rendered
+           COALESCE(sf.object_key, d.file_key) AS file_key,
+           CASE WHEN sf.id IS NULL THEN d.page_count ELSE sf.page_count END AS page_count,
+           (d.page_images_rendered AND (sf.id IS NULL OR sf.id = d.file_id))
+               AS page_images_rendered
     FROM planning_parameter_values v
     JOIN planning_documents d ON d.id = v.document_id
     JOIN planning_fields f ON f.key = v.field_key
+    LEFT JOIN stored_files sf ON sf.id = v.source_file_id
     WHERE v.id = :value_id AND v.municipality_id = :municipality_id
     """
 )

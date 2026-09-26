@@ -40,6 +40,7 @@ from api.schemas.admin_config import (
     AssumptionsOut,
     AssumptionsUpdate,
     RateIn,
+    StaffMeOut,
     StaffUserIn,
     StaffUserList,
     StaffUserOut,
@@ -823,6 +824,21 @@ class AdminConfigService:
         async with self.session_factory() as session:
             rows = (await session.execute(USERS_SQL, {"m": self.municipality_id})).mappings().all()
         return StaffUserList(items=[_user_out(r) for r in rows])
+
+    async def me(self, principal: Principal) -> StaffMeOut:
+        """Who is calling: the staff user behind a session, else the service token."""
+        if principal.user_id is None:
+            return StaffMeOut(role=principal.role, subject=principal.subject, via="token")
+        async with self.session_factory() as session:
+            row = await self._user_row(session, principal.user_id)
+        return StaffMeOut(
+            id=int(row["id"]),
+            email=row["email"],
+            display_name=row["display_name"],
+            role=row["role"],
+            subject=principal.subject,
+            via="session",
+        )
 
     async def get_user(self, user_id: int) -> StaffUserOut:
         async with self.session_factory() as session:

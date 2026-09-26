@@ -10,13 +10,19 @@
  *       .mapwrap > #map + .mapchrome
  *       .panel                     (392 px; bottom sheet at ≤ 860 px)
  *       .aifab / .aipanel          (anchored right 412 / bottom 20)
- *       .admin                     (overlay over the whole row)
+ *       .admin                     (overlay over the whole row: the /admin routes)
  *   #overlay (modal) · #toast
  *
  * No login wall, splash or tour: the map is interactive on first paint. `map_loaded` is emitted by
  * the map once its style and tiles have loaded.
+ *
+ * The shell is the layout of both `/` and `/admin/*` (route group `(shell)`), so the map stays
+ * mounted under the admin console and returning to it is instant. The admin pages arrive as
+ * `children` and render inside the overlay; the store's `view` follows the route, and a
+ * `setView` elsewhere (Map / Admin buttons, the pill, ⌘K) navigates.
  */
-import { useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { useMunicipality } from "@/lib/api/hooks";
 import type { MunicipalityProfile, TilesCurrent } from "@/lib/api/types";
@@ -76,19 +82,48 @@ function useUrlSync() {
   }, [selectParcelById]);
 }
 
+/** `/admin/*` is the admin console; the store's `view` mirrors the route both ways. */
+export function useAdminRoute(): boolean {
+  return (usePathname() ?? "").startsWith("/admin");
+}
+
+function useViewRouteSync(adminRoute: boolean) {
+  const router = useRouter();
+  useEffect(() => {
+    const want = adminRoute ? "admin" : "map";
+    if (useShell.getState().view !== want) useShell.getState().setView(want);
+  }, [adminRoute]);
+  useEffect(
+    () =>
+      useShell.subscribe((st, prev) => {
+        if (st.view === prev.view) return;
+        const onAdmin = window.location.pathname.startsWith("/admin");
+        if (st.view === "admin" && !onAdmin) router.push("/admin");
+        else if (st.view === "map" && onAdmin) router.push("/");
+      }),
+    [router],
+  );
+}
+
 export function AppShell({
   initialProfile,
   initialTiles,
+  children,
 }: {
   initialProfile: MunicipalityProfile | null;
   initialTiles?: TilesCurrent | null;
+  /** The admin console's page (the `/admin` routes), shown in the overlay. */
+  children?: ReactNode;
 }) {
   const { data: profile } = useMunicipality(initialProfile);
   const searchRef = useRef<HTMLInputElement>(null);
+  const adminRoute = useAdminRoute();
 
   useUrlSync();
+  useViewRouteSync(adminRoute);
 
   useEffect(() => {
+    if (window.location.pathname.startsWith("/admin")) return; // the map's hint, not the console's
     const t = setTimeout(() => useShell.getState().showToast(tNow("toast.intro")), INTRO_TOAST_MS);
     return () => clearTimeout(t);
   }, []);
@@ -125,7 +160,7 @@ export function AppShell({
           <InfoPanel />
           <AiFab />
           <AiPanel />
-          <AdminOverlay />
+          <AdminOverlay on={adminRoute}>{children}</AdminOverlay>
         </div>
       </div>
       <ModalHost />

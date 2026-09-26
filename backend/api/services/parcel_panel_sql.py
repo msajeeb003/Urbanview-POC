@@ -30,7 +30,8 @@ from api.services.panel_sql import (
 
 _VALUE_COLUMNS = """v.id AS value_id, v.field_key, v.value_text, v.value_number, v.unit,
                v.source_page, v.source_bbox, v.source_note, v.document_id,
-               d.name AS document_name, d.source_url AS registry_url, d.file_id"""
+               d.name AS document_name, d.source_url AS registry_url,
+               COALESCE(v.source_file_id, d.file_id) AS file_id"""
 
 
 def _scoped(table: str, columns: str, join: str) -> str:
