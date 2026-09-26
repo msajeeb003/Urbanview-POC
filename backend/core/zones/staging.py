@@ -28,7 +28,6 @@ from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import shapely
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -234,6 +233,9 @@ async def stage_dataset(
     sources: Mapping[str, Any],
 ) -> StageResult:
     """Stage a validated dataset (the caller refuses one with errors). Does not commit."""
+    import shapely  # the gis extra: the API image imports this module (via the publish
+    # pipeline) without it, and only the import CLI stages geometry
+
     if (await session.execute(LABEL_TAKEN_SQL, {"m": municipality_id, "label": label})).first():
         raise ValueError(f"dataset version {label!r} exists already")
     superseded = (await session.execute(SUPERSEDE_SQL, {"m": municipality_id})).all()
