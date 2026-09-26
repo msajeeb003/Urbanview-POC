@@ -47,6 +47,7 @@ from api.services.audit import write_audit
 from core.engine.feasibility import Assumptions, MarketInputs, compute_feasibility
 from core.engine.shared import FORMULA_VERSION
 from core.parcel_links import recompute_parcel_links
+from core.zones.staging import apply_zone_datasets
 from jobs.base import JobContext, JobResult
 from jobs.publish_layers import (
     GENERIC_LAYER_IDS,
@@ -494,6 +495,30 @@ UPSERT_SQL: dict[str, list[str]] = {
         """,
     ],
     "zones": [
+        # a zone dataset (core.zones) carries a stable zone_key: match by it, or take over a
+        # legacy row of the same name once (it then keeps the key); the dataset is the truth for
+        # the zone's attributes, so empty values clear them
+        f"""
+        UPDATE zones z
+        SET geom = {_MULTIPOLYGON},
+            name = s.properties->>'name',
+            zone_key = s.properties->>'zone_key',
+            general_planning_summary = NULLIF(s.properties->>'general_planning_summary', ''),
+            zone_type = CASE WHEN s.properties->>'zone_type' IN ('res', 'com', 'mix', 'pub', 'grn')
+                             THEN s.properties->>'zone_type' END,
+            notes = NULLIF(s.properties->>'notes', ''),
+            no_adopted_plan = COALESCE(CAST(s.properties->>'no_adopted_plan' AS boolean), false),
+            dataset_version = :label
+        FROM staging_geometry s
+        WHERE s.batch_id = :batch AND (s.properties->>'zone_key') IS NOT NULL
+          AND z.municipality_id = s.municipality_id
+          AND (z.zone_key = s.properties->>'zone_key'
+               OR (z.zone_key IS NULL AND z.name = s.properties->>'name'
+                   AND NOT EXISTS (SELECT 1 FROM zones k
+                                   WHERE k.municipality_id = s.municipality_id
+                                     AND k.zone_key = s.properties->>'zone_key')))
+        """,
+        # staged by name only (the GIS ingestion contract): keep what the batch does not say
         f"""
         UPDATE zones z
         SET geom = {_MULTIPOLYGON},
@@ -505,21 +530,25 @@ UPSERT_SQL: dict[str, list[str]] = {
                 z.zone_type),
             dataset_version = :label
         FROM staging_geometry s
-        WHERE s.batch_id = :batch AND z.municipality_id = s.municipality_id
-          AND z.name = s.properties->>'name'
+        WHERE s.batch_id = :batch AND (s.properties->>'zone_key') IS NULL
+          AND z.municipality_id = s.municipality_id AND z.name = s.properties->>'name'
         """,
         f"""
         INSERT INTO zones (municipality_id, name, geom, general_planning_summary, zone_type,
-                           dataset_version)
+                           zone_key, notes, no_adopted_plan, dataset_version)
         SELECT s.municipality_id, s.properties->>'name', {_MULTIPOLYGON},
-               s.properties->>'general_planning_summary',
+               NULLIF(s.properties->>'general_planning_summary', ''),
                CASE WHEN s.properties->>'zone_type' IN ('res', 'com', 'mix', 'pub', 'grn')
                     THEN s.properties->>'zone_type' END,
+               s.properties->>'zone_key', NULLIF(s.properties->>'notes', ''),
+               COALESCE(CAST(s.properties->>'no_adopted_plan' AS boolean), false),
                :label
         FROM staging_geometry s
         WHERE s.batch_id = :batch AND NOT EXISTS (
             SELECT 1 FROM zones z WHERE z.municipality_id = s.municipality_id
-              AND z.name = s.properties->>'name')
+              AND CASE WHEN (s.properties->>'zone_key') IS NOT NULL
+                       THEN z.zone_key = s.properties->>'zone_key'
+                       ELSE z.name = s.properties->>'name' END)
         """,
     ],
     "document_coverage": [
@@ -947,6 +976,7 @@ class PublishPipeline:
         batches = (await session.execute(STAGED_BATCHES_SQL, {"m": m})).mappings().all()
         counts: dict[str, Any] = {"batches_published": 0, "batches_superseded": 0, "geometry": {}}
         newest_generic: dict[str, int] = {}
+        zone_batches: list[int] = []
         for batch in batches:
             if batch["layer_id"] in GENERIC_LAYER_IDS:
                 newest_generic[batch["layer_id"]] = batch["id"]  # ordered by id: the last wins
@@ -975,6 +1005,14 @@ class PublishPipeline:
                 BATCH_PUBLISHED_SQL, {"status": "published", "v": version_id, "id": batch["id"]}
             )
             counts["batches_published"] += 1
+            if layer_id == "zones":
+                zone_batches.append(batch["id"])
+        # the planning-document list of a zone dataset follows its zones (core.zones.staging)
+        zone_documents = await apply_zone_datasets(
+            session, municipality_id=m, version_id=version_id, published_batch_ids=zone_batches
+        )
+        if zone_documents["zone_datasets"]:
+            counts["zone_documents"] = zone_documents
         if previous_id is not None:
             for layer_id in GENERIC_LAYER_IDS:
                 if layer_id not in newest_generic:

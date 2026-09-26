@@ -980,6 +980,61 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   layer, cells and links, staged geometry, rollback, idempotency, retention). Tests wanting a
   clean pointer reset version 1 to current and delete newer versions.
 
+## Zones and their planning documents (`backend/core/zones/`, `data/zones/`)
+
+- **What a zone is:** UrbanView's own internal division of a municipality (roughly a city quarter;
+  not an official area), grouping the planning documents that apply to it. Drawn in QGIS with the
+  client; the reference structure for Podgorica is mondarchitects.com/site-check (a manual copy of
+  the rendered page in `data/zones/podgorica/source/`), confirmed against eRegistri. Process and
+  folder layout: `data/zones/README.md`.
+- **Files drive everything:** `data/zones/<m>/zones.toml` (`core.zones.config.load_zone_config`:
+  editing CRS EPSG:25834, file names, the reference capture and its zone slugs, eRegistri URLs /
+  jqGrid column indexes / type names, tolerances, base map); a new municipality is a new folder.
+  Product-wide vocabulary in `core/zones/schema.py`: zone types `residential | commercial | mixed |
+  public_institutional | green_recreation` in QGIS = `res | com | mix | pub | grn` in
+  `zones.zone_type`, colours = the map palette (`--z-*`); document status `adopted | in_progress |
+  superseded`; `ZONE_FIELDS` (`zone_id` slug, `name`, `zone_type`, `general_planning_summary`,
+  `notes`, `no_adopted_plan`) and `DOCUMENT_FIELDS` (`zone_id`, `document_name`, `document_type` =
+  a profile document type key (DUP, PUP, PGR, UP, LSL, DSL, PPPN, DPP, PPCG), `status`,
+  `eregistri_reference` = the registry's document id, `source_url`, `adoption_date`, `notes`,
+  `poc_coverage`, `confirmed`, plus read-only review aids).
+- **CLI** `python -m core.zones [--municipality m] seed | template | validate | import | report |
+  datasets` (`poe zones`, `poe import-zones`): `seed` (`seed.py`) builds `zones.csv` and
+  `zone_documents.csv` from the capture, matched to the eRegistri snapshot (status suggestions,
+  every row `confirmed = false`, confirmed lists never overwritten without `--force`);
+  `template` (`template.py`, `qgis.py`) writes the GeoPackage (`gpkg.py`: a dependency-free
+  GeoPackage writer / reader, default QML styles in `layer_styles`) with the zones, the document
+  table and reference layers from PostGIS (KO boundaries, cadastral parcels, document coverage,
+  current zones) and the `.qgz` (categorized symbology, forms with value maps / value relation,
+  constraints, the zones -> documents relation, a "Zone review" atlas layout);
+  `data/zones/qgis/build_project.py` rebuilds the project with PyQGIS inside QGIS; `validate`
+  (`validate.py`, no database) checks geometry validity, slugs, names, types, overlaps and gaps
+  (tolerances in m², approximate on geographic data), >= 1 adopted document per zone unless
+  `no_adopted_plan`, each document in exactly one zone (eRegistri id, else name + listed year),
+  document types / statuses / dates; errors refuse the import.
+- **Import** (`staging.py`, migration 0021): one `zone_datasets` row per import (`dataset_version`
+  `<prefix>-<yyyymmdd>-<n>`, source checksums, validation report, report), the zones as a `zones`
+  batch in `staging_geometry` (reprojected to 4326 in PostGIS, keyed by `zone_key`), the documents
+  in `staging_zone_documents` matched to registered `planning_documents` (eRegistri id, registry
+  link in `source_url`, then folded name; each taken once). A newer import supersedes the staged
+  dataset and its batch. It exports `zones.geojson` (4326) and the normalised
+  `zone_documents.csv` to version (in the private data repository: `.gitignore` keeps `data/`
+  out of this public one).
+- **Publish:** the publish job's `geometry` step upserts zones by `zone_key` (new column; a legacy
+  row with the same name takes the key once; the dataset's attributes replace the zone's) and then
+  `apply_zone_datasets` updates matched documents (zone, status, type, source, registry id,
+  adoption date; never the registered name or files) or registers new ones (no file, not live, no
+  coverage), marking the dataset `published`. Only adopted + live documents with coverage cover
+  anything, so in-progress and superseded rows are recorded without coverage.
+- **Report** (`report.py`): per zone the type, area, documents by status, POC documents, matched vs
+  new, and cadastral / planned urban parcels whose point on surface lies inside (the zone panel's
+  rule), with parcels outside every zone, database zones the dataset does not name and registered
+  documents missing from the list; `reports/<dataset_version>/report.md` (with a sign-off table),
+  `zones.csv`, `documents.csv`, `report.json`: the client's sign-off gate before estimation.
+- Tests: `tests/test_zones_seed.py`, `tests/test_zones_validate.py`, `tests/test_zones_template.py`
+  and `tests/integration/test_zones_postgis.py` (staging, reprojection, matching, report counts,
+  zones upsert and document apply, rolled back).
+
 ## GIS track: geometry assessment (`backend/core/gis/`, `docs/gis/`)
 
 - **Week-1 gate 1** (BRD "Geometry extraction: to be determined by sample assessment"):

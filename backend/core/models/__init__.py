@@ -47,6 +47,7 @@ from core.models.publish import (
     ParcelLink,
     StagingGeometry,
 )
+from core.models.zones import StagingZoneDocument, ZoneDataset
 
 __all__ = [
     "AnalyticsEventRecord",
@@ -77,9 +78,11 @@ __all__ = [
     "StaffSession",
     "StaffUser",
     "StagingGeometry",
+    "StagingZoneDocument",
     "StoredFile",
     "UrbanBlock",
     "UrbanParcel",
     "Zone",
+    "ZoneDataset",
     "ZoneParameterSet",
 ]

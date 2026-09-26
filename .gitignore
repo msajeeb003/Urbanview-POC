@@ -50,3 +50,12 @@ backend/.cache/
 # Claude Code local state: background-task worktrees, machine-specific preview config
 .claude/worktrees/
 .claude/launch.json
+
+# zone working files: regenerate with `python -m core.zones template`; the drawn zones and the
+# document list are checked in as data/zones/<m>/zones.geojson + zone_documents.csv by `import`
+data/zones/*/*.gpkg
+data/zones/*/*.gpkg-*
+data/zones/*/*.qgz
+data/zones/*/*.qgs
+data/zones/*/*.qgd
+data/zones/*/reports/validation.*

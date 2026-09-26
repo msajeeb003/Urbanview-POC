@@ -73,6 +73,18 @@ class Zone(Base):
             "null = not classified"
         ),
     )
+    # The zone dataset (migration 0021, core.zones): a stable slug drawn in QGIS with the client
+    # and imported through staging; null on rows that predate it (the sample), matched by name.
+    zone_key: Mapped[str | None] = mapped_column(
+        Text, comment="stable slug from the zone dataset (data/zones); null on legacy rows"
+    )
+    notes: Mapped[str | None] = mapped_column(Text)
+    no_adopted_plan: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("false"),
+        comment="the zone knowingly has no adopted planning document",
+    )
     dataset_version: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -83,6 +95,13 @@ class Zone(Base):
         CheckConstraint(
             "zone_type IS NULL OR zone_type IN ('res', 'com', 'mix', 'pub', 'grn')",
             name="ck_zones_zone_type",
+        ),
+        Index(
+            "uq_zones_zone_key",
+            "municipality_id",
+            "zone_key",
+            unique=True,
+            postgresql_where=text("zone_key IS NOT NULL"),
         ),
     )
 
@@ -163,6 +182,9 @@ class PlanningDocument(Base):
     adopted_on: Mapped[date | None] = mapped_column(
         Date, comment="Adoption date (official gazette), when known"
     )
+    eregistri_reference: Mapped[str | None] = mapped_column(
+        Text, comment="eRegistri document id (lamp.gov.me/PlanningDocument/Details/<id>)"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -175,6 +197,9 @@ class PlanningDocument(Base):
         ),
         Index("ix_planning_documents_file_id", "file_id"),
         Index("ix_planning_documents_lineage_id", "lineage_id"),
+        Index(
+            "ix_planning_documents_eregistri_reference", "municipality_id", "eregistri_reference"
+        ),
         Index(
             "uq_planning_documents_current_version",
             "lineage_id",

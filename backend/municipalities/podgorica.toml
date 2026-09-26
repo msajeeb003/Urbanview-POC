@@ -51,6 +51,12 @@ DUP = "Detaljni urbanistički plan (detailed urban plan)"
 PUP = "Prostorno-urbanistički plan (spatial-urban plan)"
 PGR = "Plan generalne regulacije (general regulation plan)"
 UP = "Urbanistički projekat (urban project)"
+# Types the eRegistri list and the zone reference also carry (data/zones/podgorica/zones.toml):
+LSL = "Lokalna studija lokacije (local location study)"
+DSL = "Državna studija lokacije (state location study)"
+PPPN = "Prostorni plan posebne namjene (special-purpose spatial plan)"
+DPP = "Detaljni prostorni plan (detailed spatial plan)"
+PPCG = "Prostorni plan Crne Gore (spatial plan of Montenegro)"
 
 # English names the public map shows after the abbreviation (the approved wireframe's copy)
 [terminology.document_types_en]
@@ -58,6 +64,11 @@ DUP = "Detailed urban plan"
 PUP = "General urban plan"
 PGR = "General regulation plan"
 UP = "Urban project"
+LSL = "Local location study"
+DSL = "State location study"
+PPPN = "Special-purpose spatial plan"
+DPP = "Detailed spatial plan"
+PPCG = "Spatial plan of Montenegro"
 
 [[sources]]
 id = "eregistri"
