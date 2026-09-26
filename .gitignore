@@ -34,7 +34,9 @@ frontend/public/pdfjs/
 *.log
 .DS_Store
 Thumbs.db
-data/
+# the private data folder at the root only (zone files, datasets); a folder named data elsewhere is
+# source (e.g. the admin console's Data sources page)
+/data/
 
 # client documents: kept on the build machine, never pushed (the repository is public)
 docs/gis/source/
