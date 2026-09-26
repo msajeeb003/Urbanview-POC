@@ -25,13 +25,14 @@ from api.services.admin_config import AdminConfigService
 from api.services.analytics import AnalyticsRepository, AnalyticsService, SqlAnalyticsRepository
 from api.services.auth import MagicLinkService
 from api.services.email import EmailService
+from api.services.engine_proposals import EngineProposalService
 from api.services.geocode import GeocodeService
 from api.services.jobs import JobService
 from api.services.market import MarketService
 from api.services.orders import OrderService
 from api.services.overview import OverviewService
 from api.services.panel import PanelService
-from api.services.panel_cache import PanelCache
+from api.services.panel_cache import PANEL_PAYLOAD_FORMAT, PanelCache
 from api.services.parcel_panel import ParcelPanelService
 from api.services.publish import PublishService
 from api.services.resolver import NoDataResolver, PostgisResolver
@@ -119,7 +120,8 @@ def create_app(
                     lambda: getattr(app.state, "redis", None),
                     municipality_id=municipality.id,
                     ttl_seconds=settings.panel_cache_ttl_seconds,
-                    namespace=settings.app_version,
+                    namespace=f"{settings.app_version}+{PANEL_PAYLOAD_FORMAT}",
+                    timezone=municipality.timezone,
                 ),
             )
             # Open the first pooled connection now so the first user request does not pay for
@@ -195,6 +197,9 @@ def create_app(
             )
             app.state.admin_config_service = AdminConfigService(
                 app.state.session_factory, municipality=municipality
+            )
+            app.state.engine_proposal_service = EngineProposalService(
+                app.state.session_factory, municipality_id=municipality.id
             )
             app.state.overview_service = OverviewService(
                 app.state.session_factory, municipality=municipality

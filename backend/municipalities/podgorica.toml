@@ -6,6 +6,9 @@ name = "Podgorica"
 country = "ME"
 locale = "sr-Latn-ME"
 currency = "EUR"
+# Local date for effective-dated financial assumptions (a set dated 15 October applies from
+# midnight in Podgorica).
+timezone = "Europe/Podgorica"
 serving_crs_epsg = 4326
 # Planning documents are drawn in the state system, MGI 1901 / Balkans zone 6 (Gauss-Krüger 6):
 # grid labels and parcel-vertex tables in the sample plans (week-1 geometry assessment,

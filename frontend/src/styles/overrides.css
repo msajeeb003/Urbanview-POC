@@ -1630,3 +1630,547 @@ textarea.rinput {
     max-height: none;
   }
 }
+
+/* 19. Orders (`/admin/orders`; the mock has the card and its table): the queue's extra columns
+      (days, expert, the e-mail warning) and the order drawer — a panel on the right over the
+      console with a scrim, sections for the customer, location, price, payment (confirmation step),
+      fulfilment (expert, report upload), e-mails, the read-only snapshot and the timeline. */
+.ordtbl tr.sel td {
+  background: var(--brand-tint);
+}
+.owarn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--paid);
+  white-space: nowrap;
+}
+.oscrim {
+  position: fixed;
+  inset: 62px 0 0 0;
+  z-index: 54;
+  background: rgba(20, 17, 14, 0.28);
+}
+.odrawer {
+  position: fixed;
+  top: 62px;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  width: min(600px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+}
+.ohead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.ohead .rtitle {
+  margin: 4px 0 4px;
+}
+.ohead-r {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ohead-r a.up-x {
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+}
+.obody {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 4px 22px 24px;
+}
+.osect {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--paper-2);
+}
+.osect:last-child {
+  border-bottom: 0;
+}
+.osect-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.osect-h h4 {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.osect-h a.abtn {
+  text-decoration: none;
+}
+.orows {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 6px 12px;
+  font-size: 13.5px;
+}
+.orows > div {
+  display: contents;
+}
+.orows dt {
+  color: var(--ink-2);
+}
+.orows dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.osub {
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+.ohint {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.opre {
+  white-space: pre-line;
+}
+.omsg {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--line);
+  background: var(--paper);
+  font-size: 13px;
+  font-style: italic;
+}
+.oacts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.oselect {
+  flex: 1;
+  min-width: 200px;
+  font-family: var(--body);
+  font-size: 13px;
+}
+.ofields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.3fr;
+  gap: 8px;
+}
+.ofields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ofields .fieldlab {
+  margin: 0;
+}
+.oconfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--paid);
+  border-radius: 8px;
+  background: var(--paid-tint);
+  font-size: 13px;
+}
+.oreport {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ohave {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.ohave a.abtn {
+  margin-left: auto;
+  text-decoration: none;
+}
+.oupload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.opicked {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.olist,
+.otimeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+.otimeline li {
+  padding-left: 12px;
+  border-left: 2px solid var(--paper-2);
+}
+.otimeline .mono {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.odetails {
+  margin-top: 8px;
+  border: 1px solid var(--paper-2);
+  border-radius: 8px;
+}
+.odetails summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.otbl td {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.otbl {
+  table-layout: fixed;
+}
+.otbl td:first-child {
+  width: 42%;
+}
+.otbl td.mono {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .ofields {
+    grid-template-columns: 1fr;
+  }
+  .orows {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 20. Financial assumptions, calculation engine, planning rules (`/admin/assumptions`,
+   `/admin/engine`, `/admin/rules`; the mock has each card and its table). Not in the mock: the
+   figures are inputs with their bounds under them, the "Applies from" bar and the confirmation, a
+   detail row per district (bounds and notes, the Group 2 preview, the version history with diffs),
+   the engine's footer line and changelog, and the rule editor row. Inputs reuse the review queue's
+   `.rinput`. */
+.finbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--paper-2);
+}
+.finbar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.finbar .rinput {
+  flex: none;
+  width: 160px;
+}
+.finnote {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.finbar .fright {
+  margin-left: auto;
+}
+.finmsg {
+  padding: 10px 18px 0;
+}
+.finwrap {
+  overflow-x: auto;
+}
+.fintbl td {
+  vertical-align: top;
+  padding: 10px 12px;
+}
+.fintbl th {
+  padding: 11px 12px;
+  white-space: nowrap;
+}
+.fintbl td:first-child,
+.fintbl th:first-child {
+  padding-left: 18px;
+}
+.fintbl tr.dirty td:first-child {
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.fintbl tr.findetail:hover td,
+.ruletbl tr.findetail:hover td {
+  background: var(--paper);
+}
+.fcell {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.rinput.fin {
+  flex: none;
+  width: 88px;
+  height: 32px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+.rinput.fin.sm {
+  width: 56px;
+}
+.rinput.fin.xs {
+  width: 44px;
+}
+.rinput.fsrc {
+  width: 100%;
+  min-width: 170px;
+  height: 32px;
+  font-family: var(--body);
+  font-size: 13px;
+}
+.rinput.bad {
+  border-color: var(--danger);
+}
+.fmeta.ferr {
+  color: var(--danger);
+}
+.fmeta.fchanged {
+  color: var(--brand-dark);
+  font-weight: 600;
+}
+.fmeta .st {
+  margin-right: 4px;
+}
+.fintbl .fact {
+  white-space: nowrap;
+}
+.fintbl .fact .abtn + .abtn {
+  margin-left: 6px;
+}
+.abtn.flag {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.findetail > td {
+  background: var(--paper);
+  padding: 16px 18px;
+}
+.fingrid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr) minmax(0, 0.9fr);
+  gap: 18px;
+}
+.finsect {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.finsect h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.finsect .ohint {
+  margin: 0;
+}
+.fbounds {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.fbounds th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding: 0 6px 4px 0;
+}
+.fbounds td {
+  padding: 4px 6px 4px 0;
+  vertical-align: top;
+}
+.fbounds .rinput.fin {
+  width: 100%;
+  min-width: 70px;
+}
+.fpreview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fprev td,
+.fprev th {
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+.fprev th {
+  font-size: 11px;
+}
+.fprev td:first-child {
+  width: 30%;
+}
+.fprev tr.changed td:last-child {
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+.fprev .fmeta {
+  font-weight: 400;
+  white-space: nowrap;
+}
+.fhistory,
+.englog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fhistory > li {
+  padding-left: 10px;
+  border-left: 2px solid var(--paper-2);
+}
+.fhrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.fhrow .abtn {
+  margin-left: auto;
+}
+.fdiff {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  list-style: none;
+  border-radius: 8px;
+  background: var(--white);
+  font-size: 12.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.fdiff s {
+  color: var(--ink-3);
+}
+.finfoot {
+  padding: 10px 18px 14px;
+  font-size: 12px;
+  color: var(--ink-2);
+  border-top: 1px solid var(--paper-2);
+}
+.eprop td {
+  background: var(--paid-tint);
+}
+.engfoot {
+  font-size: 12px;
+  color: var(--ink-2);
+  opacity: 0.85;
+  margin: 2px 0 18px;
+}
+.engchangelog {
+  scroll-margin-top: 80px;
+}
+.englog {
+  padding: 14px 18px 16px;
+}
+.englog ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ruletbl tr.sel td {
+  background: var(--brand-tint);
+}
+.ruleform {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rulegrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px 12px;
+  align-items: start;
+}
+.rulegrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.rulegrid .wide {
+  grid-column: span 2;
+}
+.rulegrid .full {
+  grid-column: 1 / -1;
+}
+.rulegrid .fieldlab {
+  margin: 0;
+}
+.rulegrid .rinput {
+  width: 100%;
+}
+.rulegrid .oselect {
+  min-width: 0;
+}
+.rzone {
+  line-height: 36px;
+}
+.rverify {
+  grid-column: span 2;
+  display: flex;
+  align-items: flex-end;
+  min-height: 58px;
+}
+@media (max-width: 1100px) {
+  .fingrid {
+    grid-template-columns: 1fr;
+  }
+  .rulegrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .finbar .fright {
+    margin-left: 0;
+  }
+  .rulegrid {
+    grid-template-columns: 1fr;
+  }
+  .rulegrid .wide,
+  .rverify {
+    grid-column: auto;
+  }
+}

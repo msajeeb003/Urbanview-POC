@@ -38,4 +38,6 @@ export type {
   UsedValue,
   ValueSource,
 } from "./types.js";
+export { ENGINE_CHANGELOG, ENGINE_UPDATED, changelogIsCurrent } from "./changelog.js";
+export type { EngineRelease } from "./changelog.js";
 export { ENGINE_VERSION, FORMULA_VERSION, RANGE_DERIVATION } from "./version.js";

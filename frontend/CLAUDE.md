@@ -530,8 +530,8 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
   behind Caddy, `API_INTERNAL_BASE_URL`.
 - **Roles** (`lib/admin/sections.ts`, the one table the proxy, the tab row and the pages read):
   admin = every tab + audit log + users; reviewer = Overview, AI review queue, Planning rules
-  (read), Data sources (full use: the data sources ticket); expert = Orders only (the API returns
-  only the orders assigned to them). Where the admin spec and the ticket disagreed, the ticket's
+  (read), Orders and Data sources (full use: their tickets); expert = Orders only (the API
+  returns only the orders assigned to them; the report upload is their only action). Where the admin spec and the ticket disagreed, the ticket's
   acceptance won: an expert sees
   only Orders (no Overview, no unassigned orders). Guards: `src/proxy.ts` (Next 16's renamed
   middleware; no session → `/admin/login?callbackUrl=`, a section outside the role → a rewrite to
@@ -541,11 +541,11 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
   → sign-in, 403 → no access); nothing staff-only reaches the browser. Overview reads
   `GET /v1/admin/overview` (admins and reviewers: parcels, documents adopted / in progress,
   pending AI review, paid orders + revenue, and per district = zone: documents, extraction
-  Queued / In progress / Done, expert review %, Live Yes / Partial / No); Orders
-  `GET /v1/admin/orders`; Audit log `GET /v1/admin/audit` (filters entity type and actor as a GET
-  form, 50 per page, before → after as the changed keys); Users `GET /v1/admin/users`. Planning
-  rules, Financial assumptions and Calculation engine are the wireframe's card headers over "Not
-  connected yet." (their tickets); action buttons are hidden for read-only roles.
+  Queued / In progress / Done, expert review %, Live Yes / Partial / No); Orders (below);
+  Audit log `GET /v1/admin/audit` (filters entity type and actor as a GET
+  form, 50 per page, before → after as the changed keys); Users `GET /v1/admin/users`; Planning
+  rules, Financial assumptions and Calculation engine (below). Action buttons are hidden for
+  read-only roles.
 - **AI review queue** (`/admin/review`; `components/admin/review/*`, rules in
   `lib/admin/review.ts`, calls in `lib/admin/review-actions.ts`): the wireframe's card ("AI
   extraction — review queue", "100% of extracted values need expert approval before they
@@ -587,12 +587,82 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
   PDFs continue to "Register a planning document" (name, type from the profile, DUP / PUP / PGR
   first, status, zone, adoption date, source default eRegistri + registry link, licence /
   permission note, files with roles; "New version…" starts from the current version and shows
-  the history). Uploads go through `app/api/admin/files/route.ts` (same-origin, staff role,
-  multipart streamed to `POST /v1/admin/files` with the staff token; XHR for progress; server
-  actions cap bodies); every other write is a server action that answers `{ok, message}` (toast)
+  the history). Uploads go through `app/api/admin/files/route.ts` (`lib/admin/upload-proxy.ts`,
+  shared with the order report upload: same-origin, staff role, multipart streamed to
+  `POST /v1/admin/files` with the staff token; XHR for progress; server actions cap bodies); every
+  other write is a server action that answers `{ok, message}` (toast)
   and re-reads the page (`revalidatePath`), forms keep what was typed on failure. `AutoRefresh`
   re-reads the page every 3 s while a job is queued / running and stops after. Styles: block 17
   of `overrides.css`. Tests: `lib/admin/data.test.ts`.
+- **Orders** (`/admin/orders`, `?order=<id>` opens the drawer; `components/admin/orders/*`, rules
+  in `lib/admin/orders.ts`, writes in `lib/admin/order-actions.ts`): the wireframe's card
+  ("Expert analysis orders", "Manual fulfilment queue"), filters status / expert (managers) /
+  search (reference, e-mail, name, parcel) in the URL (`next/form`), the table (Ref, Parcel
+  `#1042/3 · Podgorica I`, customer · company + e-mail, Placed (relative), Days, Status chip +
+  "⚠ e-mail" when an e-mail bounced or failed, Expert, Open). The drawer (fixed right, 600 px,
+  a scrim closes it): Customer (an individual's name, or company, PIB / VAT, contact person,
+  registered address; e-mail, telephone, message); Location ordered with "Open on the map ↗"
+  (`/?parcel=<cadastral_parcel_id>`: today's published data, the snapshot below is what was
+  shown); Price and turnaround; **Payment** (admins, reviewers): "Mark payment received"
+  (amount, date, bank reference, all required), "Payment not received" (a note: the check is
+  recorded, the order stays pending), "Refund" (amount, date, reference), each confirmed in a
+  line before `POST …/payment` is sent; **Fulfilment**: the expert picker (active experts with
+  their orders in progress, `GET /v1/admin/orders/experts`) + Assign / Reassign (a paid order
+  starts), Start, the report (download, `vN`) and its upload (`report-upload.tsx`: drop zone,
+  progress, `app/api/admin/orders/[id]/report/route.ts`; the customer is e-mailed the link;
+  replacing a delivered report needs a note); E-mails (template, status chip, recipient, time,
+  bounce / error / suppression reason); "What the customer saw" (the snapshot, read-only: data,
+  market and formula versions, planning values with their pages, the assumptions with "changed
+  by the customer", the Group 2 ranges); Timeline (the order's audit entries in plain words,
+  `eventLine`, with actor and note). Every button follows the API's status flow
+  (`allowed(order, action, role)` → visible / enabled / reason, the tooltip of a disabled one);
+  an expert gets the report upload only (payment and assignment are not rendered, and the API
+  answers 403). Styles: block 19 of `overrides.css`. Tests: `lib/admin/orders.test.ts`.
+- **Financial assumptions** (`/admin/assumptions`, admins; `components/admin/assumptions/*`,
+  rules in `lib/admin/assumptions.ts`, writes in `lib/admin/assumption-actions.ts`): the
+  wireframe's card ("Financial assumptions — Benchmarks by district…", "Save changes") over one
+  row per zone (district; zones from `GET /v1/zones`, versions from `GET
+  /v1/admin/assumptions?include_history=true`): Land, Construction, Design & documentation and
+  Sale €/m² as inputs (bounds or "range ±" under each), Saleable % (blank = 70 %), Range ± (−low %
+  / +high %: the factors), the source note, and in the District cell the live version ("v2 Live
+  since 26 Sep 2026"), any scheduled one ("v3 Scheduled from 1 Oct 2026") and "Changed — will be
+  vN". The bar above: "Applies from" (the municipality's today by default, `min` today; the note
+  says "Applies today…" or "Scheduled: the panel keeps today's figures until …") and the formula
+  and engine versions with a link to the changelog. "Save changes" checks every changed row the
+  API's way (`checkDraft`: positive figures, both bounds or neither, low ≤ expected ≤ high, a
+  source; marked cells, the first bad row opened), shows a confirmation line (zones, new versions,
+  date) and sends one `POST /v1/admin/assumptions/batch` (all or nothing); failures keep every
+  figure. "Details" opens a row under the district (`zone-detail.tsx`): the absolute low / high per
+  rate and the notes; "Preview on a test parcel" (`GET …/preview-parcels`, then `POST
+  …/preview`: Group 2 now vs with these figures, changed figures in brand, money in whole euros,
+  the range under the expected figure); the version history (version, status chip, applies from,
+  author, time, "View diff vs vN" = `diffVersions`). Drafts start from the live version; the page
+  is keyed on the versions, so a save remounts it with fresh drafts. Nothing is deleted.
+- **Calculation engine** (`/admin/engine`, admins; `components/admin/engine/engine-screen.tsx`,
+  `lib/admin/engine.ts`, `lib/admin/engine-actions.ts`): the wireframe's "Formulas" card (Output,
+  Expression, Source, Status "Live") from `FORMULA_ROWS` (the page's words for the shared engine's
+  figures, keyed by the engine's result keys: a test keeps them in step with `FIELD_ORDER`), the
+  "Input data" card (Adopted planning documents, Cadastre, Market sources, named from the profile's
+  `sources` by kind, "Connected"), proposals from `GET /v1/admin/engine/proposals` under each
+  (gold-tinted rows, "New" / "Pending", who and when), the footer line (`engineFooter`: engine and
+  formula versions, counts, last updated = `ENGINE_UPDATED`, proposals waiting, "the calculation
+  changes only with a new formula version the client has validated") and the changelog
+  (`#changelog`, `ENGINE_CHANGELOG` from the engine package). "+ Add formula" / "+ Add data input"
+  are the wireframe's dialogs (Output name, Expression, Source optional / Dataset name, What it
+  provides) recording a proposal: they say so and never claim to change the engine.
+- **Planning rules** (`/admin/rules`, admins edit, reviewers read; `components/admin/rules/*`,
+  `lib/admin/rules.ts`, `lib/admin/rule-actions.ts`): the wireframe's card ("Planning rules — Zone
+  parameter sets — each carries its source & verification date", "+ New rule") and table Zone
+  (with `vN`), Use, FAR, Coverage, Height (`24 m · 7 floors`), Source (document · p.N), Status
+  (Verified with the date and who under it, or Unverified). "Edit" opens an editor row under the
+  rule, "+ New rule" one at the top for a zone without a rule: use, FAR, coverage %, height,
+  floors, source document (the zone's documents, adopted first, loaded when the select is
+  opened), page, source note, verified on (≤ the municipality's today) / by, "Verified against the
+  source today", notes. Saving is a new version of the zone's set (`POST` / `PUT
+  /v1/admin/zone-parameters`, every field sent); a value changed without verifying again saves as
+  unverified (`staleVerification`: an old date never vouches for new values). Reviewers get the
+  table only.
+- Styles of the three: block 20 of `overrides.css`.
 - **Components** (`components/admin/parts.tsx`, the wireframe's markup): `AdminCard` (`.card >
   .cardhd` h3 + `.sub` + right-side action), `DataTable` (`.tbl`, `.mono` cells for numbers and
   references), `StatusChip` (`.st.ok | .pend | .rev`), `AdminButton` (`.abtn`, `ghost`, `sm`),
@@ -605,9 +675,11 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
   `overrides.css`.
 - First admin on a server: `python -m core.staff add --email <e-mail> --role admin` (backend).
   Tests: `lib/admin/sections.test.ts` (tabs per role, guard decisions, callback URLs),
-  `lib/admin/format.test.ts`, `lib/admin/data.test.ts`, `lib/admin/review.test.ts`; backend
-  `tests/integration/test_admin_console_postgis.py`, `test_document_files_postgis.py`,
-  `test_review_queue_postgis.py`.
+  `lib/admin/format.test.ts`, `lib/admin/data.test.ts`, `lib/admin/review.test.ts`,
+  `lib/admin/orders.test.ts`, `lib/admin/assumptions.test.ts`, `lib/admin/engine.test.ts`,
+  `lib/admin/rules.test.ts`; backend `tests/integration/test_admin_console_postgis.py`,
+  `test_document_files_postgis.py`, `test_review_queue_postgis.py`,
+  `test_orders_console_postgis.py`, `test_assumptions_schedule_postgis.py`.
 
 ## Rules the frontend must keep
 

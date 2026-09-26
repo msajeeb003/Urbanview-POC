@@ -67,11 +67,11 @@ from api.services.panel import (
     _r1,
     _rate_range,
     _typical_parameters,
+    default_saleable_share,
 )
 from api.services.panel_cache import PanelCache, PanelView
 from api.services.parcel_panel_sql import PARCEL_PANEL_SQL, ZONE_PANEL_SQL
 from core.engine import (
-    DEFAULT_SALEABLE_SHARE,
     FORMULA_VERSION,
     Assumptions,
     FeasibilityResult,
@@ -256,15 +256,16 @@ def run_engine(
     zone: ZoneRef | None,
     context: Mapping[str, Any] | None = None,
 ) -> FeasibilityResult:
-    """The shared engine with the product defaults (0.70 saleable share, market rates);
-    ``context`` (both areas, height, floors, land use) travels in ``engine.inputs``."""
+    """The shared engine with the defaults: the market rates and the saleable share of the zone's
+    live assumptions version (else the product's 0.70); ``context`` (both areas, height, floors,
+    land use) travels in ``engine.inputs``."""
     code, params = _market_reason(zone)
     return compute_feasibility(
         basis_area_m2,
         far,
         coverage,
         _market_inputs(market_raw),
-        Assumptions(saleable_share=DEFAULT_SALEABLE_SHARE),
+        Assumptions(saleable_share=default_saleable_share(market_raw)),
         market_reason_code=code,
         market_reason_params=params,
         calculation_basis=basis,
@@ -417,7 +418,15 @@ def assumptions_view(
                 used.sources.construction_cost_eur_m2,
                 True,
             ),
-            item("saleable_share", used.saleable_share, (None, None), "product_default", True),
+            item(
+                "saleable_share",
+                used.saleable_share,
+                (None, None),
+                "market"
+                if market_raw is not None and market_raw.get("saleable_share") is not None
+                else "product_default",
+                True,
+            ),
             item(
                 "sale_price_eur_m2",
                 used.sale_price_eur_m2,
@@ -777,6 +786,23 @@ class ParcelPanelService:
             )
         return build_parcel_panel(row, self.profile)
 
+    async def preview(
+        self, parcel_id: int, draft_market: Mapping[str, Any]
+    ) -> tuple[ParcelPanel, ParcelPanel]:
+        """The parcel's panel as served today and with ``draft_market`` (an unsaved assumptions
+        set, shaped like the statement's ``market`` column) in place of the live version: the
+        admin console's preview. One statement, the same builders and engine, nothing written
+        or cached."""
+        row = await self._execute(PARCEL_PANEL_SQL, parcel_id)
+        if _as_json(row["cadastral"]) is None:
+            raise NotFoundError(
+                f"No cadastral parcel with id {parcel_id} in municipality {self.profile.id}",
+                details={"type": "parcel", "id": parcel_id},
+            )
+        draft_row = dict(row)
+        draft_row["market"] = dict(draft_market)
+        return build_parcel_panel(row, self.profile), build_parcel_panel(draft_row, self.profile)
+
     async def zone_panel(self, zone_id: int) -> ZonePanelView:
         row = await self._execute(ZONE_PANEL_SQL, zone_id)
         if _as_json(row["zone"]) is None:
@@ -787,7 +813,7 @@ class ParcelPanelService:
         return build_zone_panel(row, self.profile)
 
     async def _execute(self, sql: str, entity_id: int) -> Mapping[str, Any]:
-        params = {"municipality_id": self.profile.id, "id": entity_id}
+        params = {"municipality_id": self.profile.id, "id": entity_id, "tz": self.profile.timezone}
         async with self.session_factory() as session:
             result = await session.execute(text(sql), params)
             return result.mappings().one()

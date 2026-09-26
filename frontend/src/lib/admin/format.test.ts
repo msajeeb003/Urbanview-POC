@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { auditChanges, extractionLabel, liveChip, orderChip, relativeTime, reviewLabel, utcStamp } from "./format";
+import { auditChanges, extractionLabel, liveChip, relativeTime, reviewLabel, utcStamp } from "./format";
 
 describe("admin table words", () => {
   it("uses the wireframe's pipeline vocabulary", () => {
@@ -13,12 +13,6 @@ describe("admin table words", () => {
     expect(liveChip("yes")).toEqual({ tone: "ok", label: "Yes" });
     expect(liveChip("partial")).toEqual({ tone: "rev", label: "Partial" });
     expect(liveChip("no")).toEqual({ tone: "pend", label: "No" });
-  });
-
-  it("maps order statuses to the queue's chips", () => {
-    expect(orderChip("paid")).toEqual({ tone: "pend", label: "New" });
-    expect(orderChip("in_progress").tone).toBe("rev");
-    expect(orderChip("delivered")).toEqual({ tone: "ok", label: "Delivered" });
   });
 
   it("writes times like the mock", () => {

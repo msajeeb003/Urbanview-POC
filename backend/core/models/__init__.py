@@ -12,6 +12,7 @@ Conventions (see CLAUDE.md):
 from core.db import Base
 from core.models.admin import (
     AuditLogEntry,
+    EngineProposal,
     PipelineJob,
     PlanningDocumentFile,
     StaffLoginToken,
@@ -56,6 +57,7 @@ __all__ = [
     "Base",
     "CadastralParcel",
     "EmailLogEntry",
+    "EngineProposal",
     "ExtractionRun",
     "ExtractionRunChunk",
     "FinancialAssumption",

@@ -1,7 +1,7 @@
 /**
  * Words and chips of the admin tables: the wireframe's vocabulary for the pipeline status
- * (Queued / In progress / Done, Yes / Partial / No) and the order queue (New / In progress /
- * Delivered), relative times ("2h ago", "Yesterday"), and the audit log's before -> after.
+ * (Queued / In progress / Done, Yes / Partial / No), relative times ("2h ago", "Yesterday"), and
+ * the audit log's before -> after. The order chips live with the orders rules (`orders.ts`).
  */
 import type { ChipTone } from "@/components/admin/parts";
 
@@ -19,23 +19,6 @@ export function liveChip(live: "yes" | "partial" | "no"): { tone: ChipTone; labe
   if (live === "yes") return { tone: "ok", label: "Yes" };
   if (live === "partial") return { tone: "rev", label: "Partial" };
   return { tone: "pend", label: "No" };
-}
-
-type OrderStatus = "pending_payment" | "paid" | "in_progress" | "delivered" | "refunded";
-
-export function orderChip(status: OrderStatus): { tone: ChipTone; label: string } {
-  switch (status) {
-    case "pending_payment":
-      return { tone: "pend", label: "Awaiting payment" };
-    case "paid":
-      return { tone: "pend", label: "New" };
-    case "in_progress":
-      return { tone: "rev", label: "In progress" };
-    case "delivered":
-      return { tone: "ok", label: "Delivered" };
-    default:
-      return { tone: "rev", label: "Refunded" };
-  }
 }
 
 /** "just now", "2h ago", "Yesterday", "3 days ago", else the date (`12 May 2026`). */

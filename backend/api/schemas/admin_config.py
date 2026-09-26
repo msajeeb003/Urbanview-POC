@@ -1,7 +1,9 @@
-"""Schemas for the admin configuration API: financial assumptions (versioned per zone), zone
-parameter sets (versioned per zone) and staff users. The validation rules live here: a numeric
-range is ``low ≤ expected ≤ high`` with both bounds or neither, percentages are 0–100, dates
-are not in the future (one day of time-zone slack), an e-mail looks like one."""
+"""Schemas for the admin configuration API: financial assumptions (versioned and effective-dated
+per zone), zone parameter sets (versioned per zone) and staff users. The validation rules live
+here: a numeric range is ``low ≤ expected ≤ high`` with both bounds or neither, percentages are
+0–100, a saleable share is (0, 1], dates of record (source, verification) are not in the future
+(one day of time-zone slack), an e-mail looks like one. An assumptions set's ``effective_from``
+is today or later in the municipality's time zone; the service checks it with its own clock."""
 
 from __future__ import annotations
 
@@ -11,7 +13,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from api.schemas.panel import RateRange
+from api.schemas.panel import RateRange, ZoneRef
+from api.schemas.parcel_panel import AssumptionsView, Group2, MarketView
+from core.assumptions import AssumptionStatus
 from core.auth import Role
 
 BoundsKind = Literal["absolute", "multiplier"]
@@ -57,16 +61,26 @@ class AssumptionsIn(BaseModel):
     sale_rate: RateIn = Field(description="Selling price per m² saleable area")
     range_low_factor: float = Field(default=0.86, gt=0, le=1)
     range_high_factor: float = Field(default=1.15, ge=1, le=5)
+    saleable_share: float | None = Field(
+        default=None,
+        gt=0,
+        le=1,
+        description="The zone's default saleable share of GFA (0–1); null = the product's 0.70",
+    )
     source: str = Field(
         min_length=1, max_length=200, description="e.g. Realitica, Estitor, Monstat"
     )
     source_date: date | None = None
     notes: str | None = Field(default=None, max_length=2000)
     effective_from: date | None = Field(
-        default=None, description="The date the figures apply from (not in the future)"
+        default=None,
+        description=(
+            "The municipality's local date the set applies from: today (the default) or later; "
+            "a later date schedules it (the panel keeps the live set until then)"
+        ),
     )
 
-    @field_validator("source_date", "effective_from")
+    @field_validator("source_date")
     @classmethod
     def _not_in_the_future(cls, value: date | None) -> date | None:
         if value is not None and value > datetime.now(UTC).date() + timedelta(days=1):
@@ -85,12 +99,15 @@ class AssumptionsUpdate(BaseModel):
     sale_rate: RateIn | None = None
     range_low_factor: float | None = Field(default=None, gt=0, le=1)
     range_high_factor: float | None = Field(default=None, ge=1, le=5)
+    saleable_share: float | None = Field(default=None, gt=0, le=1)
     source: str | None = Field(default=None, min_length=1, max_length=200)
     source_date: date | None = None
     notes: str | None = Field(default=None, max_length=2000)
-    effective_from: date | None = None
+    effective_from: date | None = Field(
+        default=None, description="Today (the default) or later; never carried over"
+    )
 
-    @field_validator("source_date", "effective_from")
+    @field_validator("source_date")
     @classmethod
     def _not_in_the_future(cls, value: date | None) -> date | None:
         if value is not None and value > datetime.now(UTC).date() + timedelta(days=1):
@@ -111,7 +128,16 @@ class AssumptionsOut(BaseModel):
     )
     zone_name: str | None = None
     version: int
-    is_current: bool = Field(description="The row the panel and feasibility read")
+    status: AssumptionStatus = Field(
+        description=(
+            "live: what the panel and feasibility read today (the latest effective date on or "
+            "before today, the newest version on a tie); scheduled: dated after today; "
+            "superseded: replaced by a later date or a newer version; retired"
+        )
+    )
+    is_current: bool = Field(
+        description="The newest version of the zone (the head of its history, what PUT builds on)"
+    )
     supersedes_id: int | None = None
     land_rate: RateRange
     build_rate: RateRange
@@ -119,10 +145,19 @@ class AssumptionsOut(BaseModel):
     sale_rate: RateRange
     range_low_factor: float
     range_high_factor: float
+    saleable_share: float | None = Field(
+        default=None, description="The zone's default saleable share; null = the product's 0.70"
+    )
     source: str | None = None
     source_date: date | None = None
     notes: str | None = None
-    effective_from: date | None = None
+    effective_from: date = Field(description="The date the set states it applies from")
+    applies_from: date = Field(
+        description=(
+            "Its place on the timeline: the effective date, never before the local day it was "
+            "saved (a backdated market input applies from its approval)"
+        )
+    )
     rate_sources: dict[str, Any] | None = Field(
         default=None,
         description=(
@@ -138,6 +173,76 @@ class AssumptionsOut(BaseModel):
 
 class AssumptionsList(BaseModel):
     items: list[AssumptionsOut]
+    today: date = Field(description="The municipality's local date the statuses are computed for")
+    timezone: str
+
+
+class AssumptionsBatchIn(BaseModel):
+    """Several zones' new sets saved together (the console's "Save changes"): one transaction,
+    all or nothing, one version and one audit row per set."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    effective_from: date | None = Field(
+        default=None,
+        description="Applies to every set that states none: today (the default) or later",
+    )
+    sets: list[AssumptionsIn] = Field(min_length=1, max_length=100)
+
+
+class AssumptionsBatchOut(BaseModel):
+    items: list[AssumptionsOut]
+
+
+class AssumptionsPreviewIn(BaseModel):
+    """An unsaved set tried on one parcel: the figures are computed, nothing is written."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    parcel_id: int = Field(gt=0, description="The cadastral parcel (Parcel ID) to preview on")
+    zone_id: int | None = Field(
+        default=None, gt=0, description="The zone the draft is for (flags a parcel elsewhere)"
+    )
+    land_rate: RateIn
+    build_rate: RateIn
+    design_rate: RateIn
+    sale_rate: RateIn
+    range_low_factor: float = Field(default=0.86, gt=0, le=1)
+    range_high_factor: float = Field(default=1.15, ge=1, le=5)
+    saleable_share: float | None = Field(default=None, gt=0, le=1)
+
+
+class PreviewSide(BaseModel):
+    market: MarketView | None = None
+    assumptions: AssumptionsView | None = None
+    group2: Group2 | None = None
+
+
+class AssumptionsPreviewOut(BaseModel):
+    parcel_id: int
+    title: str = Field(description="KO and parcel number")
+    zone: ZoneRef | None = None
+    zone_mismatch: bool = Field(description="The parcel lies outside the draft's zone")
+    covered: bool
+    coverage_note_en: str | None = None
+    calculation_basis: Literal["urban", "cadastral"]
+    basis_area_m2: float
+    formula_version: str
+    current: PreviewSide = Field(description="As the public panel shows it today")
+    draft: PreviewSide = Field(description="With the draft set in place of the live one")
+
+
+class PreviewParcel(BaseModel):
+    parcel_id: int
+    title: str = Field(description="KO and parcel number")
+    area_m2: float
+    urban_parcel_number: str | None = None
+    planned_area_m2: float | None = None
+
+
+class PreviewParcelList(BaseModel):
+    zone_id: int
+    items: list[PreviewParcel]
 
 
 # --- zone parameter sets --------------------------------------------------------------------------

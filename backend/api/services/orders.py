@@ -21,7 +21,7 @@ import json
 import logging
 import re
 import unicodedata
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -36,7 +36,9 @@ from starlette.concurrency import run_in_threadpool
 from api.schemas.orders import (
     Assignee,
     AssignIn,
+    ExpertOut,
     OrderCreated,
+    OrderEvent,
     OrderIn,
     OrderList,
     OrderLocationOut,
@@ -100,6 +102,26 @@ TURNAROUND_NOTE = (
 STATUS_PATH = "/orders/{reference}"
 MANAGER_ROLES = frozenset({Role.admin, Role.reviewer})
 REFERENCE_ATTEMPTS = 25
+
+
+TIMELINE_SQL = text(
+    """
+    SELECT id, action, actor, created_at, before, after, note, details
+    FROM audit_log
+    WHERE municipality_id = :m AND entity_type = 'order' AND entity_id = :id
+    ORDER BY created_at ASC, id ASC
+    """
+)
+EXPERTS_SQL = text(
+    """
+    SELECT u.id, u.email, u.display_name,
+           (SELECT count(*) FROM orders o
+            WHERE o.assignee_user_id = u.id AND o.status = 'in_progress') AS open_orders
+    FROM staff_users u
+    WHERE u.municipality_id = :m AND u.role = 'expert' AND u.is_active
+    ORDER BY lower(COALESCE(u.display_name, u.email))
+    """
+)
 
 
 def can_transition(current: str, target: str) -> bool:
@@ -318,6 +340,7 @@ def _location_out(row: Mapping[str, Any]) -> OrderLocationOut:
     return OrderLocationOut(
         parcel_type=row["parcel_type"],
         parcel_id=row["parcel_id"],
+        cadastral_parcel_id=row.get("cadastral_parcel_id"),
         parcel_label=row["parcel_label"],
         document_name=row["document_name"],
         zone_name=row["zone_name"],
@@ -655,8 +678,30 @@ class OrderService:
     async def get(self, principal: Principal, order_id: int) -> OrderOut:
         async with self.session_factory() as session:
             row = await self._row(session, order_id)
-        self._scope(principal, row)
-        return self._detail(row)
+            self._scope(principal, row)
+            events = (
+                (await session.execute(TIMELINE_SQL, {"m": self.municipality_id, "id": order_id}))
+                .mappings()
+                .all()
+            )
+        return self._detail(row, events)
+
+    async def experts(self, principal: Principal) -> list[ExpertOut]:
+        """The active experts an order can be assigned to (managers only)."""
+        self._manager(principal)
+        async with self.session_factory() as session:
+            rows = (
+                (await session.execute(EXPERTS_SQL, {"m": self.municipality_id})).mappings().all()
+            )
+        return [
+            ExpertOut(
+                user_id=r["id"],
+                email=r["email"],
+                display_name=r["display_name"],
+                open_orders=int(r["open_orders"]),
+            )
+            for r in rows
+        ]
 
     async def _row(self, session: AsyncSession, order_id: int) -> Mapping[str, Any]:
         row = (
@@ -679,7 +724,7 @@ class OrderService:
                 "This order is not assigned to you", details={"order_id": row["id"]}
             )
 
-    def _detail(self, row: Mapping[str, Any]) -> OrderOut:
+    def _detail(self, row: Mapping[str, Any], events: Sequence[Mapping[str, Any]] = ()) -> OrderOut:
         report = None
         if row["report_file_id"] is not None:
             url, expires_at = None, None
@@ -718,6 +763,20 @@ class OrderService:
             refunded_at=_utc(row["refunded_at"]),
             notes=row["notes"],
             report=report,
+            report_versions=sum(1 for e in events if e["action"] == "order.report"),
+            timeline=[
+                OrderEvent(
+                    id=e["id"],
+                    action=e["action"],
+                    actor=e["actor"],
+                    created_at=_utc(e["created_at"]) or self.clock(),
+                    before=e["before"],
+                    after=e["after"],
+                    note=e["note"],
+                    details=e["details"] or {},
+                )
+                for e in events
+            ],
             emails=[email_log_out(e) for e in (row.get("emails") or [])],
             snapshot=row.get("snapshot") or {},
         )
@@ -781,6 +840,7 @@ class OrderService:
                         "amount_eur": payload.amount_eur,
                         "price_eur": float(row["price_eur"]),
                         "bank_reference": payload.reference,
+                        "received_on": (payload.received_on or now.date()).isoformat(),
                     },
                     before={"status": row["status"]},
                     after={"status": "paid", "payment_amount_eur": payload.amount_eur},
@@ -792,7 +852,21 @@ class OrderService:
                     SET_STATUS_SQL,
                     {"id": order_id, "m": self.municipality_id, "status": "refunded", "at": now},
                 )
-                await self._audit_status(session, principal, row, "refunded", payload.note)
+                # what went back to the customer stays on record with the status change
+                await self._audit_status(
+                    session,
+                    principal,
+                    row,
+                    "refunded",
+                    payload.note,
+                    extra={
+                        "refund_amount_eur": payload.amount_eur,
+                        "refunded_on": payload.received_on.isoformat()
+                        if payload.received_on
+                        else None,
+                        "bank_reference": payload.reference,
+                    },
+                )
             else:  # not_received: nothing changes but the check is on record
                 if payload.note:
                     await session.execute(
@@ -876,15 +950,31 @@ class OrderService:
     ) -> OrderOut:
         async with self.session_factory() as session:
             row = await self._row(session, order_id)
+            versions = int(
+                (
+                    await session.execute(
+                        text(
+                            "SELECT count(*) FROM audit_log WHERE municipality_id = :m AND "
+                            "entity_type = 'order' AND entity_id = :id AND action = 'order.report'"
+                        ),
+                        {"m": self.municipality_id, "id": order_id},
+                    )
+                ).scalar_one()
+            )
         self._scope(principal, row)
-        if row["status"] != "in_progress":
+        replacing = row["status"] == "delivered"
+        if row["status"] != "in_progress" and not replacing:
             raise ConflictError(
-                "A report can be uploaded on an order in progress only",
+                "A report can be uploaded on an order in progress (or replaced once delivered)",
                 details={
                     "order_id": order_id,
                     "status": row["status"],
                     "reason": "not_in_progress",
                 },
+            )
+        if replacing and not (note or "").strip():
+            raise _validation_error(
+                [{"loc": ["body", "note"], "msg": "say why the delivered report is replaced"}]
             )
         hasher = hashlib.sha256()
         chunks: list[bytes] = []
@@ -954,12 +1044,19 @@ class OrderService:
                 action="order.report",
                 entity_type="order",
                 entity_id=order_id,
-                details={"reference": row["reference"], "file_id": file_id, "filename": filename},
+                details={
+                    "reference": row["reference"],
+                    "file_id": file_id,
+                    "filename": filename,
+                    "version": versions + 1,
+                    "replaces_file_id": row["report_file_id"] if replacing else None,
+                },
                 before={"report_file_id": row["report_file_id"]},
                 after={"report_file_id": file_id},
                 note=note,
             )
-            await self._audit_status(session, principal, row, "delivered", note)
+            if not replacing:
+                await self._audit_status(session, principal, row, "delivered", note)
             await session.commit()
 
         await self.emails.queue(
@@ -998,6 +1095,8 @@ class OrderService:
         row: Mapping[str, Any],
         target: str,
         note: str | None,
+        *,
+        extra: Mapping[str, Any] | None = None,
     ) -> None:
         await write_audit(
             session,
@@ -1006,7 +1105,7 @@ class OrderService:
             action="order.status",
             entity_type="order",
             entity_id=row["id"],
-            details={"reference": row["reference"]},
+            details={"reference": row["reference"], **dict(extra or {})},
             before={"status": row["status"]},
             after={"status": target},
             note=note,

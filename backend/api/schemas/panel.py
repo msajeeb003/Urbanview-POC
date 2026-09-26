@@ -224,7 +224,9 @@ class AssumptionsVersion(BaseModel):
     zone_id: int | None = Field(
         default=None, description="The zone of the row (the panel reads zone rows only)"
     )
-    effective_from: str | None = Field(default=None, description="created_at of that version")
+    effective_from: str | None = Field(
+        default=None, description="Midnight UTC of the date the version applies from"
+    )
 
 
 class MarketRanges(BaseModel):

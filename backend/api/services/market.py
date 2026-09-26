@@ -59,6 +59,7 @@ from api.services.admin_config import (
     rate_range,
 )
 from api.services.audit import write_audit
+from core.assumptions import live_versions_sql
 from core.auth import Principal
 from core.errors import AppError, ConflictError, NotFoundError, ServiceUnavailableError
 from core.market.model import METRICS
@@ -237,12 +238,14 @@ READY_SQL = text(
     FOR UPDATE
     """
 )
+# The zone's version that applies today (core.assumptions): what an approved market input is
+# merged into, and what coverage reports.
 ZONE_ROW_SQL = text(
     f"""
     SELECT f.id, f.version, f.range_low_factor, f.range_high_factor, f.source, f.source_date,
-           f.rate_sources, f.effective_from, {_RATE_COLUMNS}
-    FROM financial_assumptions f
-    WHERE f.municipality_id = :m AND f.is_current AND f.zone_id = :zone_id
+           f.rate_sources, f.effective_from, f.saleable_share, {_RATE_COLUMNS}
+    FROM ({live_versions_sql()}) f
+    WHERE f.zone_id = :zone_id
     """
 )
 MUNICIPALITY_ROW_SQL = text(
@@ -261,8 +264,8 @@ COVERAGE_ROWS_SQL = text(
     f"""
     SELECT f.id, f.zone_id, f.version, f.range_low_factor, f.range_high_factor, f.source,
            f.source_date, f.rate_sources, f.effective_from, {_RATE_COLUMNS}
-    FROM financial_assumptions f
-    WHERE f.municipality_id = :m AND f.is_current AND f.zone_id IS NOT NULL
+    FROM ({live_versions_sql()}) f
+    WHERE f.zone_id IS NOT NULL
     """
 )
 OPEN_ITEMS_SQL = text(
@@ -431,6 +434,7 @@ class MarketService:
         self.storage = storage
         self.dispatcher = dispatcher
         self.municipality = municipality
+        self._tz = municipality.timezone
         self.settings = settings
         self.max_attempts = max_attempts
         self.clock = clock
@@ -752,7 +756,7 @@ class MarketService:
 
     async def _factors(self, session: AsyncSession, zone_id: int) -> tuple[float, float] | None:
         for statement, params in (
-            (ZONE_ROW_SQL, {"m": self.municipality_id, "zone_id": zone_id}),
+            (ZONE_ROW_SQL, {"m": self.municipality_id, "zone_id": zone_id, "tz": self._tz}),
             (MUNICIPALITY_ROW_SQL, {"m": self.municipality_id}),
         ):
             row = (await session.execute(statement, params)).mappings().first()
@@ -909,7 +913,12 @@ class MarketService:
         )
         by_metric = {r["metric"]: r for r in ready}  # ordered by review time: the latest wins
         current = (
-            (await session.execute(ZONE_ROW_SQL, {"m": self.municipality_id, "zone_id": zone_id}))
+            (
+                await session.execute(
+                    ZONE_ROW_SQL,
+                    {"m": self.municipality_id, "zone_id": zone_id, "tz": self._tz},
+                )
+            )
             .mappings()
             .first()
         )
@@ -958,6 +967,7 @@ class MarketService:
             sale_rate=rates["sale"],
             range_low_factor=factors[0],
             range_high_factor=factors[1],
+            saleable_share=current["saleable_share"] if current is not None else None,
             source=("; ".join(dict.fromkeys(names)) or "market inputs")[:200],
             source_date=min(*dates, self.clock().date()) if dates else None,
             notes=(
@@ -968,6 +978,7 @@ class MarketService:
         new_id = await insert_assumptions_version(
             session,
             municipality_id=self.municipality_id,
+            timezone=self._tz,
             principal=principal,
             payload=payload,
             action="assumptions.market_input",
@@ -987,7 +998,9 @@ class MarketService:
             zones = (await session.execute(COVERAGE_ZONES_SQL, {"m": m})).mappings().all()
             rows = {
                 int(r["zone_id"]): r
-                for r in (await session.execute(COVERAGE_ROWS_SQL, {"m": m})).mappings()
+                for r in (
+                    await session.execute(COVERAGE_ROWS_SQL, {"m": m, "tz": self._tz})
+                ).mappings()
             }
             open_items = (await session.execute(OPEN_ITEMS_SQL, {"m": m})).mappings().all()
         pending: dict[tuple[int, str], list[int]] = {}

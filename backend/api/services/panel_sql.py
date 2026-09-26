@@ -9,7 +9,9 @@ current ``publish_versions`` row (``is_current``), read fresh on every call.
 
 Parameters: ``municipality_id`` and ``id`` for every statement; the cadastral and urban
 statements also take ``min_overlap_m2`` and ``min_overlap_fraction`` (the locate thresholds that
-decide when a planned urban parcel and a cadastral parcel are linked).
+decide when a planned urban parcel and a cadastral parcel are linked) and ``tz`` (the
+municipality's time zone: the market inputs are the version that applies on its local date,
+``core.assumptions``).
 
 Resolution rules shared with locate: the governing document of a cadastral parcel is the
 *adopted* document whose coverage contains ``ST_PointOnSurface(geom)``, most specific (smallest
@@ -21,6 +23,8 @@ cadastral parcel of an urban panel is the link with the largest overlap.
 """
 
 from __future__ import annotations
+
+from core.assumptions import LOCAL_TODAY, applies_from_sql, timeline_order_sql
 
 
 def _document_ref(alias: str) -> str:
@@ -82,28 +86,32 @@ amendments AS (
       AND a.status = 'in_progress'
 )"""
 
-# Current market inputs: the zone's own current row, nothing else. A zone without one has no
-# market figures (the panel says "no market data for this zone"); the municipality-wide row
-# (zone_id null) only holds the range factors single-figure market imports are widened with and
-# never stands in for a zone (core.market, docs/specs/market-data.md). Index-backed by the partial
-# unique index on the current zone rows. effective_from: the version's stated effective date,
-# else its creation time.
-_MARKET = """
+# Market inputs that apply today: the zone's own version with the latest applies_from (its
+# effective date, never before the day it was saved) on or before the municipality's today, the
+# newest version on a tie (core.assumptions), nothing else. A later-dated version is scheduled and
+# not read; a retired version on top means no figures. A zone without a version has no market
+# figures (the panel says "no market data for this zone"); the municipality-wide row (zone_id
+# null) only holds the range factors single-figure market imports are widened with and never
+# stands in for a zone (core.market). The zone's few versions come from
+# ix_financial_assumptions_history. effective_from: midnight UTC of the version's stated date.
+_MARKET = f"""
 market AS (
-    SELECT f.id, f.zone_id, f.version, f.land_rate_eur_m2, f.build_rate_eur_m2,
-           f.design_rate_eur_m2, f.sale_rate_eur_m2, f.range_low_factor, f.range_high_factor,
-           f.source, f.source_date, f.rate_sources,
-           f.land_rate_low_eur_m2, f.land_rate_high_eur_m2, f.build_rate_low_eur_m2,
-           f.build_rate_high_eur_m2, f.design_rate_low_eur_m2, f.design_rate_high_eur_m2,
-           f.sale_rate_low_eur_m2, f.sale_rate_high_eur_m2,
-           COALESCE(f.effective_from::timestamp AT TIME ZONE 'UTC', f.created_at)
-               AS effective_from
-    FROM financial_assumptions f
-    WHERE f.municipality_id = :municipality_id
-      AND f.is_current
-      AND f.zone_id = (SELECT zone_id FROM zone_pick)
-    ORDER BY f.id DESC
-    LIMIT 1
+    SELECT top.* FROM (
+        SELECT f.id, f.zone_id, f.version, f.land_rate_eur_m2, f.build_rate_eur_m2,
+               f.design_rate_eur_m2, f.sale_rate_eur_m2, f.range_low_factor, f.range_high_factor,
+               f.source, f.source_date, f.rate_sources, f.saleable_share, f.retired_at,
+               f.land_rate_low_eur_m2, f.land_rate_high_eur_m2, f.build_rate_low_eur_m2,
+               f.build_rate_high_eur_m2, f.design_rate_low_eur_m2, f.design_rate_high_eur_m2,
+               f.sale_rate_low_eur_m2, f.sale_rate_high_eur_m2,
+               f.effective_from::timestamp AT TIME ZONE 'UTC' AS effective_from
+        FROM financial_assumptions f
+        WHERE f.municipality_id = :municipality_id
+          AND f.zone_id = (SELECT zone_id FROM zone_pick)
+          AND {applies_from_sql("f")} <= {LOCAL_TODAY}
+        ORDER BY {timeline_order_sql("f")}
+        LIMIT 1
+    ) top
+    WHERE top.retired_at IS NULL
 )"""
 
 _MARKET_COLUMN = """
@@ -113,6 +121,7 @@ _MARKET_COLUMN = """
         'sale_rate_eur_m2', sale_rate_eur_m2, 'range_low_factor', range_low_factor,
         'range_high_factor', range_high_factor, 'source', source, 'source_date', source_date,
         'effective_from', effective_from, 'version', version, 'rate_sources', rate_sources,
+        'saleable_share', saleable_share,
         'bounds', jsonb_build_object(
             'land', jsonb_build_array(land_rate_low_eur_m2, land_rate_high_eur_m2),
             'build', jsonb_build_array(build_rate_low_eur_m2, build_rate_high_eur_m2),

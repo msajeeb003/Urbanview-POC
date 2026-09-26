@@ -329,3 +329,51 @@ class AuditLogEntry(Base):
         Index("ix_audit_log_time", "municipality_id", "created_at"),
         Index("ix_audit_log_entity", "municipality_id", "entity_type", "entity_id"),
     )
+
+
+ENGINE_PROPOSAL_KINDS: tuple[str, ...] = ("formula", "data_input")
+ENGINE_PROPOSAL_STATUSES: tuple[str, ...] = ("new", "pending", "accepted", "declined")
+
+
+class EngineProposal(Base):
+    """A formula or data input proposed for the calculation engine (migration 0023): recorded and
+    audited for the client's review, it changes no calculation. The deterministic engine changes
+    only with a new ``FORMULA_VERSION`` and fixtures the client validated."""
+
+    __tablename__ = "engine_proposals"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    municipality_id: Mapped[str] = mapped_column(Text, nullable=False)
+    kind: Mapped[str] = mapped_column(Text, nullable=False, comment="formula | data_input")
+    name: Mapped[str] = mapped_column(
+        Text, nullable=False, comment="the output (formula) or dataset (data input) name"
+    )
+    expression: Mapped[str | None] = mapped_column(Text, comment="formula: the expression")
+    source: Mapped[str | None] = mapped_column(Text, comment="formula: where its inputs come from")
+    provides: Mapped[str | None] = mapped_column(Text, comment="data input: what it provides")
+    status: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        server_default=text("'new'"),
+        comment="new (formula) | pending (data input) | accepted | declined",
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False, comment="principal subject")
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("staff_users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = _timestamp(nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("kind IN ('formula', 'data_input')", name="ck_engine_proposals_kind"),
+        CheckConstraint(
+            "status IN ('new', 'pending', 'accepted', 'declined')",
+            name="ck_engine_proposals_status",
+        ),
+        CheckConstraint(
+            "(kind = 'formula' AND expression IS NOT NULL) OR "
+            "(kind = 'data_input' AND provides IS NOT NULL)",
+            name="ck_engine_proposals_content",
+        ),
+        Index("ix_engine_proposals_kind", "municipality_id", "kind", "created_at"),
+    )

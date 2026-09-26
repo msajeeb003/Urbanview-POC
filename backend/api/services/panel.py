@@ -400,10 +400,20 @@ def _market_reason(zone: ZoneRef | None) -> tuple[str, dict[str, Any]]:
     return "no_market_data", {"zone_name": zone.name}
 
 
-def _assumptions(overrides: AssumptionOverrides) -> Assumptions:
+def default_saleable_share(market_raw: Mapping[str, Any] | None) -> float:
+    """The saleable share a calculation starts from: the zone's live assumptions version when it
+    sets one (migration 0023), else the product's 0.70."""
+    share = (market_raw or {}).get("saleable_share")
+    return DEFAULT_SALEABLE_SHARE if share is None else float(share)
+
+
+def _assumptions(
+    overrides: AssumptionOverrides, market_raw: Mapping[str, Any] | None = None
+) -> Assumptions:
+    """Precedence: the visitor's override, then the zone's version, then the product constant."""
     share = overrides.saleable_share
     return Assumptions(
-        saleable_share=DEFAULT_SALEABLE_SHARE if share is None else share,
+        saleable_share=default_saleable_share(market_raw) if share is None else share,
         construction_cost_eur_m2=overrides.construction_cost_eur_m2,
         sale_price_eur_m2=overrides.sale_price_eur_m2,
     )
@@ -540,7 +550,7 @@ def _blocks(
         _number(resolved, "max_far"),
         _number(resolved, "max_site_coverage_pct"),
         _market_inputs(market_raw),
-        _assumptions(overrides),
+        _assumptions(overrides, market_raw),
         market_reason_code=reason_code,
         market_reason_params=reason_params,
         calculation_basis=basis,
@@ -960,7 +970,11 @@ class PanelService:
     async def _execute(
         self, sql: str, entity_id: int, *, with_thresholds: bool = False
     ) -> Mapping[str, Any]:
-        params: dict[str, Any] = {"municipality_id": self.profile.id, "id": entity_id}
+        params: dict[str, Any] = {
+            "municipality_id": self.profile.id,
+            "id": entity_id,
+            "tz": self.profile.timezone,
+        }
         if with_thresholds:
             params["min_overlap_m2"] = self.min_overlap_m2
             params["min_overlap_fraction"] = self.min_overlap_fraction

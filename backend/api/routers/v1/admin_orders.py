@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, File, Form, Path, Query, Response, Uploa
 from api.deps import OrderManagerPrincipal, OrderServiceDep, OrderStaffPrincipal
 from api.schemas.orders import (
     AssignIn,
+    ExpertOut,
     OrderList,
     OrderOut,
     OrderStatus,
@@ -58,6 +59,18 @@ async def list_orders(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get(
+    "/experts",
+    response_model=list[ExpertOut],
+    summary="The active experts an order can be assigned to (admins and reviewers)",
+    responses=RESPONSES,
+)
+async def list_experts(
+    principal: OrderManagerPrincipal, service: OrderServiceDep
+) -> list[ExpertOut]:
+    return await service.experts(principal)
 
 
 @router.get("/{order_id}", response_model=OrderOut, responses=RESPONSES)

@@ -565,7 +565,7 @@ async def test_audit_listing_filters_who_changed_what_and_when(review_app):
     (entry,) = by_entity.json()["items"]
     assert entry["action"] == "assumptions.create" and entry["actor"] == "ops"
     assert entry["before"]["version"] == 1 and entry["before"]["land_rate_eur_m2"] == 1350
-    assert entry["after"]["version"] == 2 and entry["after"]["land_rate"]["expected"] == 1400
+    assert entry["after"]["version"] == 2 and entry["after"]["land_rate_eur_m2"] == 1400
     actions = [e["action"] for e in since.json()["items"]]
     assert actions[:2] == ["assumptions.create", "review.approve"]  # newest first
     assert since.json()["total"] >= 2  # users made through core.staff write no audit rows

@@ -20,8 +20,8 @@ CLEANUP = (
     "UPDATE zone_parameter_sets SET is_current = true, retired_at = NULL, retired_by = NULL "
     "WHERE created_by = 'seed'",
     "DELETE FROM financial_assumptions WHERE created_by <> 'seed'",
-    "UPDATE financial_assumptions SET is_current = true, retired_at = NULL, retired_by = NULL "
-    "WHERE created_by = 'seed'",
+    "UPDATE financial_assumptions SET is_current = true, retired_at = NULL, retired_by = NULL, "
+    "effective_from = (created_at AT TIME ZONE 'UTC')::date WHERE created_by = 'seed'",
     "DELETE FROM staff_sessions",
     "DELETE FROM staff_users WHERE municipality_id = 'podgorica'",
 )
@@ -167,9 +167,11 @@ async def test_assumption_versions_and_what_the_panel_states(config_app):
         "zone_id": 1,
     }
     assert market["version"]["effective_from"].endswith("Z")  # the panel speaks UTC
-    assert datetime.fromisoformat(market["version"]["effective_from"]) == datetime.fromisoformat(
-        v2["created_at"]
-    )
+    # the version's local date, at midnight UTC (core.assumptions: it applies from that date)
+    applies_from = datetime.fromisoformat(market["version"]["effective_from"])
+    assert applies_from.date().isoformat() == v2["effective_from"]
+    assert (applies_from.hour, applies_from.minute) == (0, 0)
+    assert v2["status"] == "live"
     assert (
         market["build_rate_eur_m2"] == 900
         and market["ranges"]["build_rate"]["kind"] == "multiplier"
@@ -188,6 +190,7 @@ async def test_assumption_versions_and_what_the_panel_states(config_app):
     assert empty.status_code == 422
     assert retired.status_code == 200
     assert retired.json()["is_current"] is False and retired.json()["retired_by"] == "ops"
+    assert retired.json()["status"] == "retired"
     assert panel_without["market_inputs"]["available"] is False
     assert panel_without["market_inputs"]["reason_code"] == "no_market_data"
     assert panel_without["market_inputs"]["version"] is None

@@ -111,6 +111,9 @@ class PaymentInstructionsOut(BaseModel):
 class OrderLocationOut(BaseModel):
     parcel_type: ParcelType
     parcel_id: int
+    cadastral_parcel_id: int | None = Field(
+        default=None, description="The Parcel ID the map opens (`/?parcel=`), also for urban orders"
+    )
     parcel_label: str
     document_name: str | None = None
     zone_name: str | None = None
@@ -213,6 +216,26 @@ class OrderSummary(BaseModel):
     )
 
 
+class OrderEvent(BaseModel):
+    """One audit entry of the order: status changes, payments, assignment, report uploads."""
+
+    id: int
+    action: str = Field(description="order.status | order.payment | order.payment_check | ...")
+    actor: str
+    created_at: datetime
+    before: dict[str, Any] | None = None
+    after: dict[str, Any] | None = None
+    note: str | None = None
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExpertOut(BaseModel):
+    user_id: int
+    email: str
+    display_name: str | None = None
+    open_orders: int = Field(description="Orders in progress assigned to them")
+
+
 class OrderOut(OrderSummary):
     emails: list[EmailLogOut] = Field(
         default_factory=list, description="Every e-mail of this order, newest first"
@@ -239,6 +262,12 @@ class OrderOut(OrderSummary):
     refunded_at: datetime | None = None
     notes: str | None = None
     report: ReportFileOut | None = None
+    report_versions: int = Field(
+        default=0, description="Reports uploaded for the order (a replaced report is version 2 …)"
+    )
+    timeline: list[OrderEvent] = Field(
+        default_factory=list, description="The order's audit entries, oldest first"
+    )
     snapshot: dict[str, Any] = Field(description="The panel payload the visitor saw")
 
 

@@ -154,7 +154,8 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   current row `"unpublished"` / null and no planning values (they belong to a version). Values
   may also carry a `block_id` or `zone_id` scope (migration 0011; the panel resolves parcel →
   document only, the block / zone scopes feed the heatmap cells). Market inputs have
-  their own version history (`financial_assumptions.version`, one `is_current` row per zone):
+  their own effective-dated version history (`financial_assumptions.version`; the panel reads the
+  version that applies on the municipality's local date, `core.assumptions`):
   the panel shows their `source`, `source_date`, `effective_from` and `market_inputs.version`
   (`{id, version, zone_id, effective_from}`; also `assumptions.market_version`, so a panel or
   a feasibility answer states which assumptions version produced its figures) plus
@@ -208,13 +209,16 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   assumptions blocks, `planning_inputs`, `engine` (`engine_version`, `formula_version`,
   `range_derivation`, `deterministic: true`), `data_version` and the disclaimer. Uncovered parcel
   → 200 with `covered: false`; unknown parcel → 404; no AI on this path.
-- **Assumptions and overrides.** Precedence: query override > current market row
-  (`financial_assumptions`: the parcel's zone, else the municipality-wide `zone_id IS NULL` row)
-  > the product constant 0.70 for `saleable_share` (engine default; no per-zone saleable share).
-  Overrides never rescue a missing market row: land and design rates would be unknown, so the
-  money figures are `cannot_calculate` (`no_market_data` / `no_market_data_zone_unknown`) while
-  GFA, coverage and saleable area still compute. `assumptions` echoes the numbers actually used,
-  `overrides` (query param present) and `sources` (`market` | `user` | null).
+- **Assumptions and overrides.** Precedence: query override > the zone's market version that
+  applies today (`financial_assumptions`, effective-dated, see "Admin configuration API"; the
+  municipality-wide `zone_id IS NULL` row never stands in for a zone since 0019) > for
+  `saleable_share` that version's own `saleable_share` (migration 0023, null = none) > the
+  product constant 0.70 (engine default). Overrides never rescue a missing market row: land and
+  design rates would be unknown, so the money figures are `cannot_calculate` (`no_market_data` /
+  `no_market_data_zone_unknown`) while GFA, coverage and saleable area still compute.
+  `assumptions` echoes the numbers actually used, `overrides` (query param present) and `sources`
+  (`market` | `user` | null); the parcel panel's saleable share item says `market` when the zone's
+  version sets it, else `product_default`.
 - **Zone and document panels** (what the public map's S3 variants show): the zone panel lists
   the zone's **current** document versions, each with `covered` (adopted, live, current, with
   coverage: the rule of locate and the tiles), `file_available` (PDF stored) and `parcel_count`
@@ -277,11 +281,15 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   zone's current document versions with status labels, profile type name, `covered`,
   `file_available`, counts, typical parameters.
 - **Cache** (`PanelCache`, Redis, `PANEL_CACHE_TTL_SECONDS`, 0 = off): one entry per entity per
-  data state, key `panel:{app_version}:{m}:{kind}:{id}:{version_id}:{token}` where `token`
+  data state, key `panel:{app_version}+{PANEL_PAYLOAD_FORMAT}:{m}:{kind}:{id}:{version_id}:{token}`
+  (`PANEL_PAYLOAD_FORMAT` in `panel_cache.py`: bump it when a body changes for the same data, so a
+  deploy never serves bodies of the previous code) where `token`
   hashes the current version's creation time and the state that changes panels outside a publish
-  (documents' status / live / version / file columns, current market rows, current zone parameter
-  sets), read by `STAMP_SQL` before the data (an entry can only be newer than its key). Market
-  and zone parameter rows are immutable versions, so their ids fingerprint them. Strong `ETag`
+  (documents' status / live / version / file columns, the market versions that apply today in the
+  municipality's time zone — a scheduled version taking effect changes the key at local midnight —
+  current zone parameter sets), read by `STAMP_SQL` before the data (an entry can only be newer
+  than its key). Market and zone parameter rows are immutable versions, so their ids fingerprint
+  them. Strong `ETag`
   from the key; `If-None-Match` → 304 without Redis; `Cache-Control: no-cache`;
   `X-Panel-Cache` hit | miss | bypass | revalidated (CORS-exposed with `ETag`). Redis trouble →
   computed and `bypass`, Redis skipped for 5 s. 404 for an unknown id (nothing cached), 200
@@ -452,18 +460,50 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
 ## Admin configuration API (`api/services/admin_config.py`, `api/routers/v1/admin_config.py`)
 
 - Role `admin`, every write audited (`api/services/audit.py`, shared with the pipeline API).
-- **Financial assumptions** (`/v1/admin/assumptions`, migration 0007): per zone or the
-  municipality-wide default (`zone_id` null): four rates (`land_rate` per m² parcel,
-  `build_rate` / `design_rate` per m² GFA, `sale_rate` per m² saleable), each
-  `{expected, low?, high?}` (absolute bounds, both or neither, `low ≤ expected ≤ high`), the
-  multiplier factors for rates without bounds, `source` (required: Realitica, Estitor,
-  Monstat …), `source_date`, `notes`. Rows are immutable versions: POST inserts version n+1 for
-  the zone and flips the previous current row off (`supersedes_id`); PUT creates the next
-  version from the current row with the given changes (409 on a non-current row); DELETE
-  retires the current row (the panel falls back to the default row or reports
-  `no_market_data`); `include_history` lists earlier versions. The engine adapter turns absolute
-  bounds into `absolute` engine bounds for that rate (`core/engine/feasibility.py`).
-- **Zone parameter sets** (`/v1/admin/zone-parameters`, table `zone_parameter_sets`): the
+- **Financial assumptions** (`/v1/admin/assumptions`, migrations 0007, 0023): per zone or the
+  municipality-wide row (`zone_id` null: range factors for market imports only): four rates
+  (`land_rate` per m² parcel, `build_rate` / `design_rate` per m² GFA, `sale_rate` per m²
+  saleable), each `{expected, low?, high?}` (absolute bounds, both or neither, `low ≤ expected ≤
+  high`), the multiplier factors for rates without bounds, an optional `saleable_share` (0, 1]
+  (the zone's default; null = 0.70), `source` (required: Realitica, Estitor, Monstat …),
+  `source_date`, `notes`, `effective_from`. Rows are immutable **effective-dated** versions
+  (`core.assumptions`): POST inserts version n+1 for the zone (`supersedes_id` = the previous
+  version, `is_current` moves to it: the head of the history) applying from `effective_from`:
+  today (the default, the municipality's local date, profile `timezone`) or later, at most five
+  years ahead (422 otherwise; admins never backdate). A version's place on the timeline is
+  `applies_from = GREATEST(effective_from, local day it was saved)` (so a market input dated to
+  its reference period applies from its approval and keeps its stated date); the panels, POST
+  `/v1/feasibility`, orders and the publish job's cells read, per zone, the version with the latest
+  `applies_from` on or before today, the newest on a tie: a later-dated version is **scheduled**
+  and needs no job to switch it on (the rule runs on the database's clock in every reader and the
+  panel cache stamp). Every `AssumptionsOut` states `status` live | scheduled | superseded |
+  retired and `applies_from`; the list answers `today` and `timezone` and by default the live and
+  scheduled versions (`include_history` lists all). `POST /assumptions/batch {effective_from?,
+  sets}` saves several zones in one transaction (all or nothing: the console's "Save changes"; a
+  zone twice is 422); PUT creates the next version from the head with the given changes (409 on
+  an older row; the date is never carried over); DELETE retires the **live** version only (409
+  `not_live`; the zone then has no market figures until a later version applies — nothing is
+  deleted). Each version writes `audit_log` with `before` = the previous version and `after` = the
+  new one in the same flat column shape (the audit log lists exactly the figures that changed).
+  `POST /assumptions/preview {parcel_id, zone_id, rates, factors, saleable_share}` answers the
+  parcel's Group 2, market and assumptions views today and with the unsaved set in place of the
+  live version (`api/services/assumptions_preview.py`: the parcel panel's own statement row,
+  builders and the shared engine; nothing written or cached; `zone_mismatch` flags a parcel
+  outside the draft's zone; 404 unknown parcel); `GET /assumptions/preview-parcels?zone_id=` lists
+  up to 12 covered cadastral parcels of the zone (those with a planned parcel first). The engine
+  adapter turns absolute bounds into `absolute` engine bounds for that rate
+  (`core/engine/feasibility.py`). Tests: `tests/integration/test_assumptions_schedule_postgis.py`
+  (today's set on the next load, a future set waiting for its date and the cache key following,
+  audit old / new values, validation all or nothing, the preview, proposals, reviewer reads).
+- **Calculation engine proposals** (`/v1/admin/engine/proposals`, `api/services/engine_proposals.py`,
+  table `engine_proposals`, migration 0023; role admin): the console's "+ Add formula" (name,
+  expression, source) and "+ Add data input" (name, what it provides) record a proposal with status
+  `new` (formula) / `pending` (data input) and an `engine.proposal` audit row (`engine_changed:
+  false`). Nothing calculates with them: the engine changes only with a new `FORMULA_VERSION` and
+  fixtures the client validated. GET lists them oldest first.
+- **Zone parameter sets** (`/v1/admin/zone-parameters`, table `zone_parameter_sets`; GET for
+  admins and reviewers, `ConfigReaderPrincipal`, the console's read-only Planning rules; writes
+  admin only): the
   typical planning values of a zone (`land_use`, `max_far`, `max_site_coverage_pct` 0–100,
   `max_height_m`, `max_floors`; at least one) with a source document reference
   (`source_document_id` must exist, `source_page` needs it, `source_note`), `verified_on` (not
@@ -763,6 +803,19 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   sets delivered, e-mails a signed download link, `ORDER_REPORT_LINK_EXPIRES_SECONDS`). Every
   change is an `audit_log` row with before / after. Admins and reviewers manage everything;
   experts see and deliver only their assigned orders (403 otherwise).
+- **Replacing a delivered report**: `POST .../report` on a `delivered` order replaces the report
+  and needs a `note` (422 without one); the `order.report` audit row carries `version` (n-th
+  upload) and `replaces_file_id`, no second status entry is written, and the new download link
+  is e-mailed again. Earlier report files stay stored.
+- **What the staff console reads** (`frontend/src/app/(shell)/admin/orders/`, see
+  `frontend/CLAUDE.md` "Orders"): `GET /v1/admin/orders/{id}` adds `timeline` (the order's
+  `audit_log` rows, oldest first: `order.create`, `order.payment` with `amount_eur`,
+  `bank_reference`, `received_on`, `order.payment_check`, `order.assign`, `order.report`,
+  `order.status`, a refund's with `refund_amount_eur`, `refunded_on`, `bank_reference`),
+  `report_versions` and `location.cadastral_parcel_id` (the Parcel ID the map opens with
+  `/?parcel=`, also for urban orders). `GET /v1/admin/orders/experts` (admins, reviewers; 403
+  for experts): the active `expert` users with their `open_orders` (in progress) for the assign
+  picker.
 - **Public status** `GET /v1/orders/{reference}/status`: status, location and turnaround only;
   the public map's order page `/orders/{reference}` (`frontend/src/app/orders/`) reads it, and
   the confirmation and every order e-mail link there.
@@ -787,7 +840,9 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
 - Tests: `tests/test_orders_unit.py` (tiers, turnaround, references, transitions, form
   validation, e-mail templates) and `tests/integration/test_orders_postgis.py` (creation with
   snapshot and e-mail, pricing from config, the status flow with guards, expert scope, report
-  delivery, snapshot immutability after a republish, public status without personal data).
+  delivery, snapshot immutability after a republish, public status without personal data) and
+  `tests/integration/test_orders_console_postgis.py` (experts list and its 403, a replaced report
+  with its note, version and second e-mail, payment and refund details in the timeline).
 
 ## Transactional e-mail and staff login (`core/mail/`, `jobs/tasks/email.py`, `api/services/email.py`, `api/services/auth.py`)
 
@@ -963,8 +1018,10 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   overlaps with locate's thresholds, `rank 1` = the panel's primary: largest overlap, smallest
   planned area, lowest id; `cadastral_unmatched` counted) → `cells` (`heatmap_cells` per block
   and zone: area-weighted coverage % and FAR, max height, GFA / saleable area / market value
-  sums through `core.engine.feasibility.compute_feasibility` with the zone's current
-  assumptions, `sale_rate_eur_m2`, `price_band` = tercile of the zone sale rates) → `export`
+  sums through `core.engine.feasibility.compute_feasibility` with the zone's assumptions that
+  apply on the publish day (its saleable share too; a set scheduled for later reaches the cells
+  with the first publish after its date), `sale_rate_eur_m2`, `price_band` = tercile of the zone
+  sale rates) → `export`
   (one newline-delimited GeoJSON file per catalogue layer) → `tiles` (tippecanoe per layer with
   its own zoom range, `tile-join` into one PMTiles archive: one source layer per map layer,
   independent visibility) → `upload` (`{m}/tiles/{version_id}/{label}.pmtiles`, private bucket)
@@ -1148,14 +1205,16 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   and, for market data, unlocks the figures for the session (no checkout); the AI fab and panel are a UI shell that records
   `ai_interest`; no card fields; bilingual text; at ≤ 860 px the rail collapses into a drawer and
   the panel becomes a bottom sheet. The admin view is the wireframe's overlay inside the frontend
-  (tab placeholders for now). Anything else is an open item (spec §10), not a redesign.
+  (the admin console: every tab is built, see `frontend/CLAUDE.md`). Anything else is an open item
+  (spec §10), not a redesign.
 - Scope is unsettled: `docs/UrbanView_POC_Exclusions.docx.md` (265 h POC) excludes screens that
   the build plan and this backend include; ask before building screens it excludes.
 
 ## Conventions
 
 **Municipality isolation (BRD §8).** Everything place-specific is data or configuration:
-bounds, centre, CRS, KO list, planning terminology (IZ/II/KO/UP, DUP/PUP/PGR) and data-source
+bounds, centre, CRS, KO list, time zone (`timezone`: the local date effective-dated assumptions
+switch on), planning terminology (IZ/II/KO/UP, DUP/PUP/PGR) and data-source
 URLs come from `backend/municipalities/<id>.toml` via `core.municipality.load_profile`; never
 hard-code them. Every domain table and every Celery task carries `municipality_id`; object keys
 are `{municipality_id}/{kind}/{name}`; the formula engine knows no municipality.

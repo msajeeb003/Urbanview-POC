@@ -44,8 +44,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from api.services.audit import write_audit
+from core.assumptions import live_versions_sql
 from core.engine.feasibility import Assumptions, MarketInputs, compute_feasibility
-from core.engine.shared import FORMULA_VERSION
+from core.engine.shared import DEFAULT_SALEABLE_SHARE, FORMULA_VERSION
 from core.parcel_links import recompute_parcel_links
 from core.zones.staging import apply_zone_datasets
 from jobs.base import JobContext, JobResult
@@ -580,14 +581,16 @@ CARRY_GENERIC_SQL = text(
     WHERE f.municipality_id = :m AND f.publish_version_id = :prev AND f.layer_id = :layer
     """
 )
+# The assumptions that apply on the publish day (core.assumptions): a version scheduled for a
+# later date is not in the cells until a publish after that date.
 ASSUMPTIONS_SQL = text(
-    """
+    f"""
     SELECT zone_id, land_rate_eur_m2, build_rate_eur_m2, design_rate_eur_m2, sale_rate_eur_m2,
-           range_low_factor, range_high_factor,
+           range_low_factor, range_high_factor, saleable_share,
            land_rate_low_eur_m2, land_rate_high_eur_m2, build_rate_low_eur_m2,
            build_rate_high_eur_m2, design_rate_low_eur_m2, design_rate_high_eur_m2,
            sale_rate_low_eur_m2, sale_rate_high_eur_m2
-    FROM financial_assumptions WHERE municipality_id = :m AND is_current
+    FROM ({live_versions_sql()}) f
     """
 )
 PARCEL_ZONE_SQL = text(
@@ -697,12 +700,14 @@ class PublishPipeline:
         max_zoom: int = 16,
         layers: tuple[LayerSpec, ...] = LAYERS,
         tmp_dir: str | None = None,
+        timezone: str = "UTC",
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.session_factory = session_factory
         self.storage = storage
         self.tile_builder = tile_builder
         self.municipality_id = municipality_id
+        self.timezone = timezone
         self.min_overlap_m2 = float(min_overlap_m2)
         self.min_overlap_fraction = float(min_overlap_fraction)
         self.keep_versions = max(2, int(keep_versions))
@@ -1038,9 +1043,17 @@ class PublishPipeline:
 
     async def _compute_cells(self, session: AsyncSession, version_id: int) -> dict[str, int]:
         m = self.municipality_id
-        market_rows = (await session.execute(ASSUMPTIONS_SQL, {"m": m})).mappings().all()
+        market_rows = (
+            (await session.execute(ASSUMPTIONS_SQL, {"m": m, "tz": self.timezone})).mappings().all()
+        )
         market_by_zone: dict[int | None, MarketInputs] = {
             row["zone_id"]: market_inputs_from_row(row) for row in market_rows
+        }
+        # the zone's own default saleable share when its version sets one (migration 0023)
+        share_by_zone: dict[int | None, float] = {
+            row["zone_id"]: float(row["saleable_share"])
+            for row in market_rows
+            if row["saleable_share"] is not None
         }
         # a zone without its own current row has no market figures (never the municipality-wide
         # row's): its cells carry no sale rate and the map draws them as not covered
@@ -1055,8 +1068,13 @@ class PublishPipeline:
         for p in parcels:
             zone_id = p["effective_zone_id"]
             market = market_by_zone.get(zone_id) if zone_id else None
+            share = share_by_zone.get(zone_id, DEFAULT_SALEABLE_SHARE)
             result = compute_feasibility(
-                p["area_m2"], p["max_far"], p["max_site_coverage_pct"], market, Assumptions()
+                p["area_m2"],
+                p["max_far"],
+                p["max_site_coverage_pct"],
+                market,
+                Assumptions(saleable_share=share),
             )
             figures = ParcelFigures(
                 area_m2=float(p["area_m2"] or 0.0),

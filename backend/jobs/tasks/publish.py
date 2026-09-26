@@ -52,6 +52,16 @@ def _settings() -> Any:
     return get_settings()
 
 
+def _timezone(municipality_id: str) -> str:
+    """The profile's time zone: the cells use the assumptions that apply on its local date."""
+    from core.municipality import UnknownMunicipalityError, load_profile
+
+    try:
+        return load_profile(municipality_id).timezone
+    except UnknownMunicipalityError:
+        return "UTC"
+
+
 async def _publish_approved(job: JobContext) -> JobResult:
     settings = _settings()
     storage = _config.get("storage")
@@ -77,6 +87,7 @@ async def _publish_approved(job: JobContext) -> JobResult:
             min_zoom=settings.tiles_min_zoom,
             max_zoom=settings.tiles_max_zoom,
             tmp_dir=settings.publish_tmp_dir,
+            timezone=_timezone(job.municipality_id),
         )
         return await pipeline.run(job)
     finally:

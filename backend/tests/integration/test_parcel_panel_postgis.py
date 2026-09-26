@@ -397,7 +397,9 @@ async def test_plans_are_index_backed_and_fast(pg_conn):
     (bulk_id,) = await _bulk_parcel_ids(pg_conn, 1)
     for parcel_id in (1001, 1006, bulk_id):
         root = await _explain(
-            pg_conn, PARCEL_PANEL_SQL, {"municipality_id": "podgorica", "id": parcel_id}
+            pg_conn,
+            PARCEL_PANEL_SQL,
+            {"municipality_id": "podgorica", "id": parcel_id, "tz": "Europe/Podgorica"},
         )
         _assert_indexed_and_fast(
             root,
@@ -421,7 +423,7 @@ async def test_value_and_gap_lookups_have_index_paths(pg_conn):
         raw = (
             await pg_conn.execute(
                 text("EXPLAIN (FORMAT JSON) " + PARCEL_PANEL_SQL),
-                {"municipality_id": "podgorica", "id": 1001},
+                {"municipality_id": "podgorica", "id": 1001, "tz": "Europe/Podgorica"},
             )
         ).scalar_one()
     finally:

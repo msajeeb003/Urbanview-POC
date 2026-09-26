@@ -4,7 +4,7 @@
  *
  * Roles (the staff user's `role`, from `GET /v1/admin/users/me`):
  * - admin: everything, including users, financial assumptions and the audit log;
- * - reviewer: Overview, AI review queue, Planning rules (read), Data sources;
+ * - reviewer: Overview, AI review queue, Planning rules (read), Orders, Data sources;
  * - expert: Orders (the API returns only the orders assigned to them).
  *
  * The API enforces the same boundaries on every `/v1/admin/*` route (403, never 404); this table
@@ -50,7 +50,8 @@ export const SECTIONS: readonly Section[] = [
   },
   { id: "assumptions", label: "Financial assumptions", href: "/admin/assumptions", tab: true, roles: ["admin"] },
   { id: "engine", label: "Calculation engine", href: "/admin/engine", tab: true, roles: ["admin"] },
-  { id: "orders", label: "Orders", href: "/admin/orders", tab: true, roles: ["admin", "expert"] },
+  // Reviewers record payments and assign experts too (the orders ticket); experts see their own.
+  { id: "orders", label: "Orders", href: "/admin/orders", tab: true, roles: ["admin", "reviewer", "expert"] },
   // Reviewers register documents and drop in their PDFs too (the data sources ticket).
   { id: "data", label: "Data sources", href: "/admin/data", tab: true, roles: ["admin", "reviewer"] },
   { id: "audit", label: "Audit log", href: "/admin/audit", tab: false, roles: ["admin"] },

@@ -154,6 +154,13 @@ class MunicipalityProfile(BaseModel):
     country: str
     locale: str = "en"
     currency: str = "EUR"
+    timezone: str = Field(
+        default="UTC",
+        description=(
+            "IANA time zone of the place: its local date is when effective-dated assumptions "
+            "switch on"
+        ),
+    )
     serving_crs_epsg: int = 4326
     source_crs_epsg: int | None = None
     center: tuple[float, float] = Field(description="lng, lat")

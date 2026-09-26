@@ -92,3 +92,34 @@ export type ReviewSort = NonNullable<NonNullable<paths["/v1/admin/review"]["get"
 export type BulkResult = S["BulkResult"];
 export type PublishStatus = S["PublishStatus"];
 export type PublishVersion = S["PublishVersionOut"];
+
+// --- expert-analysis orders (staff) ---
+export type OrderSummary = S["OrderSummary"];
+export type OrderDetail = S["OrderOut"];
+export type OrderEvent = S["OrderEvent"];
+export type OrderStatus = S["OrderSummary"]["status"];
+export type OrderExpert = S["ExpertOut"];
+export type OrderEmail = NonNullable<S["OrderOut"]["emails"]>[number];
+
+// Admin console: financial assumptions, calculation engine, planning rules
+export type AssumptionSet = S["AssumptionsOut"];
+export type AssumptionSetList = S["AssumptionsList"];
+export type AssumptionSetIn = S["AssumptionsIn"];
+export type AssumptionStatus = S["AssumptionsOut"]["status"];
+export type RateIn = S["RateIn"];
+export type RateRange = S["RateRange"];
+export type AssumptionsBatchOut = S["AssumptionsBatchOut"];
+export type AssumptionsPreview = S["AssumptionsPreviewOut"];
+export type AssumptionsPreviewIn = S["AssumptionsPreviewIn"];
+export type PreviewSide = S["PreviewSide"];
+export type PreviewParcel = S["PreviewParcel"];
+export type PreviewParcelList = S["PreviewParcelList"];
+export type Group2View = S["Group2"];
+export type EngineProposal = S["EngineProposalOut"];
+export type EngineProposalList = S["EngineProposalList"];
+export type EngineProposalIn = S["EngineProposalIn"];
+export type DataSource = S["DataSource"];
+export type ZoneParameterSet = S["ZoneParametersOut"];
+export type ZoneParameterList = S["ZoneParametersList"];
+export type ZoneParametersIn = S["ZoneParametersIn"];
+export type ZoneParametersUpdate = S["ZoneParametersUpdate"];

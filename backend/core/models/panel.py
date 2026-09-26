@@ -207,8 +207,12 @@ class ZoneParameterSet(Base):
 
 
 class FinancialAssumption(Base):
-    """Market inputs per zone, versioned (the current row is what the panel reads). The
-    municipality-wide row (``zone_id`` null) holds the range factors single-figure market
+    """Market inputs per zone, versioned and effective-dated (migration 0023, ``core.assumptions``):
+    the panel reads the version with the latest ``effective_from`` (never before the day it was
+    saved) on or before the municipality's today, the newest on a tie, so a future-dated version
+    is scheduled and needs no job to switch it on; ``is_current`` marks the newest version (the
+    head of the history).
+    The municipality-wide row (``zone_id`` null) holds the range factors single-figure market
     imports are widened with; it never supplies a zone's figures (migration 0019)."""
 
     __tablename__ = "financial_assumptions"
@@ -277,15 +281,31 @@ class FinancialAssumption(Base):
     source: Mapped[str | None] = mapped_column(Text, comment="e.g. Realitica, Estitor, Monstat")
     source_date: Mapped[date | None] = mapped_column(Date)
     notes: Mapped[str | None] = mapped_column(Text)
-    # Market-data imports (migration 0019): when the version applies from, and per rate where
-    # it came from ({rate: {source, source_date, market_data_id?, range_basis?}}).
-    effective_from: Mapped[date | None] = mapped_column(
-        Date, comment="the date the version applies from, when stated"
+    # When the version applies from (migration 0019, required since 0023: the panel reads the
+    # latest effective_from on or before today), and per rate where it came from
+    # ({rate: {source, source_date, market_data_id?, range_basis?}}).
+    effective_from: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+        server_default=text("(now() AT TIME ZONE 'UTC')::date"),
+        comment=(
+            "local date the version applies from; the panel reads the latest one on or before "
+            "today, a later one is scheduled"
+        ),
     )
     rate_sources: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, comment="per rate: source, source date, the market input that set it"
     )
-    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    # Migration 0023: the zone's default saleable share of GFA; null = the product's 0.70.
+    saleable_share: Mapped[float | None] = mapped_column(
+        Float(53), comment="default saleable share of GFA, 0-1; null = the product default 0.70"
+    )
+    is_current: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("false"),
+        comment="the newest version of the zone (head of its history), not what applies today",
+    )
     created_by: Mapped[str | None] = mapped_column(Text)
     dataset_version: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
@@ -299,6 +319,11 @@ class FinancialAssumption(Base):
             name="ck_financial_assumptions_values",
         ),
         CheckConstraint(ASSUMPTION_BOUNDS_CHECK, name="ck_financial_assumptions_bounds"),
+        CheckConstraint(
+            "saleable_share IS NULL OR (saleable_share > 0 AND saleable_share <= 1)",
+            name="ck_financial_assumptions_saleable_share",
+        ),
+        # also the effective-dating lookup (core.assumptions): a zone's few versions
         Index("ix_financial_assumptions_history", "municipality_id", "zone_id", "version"),
         Index(
             "uq_financial_assumptions_current_zone",

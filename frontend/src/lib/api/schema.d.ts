@@ -449,6 +449,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/engine/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Proposed formulas and data inputs, oldest first */
+        get: operations["list_proposals_v1_admin_engine_proposals_get"];
+        put?: never;
+        /** Record a proposed formula or data input (audited; the engine is unchanged) */
+        post: operations["create_proposal_v1_admin_engine_proposals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/jobs": {
         parameters: {
             query?: never;
@@ -576,11 +594,62 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Financial assumptions: current version per zone (and the default), or the history */
+        /** Financial assumptions: the live and scheduled versions per zone, or the history */
         get: operations["list_assumptions_v1_admin_assumptions_get"];
         put?: never;
         /** Publish a new version of a zone's (or the default) financial assumptions */
         post: operations["create_assumptions_v1_admin_assumptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/assumptions/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save new sets for several zones at once (one transaction, all or nothing) */
+        post: operations["create_assumptions_batch_v1_admin_assumptions_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/assumptions/preview-parcels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Covered parcels of a zone to preview a draft set on */
+        get: operations["list_preview_parcels_v1_admin_assumptions_preview_parcels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/assumptions/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A parcel's Group 2 today and with an unsaved set (nothing is written) */
+        post: operations["preview_v1_admin_assumptions_preview_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -599,7 +668,7 @@ export interface paths {
         /** Create the next version from the current one with the given changes */
         put: operations["update_assumptions_v1_admin_assumptions__assumptions_id__put"];
         post?: never;
-        /** Retire the current version (the panel falls back to the municipality default) */
+        /** Retire the live version (the zone has no market figures until a later set) */
         delete: operations["retire_assumptions_v1_admin_assumptions__assumptions_id__delete"];
         options?: never;
         head?: never;
@@ -1122,6 +1191,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/orders/experts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The active experts an order can be assigned to (admins and reviewers) */
+        get: operations["list_experts_v1_admin_orders_experts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/orders/{order_id}": {
         parameters: {
             query?: never;
@@ -1426,6 +1512,25 @@ export interface components {
              */
             engine_edit_key?: string | null;
         };
+        /**
+         * AssumptionsBatchIn
+         * @description Several zones' new sets saved together (the console's "Save changes"): one transaction,
+         *     all or nothing, one version and one audit row per set.
+         */
+        AssumptionsBatchIn: {
+            /**
+             * Effective From
+             * @description Applies to every set that states none: today (the default) or later
+             */
+            effective_from?: string | null;
+            /** Sets */
+            sets: components["schemas"]["AssumptionsIn"][];
+        };
+        /** AssumptionsBatchOut */
+        AssumptionsBatchOut: {
+            /** Items */
+            items: components["schemas"]["AssumptionsOut"][];
+        };
         /** AssumptionsBlock */
         AssumptionsBlock: {
             /**
@@ -1494,6 +1599,11 @@ export interface components {
              */
             range_high_factor: number;
             /**
+             * Saleable Share
+             * @description The zone's default saleable share of GFA (0–1); null = the product's 0.70
+             */
+            saleable_share?: number | null;
+            /**
              * Source
              * @description e.g. Realitica, Estitor, Monstat
              */
@@ -1504,7 +1614,7 @@ export interface components {
             notes?: string | null;
             /**
              * Effective From
-             * @description The date the figures apply from (not in the future)
+             * @description The municipality's local date the set applies from: today (the default) or later; a later date schedules it (the panel keeps the live set until then)
              */
             effective_from?: string | null;
         };
@@ -1512,6 +1622,14 @@ export interface components {
         AssumptionsList: {
             /** Items */
             items: components["schemas"]["AssumptionsOut"][];
+            /**
+             * Today
+             * Format: date
+             * @description The municipality's local date the statuses are computed for
+             */
+            today: string;
+            /** Timezone */
+            timezone: string;
         };
         /** AssumptionsOut */
         AssumptionsOut: {
@@ -1527,8 +1645,14 @@ export interface components {
             /** Version */
             version: number;
             /**
+             * Status
+             * @description live: what the panel and feasibility read today (the latest effective date on or before today, the newest version on a tie); scheduled: dated after today; superseded: replaced by a later date or a newer version; retired
+             * @enum {string}
+             */
+            status: "live" | "scheduled" | "superseded" | "retired";
+            /**
              * Is Current
-             * @description The row the panel and feasibility read
+             * @description The newest version of the zone (the head of its history, what PUT builds on)
              */
             is_current: boolean;
             /** Supersedes Id */
@@ -1541,14 +1665,29 @@ export interface components {
             range_low_factor: number;
             /** Range High Factor */
             range_high_factor: number;
+            /**
+             * Saleable Share
+             * @description The zone's default saleable share; null = the product's 0.70
+             */
+            saleable_share?: number | null;
             /** Source */
             source?: string | null;
             /** Source Date */
             source_date?: string | null;
             /** Notes */
             notes?: string | null;
-            /** Effective From */
-            effective_from?: string | null;
+            /**
+             * Effective From
+             * Format: date
+             * @description The date the set states it applies from
+             */
+            effective_from: string;
+            /**
+             * Applies From
+             * Format: date
+             * @description Its place on the timeline: the effective date, never before the local day it was saved (a backdated market input applies from its approval)
+             */
+            applies_from: string;
             /**
              * Rate Sources
              * @description Per rate, once reviewed market inputs set it: source, source_date, market_data_id, import_id, range_basis, effective_from (or set_by admin after a manual edit)
@@ -1569,6 +1708,71 @@ export interface components {
             retired_by?: string | null;
         };
         /**
+         * AssumptionsPreviewIn
+         * @description An unsaved set tried on one parcel: the figures are computed, nothing is written.
+         */
+        AssumptionsPreviewIn: {
+            /**
+             * Parcel Id
+             * @description The cadastral parcel (Parcel ID) to preview on
+             */
+            parcel_id: number;
+            /**
+             * Zone Id
+             * @description The zone the draft is for (flags a parcel elsewhere)
+             */
+            zone_id?: number | null;
+            land_rate: components["schemas"]["RateIn"];
+            build_rate: components["schemas"]["RateIn"];
+            design_rate: components["schemas"]["RateIn"];
+            sale_rate: components["schemas"]["RateIn"];
+            /**
+             * Range Low Factor
+             * @default 0.86
+             */
+            range_low_factor: number;
+            /**
+             * Range High Factor
+             * @default 1.15
+             */
+            range_high_factor: number;
+            /** Saleable Share */
+            saleable_share?: number | null;
+        };
+        /** AssumptionsPreviewOut */
+        AssumptionsPreviewOut: {
+            /** Parcel Id */
+            parcel_id: number;
+            /**
+             * Title
+             * @description KO and parcel number
+             */
+            title: string;
+            zone?: components["schemas"]["ZoneRef"] | null;
+            /**
+             * Zone Mismatch
+             * @description The parcel lies outside the draft's zone
+             */
+            zone_mismatch: boolean;
+            /** Covered */
+            covered: boolean;
+            /** Coverage Note En */
+            coverage_note_en?: string | null;
+            /**
+             * Calculation Basis
+             * @enum {string}
+             */
+            calculation_basis: "urban" | "cadastral";
+            /** Basis Area M2 */
+            basis_area_m2: number;
+            /** Formula Version */
+            formula_version: string;
+            /** @description As the public panel shows it today */
+            current: components["schemas"]["PreviewSide"];
+            /** @description With the draft set in place of the live one */
+            draft: components["schemas"]["PreviewSide"];
+        };
+        /**
          * AssumptionsUpdate
          * @description Fields of a new version based on the current row; omitted fields are carried over.
          */
@@ -1581,13 +1785,18 @@ export interface components {
             range_low_factor?: number | null;
             /** Range High Factor */
             range_high_factor?: number | null;
+            /** Saleable Share */
+            saleable_share?: number | null;
             /** Source */
             source?: string | null;
             /** Source Date */
             source_date?: string | null;
             /** Notes */
             notes?: string | null;
-            /** Effective From */
+            /**
+             * Effective From
+             * @description Today (the default) or later; never carried over
+             */
             effective_from?: string | null;
         };
         /**
@@ -1606,7 +1815,7 @@ export interface components {
             zone_id?: number | null;
             /**
              * Effective From
-             * @description created_at of that version
+             * @description Midnight UTC of the date the version applies from
              */
             effective_from?: string | null;
         };
@@ -2660,6 +2869,74 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
+        /** EngineProposalIn */
+        EngineProposalIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "formula" | "data_input";
+            /**
+             * Name
+             * @description Output name (formula) or dataset name
+             */
+            name: string;
+            /**
+             * Expression
+             * @description Formula: e.g. GFA ÷ 60 (required)
+             */
+            expression?: string | null;
+            /**
+             * Source
+             * @description Formula: where its inputs come from
+             */
+            source?: string | null;
+            /**
+             * Provides
+             * @description Data input: what it provides (required)
+             */
+            provides?: string | null;
+            /** Note */
+            note?: string | null;
+        };
+        /** EngineProposalList */
+        EngineProposalList: {
+            /** Items */
+            items: components["schemas"]["EngineProposalOut"][];
+        };
+        /** EngineProposalOut */
+        EngineProposalOut: {
+            /** Id */
+            id: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "formula" | "data_input";
+            /** Name */
+            name: string;
+            /** Expression */
+            expression?: string | null;
+            /** Source */
+            source?: string | null;
+            /** Provides */
+            provides?: string | null;
+            /**
+             * Status
+             * @description new (a formula) / pending (a data input) until the client decides
+             * @enum {string}
+             */
+            status: "new" | "pending" | "accepted" | "declined";
+            /** Note */
+            note?: string | null;
+            /** Created By */
+            created_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** EventBatch */
         EventBatch: {
             /** Events */
@@ -2693,6 +2970,20 @@ export interface components {
             properties?: {
                 [key: string]: string | number | boolean | null;
             };
+        };
+        /** ExpertOut */
+        ExpertOut: {
+            /** User Id */
+            user_id: number;
+            /** Email */
+            email: string;
+            /** Display Name */
+            display_name?: string | null;
+            /**
+             * Open Orders
+             * @description Orders in progress assigned to them
+             */
+            open_orders: number;
         };
         /**
          * ExtractionRunOut
@@ -4160,6 +4451,12 @@ export interface components {
              */
             currency: string;
             /**
+             * Timezone
+             * @description IANA time zone of the place: its local date is when effective-dated assumptions switch on
+             * @default UTC
+             */
+            timezone: string;
+            /**
              * Serving Crs Epsg
              * @default 4326
              */
@@ -4228,6 +4525,40 @@ export interface components {
              * @enum {string}
              */
             email_status: "queued" | "sent" | "suppressed" | "failed";
+        };
+        /**
+         * OrderEvent
+         * @description One audit entry of the order: status changes, payments, assignment, report uploads.
+         */
+        OrderEvent: {
+            /** Id */
+            id: number;
+            /**
+             * Action
+             * @description order.status | order.payment | order.payment_check | ...
+             */
+            action: string;
+            /** Actor */
+            actor: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Before */
+            before?: {
+                [key: string]: unknown;
+            } | null;
+            /** After */
+            after?: {
+                [key: string]: unknown;
+            } | null;
+            /** Note */
+            note?: string | null;
+            /** Details */
+            details?: {
+                [key: string]: unknown;
+            };
         };
         /** OrderIn */
         OrderIn: {
@@ -4304,6 +4635,11 @@ export interface components {
             parcel_type: "cadastral" | "urban";
             /** Parcel Id */
             parcel_id: number;
+            /**
+             * Cadastral Parcel Id
+             * @description The Parcel ID the map opens (`/?parcel=`), also for urban orders
+             */
+            cadastral_parcel_id?: number | null;
             /** Parcel Label */
             parcel_label: string;
             /** Document Name */
@@ -4410,6 +4746,17 @@ export interface components {
             /** Notes */
             notes?: string | null;
             report?: components["schemas"]["ReportFileOut"] | null;
+            /**
+             * Report Versions
+             * @description Reports uploaded for the order (a replaced report is version 2 …)
+             * @default 0
+             */
+            report_versions: number;
+            /**
+             * Timeline
+             * @description The order's audit entries, oldest first
+             */
+            timeline?: components["schemas"]["OrderEvent"][];
             /**
              * Snapshot
              * @description The panel payload the visitor saw
@@ -5078,6 +5425,35 @@ export interface components {
              * @description Documents whose page images are rendered
              */
             page_images?: number[];
+        };
+        /** PreviewParcel */
+        PreviewParcel: {
+            /** Parcel Id */
+            parcel_id: number;
+            /**
+             * Title
+             * @description KO and parcel number
+             */
+            title: string;
+            /** Area M2 */
+            area_m2: number;
+            /** Urban Parcel Number */
+            urban_parcel_number?: string | null;
+            /** Planned Area M2 */
+            planned_area_m2?: number | null;
+        };
+        /** PreviewParcelList */
+        PreviewParcelList: {
+            /** Zone Id */
+            zone_id: number;
+            /** Items */
+            items: components["schemas"]["PreviewParcel"][];
+        };
+        /** PreviewSide */
+        PreviewSide: {
+            market?: components["schemas"]["MarketView"] | null;
+            assumptions?: components["schemas"]["AssumptionsView"] | null;
+            group2?: components["schemas"]["Group2"] | null;
         };
         /** PriceTierOut */
         PriceTierOut: {
@@ -8371,6 +8747,96 @@ export interface operations {
             };
         };
     };
+    list_proposals_v1_admin_engine_proposals_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EngineProposalList"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A formula needs an expression, a data input what it provides */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_proposal_v1_admin_engine_proposals_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EngineProposalIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EngineProposalOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A formula needs an expression, a data input what it provides */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list_jobs_v1_admin_jobs_get: {
         parameters: {
             query?: {
@@ -8894,6 +9360,180 @@ export interface operations {
             };
             /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_assumptions_batch_v1_admin_assumptions_batch_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssumptionsBatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssumptionsBatchOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not the current version, duplicate e-mail, or a self-change (`conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_preview_parcels_v1_admin_assumptions_preview_parcels_get: {
+        parameters: {
+            query: {
+                zone_id: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewParcelList"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not the current version, duplicate e-mail, or a self-change (`conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    preview_v1_admin_assumptions_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssumptionsPreviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssumptionsPreviewOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No cadastral parcel with this id (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not the current version, duplicate e-mail, or a self-change (`conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No planning database (`service_unavailable`) */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10860,6 +11500,65 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OrderList"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_experts_v1_admin_orders_experts_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExpertOut"][];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Role not allowed, or the order is not assigned to you (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such order (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The status flow does not allow this change (`conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

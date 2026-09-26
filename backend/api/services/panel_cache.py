@@ -2,8 +2,9 @@
 
 Key ``panel:{namespace}:{municipality}:{kind}:{id}:{version_id}:{token}``: ``version_id`` is the
 current publish version, ``token`` a short hash of its creation time and of everything that changes
-a panel outside a publish (documents' status / coverage switch / versions / files, current market
-assumptions, current zone parameter sets), both read by one cheap statement per request
+a panel outside a publish (documents' status / coverage switch / versions / files, the market
+assumptions that apply today in the municipality's time zone, current zone parameter sets), both
+read by one cheap statement per request
 (``STAMP_SQL``). A publish, a rollback or an admin change therefore produces new keys: nothing is
 ever invalidated by hand and nothing stale is served; old entries age out
 (``PANEL_CACHE_TTL_SECONDS``).
@@ -32,6 +33,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from api.services.parcel_panel_sql import STAMP_SQL
 
 log = logging.getLogger("urbanview.panel.cache")
+
+# Part of the key namespace (``api.app``): bump it when a panel's body changes for the same data
+# (a new field, a new rule), so a deploy never serves bodies cached by the previous code.
+# 2: effective-dated assumptions and the zone's saleable share (migration 0023).
+PANEL_PAYLOAD_FORMAT = "2"
 
 CacheStatus = str  # hit | miss | bypass | revalidated
 
@@ -74,6 +80,7 @@ class PanelCache:
         municipality_id: str,
         ttl_seconds: int,
         namespace: str,
+        timezone: str = "UTC",
         redis_timeout: float = 0.25,
         fail_open_seconds: float = 5.0,
         clock: Callable[[], float] = time.monotonic,
@@ -81,6 +88,7 @@ class PanelCache:
         self.session_factory = session_factory
         self.redis_getter = redis_getter
         self.municipality_id = municipality_id
+        self.timezone = timezone
         self.ttl_seconds = int(ttl_seconds)
         self.namespace = namespace
         self.redis_timeout = float(redis_timeout)
@@ -95,7 +103,12 @@ class PanelCache:
     async def stamp(self) -> Stamp:
         async with self.session_factory() as session:
             row = (
-                (await session.execute(text(STAMP_SQL), {"municipality_id": self.municipality_id}))
+                (
+                    await session.execute(
+                        text(STAMP_SQL),
+                        {"municipality_id": self.municipality_id, "tz": self.timezone},
+                    )
+                )
                 .mappings()
                 .one()
             )

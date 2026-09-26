@@ -125,7 +125,12 @@ PLANNING_PANELS = [
 # Tables large enough (with the synthetic volume) that a sequential scan would be a real defect;
 # the 1-40-row tables (zones, publish_versions, planning_fields, ...) are legitimately scanned.
 LARGE_TABLES = {"cadastral_parcels", "urban_parcels", "planning_documents"}
-COMMON = {"municipality_id": "podgorica", "min_overlap_m2": 1.0, "min_overlap_fraction": 0.02}
+COMMON = {
+    "municipality_id": "podgorica",
+    "min_overlap_m2": 1.0,
+    "min_overlap_fraction": 0.02,
+    "tz": "Europe/Podgorica",
+}
 
 
 # --- helpers ------------------------------------------------------------------------------------
@@ -1128,7 +1133,8 @@ async def test_tier_markers(pg_client, panel_type):
 
 
 async def test_market_data_removed_makes_money_fields_cannot_calculate(pg_conn, pg_settings):
-    await _execute(pg_conn, "UPDATE financial_assumptions SET is_current = false WHERE zone_id = 1")
+    # retiring the version that applies today leaves the zone without market figures
+    await _execute(pg_conn, "UPDATE financial_assumptions SET retired_at = now() WHERE zone_id = 1")
     try:
         async with _fresh_client(pg_settings) as client:
             body = await _get(client, type="urban", id=1)
@@ -1213,7 +1219,7 @@ async def test_market_data_removed_makes_money_fields_cannot_calculate(pg_conn, 
             assert _feasibility(other)["revenue_eur"]["status"] == "ok"
     finally:
         await _execute(
-            pg_conn, "UPDATE financial_assumptions SET is_current = true WHERE zone_id = 1"
+            pg_conn, "UPDATE financial_assumptions SET retired_at = NULL WHERE zone_id = 1"
         )
 
     async with _fresh_client(pg_settings) as client:
@@ -1236,7 +1242,7 @@ async def test_municipality_wide_row_never_stands_in_for_a_zone(pg_conn, pg_sett
     ).scalar_one()
     try:
         await _execute(
-            pg_conn, "UPDATE financial_assumptions SET is_current = false WHERE zone_id = 2"
+            pg_conn, "UPDATE financial_assumptions SET retired_at = now() WHERE zone_id = 2"
         )
         async with _fresh_client(pg_settings) as client:
             body = await _get(client, type="urban", id=3)
@@ -1256,7 +1262,7 @@ async def test_municipality_wide_row_never_stands_in_for_a_zone(pg_conn, pg_sett
     finally:
         await _execute(pg_conn, "DELETE FROM financial_assumptions WHERE id = :id", id=inserted)
         await _execute(
-            pg_conn, "UPDATE financial_assumptions SET is_current = true WHERE zone_id = 2"
+            pg_conn, "UPDATE financial_assumptions SET retired_at = NULL WHERE zone_id = 2"
         )
 
 

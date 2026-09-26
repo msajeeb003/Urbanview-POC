@@ -94,6 +94,16 @@ values; `-0` becomes `0`. The Python engine uses the identical rule (`repr` + `R
 The Next.js apps depend on the workspace package (`"@urbanview/feasibility-engine": "*"`);
 `npm install` at the repo root builds `dist/` (root `prepare` script).
 
+## Releases and the changelog
+
+`ENGINE_VERSION` changes with every release, `FORMULA_VERSION` only when a formula or the range
+derivation changes (with new fixtures on both sides). `src/changelog.ts` exports
+`ENGINE_CHANGELOG` (newest first: engine version, formula version, date, changes) and
+`ENGINE_UPDATED`; `test/changelog.test.ts` fails when the newest note does not describe the
+running versions, so a release cannot ship without one. The admin console's Calculation engine
+page shows the versions, the last update and the changelog. It is release metadata: no
+calculation reads it.
+
 ## Develop
 
 ```bash

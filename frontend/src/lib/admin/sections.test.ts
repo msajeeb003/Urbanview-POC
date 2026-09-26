@@ -28,7 +28,7 @@ describe("admin sections", () => {
   });
 
   it("hides users and assumptions from a reviewer", () => {
-    expect(labels("reviewer")).toEqual(["Overview", "AI review queue", "Planning rules", "Data sources"]);
+    expect(labels("reviewer")).toEqual(["Overview", "AI review queue", "Planning rules", "Orders", "Data sources"]);
     expect(barLinks("reviewer")).toEqual([]);
     expect(canOpen("reviewer", "users")).toBe(false);
     expect(canOpen("reviewer", "assumptions")).toBe(false);

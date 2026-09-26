@@ -154,37 +154,51 @@ created_at. **No publish_version_id.** Index `ix_planning_parameter_extractions_
 job copies approved rows into 2.3; this endpoint must not touch this table (a test proves a
 pending and a rejected row never surface).
 
-### 2.5 `financial_assumptions` — current admin market inputs per zone
+### 2.5 `financial_assumptions` — admin market inputs per zone, versioned and effective-dated
 | column | type | notes |
 |---|---|---|
 | id | bigserial PK | |
 | municipality_id | text NN | |
-| zone_id | bigint null | FK zones ON DELETE CASCADE; null = municipality-wide default |
+| zone_id | bigint null | FK zones ON DELETE CASCADE; null = municipality-wide row: range factors for market imports, never a zone's figures (0019) |
 | land_rate_eur_m2 | double NN | land value per m² of parcel area |
 | build_rate_eur_m2 | double NN | construction cost per m² GFA |
 | design_rate_eur_m2 | double NN | design & documentation per m² GFA |
 | sale_rate_eur_m2 | double NN | selling price per m² saleable area |
-| range_low_factor | double NN default 0.86 | multiplies a rate for its low bound |
-| range_high_factor | double NN default 1.15 | multiplies a rate for its high bound |
+| `{rate}_rate_low_eur_m2` / `_high_eur_m2` | double null | optional absolute bounds per rate (both or neither, low ≤ rate ≤ high); null = the factors |
+| range_low_factor | double NN default 0.86 | multiplies a rate without bounds for its low end |
+| range_high_factor | double NN default 1.15 | multiplies a rate without bounds for its high end |
+| saleable_share | double null (0, 1] | the zone's default saleable share of GFA (0023); null = the product's 0.70 |
 | source | text null | e.g. `Realitica, Estitor, Monstat` |
 | source_date | date null | |
 | notes | text null | |
-| is_current | bool NN `server_default=text("false")` | two partial unique indexes: `uq_financial_assumptions_current_zone` on (municipality_id, zone_id) WHERE `is_current AND zone_id IS NOT NULL`; `uq_financial_assumptions_current_default` on (municipality_id) WHERE `is_current AND zone_id IS NULL` |
+| version, supersedes_id | int NN, bigint null | the zone's history (0007); `supersedes_id` = the previous version |
+| effective_from | date NN (0023) | the municipality's local date the version applies from; default the UTC date |
+| rate_sources | jsonb null | per rate where it came from (market imports, 0019) |
+| is_current | bool NN | the newest version of the zone (head of its history; partial unique indexes `uq_financial_assumptions_current_zone` / `_current_default`), **not** what applies today |
+| retired_at, retired_by | | a retired version keeps its place on the timeline and applies nothing |
 | created_by | text null | |
 | dataset_version, created_at | | |
 
 `CheckConstraint("range_low_factor <= 1 AND range_high_factor >= 1 AND land_rate_eur_m2 > 0 AND
 build_rate_eur_m2 > 0 AND design_rate_eur_m2 > 0 AND sale_rate_eur_m2 > 0",
-name="ck_financial_assumptions_values")`. There is no per-zone saleable share: the client's 0.70 is
-the product constant (engine default); precedence is query override > 0.70.
+name="ck_financial_assumptions_values")`, plus the bounds and saleable share checks. Saleable share
+precedence: query override > the zone's version > the product constant 0.70 (engine default).
 
-Decision (POC): market inputs are **admin-published directly** (making a row current is the
-publish act, to be audit-logged by the admin track); they are not snapshotted per
-`data_version`. The panel shows their `source`, `source_date` and `effective_from` (= created_at
-of the current row) so a visitor can see how fresh the market data is.
+**Which version applies** (`backend/core/assumptions.py`, migration 0023): a version's place on
+the timeline is `applies_from = GREATEST(effective_from, local date of created_at)` (never before
+the day it was saved); the panel reads, for the parcel's zone, the version with the latest
+`applies_from` on or before the municipality's local today (profile `timezone`), the newest
+version on a tie. A later date is *scheduled*: nothing reads it before that day and no job switches
+it on. A retired version on top means the zone has no figures until a later version applies.
+The admin API shows each version's `status` (live / scheduled / superseded / retired).
 
-Resolution for a panel: current row for the parcel's zone, else the municipality-wide current row
-(zone_id null), else **no market data** → the feasibility fields that need rates are
+The panel shows `market_inputs.version` = `{id, version, zone_id, effective_from}` (midnight UTC of
+the version's stated date) and the version's `source` / `source_date`, so a visitor can see how
+fresh the market data is. Market inputs are not snapshotted per `data_version`; the heatmap cells
+of a publish use the versions that apply on the publish day.
+
+Resolution for a panel: the version that applies today for the parcel's zone, else **no market
+data** (the municipality-wide row never stands in) → the feasibility fields that need rates are
 `cannot_calculate` with reason code `no_market_data` (params `{zone_name}`), or
 `no_market_data_zone_unknown` when the zone is null.
 

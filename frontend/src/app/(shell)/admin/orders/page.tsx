@@ -1,58 +1,166 @@
-import { AdminCard, AdminUnavailable, DataTable, StatusChip } from "@/components/admin/parts";
+import Form from "next/form";
+import Link from "next/link";
+
+import { OrderDrawer } from "@/components/admin/orders/order-drawer";
+import { AdminCard, AdminUnavailable, StatusChip } from "@/components/admin/parts";
 import { AdminAccessDenied, adminGet } from "@/lib/admin/api";
-import { orderChip, relativeTime } from "@/lib/admin/format";
+import { relativeTime } from "@/lib/admin/format";
 import { guard } from "@/lib/admin/guard";
-import type { OrderList } from "@/lib/api/types";
+import {
+  customerLine,
+  daysSince,
+  emptyOrdersText,
+  isManager,
+  ORDER_STATUSES,
+  orderQuery,
+  ordersHref,
+  parcelLine,
+  parseOrderFilters,
+  statusChip,
+} from "@/lib/admin/orders";
+import { ApiError } from "@/lib/api/client";
+import type { OrderDetail, OrderExpert, OrderList } from "@/lib/api/types";
 
-type OrderRow = OrderList["items"][number];
-
-// Orders (wireframe `adminOrders`): the fulfilment queue. The API scopes it: admins see every
-// order, an expert only the orders assigned to them.
-export default async function OrdersPage() {
+// Orders (wireframe `adminOrders`): the manual fulfilment queue. Admins and reviewers see every
+// order, record payments and assign experts; an expert sees the orders assigned to them and
+// uploads the report. `?order=<id>` opens the order's drawer.
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const access = await guard("orders");
   if (access.denied) return access.denied;
+  const filters = parseOrderFilters(await searchParams);
+  const role = access.staff.role;
+  const manager = isManager(role);
 
   let data: OrderList;
+  let experts: OrderExpert[] = [];
   try {
-    data = await adminGet<OrderList>("/v1/admin/orders", { limit: 100 });
+    [data, experts] = await Promise.all([
+      adminGet<OrderList>("/v1/admin/orders", orderQuery(filters)),
+      manager ? adminGet<OrderExpert[]>("/v1/admin/orders/experts") : Promise.resolve([]),
+    ]);
   } catch (err) {
     if (err instanceof AdminAccessDenied) return null;
     return <AdminUnavailable what="Expert analysis orders" />;
   }
-  const expert = access.staff.role === "expert";
+
+  let open: OrderDetail | null = null;
+  let openProblem: string | null = null;
+  if (filters.order) {
+    try {
+      open = await adminGet<OrderDetail>(`/v1/admin/orders/${filters.order}`);
+    } catch (err) {
+      openProblem =
+        err instanceof AdminAccessDenied
+          ? "This order is not assigned to you."
+          : err instanceof ApiError && err.status === 404
+            ? "No such order."
+            : "The order could not be loaded.";
+    }
+  }
   const now = new Date();
+  const filtered = !!(filters.status || filters.expert || filters.q);
 
   return (
-    <AdminCard
-      title="Expert analysis orders"
-      sub={expert ? "Manual fulfilment queue · the orders assigned to you" : "Manual fulfilment queue"}
-    >
-      <DataTable<OrderRow>
-        rows={data.items}
-        rowKey={(o) => o.id}
-        empty={expert ? "No orders are assigned to you." : "No orders yet."}
-        columns={[
-          { key: "ref", label: "Ref", mono: true, render: (o) => o.reference },
-          { key: "parcel", label: "Parcel", mono: true, render: (o) => o.location.parcel_label },
-          {
-            key: "customer",
-            label: "Customer",
-            render: (o) => (o.company_name ? `${o.customer_name} · ${o.company_name}` : o.customer_name),
-          },
-          { key: "placed", label: "Placed", render: (o) => relativeTime(o.placed_at, now) },
-          {
-            key: "status",
-            label: "Status",
-            render: (o) => {
-              const chip = orderChip(o.status);
-              return <StatusChip tone={chip.tone}>{chip.label}</StatusChip>;
-            },
-          },
-          ...(expert
-            ? []
-            : [{ key: "assignee", label: "Expert", render: (o: OrderRow) => o.assignee?.display_name ?? o.assignee?.email ?? "—" }]),
-        ]}
-      />
-    </AdminCard>
+    <>
+      <AdminCard
+        title="Expert analysis orders"
+        sub={manager ? `Manual fulfilment queue · ${data.total} order${data.total === 1 ? "" : "s"}` : "Manual fulfilment queue · the orders assigned to you"}
+      >
+        <Form action="/admin/orders" className="datafilters" role="search">
+          <input type="search" name="q" defaultValue={filters.q} placeholder="Reference, e-mail, name or parcel" aria-label="Search" />
+          <select name="status" defaultValue={filters.status ?? ""} aria-label="Status">
+            <option value="">Any status</option>
+            {ORDER_STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          {manager && (
+            <select name="expert" defaultValue={filters.expert ?? ""} aria-label="Expert">
+              <option value="">Any expert</option>
+              {experts.map((x) => (
+                <option key={x.user_id} value={x.user_id}>
+                  {x.display_name ?? x.email}
+                </option>
+              ))}
+            </select>
+          )}
+          <button type="submit" className="abtn sm">
+            Filter
+          </button>
+          {filtered && (
+            <Link className="abtn sm ghost" href="/admin/orders">
+              Clear
+            </Link>
+          )}
+        </Form>
+        {data.items.length === 0 ? (
+          <div className="admin-note">{emptyOrdersText(filters, !manager)}</div>
+        ) : (
+          <table className="tbl ordtbl">
+            <thead>
+              <tr>
+                <th>Ref</th>
+                <th>Parcel</th>
+                <th>Customer</th>
+                <th>Placed</th>
+                <th>Days</th>
+                <th>Status</th>
+                <th>Expert</th>
+                <th aria-label="Open" />
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.map((o) => {
+                const chip = statusChip(o.status);
+                const href = ordersHref(filters, o.id);
+                return (
+                  <tr key={o.id} className={filters.order === o.id ? "sel" : undefined}>
+                    <td className="mono">{o.reference}</td>
+                    <td className="mono">{parcelLine(o.location)}</td>
+                    <td>
+                      {customerLine(o)}
+                      <span className="fmeta">{o.email}</span>
+                    </td>
+                    <td title={o.placed_at}>{relativeTime(o.placed_at, now)}</td>
+                    <td className="mono">{daysSince(o.placed_at, now)}</td>
+                    <td>
+                      <span className="pillcell">
+                        <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
+                        {o.email_alerts ? (
+                          <span className="owarn" title="An e-mail to the customer bounced or failed: check the order's e-mails">
+                            ⚠ e-mail
+                          </span>
+                        ) : null}
+                      </span>
+                    </td>
+                    <td>{o.assignee ? (o.assignee.display_name ?? o.assignee.email) : <span className="osub">—</span>}</td>
+                    <td>
+                      <Link className="abtn sm ghost" href={href} scroll={false}>
+                        Open
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </AdminCard>
+      {open && <OrderDrawer order={open} experts={experts} role={role} closeHref={ordersHref(filters, null)} />}
+      {openProblem && (
+        <div className="admin-note" role="status">
+          {openProblem}{" "}
+          <Link className="abtn sm ghost" href={ordersHref(filters, null)}>
+            Close
+          </Link>
+        </div>
+      )}
+    </>
   );
 }

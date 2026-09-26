@@ -45,12 +45,12 @@ export type AdminWrite<T> =
   | { ok: false; status: number; code: string; message: string; details?: unknown };
 
 /**
- * A staff write (`POST` / `PATCH` / `DELETE`) with the signed-in member's bearer token. Refusals
- * come back as values for the server action to explain (no throw); an ended session still goes to
- * the sign-in page.
+ * A staff call from a server action (`POST` / `PUT` / `PATCH` / `DELETE`, or a `GET` whose refusal
+ * the action explains) with the signed-in member's bearer token. Refusals come back as values for
+ * the server action to explain (no throw); an ended session still goes to the sign-in page.
  */
 export async function adminSend<T>(
-  method: "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   body?: unknown,
   query?: Query,
