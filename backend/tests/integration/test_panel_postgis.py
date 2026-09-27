@@ -458,8 +458,10 @@ async def test_cadastral_1042_is_calculated_on_its_planned_parcel(pg_client):
     assert body["flags"] == {
         "public_ownership": False,
         "restitution_or_legal_burden": False,
-        "note_en": "false means not flagged in the cadastral extract",
-        "note_me": "false znači da nije označeno u katastarskom izvodu",
+        "note_en": "false means not flagged in the cadastral extract; no value means the data is "
+        "not available",
+        "note_me": "false znači da nije označeno u katastarskom izvodu; bez vrijednosti znači da "
+        "podatak nije dostupan",
     }
 
     assert body["urban_parcel_defined"] is True and body["split"] is False

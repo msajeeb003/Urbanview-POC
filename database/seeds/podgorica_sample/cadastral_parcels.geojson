@@ -6,7 +6,8 @@
     "#1042 exists in two cadastral municipalities (Podgorica I and Podgorica II).",
     "#2001/1 has a sub-number and no planned urban parcel; #3005 lies where only a document in progress exists (uncovered).",
     "#1044 is split by the plan into UP 31 (~56%, primary) and UP 32 (~41%).",
-    "#2002 is covered only by the general plan (PUP): no urban parcel, no block; the cadastral area is the calculation basis."
+    "#2002 is covered only by the general plan (PUP): no urban parcel, no block; the cadastral area is the calculation basis.",
+    "The ownership / restitution flags are stated for every parcel: the sample stands for data loaded from a confirmed eKatastar extract (real imports leave them null until then)."
   ],
   "features": [
     {
@@ -16,7 +17,9 @@
         "parcel_number": "1042",
         "sub_number": null,
         "ko_name": "Podgorica I",
-        "street_address": "Bulevar Save Kovačevića 12"
+        "street_address": "Bulevar Save Kovačevića 12",
+        "public_ownership": false,
+        "restitution_or_legal_burden": false
       },
       "geometry": {
         "type": "Polygon",
@@ -30,7 +33,9 @@
         "parcel_number": "1042",
         "sub_number": null,
         "ko_name": "Podgorica II",
-        "street_address": "Ulica Slobode 8"
+        "street_address": "Ulica Slobode 8",
+        "public_ownership": false,
+        "restitution_or_legal_burden": false
       },
       "geometry": {
         "type": "Polygon",
@@ -44,7 +49,9 @@
         "parcel_number": "2001",
         "sub_number": "1",
         "ko_name": "Podgorica I",
-        "street_address": null
+        "street_address": null,
+        "public_ownership": false,
+        "restitution_or_legal_burden": false
       },
       "geometry": {
         "type": "Polygon",
@@ -59,7 +66,8 @@
         "sub_number": null,
         "ko_name": "Podgorica I",
         "street_address": "Industrijska zona bb",
-        "public_ownership": true
+        "public_ownership": true,
+        "restitution_or_legal_burden": false
       },
       "geometry": {
         "type": "Polygon",
@@ -74,7 +82,8 @@
         "sub_number": null,
         "ko_name": "Podgorica I",
         "street_address": "Bulevar Save Kovačevića 14",
-        "restitution_or_legal_burden": true
+        "restitution_or_legal_burden": true,
+        "public_ownership": false
       },
       "geometry": {
         "type": "Polygon",
@@ -88,7 +97,9 @@
         "parcel_number": "1044",
         "sub_number": null,
         "ko_name": "Podgorica I",
-        "street_address": "Bulevar Save Kovačevića 16"
+        "street_address": "Bulevar Save Kovačevića 16",
+        "public_ownership": false,
+        "restitution_or_legal_burden": false
       },
       "geometry": {
         "type": "Polygon",
@@ -102,7 +113,9 @@
         "parcel_number": "2002",
         "sub_number": null,
         "ko_name": "Podgorica I",
-        "street_address": null
+        "street_address": null,
+        "public_ownership": false,
+        "restitution_or_legal_burden": false
       },
       "geometry": {
         "type": "Polygon",

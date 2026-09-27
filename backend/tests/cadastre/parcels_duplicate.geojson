@@ -1,0 +1,90 @@
+{
+ "type": "FeatureCollection",
+ "name": "parcels_duplicate",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:EPSG::25834"
+  }
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "FID_UZN": 1,
+    "KO_SIFRA": "901",
+    "KO_NAZIV": "Test KO Alpha",
+    "BROJ_PARC": "1234",
+    "PODBROJ": "5",
+    "ULICA": "Njegoševa",
+    "KUCNI_BROJ": "12"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       356800.0,
+       4700300.0
+      ],
+      [
+       356820.0,
+       4700300.0
+      ],
+      [
+       356820.0,
+       4700330.0
+      ],
+      [
+       356800.0,
+       4700330.0
+      ],
+      [
+       356800.0,
+       4700300.0
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "FID_UZN": 8,
+    "KO_SIFRA": "901",
+    "KO_NAZIV": "Test KO Alpha",
+    "BROJ_PARC": "1234",
+    "PODBROJ": "5",
+    "ULICA": "Njegoševa",
+    "KUCNI_BROJ": "12a"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       356800.0,
+       4700350.0
+      ],
+      [
+       356820.0,
+       4700350.0
+      ],
+      [
+       356820.0,
+       4700360.0
+      ],
+      [
+       356800.0,
+       4700360.0
+      ],
+      [
+       356800.0,
+       4700350.0
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

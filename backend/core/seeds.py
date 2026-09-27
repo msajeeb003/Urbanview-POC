@@ -30,6 +30,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from core.cadastre.dataset import refresh_derived_kos
 from core.parcel_links import recompute_current_links
 from core.storage import ObjectStorage
 
@@ -374,6 +375,8 @@ async def load_sample(
         min_overlap_fraction=min_overlap_fraction,
     )
     counts["parcel_links"] = links["parcel_links"] if links else 0
+    # the KO list of the parcel search: boundaries derived from the sample's parcels
+    counts["cadastral_municipalities"] = await refresh_derived_kos(session, municipality_id)
     await session.commit()
     return counts
 

@@ -28,7 +28,8 @@ TOTALS_SQL = text(
         WHERE municipality_id = :m AND status IN ('paid', 'in_progress', 'delivered')
     )
     SELECT
-        (SELECT count(*) FROM cadastral_parcels WHERE municipality_id = :m) AS parcels,
+        (SELECT count(*) FROM cadastral_parcels
+         WHERE municipality_id = :m AND retired_at IS NULL) AS parcels,
         (SELECT count(*) FROM docs) AS documents,
         (SELECT count(*) FROM docs WHERE status = 'adopted') AS documents_adopted,
         (SELECT count(*) FROM docs WHERE status = 'in_progress') AS documents_in_progress,

@@ -140,6 +140,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cadastral-municipalities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every cadastral municipality (KO) with parcels: name, code, count, bounding box */
+        get: operations["cadastral_municipalities_v1_cadastral_municipalities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/parcels/{parcel_id}/panel": {
         parameters: {
             query?: never;
@@ -2004,6 +2021,51 @@ export interface components {
             /** Share Of Cadastral Pct */
             share_of_cadastral_pct: number;
         };
+        /** CadastralMunicipalities */
+        CadastralMunicipalities: {
+            /** Items */
+            items: components["schemas"]["CadastralMunicipalityEntry"][];
+            /**
+             * Dataset Version
+             * @description The newest cadastral dataset among the KOs
+             */
+            dataset_version?: string | null;
+        };
+        /** CadastralMunicipalityEntry */
+        CadastralMunicipalityEntry: {
+            /**
+             * Ko Name
+             * @description The KO name the parcel lookup takes (?ko=)
+             */
+            ko_name: string;
+            /**
+             * Ko Code
+             * @description The cadastre's KO code, when known
+             */
+            ko_code?: string | null;
+            /**
+             * Parcel Count
+             * @description Cadastral parcels served in the KO
+             */
+            parcel_count: number;
+            /**
+             * Bbox
+             * @description min_lng, min_lat, max_lng, max_lat of the KO boundary
+             */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** @description A point on the KO's surface (label / pin) */
+            centroid: components["schemas"]["LatLng"];
+            /**
+             * Boundary Source
+             * @description delivered | derived_from_parcels
+             */
+            boundary_source: string;
+        };
         /** CadastralPanel */
         CadastralPanel: {
             /**
@@ -2104,14 +2166,14 @@ export interface components {
             area_m2: number;
             /**
              * Public Ownership
-             * @default false
+             * @description null = not available: the flag is loaded only from a confirmed bulk eKatastar extract and never derived
              */
-            public_ownership: boolean;
+            public_ownership?: boolean | null;
             /**
              * Restitution Or Legal Burden
-             * @default false
+             * @description null = not available: the flag is loaded only from a confirmed bulk eKatastar extract and never derived
              */
-            restitution_or_legal_burden: boolean;
+            restitution_or_legal_burden?: boolean | null;
             centroid: components["schemas"]["LatLng"];
             /**
              * Geometry
@@ -3280,10 +3342,16 @@ export interface components {
         };
         /** Flags */
         Flags: {
-            /** Public Ownership */
-            public_ownership: boolean;
-            /** Restitution Or Legal Burden */
-            restitution_or_legal_burden: boolean;
+            /**
+             * Public Ownership
+             * @description null = not available: the flag is loaded only from a confirmed bulk eKatastar extract and never derived
+             */
+            public_ownership: boolean | null;
+            /**
+             * Restitution Or Legal Burden
+             * @description null = not available: the flag is loaded only from a confirmed bulk eKatastar extract and never derived
+             */
+            restitution_or_legal_burden: boolean | null;
             /** Note En */
             note_en: string;
             /** Note Me */
@@ -3907,6 +3975,17 @@ export interface components {
             max_zoom: number;
             /** Features */
             features: number;
+            /**
+             * Available
+             * @description false: the data behind the layer is not loaded (the public ownership and restitution layers until a confirmed eKatastar extract): not an empty result
+             * @default true
+             */
+            available: boolean;
+            /**
+             * Unavailable Reason
+             * @description why the layer is unavailable (ownership_data_not_loaded)
+             */
+            unavailable_reason?: string | null;
         };
         /** LinkedPlannedParcel */
         LinkedPlannedParcel: {
@@ -5103,9 +5182,9 @@ export interface components {
             key: "public_ownership" | "restitution_or_legal_burden";
             /**
              * Value
-             * @description false = not flagged in the cadastral extract
+             * @description false = not flagged in the cadastral extract; null = not available (the flag comes only from a confirmed bulk eKatastar extract, never derived)
              */
-            value: boolean;
+            value: boolean | null;
             /** Label En */
             label_en: string;
             /** Label Me */
@@ -7544,6 +7623,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ZoneIndex"];
+                };
+            };
+            /** @description The planning database is not configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cadastral_municipalities_v1_cadastral_municipalities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CadastralMunicipalities"];
                 };
             };
             /** @description The planning database is not configured */

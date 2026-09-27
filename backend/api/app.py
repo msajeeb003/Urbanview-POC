@@ -24,6 +24,7 @@ from api.services.admin import AdminService
 from api.services.admin_config import AdminConfigService
 from api.services.analytics import AnalyticsRepository, AnalyticsService, SqlAnalyticsRepository
 from api.services.auth import MagicLinkService
+from api.services.cadastral_municipalities import CadastralMunicipalityService
 from api.services.email import EmailService
 from api.services.engine_proposals import EngineProposalService
 from api.services.geocode import GeocodeService
@@ -110,6 +111,9 @@ def create_app(
                 min_overlap_fraction=settings.locate_min_overlap_fraction,
             )
             app.state.zone_index_service = ZoneIndexService(
+                app.state.session_factory, municipality_id=municipality.id
+            )
+            app.state.cadastral_municipality_service = CadastralMunicipalityService(
                 app.state.session_factory, municipality_id=municipality.id
             )
             app.state.parcel_panel_service = ParcelPanelService(

@@ -571,7 +571,7 @@ def _flags(cad: Mapping[str, Any]) -> list[ParcelFlag]:
         flags.append(
             ParcelFlag(
                 key=key,  # type: ignore[arg-type]
-                value=bool(cad.get(key)),
+                value=None if cad.get(key) is None else bool(cad[key]),
                 label_en=label.en,
                 label_me=label.me,
             )

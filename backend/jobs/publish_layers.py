@@ -79,6 +79,9 @@ class LayerSpec:
     max_zoom: int
     sql: str  # one column: the GeoJSON feature (jsonb); params :m, :v
     description: str
+    # a cadastral flag the layer shows: while no served parcel has it loaded (null everywhere:
+    # no confirmed eKatastar extract), the manifest marks the layer unavailable
+    requires_flag: str | None = None
 
 
 LAYERS: tuple[LayerSpec, ...] = (
@@ -213,7 +216,7 @@ LAYERS: tuple[LayerSpec, ...] = (
               AND ST_Intersects(z.geom, ST_PointOnSurface(c.geom))
             ORDER BY ST_Area(z.geom), z.id LIMIT 1
         ) zc ON true
-        WHERE c.municipality_id = :m ORDER BY c.id
+        WHERE c.municipality_id = :m AND c.retired_at IS NULL ORDER BY c.id
         """,
         "Cadastral parcels with their primary planned-parcel link",
     ),
@@ -231,9 +234,12 @@ LAYERS: tuple[LayerSpec, ...] = (
                 " 'parcel_number', c.parcel_number, 'ko_name', c.ko_name)",
             )
         }
-        FROM cadastral_parcels c WHERE c.municipality_id = :m AND c.public_ownership ORDER BY c.id
+        FROM cadastral_parcels c
+        WHERE c.municipality_id = :m AND c.retired_at IS NULL AND c.public_ownership
+        ORDER BY c.id
         """,
         "Cadastral parcels in public ownership",
+        requires_flag="public_ownership",
     ),
     LayerSpec(
         "legal_burdens",
@@ -250,9 +256,11 @@ LAYERS: tuple[LayerSpec, ...] = (
             )
         }
         FROM cadastral_parcels c
-        WHERE c.municipality_id = :m AND c.restitution_or_legal_burden ORDER BY c.id
+        WHERE c.municipality_id = :m AND c.retired_at IS NULL AND c.restitution_or_legal_burden
+        ORDER BY c.id
         """,
         "Cadastral parcels under restitution or legal burden",
+        requires_flag="restitution_or_legal_burden",
     ),
     LayerSpec(
         "land_use",
@@ -371,16 +379,24 @@ STAGED_LAYERS: dict[str, StagedLayer] = {
         StagedLayer(
             "cadastral_parcels",
             "entity",
-            "ko_name|parcel_number|sub_number ('' when none)",
+            "lower(ko_name)|parcel_number|sub_number ('' when none)",
             (
                 "ko_name",
+                "ko_code",
                 "parcel_number",
                 "sub_number",
                 "street_address",
                 "area_m2",
-                "public_ownership",
+                "public_ownership",  # null / absent = not loaded (never a default)
                 "restitution_or_legal_burden",
+                "dataset_version",
             ),
+        ),
+        StagedLayer(
+            "cadastral_municipalities",
+            "entity",
+            "lower(ko_name)",
+            ("ko_name", "ko_code", "parcel_count", "boundary_source", "dataset_version"),
         ),
         StagedLayer(
             "urban_parcels",

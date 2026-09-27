@@ -49,6 +49,7 @@ def _covered(alias: str) -> str:
 def _parcels_in(coverage: str) -> str:
     return f"""(SELECT count(*) FROM cadastral_parcels c
         WHERE c.municipality_id = :municipality_id AND c.geom && {coverage}
+          AND c.retired_at IS NULL
           AND ST_Intersects(ST_PointOnSurface(c.geom), {coverage}))"""
 
 
@@ -256,6 +257,7 @@ cadastral_count AS (
     SELECT count(*) AS n
     FROM cadastral_parcels c, doc
     WHERE c.municipality_id = :municipality_id
+      AND c.retired_at IS NULL
       AND c.geom && doc.coverage_geom
       AND ST_Intersects(ST_PointOnSurface(c.geom), doc.coverage_geom)
 ),
@@ -442,7 +444,7 @@ cads AS (
            ST_Area(ST_Intersection(c.geom, up.geom)::geography) AS overlap_m2
     FROM cadastral_parcels c
     JOIN up ON ST_Intersects(c.geom, up.geom)
-    WHERE c.municipality_id = :municipality_id
+    WHERE c.municipality_id = :municipality_id AND c.retired_at IS NULL
 ),
 cads_kept AS (
     SELECT *

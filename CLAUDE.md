@@ -16,7 +16,7 @@ wireframe, brand SVGs, specs; the client's planning PDFs in `docs/gis/source/`).
 
 | Folder | Contents |
 |---|---|
-| `backend/` | FastAPI app (`api/`: app factory, routers under `/v1`, schemas, services), `core/` (settings, logging, errors, middleware, db, models, `engine/` feasibility formulas, `geocode/` geocoding providers, `gis/` geometry assessment, `extraction/` the AI extraction contract, redis, storage, mail, municipality profiles, seeds loader), `jobs/` (Celery: ingestion, extraction, publish), `municipalities/<id>.toml`, `tests/` (unit) and `tests/integration/` (PostGIS). Python venv: `backend/.venv`. |
+| `backend/` | FastAPI app (`api/`: app factory, routers under `/v1`, schemas, services), `core/` (settings, logging, errors, middleware, db, models, `engine/` feasibility formulas, `geocode/` geocoding providers, `gis/` geometry assessment, `cadastre/` cadastral base loader, `extraction/` the AI extraction contract, redis, storage, mail, municipality profiles, seeds loader), `jobs/` (Celery: ingestion, extraction, publish), `municipalities/<id>.toml`, `tests/` (unit) and `tests/integration/` (PostGIS). Python venv: `backend/.venv`. |
 | `database/` | Alembic (`alembic.ini`, `migrations/`), seed datasets (`seeds/podgorica_sample/*.geojson` for the geometry tables, `*.json` for the panel tables), compose init SQL (`docker/initdb/`), `scripts/dev_postgis.py` (portable PostGIS for Docker-less machines). |
 | `frontend/` | Public map: Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Radix) + Mapbox GL JS + TanStack Query, npm workspace `@urbanview/frontend`. Its own `frontend/CLAUDE.md` holds the tokens, dimensions, layer list, panel field lists and frontend rules. |
 | `admin/` | Reserved; the staff tool is built into `frontend/` as the admin console (`/admin/*`, Auth.js magic links, roles admin / reviewer / expert). |
@@ -1137,6 +1137,52 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   and `tests/integration/test_zones_postgis.py` (staging, reprojection, matching, report counts,
   zones upsert and document apply, rolled back).
 
+## Cadastral base (`backend/core/cadastre/`, migration 0024, `docs/gis/cadastral-base.md`)
+
+- **Only confirmed sources.** Adapters behind one interface (`adapters.ADAPTERS`, chosen by
+  `[cadastre] source` / `--source`): `uzn_geoportal`, `emapa` (parcels: an export file, or a WFS
+  layer snapshotted to a local GeoPackage) and `ekatastar` (ownership / legal burdens: a delivered
+  attribute export only, never the web application). Each checks `[cadastre.sources.<id>]` of the
+  profile: `access = "confirmed"` needs `access_basis` and `licence_note`, else it raises
+  `AccessNotConfirmed` with the reason (CLI exit 2). No scraping code, no fallback. Every
+  acquisition records source, method, retrieval date, basis, licence, SHA-256 and size.
+- **Import** `python -m core.cadastre import --file EXPORT [--ownership FILE] [--retrieved-on]`
+  (`poe cadastre`, `make cadastre ARGS=...`): ogr2ogr (`ogr.py`: `$OGR2OGR`, PATH or the portable
+  bundle) writes EPSG:4326 GeoJSONSeq (CRS kept as metadata; the profile's `source_crs` only when
+  the export has none; `transform` = ogr2ogr `-ct` for datum shifts), `normalise.py` maps fields
+  (KO name / code with `ko_names`, number, sub-number, "1234/5" split, address), `dataset.py` loads
+  a temp table, repairs geometries (`ST_MakeValid`, counted) and validates: missing KO / number /
+  polygon, unrepairable geometry, duplicate (KO, number, sub-number) are errors (dataset `invalid`,
+  nothing staged; `on_duplicate = "merge"` unions parts); outside the extent, grid coverage below
+  `min_coverage`, profile KOs missing, < 1 m² parcels are warnings. A valid dataset is staged as a
+  `cadastral_parcels` batch (`feature_key = lower(ko_name)|number|sub`, `area_m2` in EPSG:25834,
+  `geom_hash`) and a `cadastral_municipalities` batch (delivered boundaries, else derived), with a
+  diff against the previous version (published first): added / removed / geometry_changed /
+  attributes_changed / unchanged, other KOs `out_of_scope`. Removing more than
+  `mass_change_threshold` of the previous parcels of its KOs is refused without
+  `--accept-large-change`. `cadastral_datasets` rows (staged | invalid | published | superseded)
+  and batches are never deleted. Reports `report.md` / `report.json` / `diff.csv` in
+  `data/cadastre/<m>/<version>/`.
+- **Publish** applies it (`UPSERT_SQL`, `dataset.apply_cadastral_datasets`): parcels upserted by
+  (KO, number, sub-number), stable ids; parcels of the dataset's KOs missing from it get
+  `retired_at` / `retired_dataset_version` (kept for references, never served: locate, tiles,
+  links, panel counts, overview and zone reports filter `retired_at IS NULL`); KO table refreshed;
+  dataset published, the previous one superseded.
+- **Ownership flags** `public_ownership` / `restitution_or_legal_burden` are nullable: null = not
+  loaded (only a confirmed eKatastar extract sets them, from explicit values; never derived). The
+  API answers null (`bool | None`), and while no served parcel has a flag the publish manifest marks
+  `public_ownership` / `legal_burdens` `available: false`, `unavailable_reason:
+  "ownership_data_not_loaded"` (`LayerSpec.requires_flag`, `LayerInfo`). The seeded sample states
+  its flags. Flags belong to the dataset that loaded them.
+- **KOs** `cadastral_municipalities` (name, code, boundary `delivered | derived_from_parcels`,
+  parcel count; unique per municipality on `lower(ko_name)`); `GET /v1/cadastral-municipalities`
+  (public, `max-age=300`) lists KOs with parcels for the search dropdown; the seed loader derives
+  the sample's (`refresh_derived_kos`). The KO + number lookup stays `/v1/locate/parcel`.
+- Tests: `tests/test_cadastre_unit.py` (profile, access gate, adapters, mapping, ogr2ogr on the
+  sample, report) and `tests/integration/test_cadastre_postgis.py` (the sample extracts in
+  `tests/cadastre/`: GeoPackage import with a KO layer, publish, lookup at the right spot,
+  re-import diff, retiring, refusals, access gate, ownership layers unavailable).
+
 ## GIS track: geometry assessment (`backend/core/gis/`, `docs/gis/`)
 
 - **Week-1 gate 1** (BRD "Geometry extraction: to be determined by sample assessment"):
@@ -1274,5 +1320,5 @@ resets the schema, runs migrations up → base → up and loads `podgorica_sampl
 job payloads carry ids, never addresses or bodies; `email_log` is the record.
 
 **Commands.** `make install | run | worker | migrate | migration | seed | test | test-integration
-| lint | fmt | gis-assess | up | down | db-dev-install | db-dev-start | db-dev-stop` (Windows without make:
+| lint | fmt | gis-assess | cadastre | up | down | db-dev-install | db-dev-start | db-dev-stop` (Windows without make:
 `cd backend && poe <task>`).

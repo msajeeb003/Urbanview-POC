@@ -21,6 +21,7 @@ from core.models.admin import (
     StoredFile,
 )
 from core.models.analytics import AnalyticsEventRecord
+from core.models.cadastre import CadastralDataset, CadastralMunicipality
 from core.models.extraction import ExtractionRun, ExtractionRunChunk
 from core.models.market import MarketDataItem, MarketImport
 from core.models.orders import EmailLogEntry, Order
@@ -55,6 +56,8 @@ __all__ = [
     "AnalyticsEventRecord",
     "AuditLogEntry",
     "Base",
+    "CadastralDataset",
+    "CadastralMunicipality",
     "CadastralParcel",
     "EmailLogEntry",
     "EngineProposal",

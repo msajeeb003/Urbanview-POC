@@ -45,6 +45,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from api.services.audit import write_audit
 from core.assumptions import live_versions_sql
+from core.cadastre.dataset import apply_cadastral_datasets
 from core.engine.feasibility import Assumptions, MarketInputs, compute_feasibility
 from core.engine.shared import DEFAULT_SALEABLE_SHARE, FORMULA_VERSION
 from core.parcel_links import recompute_parcel_links
@@ -427,6 +428,15 @@ STAGED_BATCHES_SQL = text(
     WHERE municipality_id = :m AND status = 'staged' ORDER BY layer_id, id
     """
 )
+# whether any served parcel carries each cadastral flag (from a confirmed eKatastar extract)
+FLAGS_LOADED_SQL = text(
+    """
+    SELECT COALESCE(bool_or(public_ownership IS NOT NULL), false) AS public_ownership,
+           COALESCE(bool_or(restitution_or_legal_burden IS NOT NULL), false)
+               AS restitution_or_legal_burden
+    FROM cadastral_parcels WHERE municipality_id = :m AND retired_at IS NULL
+    """
+)
 BATCH_PUBLISHED_SQL = text(
     """
     UPDATE geometry_batches
@@ -437,24 +447,46 @@ BATCH_PUBLISHED_SQL = text(
 _MULTIPOLYGON = "ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_Force2D(s.geom)), 3))"
 _AREA = "round(CAST(ST_Area(CAST(s.geom AS geography)) AS numeric), 1)"
 UPSERT_SQL: dict[str, list[str]] = {
+    # the flags stay null unless the batch sets them (a confirmed eKatastar extract, core.cadastre):
+    # never a default; a parcel present in the batch is served again if it had been retired
     "cadastral_parcels": [
         f"""
-        INSERT INTO cadastral_parcels (municipality_id, parcel_number, sub_number, ko_name,
+        INSERT INTO cadastral_parcels (municipality_id, parcel_number, sub_number, ko_name, ko_code,
             street_address, geom, area_m2, public_ownership, restitution_or_legal_burden,
             dataset_version)
         SELECT s.municipality_id, s.properties->>'parcel_number',
                NULLIF(s.properties->>'sub_number', ''), s.properties->>'ko_name',
+               NULLIF(s.properties->>'ko_code', ''),
                s.properties->>'street_address', {_MULTIPOLYGON},
                COALESCE(CAST(s.properties->>'area_m2' AS double precision), {_AREA}),
-               COALESCE(CAST(s.properties->>'public_ownership' AS boolean), false),
-               COALESCE(CAST(s.properties->>'restitution_or_legal_burden' AS boolean), false),
-               :label
+               CAST(s.properties->>'public_ownership' AS boolean),
+               CAST(s.properties->>'restitution_or_legal_burden' AS boolean),
+               COALESCE(s.properties->>'dataset_version', :label)
         FROM staging_geometry s WHERE s.batch_id = :batch
         ON CONFLICT (municipality_id, lower(ko_name), parcel_number, COALESCE(sub_number, ''::text))
-        DO UPDATE SET street_address = EXCLUDED.street_address, geom = EXCLUDED.geom,
+        DO UPDATE SET ko_name = EXCLUDED.ko_name, ko_code = EXCLUDED.ko_code,
+                      street_address = EXCLUDED.street_address, geom = EXCLUDED.geom,
                       area_m2 = EXCLUDED.area_m2, public_ownership = EXCLUDED.public_ownership,
                       restitution_or_legal_burden = EXCLUDED.restitution_or_legal_burden,
-                      dataset_version = EXCLUDED.dataset_version
+                      dataset_version = EXCLUDED.dataset_version,
+                      retired_at = NULL, retired_dataset_version = NULL
+        """
+    ],
+    "cadastral_municipalities": [
+        f"""
+        INSERT INTO cadastral_municipalities (municipality_id, ko_name, ko_code, geom,
+            parcel_count, boundary_source, dataset_version)
+        SELECT s.municipality_id, s.properties->>'ko_name', NULLIF(s.properties->>'ko_code', ''),
+               {_MULTIPOLYGON}, COALESCE(CAST(s.properties->>'parcel_count' AS integer), 0),
+               COALESCE(s.properties->>'boundary_source', 'derived_from_parcels'),
+               COALESCE(s.properties->>'dataset_version', :label)
+        FROM staging_geometry s WHERE s.batch_id = :batch
+        ON CONFLICT (municipality_id, lower(ko_name))
+        DO UPDATE SET ko_name = EXCLUDED.ko_name,
+                      ko_code = COALESCE(EXCLUDED.ko_code, cadastral_municipalities.ko_code),
+                      geom = EXCLUDED.geom, parcel_count = EXCLUDED.parcel_count,
+                      boundary_source = EXCLUDED.boundary_source,
+                      dataset_version = EXCLUDED.dataset_version, updated_at = now()
         """
     ],
     "urban_parcels": [
@@ -816,6 +848,8 @@ class PublishPipeline:
                         "min_zoom": lf.min_zoom,
                         "max_zoom": lf.max_zoom,
                         "features": lf.feature_count,
+                        "available": lf.available,
+                        "unavailable_reason": lf.unavailable_reason,
                     }
                     for lf in layer_files
                 ]
@@ -985,6 +1019,7 @@ class PublishPipeline:
         counts: dict[str, Any] = {"batches_published": 0, "batches_superseded": 0, "geometry": {}}
         newest_generic: dict[str, int] = {}
         zone_batches: list[int] = []
+        cadastral_batches: list[int] = []
         for batch in batches:
             if batch["layer_id"] in GENERIC_LAYER_IDS:
                 newest_generic[batch["layer_id"]] = batch["id"]  # ordered by id: the last wins
@@ -1015,12 +1050,20 @@ class PublishPipeline:
             counts["batches_published"] += 1
             if layer_id == "zones":
                 zone_batches.append(batch["id"])
+            if layer_id == "cadastral_parcels":
+                cadastral_batches.append(batch["id"])
         # the planning-document list of a zone dataset follows its zones (core.zones.staging)
         zone_documents = await apply_zone_datasets(
             session, municipality_id=m, version_id=version_id, published_batch_ids=zone_batches
         )
         if zone_documents["zone_datasets"]:
             counts["zone_documents"] = zone_documents
+        # an imported cadastral dataset retires the parcels its KOs no longer contain
+        cadastre = await apply_cadastral_datasets(
+            session, municipality_id=m, version_id=version_id, published_batch_ids=cadastral_batches
+        )
+        if cadastre["cadastral_datasets"]:
+            counts["cadastre"] = cadastre
         if previous_id is not None:
             for layer_id in GENERIC_LAYER_IDS:
                 if layer_id not in newest_generic:
@@ -1123,6 +1166,9 @@ class PublishPipeline:
         self, session: AsyncSession, version_id: int, work_dir: Path
     ) -> list[LayerFile]:
         files: list[LayerFile] = []
+        loaded = (
+            (await session.execute(FLAGS_LOADED_SQL, {"m": self.municipality_id})).mappings().one()
+        )
         for spec in self.layers:
             path = work_dir / f"{spec.id}.geojson"
             count = 0
@@ -1142,6 +1188,12 @@ class PublishPipeline:
                     geometry_type=spec.geometry_type,
                     min_zoom=max(self.min_zoom, spec.min_zoom),
                     max_zoom=min(self.max_zoom, spec.max_zoom),
+                    available=spec.requires_flag is None or bool(loaded[spec.requires_flag]),
+                    unavailable_reason=(
+                        None
+                        if spec.requires_flag is None or loaded[spec.requires_flag]
+                        else "ownership_data_not_loaded"
+                    ),
                 )
             )
             log.info("publish: exported %s features of %s", count, spec.id)

@@ -54,8 +54,9 @@ ZONE_TYPICAL_NOTE = Bilingual(
 )
 
 FLAGS_NOTE = Bilingual(
-    "false means not flagged in the cadastral extract",
-    "false znači da nije označeno u katastarskom izvodu",
+    "false means not flagged in the cadastral extract; no value means the data is not available",
+    "false znači da nije označeno u katastarskom izvodu; bez vrijednosti znači da podatak "
+    "nije dostupan",
 )
 
 NOT_STATED_LABEL = Bilingual("not stated in plan", "nije navedeno u planu")

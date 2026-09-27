@@ -57,8 +57,8 @@ class GeometryBatch(Base):
     layer_id: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        comment="cadastral_parcels | urban_parcels | urban_blocks | zones | document_coverage "
-        "| land_use | traffic_network",
+        comment="cadastral_parcels | cadastral_municipalities | urban_parcels | urban_blocks "
+        "| zones | document_coverage | land_use | traffic_network",
     )
     status: Mapped[str] = mapped_column(
         Text,

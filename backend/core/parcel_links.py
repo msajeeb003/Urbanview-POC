@@ -24,7 +24,7 @@ LINKS_SQL = text(
              AND ST_Intersects(u.geom, c.geom)
         JOIN planning_documents d ON d.id = u.document_id AND d.status = 'adopted'
              AND d.coverage_live AND d.is_current_version
-        WHERE c.municipality_id = :m
+        WHERE c.municipality_id = :m AND c.retired_at IS NULL
     ),
     kept AS (
         SELECT *, row_number() OVER (PARTITION BY cadastral_parcel_id
@@ -44,7 +44,7 @@ LINKS_SQL = text(
 UNMATCHED_SQL = text(
     """
     SELECT count(*) FROM cadastral_parcels c
-    WHERE c.municipality_id = :m AND NOT EXISTS (
+    WHERE c.municipality_id = :m AND c.retired_at IS NULL AND NOT EXISTS (
         SELECT 1 FROM parcel_links l
         WHERE l.publish_version_id = :v AND l.cadastral_parcel_id = c.id)
     """

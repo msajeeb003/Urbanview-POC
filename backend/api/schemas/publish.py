@@ -32,6 +32,14 @@ class LayerInfo(BaseModel):
     min_zoom: int
     max_zoom: int
     features: int
+    available: bool = Field(
+        default=True,
+        description="false: the data behind the layer is not loaded (the public ownership and "
+        "restitution layers until a confirmed eKatastar extract): not an empty result",
+    )
+    unavailable_reason: str | None = Field(
+        default=None, description="why the layer is unavailable (ownership_data_not_loaded)"
+    )
 
 
 class PublishVersionOut(BaseModel):

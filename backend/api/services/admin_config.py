@@ -195,7 +195,7 @@ PREVIEW_PARCELS_SQL = text(
            ON l.cadastral_parcel_id = c.id AND l.rank = 1
           AND l.publish_version_id = (SELECT id FROM version)
     LEFT JOIN urban_parcels u ON u.id = l.urban_parcel_id
-    WHERE c.municipality_id = :m
+    WHERE c.municipality_id = :m AND c.retired_at IS NULL
       AND EXISTS (
           SELECT 1 FROM planning_documents d
           WHERE d.municipality_id = :m AND d.status = 'adopted' AND d.coverage_live

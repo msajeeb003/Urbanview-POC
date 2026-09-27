@@ -15,7 +15,7 @@ COMPOSE ?= docker compose
 ALEMBIC := $(BIN)/alembic -c ../database/alembic.ini
 TEST_DATABASE_URL ?= postgresql+asyncpg://urbanview:urbanview@localhost:5432/urbanview_test
 
-.PHONY: help venv install run worker flower migrate migration downgrade seed openapi gis-assess test test-integration test-all \
+.PHONY: help venv install run worker flower migrate migration downgrade seed openapi gis-assess cadastre test test-integration test-all \
         lint fmt up down logs ps db-dev-install db-dev-start db-dev-stop db-dev-status clean
 
 help: ## list targets
@@ -54,6 +54,9 @@ openapi: ## export the API's OpenAPI document and regenerate the frontend's Type
 
 gis-assess: ## week-1 geometry assessment of docs/gis/source (writes docs/gis/assessment)
 	cd backend && $(BIN)/python -m core.gis.assess ../docs/gis/source/catalog.toml --out ../docs/gis/assessment
+
+cadastre: ## cadastral base loader, e.g. make cadastre ARGS="import --file export.zip"
+	cd backend && $(BIN)/python -m core.cadastre $(ARGS)
 
 test: ## unit tests (no services needed)
 	cd backend && $(BIN)/pytest -q --ignore=tests/integration

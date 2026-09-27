@@ -26,6 +26,7 @@ async def test_geometry_columns_are_4326_multipolygons_with_gist_indexes(pg_conn
         )
     ).all()
     assert {tuple(r) for r in rows} == {
+        ("cadastral_municipalities", "geom", 4326, "MULTIPOLYGON"),
         ("cadastral_parcels", "geom", 4326, "MULTIPOLYGON"),
         ("heatmap_cells", "geom", 4326, "MULTIPOLYGON"),
         # generic map layers hold polygons (land use) and lines (traffic network)
@@ -45,6 +46,7 @@ async def test_geometry_columns_are_4326_multipolygons_with_gist_indexes(pg_conn
         )
     ).scalars()
     assert {
+        "idx_cadastral_municipalities_geom",
         "idx_cadastral_parcels_geom",
         "idx_planning_documents_coverage_geom",
         "idx_urban_blocks_geom",

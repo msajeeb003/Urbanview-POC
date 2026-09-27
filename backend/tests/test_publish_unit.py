@@ -51,6 +51,18 @@ def test_map_layers_carry_what_the_public_map_styles_by():
     assert "zone_type" in STAGED_LAYERS["zones"].properties
 
 
+def test_ownership_layers_depend_on_loaded_flags():
+    by_id = {layer.id: layer for layer in LAYERS}
+    assert by_id["public_ownership"].requires_flag == "public_ownership"
+    assert by_id["legal_burdens"].requires_flag == "restitution_or_legal_burden"
+    assert {layer.id for layer in LAYERS if layer.requires_flag} == {
+        "public_ownership",
+        "legal_burdens",
+    }
+    for layer_id in ("cadastral_parcels", "public_ownership", "legal_burdens"):
+        assert "retired_at IS NULL" in by_id[layer_id].sql, layer_id
+
+
 def test_layer_catalogue_is_consistent():
     assert len(set(LAYER_IDS)) == len(LAYER_IDS)
     assert BRD_LAYERS <= set(LAYER_IDS)
@@ -66,6 +78,7 @@ def test_layer_catalogue_is_consistent():
     assert set(GENERIC_LAYER_IDS) == {"land_use", "traffic_network"}
     assert {s.id for s in STAGED_LAYERS.values() if s.kind == "entity"} == {
         "cadastral_parcels",
+        "cadastral_municipalities",
         "urban_parcels",
         "urban_blocks",
         "zones",

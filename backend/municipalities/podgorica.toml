@@ -289,3 +289,84 @@ thousands = ['hiljad', 'thousand', '\b000\b']
 months = ["januar", "februar", "mart", "april", "maj", "jun", "jul", "avgust", "septembar", "oktobar", "novembar", "decembar"]
 quarter = ['kvartal', 'tromjesecj', 'kv']
 half = ['polugodist']
+
+# --- the cadastral base (core.cadastre: python -m core.cadastre) -------------------------------
+# BRD §2.1 MUST "Cadastral parcels": existing parcels from the cadastre; method "API, export or
+# scrape: availability and licensing to verify" (P0). The loader imports only an export or a
+# service a source has agreed to provide: set access = "confirmed" with access_basis (the agreement
+# or written permission) and licence_note once that is settled. Until then every import stops with
+# the reason; there is no scraping fallback. Field and layer names below are placeholders to check
+# against the first export (python -m core.cadastre import --dry-run reports what it found).
+[cadastre]
+source = "uzn_geoportal"
+ownership_source = "ekatastar"
+area_crs_epsg = 25834            # area_m2 in ETRS89 / UTM 34N
+dataset_prefix = "cad"
+on_duplicate = "error"           # "merge" when the export splits one parcel into several records
+mass_change_threshold = 0.2      # refuse a version removing > 20 % of the previous KO parcels
+coverage_cell_m = 500
+min_coverage = 0.95
+# source KO name or code -> the official KO name people search by (fill from UZN's KO list)
+[cadastre.ko_names]
+
+[cadastre.sources.uzn_geoportal]
+name = "Geoportal Uprave za nekretnine (UZN)"
+url = "https://webmap.uzn.me/geoportal01"
+kind = "parcels"
+access = "not_confirmed"         # P0: bulk export / WFS and licence to verify with UZN
+access_basis = ""
+licence_note = ""
+methods = ["file", "wfs"]        # an export UZN delivers, or its WFS once UZN confirms one
+method = "file"
+source_crs = "EPSG:25834"        # assumed only when the export carries none: confirm with UZN
+parcel_layer = ""
+ko_layer = ""
+wfs_url = ""
+wfs_typename = ""
+
+[cadastre.sources.uzn_geoportal.fields]
+ko_code = "KO_SIFRA"
+ko_name = "KO_NAZIV"
+parcel_number = "BROJ_PARC"
+sub_number = "PODBROJ"
+street_address = ["ULICA", "KUCNI_BROJ"]
+
+[cadastre.sources.uzn_geoportal.ko_fields]
+ko_code = "KO_SIFRA"
+ko_name = "KO_NAZIV"
+
+[cadastre.sources.emapa]
+name = "eMapa"
+url = "https://emapa.me"
+kind = "parcels"
+access = "not_confirmed"         # P0: spatial / cadastral export and licence to verify
+access_basis = ""
+licence_note = ""
+methods = ["file"]
+method = "file"
+source_crs = "EPSG:25834"
+
+[cadastre.sources.emapa.fields]
+ko_name = "KO"
+parcel_number = "BROJ"
+number_separator = "/"
+
+[cadastre.sources.ekatastar]
+name = "eKatastar"
+url = "https://ekatastar.me"
+kind = "ownership"
+# Ownership and legal burdens come only from a bulk attribute export UZN delivers under an
+# agreement; the eKatastar web application is never queried (a per-parcel lookup that names
+# owners). Without it the flags stay null and the two layers are marked unavailable.
+access = "not_confirmed"
+access_basis = ""
+licence_note = ""
+methods = ["file"]
+method = "file"
+
+[cadastre.sources.ekatastar.ownership_fields]
+ko_name = "KO_NAZIV"
+parcel_number = "BROJ_PARC"
+sub_number = "PODBROJ"
+public_ownership = "JAVNA_SVOJINA"
+restitution_or_legal_burden = "TERET"

@@ -1,0 +1,246 @@
+{
+ "type": "FeatureCollection",
+ "name": "parcels_v1",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:EPSG::25834"
+  }
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "FID_UZN": 1,
+    "KO_SIFRA": "901",
+    "KO_NAZIV": "Test KO Alpha",
+    "BROJ_PARC": "1234",
+    "PODBROJ": "5",
+    "ULICA": "Njegoševa",
+    "KUCNI_BROJ": "12"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       356800.0,
+       4700300.0
+      ],
+      [
+       356820.0,
+       4700300.0
+      ],
+      [
+       356820.0,
+       4700330.0
+      ],
+      [
+       356800.0,
+       4700330.0
+      ],
+      [
+       356800.0,
+       4700300.0
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "FID_UZN": 2,
+    "KO_SIFRA": "901",
+    "KO_NAZIV": "Test KO Alpha",
+    "BROJ_PARC": "1234",
+    "PODBROJ": "6",
+    "ULICA": "Njegoševa",
+    "KUCNI_BROJ": "14"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       356820.0,
+       4700300.0
+      ],
+      [
+       356840.0,
+       4700300.0
+      ],
+      [
+       356840.0,
+       4700330.0
+      ],
+      [
+       356820.0,
+       4700330.0
+      ],
+      [
+       356820.0,
+       4700300.0
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "FID_UZN": 3,
+    "KO_SIFRA": "901",
+    "KO_NAZIV": "Test KO Alpha",
+    "BROJ_PARC": "1235",
+    "PODBROJ": null,
+    "ULICA": "Njegoševa",
+    "KUCNI_BROJ": "16"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       356840.0,
+       4700300.0
+      ],
+      [
+       356860.0,
+       4700330.0
+      ],
+      [
+       356860.0,
+       4700300.0
+      ],
+      [
+       356840.0,
+       4700330.0
+      ],
+      [
+       356840.0,
+       4700300.0
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "FID_UZN": 4,
+    "KO_SIFRA": "901",
+    "KO_NAZIV": "Test KO Alpha",
+    "BROJ_PARC": "1236/1",
+    "PODBROJ": null,
+    "ULICA": "Hercegovačka",
+    "KUCNI_BROJ": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       356800.0,
+       4700330.0
+      ],
+      [
+       356840.0,
+       4700330.0
+      ],
+      [
+       356840.0,
+       4700350.0
+      ],
+      [
+       356800.0,
+       4700350.0
+      ],
+      [
+       356800.0,
+       4700330.0
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "FID_UZN": 5,
+    "KO_SIFRA": "902",
+    "KO_NAZIV": "Test KO Beta",
+    "BROJ_PARC": "1234",
+    "PODBROJ": "5",
+    "ULICA": null,
+    "KUCNI_BROJ": null
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       356900.0,
+       4700300.0
+      ],
+      [
+       356920.0,
+       4700300.0
+      ],
+      [
+       356920.0,
+       4700320.0
+      ],
+      [
+       356900.0,
+       4700320.0
+      ],
+      [
+       356900.0,
+       4700300.0
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "FID_UZN": 6,
+    "KO_SIFRA": "902",
+    "KO_NAZIV": "Test KO Beta",
+    "BROJ_PARC": "77",
+    "PODBROJ": null,
+    "ULICA": "Slobode",
+    "KUCNI_BROJ": "1"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       356920.0,
+       4700300.0
+      ],
+      [
+       356950.0,
+       4700300.0
+      ],
+      [
+       356950.0,
+       4700320.0
+      ],
+      [
+       356920.0,
+       4700320.0
+      ],
+      [
+       356920.0,
+       4700300.0
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

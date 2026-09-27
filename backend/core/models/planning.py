@@ -52,6 +52,9 @@ def multipolygon() -> Geometry:
     return Geometry(geometry_type="MULTIPOLYGON", srid=4326, spatial_index=False)
 
 
+FLAG_COMMENT = "null = not loaded (set only from a confirmed bulk eKatastar extract, never derived)"
+
+
 def gist_index(table: str, column: str) -> Index:
     return Index(f"idx_{table}_{column}", column, postgresql_using="gist")
 
@@ -263,7 +266,14 @@ class UrbanParcel(Base):
 
 
 class CadastralParcel(Base):
-    """Cadastral parcel as recorded by the cadastre today. ``id`` is UrbanView's Parcel ID."""
+    """Cadastral parcel as recorded by the cadastre today. ``id`` is UrbanView's Parcel ID.
+
+    Loaded by the cadastral base loader (``core.cadastre``, migration 0024) through the publish
+    job, upserted by (KO, number, sub-number) so ids stay stable across imports. A parcel a newer
+    import of its KO no longer contains is retired (``retired_at``), never deleted: references
+    (links of earlier versions, orders) keep resolving, and nothing retired is served. The two
+    flags are null until a confirmed bulk eKatastar extract sets them; they are never derived.
+    """
 
     __tablename__ = "cadastral_parcels"
 
@@ -274,16 +284,22 @@ class CadastralParcel(Base):
     ko_name: Mapped[str] = mapped_column(
         Text, nullable=False, comment="cadastral municipality (KO)"
     )
+    ko_code: Mapped[str | None] = mapped_column(
+        Text, comment="the KO's code as the cadastre writes it; null when the source has none"
+    )
     street_address: Mapped[str | None] = mapped_column(Text)
     geom: Mapped[Any] = mapped_column(multipolygon(), nullable=False)
     area_m2: Mapped[float] = mapped_column(Float(53), nullable=False)
-    public_ownership: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("false")
-    )
-    restitution_or_legal_burden: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("false")
-    )
+    public_ownership: Mapped[bool | None] = mapped_column(Boolean, comment=FLAG_COMMENT)
+    restitution_or_legal_burden: Mapped[bool | None] = mapped_column(Boolean, comment=FLAG_COMMENT)
     dataset_version: Mapped[str | None] = mapped_column(Text)
+    retired_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        comment="a newer import of the KO no longer contains the parcel: kept, not served",
+    )
+    retired_dataset_version: Mapped[str | None] = mapped_column(
+        Text, comment="the cadastral dataset whose publish retired the parcel"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

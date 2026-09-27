@@ -204,6 +204,13 @@ def _read_profile(municipality_id: str) -> dict:
         return tomllib.load(fh)
 
 
+def profile_table(municipality_id: str, name: str) -> dict | None:
+    """A top-level table of the profile (``[cadastre]``, ...) as parsed TOML, or None; for tooling
+    that validates its own section (``core.cadastre.config``)."""
+    table = _read_profile(municipality_id).get(name)
+    return table if isinstance(table, dict) else None
+
+
 @cache
 def load_profile(municipality_id: str) -> MunicipalityProfile:
     return MunicipalityProfile.model_validate(_read_profile(municipality_id))

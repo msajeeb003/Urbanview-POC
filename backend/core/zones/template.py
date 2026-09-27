@@ -77,7 +77,7 @@ REFERENCE_LAYERS: dict[str, ReferenceLayer] = {
             SELECT ko_name, count(*) AS parcels,
                    ST_AsBinary(ST_Transform(ST_Multi(ST_CollectionExtract(
                        ST_MakeValid(ST_Union(geom)), 3)), CAST(:crs AS integer))) AS wkb
-            FROM cadastral_parcels WHERE municipality_id = :m
+            FROM cadastral_parcels WHERE municipality_id = :m AND retired_at IS NULL
             GROUP BY ko_name ORDER BY ko_name
             """,
         ),
@@ -94,7 +94,8 @@ REFERENCE_LAYERS: dict[str, ReferenceLayer] = {
             """
             SELECT id AS parcel_id, ko_name, parcel_number, sub_number, area_m2,
                    ST_AsBinary(ST_Transform(geom, CAST(:crs AS integer))) AS wkb
-            FROM cadastral_parcels WHERE municipality_id = :m ORDER BY id
+            FROM cadastral_parcels WHERE municipality_id = :m AND retired_at IS NULL
+            ORDER BY id
             """,
         ),
         ReferenceLayer(

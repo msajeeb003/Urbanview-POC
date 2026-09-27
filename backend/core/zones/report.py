@@ -94,6 +94,7 @@ ZONES_SQL = text(
            round(CAST(ST_Area(CAST(s.geom AS geography)) / 1e6 AS numeric), 3) AS area_km2,
            (SELECT count(*) FROM cadastral_parcels c
             WHERE c.municipality_id = s.municipality_id AND c.geom && s.geom
+              AND c.retired_at IS NULL
               AND ST_Contains(s.geom, ST_PointOnSurface(c.geom))) AS cadastral_parcels,
            (SELECT count(*) FROM urban_parcels u
             WHERE u.municipality_id = s.municipality_id AND u.geom && s.geom
@@ -104,8 +105,10 @@ ZONES_SQL = text(
 PARCEL_TOTALS_SQL = text(
     """
     SELECT
-      (SELECT count(*) FROM cadastral_parcels c WHERE c.municipality_id = :m) AS cadastral_total,
-      (SELECT count(*) FROM cadastral_parcels c WHERE c.municipality_id = :m AND NOT EXISTS (
+      (SELECT count(*) FROM cadastral_parcels c
+       WHERE c.municipality_id = :m AND c.retired_at IS NULL) AS cadastral_total,
+      (SELECT count(*) FROM cadastral_parcels c
+       WHERE c.municipality_id = :m AND c.retired_at IS NULL AND NOT EXISTS (
           SELECT 1 FROM staging_geometry s WHERE s.batch_id = :batch AND s.geom && c.geom
             AND ST_Contains(s.geom, ST_PointOnSurface(c.geom)))) AS cadastral_outside,
       (SELECT count(*) FROM urban_parcels u WHERE u.municipality_id = :m) AS urban_total,

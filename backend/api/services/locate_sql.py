@@ -39,6 +39,7 @@ cad AS (
     FROM cadastral_parcels c, anchor a
     WHERE c.municipality_id = :municipality_id
       AND ST_Intersects(c.geom, a.pt)
+      AND c.retired_at IS NULL
     ORDER BY ST_Area(c.geom) ASC, c.id ASC
     LIMIT 1
 )"""
@@ -51,6 +52,7 @@ cad AS (
       AND lower(c.ko_name) = lower(CAST(:ko AS text))
       AND c.parcel_number = CAST(:parcel_number AS text)
       AND coalesce(c.sub_number, '') = coalesce(CAST(:sub_number AS text), '')
+      AND c.retired_at IS NULL
     ORDER BY c.id ASC
     LIMIT 1
 ),

@@ -33,6 +33,12 @@ Tier = Literal["free", "paid"]
 FORMULA_VERSION_DESCRIPTION = "Formula version the figures were computed with (poc-1)"
 
 
+FLAG_DESCRIPTION = (
+    "null = not available: the flag is loaded only from a confirmed bulk eKatastar extract and "
+    "never derived"
+)
+
+
 class AssumptionOverrides(BaseModel):
     """Optional user overrides from the query string (contract section 1). ``None`` = default:
     0.70 saleable share, market construction cost and sale price."""
@@ -413,8 +419,8 @@ class DocumentPanel(PanelBase):
 
 
 class Flags(BaseModel):
-    public_ownership: bool
-    restitution_or_legal_burden: bool
+    public_ownership: bool | None = Field(description=FLAG_DESCRIPTION)
+    restitution_or_legal_burden: bool | None = Field(description=FLAG_DESCRIPTION)
     note_en: str
     note_me: str
 

@@ -18,6 +18,12 @@ from pydantic import BaseModel, Field
 DocumentStatus = Literal["adopted", "in_progress", "superseded"]
 
 
+FLAG_DESCRIPTION = (
+    "null = not available: the flag is loaded only from a confirmed bulk eKatastar extract and "
+    "never derived"
+)
+
+
 class CoverageStatus(StrEnum):
     covered = "covered"
     uncovered = "uncovered"
@@ -89,8 +95,14 @@ class CadastralParcelSummary(BaseModel):
     )
     street_address: str | None = None
     area_m2: float
-    public_ownership: bool = False
-    restitution_or_legal_burden: bool = False
+    public_ownership: bool | None = Field(
+        default=None,
+        description=FLAG_DESCRIPTION,
+    )
+    restitution_or_legal_burden: bool | None = Field(
+        default=None,
+        description=FLAG_DESCRIPTION,
+    )
     centroid: LatLng
     geometry: dict[str, Any] = Field(description="GeoJSON geometry, EPSG:4326")
 

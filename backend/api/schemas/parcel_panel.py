@@ -47,7 +47,10 @@ class HeaderDocument(DocumentRef):
 
 class ParcelFlag(BaseModel):
     key: Literal["public_ownership", "restitution_or_legal_burden"]
-    value: bool = Field(description="false = not flagged in the cadastral extract")
+    value: bool | None = Field(
+        description="false = not flagged in the cadastral extract; null = not available (the "
+        "flag comes only from a confirmed bulk eKatastar extract, never derived)"
+    )
     label_en: str
     label_me: str
 

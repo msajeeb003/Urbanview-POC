@@ -1,0 +1,80 @@
+{
+ "type": "FeatureCollection",
+ "name": "ko_boundaries",
+ "crs": {
+  "type": "name",
+  "properties": {
+   "name": "urn:ogc:def:crs:EPSG::25834"
+  }
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "KO_SIFRA": "901",
+    "KO_NAZIV": "Test KO Alpha"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       356790.0,
+       4700290.0
+      ],
+      [
+       356870.0,
+       4700290.0
+      ],
+      [
+       356870.0,
+       4700360.0
+      ],
+      [
+       356790.0,
+       4700360.0
+      ],
+      [
+       356790.0,
+       4700290.0
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "KO_SIFRA": "902",
+    "KO_NAZIV": "Test KO Beta"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       356890.0,
+       4700290.0
+      ],
+      [
+       356960.0,
+       4700290.0
+      ],
+      [
+       356960.0,
+       4700330.0
+      ],
+      [
+       356890.0,
+       4700330.0
+      ],
+      [
+       356890.0,
+       4700290.0
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

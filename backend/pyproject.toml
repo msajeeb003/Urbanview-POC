@@ -74,6 +74,7 @@ openapi = "python -m api.export_openapi ../frontend/openapi.json"
 gis-assess = "python -m core.gis.assess ../docs/gis/source/catalog.toml --out ../docs/gis/assessment"
 zones = "python -m core.zones"                  # seed | template | validate | import | report
 import-zones = "python -m core.zones import"
+cadastre = "python -m core.cadastre"           # sources | check-access | import | datasets | show
 test = "pytest -q --ignore=tests/integration"
 test-integration = "pytest -q tests/integration"
 test-all = "pytest -q"

@@ -445,6 +445,30 @@
         }
       }
     },
+    "/v1/cadastral-municipalities": {
+      "get": {
+        "tags": [
+          "cadastre"
+        ],
+        "summary": "Every cadastral municipality (KO) with parcels: name, code, count, bounding box",
+        "operationId": "cadastral_municipalities_v1_cadastral_municipalities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CadastralMunicipalities"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The planning database is not configured"
+          }
+        }
+      }
+    },
     "/v1/parcels/{parcel_id}/panel": {
       "get": {
         "tags": [
@@ -8985,6 +9009,99 @@
         ],
         "title": "CadastralLink"
       },
+      "CadastralMunicipalities": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CadastralMunicipalityEntry"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "dataset_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Version",
+            "description": "The newest cadastral dataset among the KOs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CadastralMunicipalities"
+      },
+      "CadastralMunicipalityEntry": {
+        "properties": {
+          "ko_name": {
+            "type": "string",
+            "title": "Ko Name",
+            "description": "The KO name the parcel lookup takes (?ko=)"
+          },
+          "ko_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ko Code",
+            "description": "The cadastre's KO code, when known"
+          },
+          "parcel_count": {
+            "type": "integer",
+            "title": "Parcel Count",
+            "description": "Cadastral parcels served in the KO"
+          },
+          "bbox": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox",
+            "description": "min_lng, min_lat, max_lng, max_lat of the KO boundary"
+          },
+          "centroid": {
+            "$ref": "#/components/schemas/LatLng",
+            "description": "A point on the KO's surface (label / pin)"
+          },
+          "boundary_source": {
+            "type": "string",
+            "title": "Boundary Source",
+            "description": "delivered | derived_from_parcels"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ko_name",
+          "parcel_count",
+          "bbox",
+          "centroid",
+          "boundary_source"
+        ],
+        "title": "CadastralMunicipalityEntry"
+      },
       "CadastralPanel": {
         "properties": {
           "type": {
@@ -9226,14 +9343,28 @@
             "title": "Area M2"
           },
           "public_ownership": {
-            "type": "boolean",
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Public Ownership",
-            "default": false
+            "description": "null = not available: the flag is loaded only from a confirmed bulk eKatastar extract and never derived"
           },
           "restitution_or_legal_burden": {
-            "type": "boolean",
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Restitution Or Legal Burden",
-            "default": false
+            "description": "null = not available: the flag is loaded only from a confirmed bulk eKatastar extract and never derived"
           },
           "centroid": {
             "$ref": "#/components/schemas/LatLng"
@@ -12240,12 +12371,28 @@
       "Flags": {
         "properties": {
           "public_ownership": {
-            "type": "boolean",
-            "title": "Public Ownership"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Ownership",
+            "description": "null = not available: the flag is loaded only from a confirmed bulk eKatastar extract and never derived"
           },
           "restitution_or_legal_burden": {
-            "type": "boolean",
-            "title": "Restitution Or Legal Burden"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restitution Or Legal Burden",
+            "description": "null = not available: the flag is loaded only from a confirmed bulk eKatastar extract and never derived"
           },
           "note_en": {
             "type": "string",
@@ -13837,6 +13984,24 @@
           "features": {
             "type": "integer",
             "title": "Features"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "false: the data behind the layer is not loaded (the public ownership and restitution layers until a confirmed eKatastar extract): not an empty result",
+            "default": true
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason",
+            "description": "why the layer is unavailable (ownership_data_not_loaded)"
           }
         },
         "type": "object",
@@ -16919,9 +17084,16 @@
             "title": "Key"
           },
           "value": {
-            "type": "boolean",
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Value",
-            "description": "false = not flagged in the cadastral extract"
+            "description": "false = not flagged in the cadastral extract; null = not available (the flag comes only from a confirmed bulk eKatastar extract, never derived)"
           },
           "label_en": {
             "type": "string",
