@@ -202,6 +202,11 @@ each entry. Rail order, groups and names are the wireframe's.
   entitlement). Each layer starts at the zoom its source-layer is built from (`uvLayers(tiles)`:
   the pointer's range, else the catalogue's); a source-layer the pointer lists with 0 features
   gets no style layer. Text uses the base style's glyphs (`DIN Pro`), not the web fonts.
+- **Base map** (`lib/map/basemap.ts`): with Mapbox's light style (the default) the style's own
+  layers take the wireframe's colours on `load` (land `#EEF1F5`, white major and cream `#F2EBDC`
+  minor roads, river `#BCCEC8` at .85 with a `#A4B9B2` line) and buildings, land cover, points
+  of interest, airports and footpaths are hidden; place, street and water labels stay. A custom
+  `NEXT_PUBLIC_MAPBOX_STYLE` is left as designed.
 - **Click** (`lib/map/pick.ts`): features under the pointer on the three hit layers; priority
   cadastral parcel > planned parcel > coverage area. Cadastral: highlight + pin at the rendered
   centroid at once, then `/v1/locate` at the click confirms zone, planned link and coverage (the

@@ -212,7 +212,7 @@ then three 42 × 42 white buttons (hairline, radius 8, shadow, 19 / 500): `+`, `
 | FAR heat | `rgba(198,107,74, .15 + far/3.4 × .55)`, multiply | none |
 | Price heat | band colour (§3), multiply | none |
 | Planned traffic | | `#5b5b5b` 6 px dashed 10 6, .55 |
-| Roads / river | river `#BCCEC8` .85 | roads white 9 / `#F2EBDC` 4.5 round caps; river line `#A4B9B2` 1 |
+| Roads / river (Mapbox: the light style's own layers restyled, `lib/map/basemap.ts`; land `#EEF1F5`; buildings, land cover and points of interest hidden) | river `#BCCEC8` .85 | roads white 9 / `#F2EBDC` 4.5 round caps; river line `#A4B9B2` 1 |
 | Uncovered area | `#E6E9EE` | `#DCE1E8` 1 |
 | Selection pin | brand, white 1.5 stroke, white 3.6 dot; 26 px tall, at the planned parcel's centre | |
 
