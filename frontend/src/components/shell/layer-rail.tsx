@@ -14,8 +14,12 @@
  *
  * Every real toggle emits `layer_toggled { layer_id, on }` (the published layer key).
  *
- * Names, titles, notes and toasts come from the shell's string table (current language). A card
- * whose source-layers the current published version lists with no features says "no data yet".
+ * Names, titles, notes and toasts come from the shell's string table (current language). The card
+ * never claims a layer the map is not drawing: a card whose source-layers the current published
+ * version lists with no features says "no data yet"; a card that is on while the map is zoomed out
+ * past the range its data is published for says "zoom in to see" (parcels are built from zoom 13,
+ * the city framing is ~10.6), and turning such a layer on says so in a toast. The notes follow the
+ * map live (`useLayerStates`: the same state the legend reads).
  */
 import { Fragment } from "react";
 
@@ -23,7 +27,8 @@ import { useTrack } from "@/lib/analytics/react";
 import { useTilesCurrent } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n";
 import { PARAM_METRICS, PRICE_METRICS } from "@/lib/map/classes";
-import { LAYERS, analyticsLayerId, hasNoData, layerById, toggleLayer, type LayerDef } from "@/lib/layers";
+import { LAYERS, analyticsLayerId, hasNoData, layerById, layerState, toggleLayer, type LayerDef } from "@/lib/layers";
+import { useLayerStates } from "@/lib/map/use-layer-states";
 import { useShell } from "@/lib/store";
 
 import { IconChevronLeft, IconMenu } from "../ui/icons";
@@ -76,6 +81,7 @@ export function LayerRail() {
   const track = useTrack();
   const t = useT();
   const { data: tiles } = useTilesCurrent();
+  const states = useLayerStates(tiles);
   const nameOf = (l: LayerDef) => t(`layer.${l.id}`);
 
   if (!railOpen) {
@@ -89,6 +95,9 @@ export function LayerRail() {
   }
 
   const toggle = (l: LayerDef) => {
+    // the store as it is at the click, not as it was at the last render: two clicks within one
+    // frame must not toggle from the same snapshot
+    const { layers, marketUnlocked, zoom } = useShell.getState();
     if (l.core) {
       showToast(t("toast.core"));
       return;
@@ -114,7 +123,13 @@ export function LayerRail() {
     const req = l.requires ? layerById(l.requires) : null;
     if (result.on && req && !result.layers[req.id]) {
       showToast(t("toast.needsCadastre", { name: nameOf(l), req: nameOf(req) }));
+      return;
     }
+    if (!result.on) return;
+    // turned on but nothing appears: say why, as for a missing requirement
+    const now = layerState(l.id, { layers: result.layers, marketUnlocked, zoom }, tiles);
+    if (now === "no_data") showToast(t("toast.noData", { name: nameOf(l) }));
+    else if (now === "zoom_in") showToast(t("toast.zoomIn", { name: nameOf(l) }));
   };
 
   return (
@@ -139,15 +154,18 @@ export function LayerRail() {
             : t(`price.${choropleth.price}.label`);
         const name = nameOf(l);
         const noData = hasNoData(l, tiles);
+        const zoomIn = states[l.id] === "zoom_in";
         const title = l.core
           ? t("rail.titleCore", { name })
           : locked
             ? t("rail.titleLocked", { name })
             : noData
               ? t("rail.titleNoData", { name })
-              : req
-                ? t("rail.titleDep", { name, req: nameOf(req) })
-                : t("rail.titleToggle", { name });
+              : zoomIn
+                ? t("rail.titleZoom", { name })
+                : req
+                  ? t("rail.titleDep", { name, req: nameOf(req) })
+                  : t("rail.titleToggle", { name });
         return (
           <Fragment key={l.id}>
             {heading && <div className="rlabel">{heading}</div>}
@@ -159,7 +177,8 @@ export function LayerRail() {
               dependencyMissing={dep}
               paidLocked={locked}
               sub={sub}
-              note={noData ? t("rail.noData") : undefined}
+              note={noData ? t("rail.noData") : zoomIn ? t("rail.zoomIn") : undefined}
+              noteKind={noData ? "no_data" : "zoom_in"}
               lockedLabel={t("rail.subscription")}
               title={title}
               onClick={() => toggle(l)}
@@ -169,6 +188,7 @@ export function LayerRail() {
                 requiredName={nameOf(req)}
                 words={{ needs: t("rail.needs"), tap: t("rail.tapToTurnOn"), title: t("rail.turnOn", { name: nameOf(req) }) }}
                 onClick={() => {
+                  if (useShell.getState().layers[req.id]) return; // already turned on by a click this frame
                   setLayer(req.id, true);
                   track("layer_toggled", { layer_id: analyticsLayerId(req), on: true });
                   showToast(t("toast.turnedOn", { name: nameOf(req) }));

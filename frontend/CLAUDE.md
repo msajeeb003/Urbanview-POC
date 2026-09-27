@@ -93,8 +93,9 @@ what can be built", 0.9 s after load) is part of the wireframe, not a tour.
 
 One config array drives the rail, the map and the legend: each entry has its id, name, group,
 default, rules (core / `requires` / `paid` / `choropleth`), swatch, source-layers in the PMTiles
-archive, minimum zoom (the catalogue's) and a `legend(ctx)` function; `style.ts` → `LAYER_GROUPS`
-lists the map layers of each entry. Rail order, groups and names are the wireframe's.
+archive, minimum zoom (the catalogue's; the tile pointer's per-layer `min_zoom` wins,
+`layerMinZoom`) and a `legend(ctx)` function; `style.ts` → `LAYER_GROUPS` lists the map layers of
+each entry. Rail order, groups and names are the wireframe's.
 
 | Group | Layer | Default | Rule | Published tile layer(s) |
 |---|---|---|---|---|
@@ -116,6 +117,19 @@ lists the map layers of each entry. Rail order, groups and names are the wirefra
   wireframe CSS, muted check) / dependency warning (▲, dimmed) / paid-locked (padlock,
   "Subscription"). The rendered wireframe has no tint on an "on" card and an 8 px card radius (its
   late CSS passes override the 10 px and the tint); that is what ships.
+- **A card never claims a layer the map is not drawing.** `layerState` (`lib/layers.ts`) is the one
+  answer the rail, the legend and the map share: `locked` / `off` / `requires` (its required layer
+  is off: ▲, dep note, legend suffix) / `no_data` (the published version lists its source-layers
+  with 0 features: muted "no data yet" on the card, the legend group with that note and no rows,
+  no style layer added) / `zoom_in` (on, but the map is below the zoom its data is built from:
+  parcels, ownership and restitution from 13, heatmap and context layers from 10, plan areas from
+  9, zones and zone cells from 8; muted "zoom in to see" on the card under any field label, the
+  legend group keeps its rows with the note by its title) / `shown`. Turning on a layer that
+  would show nothing toasts why ("… shows when you zoom in closer", "…: nothing is published for
+  this layer yet"), like the wireframe's dependency toast. `useLayerStates` reads it from the store
+  (`zoom`, set by the map with the zoom label) as one string, so the rail and legend re-render
+  when a state changes, not on every camera frame. A rail click reads the store at the click,
+  never the last render's snapshot.
 - **Choropleths** (`src/lib/map/classes.ts`): colours, legend rows and Mapbox expressions come from
   the classes `/v1/tiles/current` serves (`cell_classes`, computed from the version's cells:
   quintile breaks for block metrics, the profile's €/m² bands for sale rates, 0 = "not saleable"),
@@ -124,11 +138,13 @@ lists the map layers of each entry. Rail order, groups and names are the wirefra
   on `!has(field)`), never the lowest class. Without served classes the wireframe's look is the
   fallback (a continuous gradient, "Low → high"; the fixed bands). Field changes restyle with
   `setPaintProperty` / `setFilter`; toggles with `setLayoutProperty`: no source reload.
-- **Legend** (`legendGroups`): one group per drawn layer in rail order, the wireframe's rows
+- **Legend** (`legendGroups`): one group per layer that is on, in rail order, the wireframe's rows
   (zone types + "Urban block boundary", "Parcel outline", "Parcel — click to open", "Coverage area
   — click to open", "Publicly owned", "Legal claim" (+ " — needs cadastral parcels"), FAR "Low →
   high" with unit "floor area ratio", price bands with unit "€/m² land"), class rows for served
-  classes and "No data" when some cells have none; "No overlays active" when nothing is on.
+  classes and "No data" when some cells have none; a `note` by the title for a layer that is on
+  but not drawn ("zoom in to see", "no data yet", see `layerState`); "No overlays active" when
+  nothing is on.
 - **`?layers=`** (`lib/url-state.ts`): the toggleable layers that are on with the choropleth field
   (`landuse,heatFAR:gfa`, `heatMkt:low`); absent for the default view, `none` for nothing on; a
   link restores it on load, then the parameter follows the rail.
@@ -144,9 +160,23 @@ lists the map layers of each entry. Rail order, groups and names are the wirefra
 
 - **Mapbox GL JS, lazy.** Imported in its own chunk only when `NEXT_PUBLIC_MAPBOX_TOKEN` is set
   (Mapbox wipes the canvas without a valid token; there is no token-less mode). Base style
-  `NEXT_PUBLIC_MAPBOX_STYLE` (default `light-v11`). Opens on the profile's bounds (or a `?parcel=`
-  link's parcel), max bounds = profile bounds + 25 %, zoom 0.4× of the city framing … 19, 2D only
-  (rotation / pitch off). `clickTolerance: 3` = a drag of more than 3 px never selects.
+  `NEXT_PUBLIC_MAPBOX_STYLE` (default `light-v11`). Opens on the profile's bounds, the city extent
+  (S1), or a `?parcel=` link's parcel. 2D only: `projection: "mercator"` overrides the style's
+  globe (whose max bounds only hold the centre, and not before the style loads), rotation / pitch
+  off. 1.0× = the city framing of the map's box; zoom 0.4× of it … 19; the max bounds are the
+  field the 0.4× view shows around the city's centre, so zooming all the way out ends on the whole
+  city, centred (the wireframe's rule), and panning closer in stops at that field. Framing, zoom
+  range and field are measured again on every resize of the box (rail, panel, window, sheet);
+  reset returns to 1.0×. Fit options never carry `maxZoom: undefined` (`lib/map/camera.ts`:
+  Mapbox spreads it over its default, the fitted zoom turns NaN and the fit is dropped, which once
+  opened the map on a corner of its bounds over Skadar Lake), and the padding shrinks to the box
+  (`fitPadding`). `clickTolerance: 3` = a drag of more than 3 px never selects.
+- **The map follows the rail exactly.** Once the style has loaded (`load`), every change of the
+  layers, the choropleth fields, the market entitlement and the selection is applied the moment
+  it happens, also while tiles are still loading (layout, filter and paint changes do not need
+  them; gating on `isStyleLoaded()`, false whenever a source is loading, dropped changes and left
+  the map out of step until the next toggle). Before `load` the load handler applies the state as
+  it is then; a refused change re-applies the whole state at the next `idle`.
 - **PMTiles on Mapbox.** Mapbox GL has no `addProtocol` (MapLibre's API); 3.x has the experimental
   `mapboxgl.addTileProvider(name, moduleUrl)`: every map worker imports the module and asks it for
   TileJSON and tiles. `src/lib/map/pmtiles-provider.ts` is that module (pmtiles library,
@@ -166,7 +196,9 @@ lists the map layers of each entry. Rail order, groups and names are the wirefra
   pointer + outline) and selection layers (brand outline + glow; a cadastral selection also
   highlights its primary planned parcel). Visibility follows the rail (`visibleLayerIds`:
   ownership / restitution only with cadastral parcels on, price heatmap only with the market
-  entitlement). Text uses the base style's glyphs (`DIN Pro`), not the web fonts.
+  entitlement). Each layer starts at the zoom its source-layer is built from (`uvLayers(tiles)`:
+  the pointer's range, else the catalogue's); a source-layer the pointer lists with 0 features
+  gets no style layer. Text uses the base style's glyphs (`DIN Pro`), not the web fonts.
 - **Click** (`lib/map/pick.ts`): features under the pointer on the three hit layers; priority
   cadastral parcel > planned parcel > coverage area. Cadastral: highlight + pin at the rendered
   centroid at once, then `/v1/locate` at the click confirms zone, planned link and coverage (the
@@ -742,7 +774,7 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 | `src/components/order/*` | `order-modal` (S4), `order-confirmation` (S5 + bank-transfer instructions), `order-status` (the public order page) |
 | `src/app/orders/[reference]/page.tsx` | the public order page route |
 | `src/lib/pricing.ts` | the order price of a parcel from the configured tiers (`GET /v1/orders/pricing`), the server's `price_for` rule |
-| `src/lib/map/*` | `style` (UrbanView layers per registry entry, visibility, choropleth paint, highlight filters), `classes` (choropleth colours, legend rows, expressions from served classes), `pick` (click priority, centroid), `tiles` (pointer → source, provider registration), `pmtiles-provider` (worker module), `provider-name` |
+| `src/lib/map/*` | `style` (UrbanView layers per registry entry, visibility, choropleth paint, highlight filters), `classes` (choropleth colours, legend rows, expressions from served classes), `pick` (click priority, centroid), `tiles` (pointer → source, provider registration), `camera` (fit options, padding for the box), `use-layer-states` (every card's `layerState` for the rail and legend), `pmtiles-provider` (worker module), `provider-name` |
 | `src/components/ui/*` | shared: `LayerCard`, `DependencyNote`, `Badge`, `PanelRow`, `IdGrid`, `Cta` (primary / gold / ghost / line), `SourceRef`, `Modal` + `ModalHead` (Radix Dialog with wireframe classes), `Disclaimer`, `icons` |
 | `src/lib/api/*` | `client.ts` (fetch wrapper: base URL, `X-Request-ID`, `X-Session-ID`, error envelope → `ApiError`, timeouts, 429 retries), `endpoints.ts` (one function per route), `hooks.ts` (React Query: `useMunicipality`, `useLocate`, `useLocateParcel`, `useGeocode`, `useZones`, `usePanel`, `useFeasibility`, `useSourceValue` / `useSourcePage`, `useTilesCurrent`, `useCreateOrder`, `useOrderStatus`, `useTrack`), `types.ts` (aliases), `schema.d.ts` (generated) |
 | `src/lib/store.ts` | shell state (zustand): rail, layers, entitlement, view, AI, sheet, selection (point / parcel / feature / zone), pin, toast, modal, map controller |

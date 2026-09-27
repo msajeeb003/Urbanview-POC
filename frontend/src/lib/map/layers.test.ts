@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_CHOROPLETH, DEFAULT_LAYER_STATE, LAYERS, isDrawn, legendGroups, toggleLayer, type LegendContext } from "@/lib/layers";
+import type { TilesCurrent } from "@/lib/api/types";
+import {
+  DEFAULT_CHOROPLETH,
+  DEFAULT_LAYER_STATE,
+  LAYERS,
+  isDrawn,
+  layerById,
+  layerMinZoom,
+  layerState,
+  layerStatesKey,
+  legendGroups,
+  parseLayerStates,
+  toggleLayer,
+  type LayerView,
+  type LegendContext,
+} from "@/lib/layers";
 import { formatLayersParam, parseLayersParam, withParcelParam } from "@/lib/url-state";
 
 import {
@@ -10,7 +25,8 @@ import {
   priceScheme,
   type MetricClasses,
 } from "./classes";
-import { LAYER_GROUPS, UV_LAYERS, choroplethStyle } from "./style";
+import { fitOptions, fitPadding } from "./camera";
+import { LAYER_GROUPS, UV_LAYERS, choroplethStyle, uvLayers } from "./style";
 
 /** Minimal evaluator for the colour expressions the schemes build (step / case / to-number / get). */
 function evaluate(expr: unknown, props: Record<string, number>): unknown {
@@ -63,7 +79,22 @@ describe("registry", () => {
   it("starts each map layer at its catalogue zoom", () => {
     expect(UV_LAYERS.find((l) => l.id === "uv-cad-fill")!.minzoom).toBe(13);
     expect(UV_LAYERS.find((l) => l.id === "uv-heatfar-fill")!.minzoom).toBe(10);
+    expect(UV_LAYERS.find((l) => l.id === "uv-heatmkt-fill")!.minzoom).toBe(8); // zone_cells: 8 in the catalogue
     expect(UV_LAYERS.find((l) => l.id === "uv-blocks-label")!.minzoom).toBe(15);
+  });
+
+  it("starts each map layer where the published archive has its source-layer, as the rail says", () => {
+    const tiles = pointer({ cadastral_parcels: [14, 3], urban_blocks: [11, 2], zone_cells: [8, 2] });
+    const specs = uvLayers(tiles);
+    const at = (id: string) => specs.find((l) => l.id === id)!.minzoom;
+    expect(at("uv-cad-fill")).toBe(14); // a clamped build wins over the catalogue's 13
+    expect(at("uv-cad-sel-line")).toBe(14); // hover and selection layers follow their source-layer
+    expect(at("uv-blocks-line")).toBe(11); // blocks draw from their own range, not the zones card's 8
+    expect(at("uv-blocks-label")).toBe(15); // a label's own later start stays
+    expect(at("uv-urban-fill")).toBe(13); // not listed: the catalogue's value
+    expect(layerMinZoom(layerById("cadastre"), tiles)).toBe(14);
+    expect(layerMinZoom(layerById("zones"), tiles)).toBe(8); // zones from 8 although blocks start at 11
+    expect(layerMinZoom(layerById("base"), tiles)).toBe(0);
   });
 
   it("keeps one choropleth on at a time and never toggles a core layer", () => {
@@ -84,6 +115,82 @@ describe("registry", () => {
     const price = { ...DEFAULT_LAYER_STATE, heatMkt: true };
     expect(isDrawn("heatMkt", price, false)).toBe(false);
     expect(isDrawn("heatMkt", price, true)).toBe(true);
+  });
+});
+
+/** A published pointer listing `id: [min_zoom, features]` per source-layer. */
+function pointer(layers: Record<string, [number, number]>): TilesCurrent {
+  return {
+    status: "published",
+    data_version: "v1",
+    version_id: 1,
+    archive_url: "https://files.example/tiles.pmtiles",
+    layers: Object.entries(layers).map(([id, [min_zoom, features]]) => ({ id, geometry_type: "polygon", min_zoom, max_zoom: 16, features })),
+  };
+}
+
+describe("layer state: what the map draws for each card", () => {
+  const view = (over: Partial<LayerView> = {}): LayerView => ({
+    layers: { ...DEFAULT_LAYER_STATE },
+    marketUnlocked: false,
+    zoom: 14,
+    ...over,
+  });
+  const tiles = pointer({
+    zones: [8, 2],
+    document_coverage: [9, 3],
+    cadastral_parcels: [13, 7],
+    urban_parcels: [13, 6],
+    public_ownership: [13, 1],
+    land_use: [10, 0],
+    block_cells: [10, 2],
+    zone_cells: [8, 2],
+  });
+
+  it("shows the default layers closer in, and says zoom in for parcels at the city framing", () => {
+    expect(layerState("cadastre", view(), tiles)).toBe("shown");
+    expect(layerState("planned", view(), tiles)).toBe("shown");
+    const city = view({ zoom: 10.64 });
+    expect(layerState("cadastre", city, tiles)).toBe("zoom_in");
+    expect(layerState("planned", city, tiles)).toBe("zoom_in");
+    expect(layerState("zones", city, tiles)).toBe("shown");
+    expect(layerState("docareas", city, tiles)).toBe("shown");
+    expect(layerState("cadastre", view({ zoom: 13 }), tiles)).toBe("shown"); // Mapbox draws at zoom >= minzoom
+    expect(layerState("cadastre", view({ zoom: null }), tiles)).toBe("shown"); // no map: no zoom reason
+  });
+
+  it("says off, locked, needs its requirement, or no data before it looks at the zoom", () => {
+    expect(layerState("owner", view(), tiles)).toBe("off");
+    expect(layerState("owner", view({ layers: { ...DEFAULT_LAYER_STATE, owner: true, cadastre: false }, zoom: 9.5 }), tiles)).toBe("requires");
+    expect(layerState("owner", view({ layers: { ...DEFAULT_LAYER_STATE, owner: true } }), tiles)).toBe("shown");
+    expect(layerState("landuse", view({ layers: { ...DEFAULT_LAYER_STATE, landuse: true }, zoom: 9.5 }), tiles)).toBe("no_data");
+    const price = { ...DEFAULT_LAYER_STATE, heatMkt: true };
+    expect(layerState("heatMkt", view({ layers: price }), tiles)).toBe("locked");
+    expect(layerState("heatMkt", view({ layers: price, marketUnlocked: true, zoom: 9 }), tiles)).toBe("shown"); // zone cells from 8
+    const far = { ...DEFAULT_LAYER_STATE, heatFAR: true };
+    expect(layerState("heatFAR", view({ layers: far, zoom: 9.5 }), tiles)).toBe("zoom_in");
+  });
+
+  it("round-trips every card's state through one selector string", () => {
+    const key = layerStatesKey(view({ zoom: 10.64 }), tiles);
+    const states = parseLayerStates(key);
+    expect(Object.keys(states)).toEqual(LAYERS.map((l) => l.id));
+    expect(states).toMatchObject({ zones: "shown", cadastre: "zoom_in", owner: "off", heatMkt: "locked" });
+    expect(layerStatesKey(view({ zoom: 10.7 }), tiles)).toBe(key); // no change inside a zoom band
+  });
+});
+
+describe("camera fits", () => {
+  it("never sends maxZoom: undefined (Mapbox's fit turns NaN and is dropped)", () => {
+    expect(fitOptions(24)).toEqual({ padding: 24 });
+    expect("maxZoom" in fitOptions(24)).toBe(false);
+    expect(fitOptions(96, 18)).toEqual({ padding: 96, maxZoom: 18 });
+  });
+
+  it("keeps room to fit into in a small box", () => {
+    expect(fitPadding(24, 842, 838)).toBe(24);
+    expect(fitPadding(96, 375, 150)).toBe(74);
+    expect(fitPadding(24, 0, 0)).toBe(0);
   });
 });
 
@@ -126,6 +233,16 @@ describe("legend", () => {
       ctx({ layers: { ...DEFAULT_LAYER_STATE, heatFAR: true }, classes, choropleth: { param: "max_height_m", price: "expected" } }),
     ).find((x) => x.title === "Building height")!;
     expect(height.rows.map((r) => r.label)).toEqual(["12"]);
+  });
+
+  it("says why a layer that is on draws nothing: zoom in (rows kept) or no data yet (no rows)", () => {
+    const layers = { ...DEFAULT_LAYER_STATE, landuse: true };
+    const groups = legendGroups(ctx({ layers, states: { cadastre: "zoom_in", landuse: "no_data" } }));
+    const cad = groups.find((g) => g.title === "Cadastral parcels")!;
+    expect(cad.note).toBe("zoom in to see");
+    expect(cad.rows[0].label).toBe("Parcel outline");
+    expect(groups.find((g) => g.title === "Land use")).toEqual({ title: "Land use", note: "no data yet", rows: [] });
+    expect(groups.find((g) => g.title === "Urban parcels")!.note).toBeUndefined();
   });
 
   it("shows the price bands only with the market entitlement", () => {

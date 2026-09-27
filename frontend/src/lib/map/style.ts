@@ -8,7 +8,8 @@
  * Source-layers are the publish catalogue's (`backend/jobs/publish_layers.py`). Zones outside
  * coverage (`covered: false`) are drawn muted with a "no data yet" hatch, never in a type colour.
  */
-import { LAYERS, ZONE_TYPES, isDrawn, type ChoroplethState, type LayerId } from "@/lib/layers";
+import type { TilesCurrent } from "@/lib/api/types";
+import { ZONE_TYPES, isDrawn, layerById, servedMinZoom, type ChoroplethState, type LayerId } from "@/lib/layers";
 
 import { hasValue, noValue, paramScheme, priceMetric, priceScheme, type CellClasses } from "./classes";
 
@@ -180,15 +181,23 @@ const OWNER = new Map<string, LayerId>(
 );
 
 /**
- * UrbanView's map layers, bottom to top, each starting at the later of its own minimum zoom and
- * its registry entry's (`LAYERS[].minZoom`, the catalogue's range: nothing is in the tiles below).
+ * UrbanView's map layers, bottom to top, for a published version: each starts at the later of its
+ * own minimum zoom (labels) and the zoom its source-layer is built from — the tile pointer's
+ * per-layer range when it lists the source-layer, else the registry entry's (`LAYERS[].minZoom`,
+ * the catalogue's range). Nothing is in the tiles below it, and the rail says "zoom in to see" with
+ * the same number (`layerMinZoom`), so card and map never disagree.
  */
-export const UV_LAYERS: readonly LayerSpec[] = BASE_LAYERS.map((l) => {
-  const owner = OWNER.get(l.id);
-  const def = owner ? LAYERS.find((d) => d.id === owner) : undefined;
-  const minzoom = Math.max(l.minzoom ?? 0, def?.minZoom ?? 0);
-  return minzoom > 0 ? { ...l, minzoom } : l;
-});
+export function uvLayers(tiles?: TilesCurrent | null): LayerSpec[] {
+  return BASE_LAYERS.map((l) => {
+    const owner = OWNER.get(l.id);
+    const built = servedMinZoom(l["source-layer"], tiles) ?? (owner ? layerById(owner).minZoom : 0);
+    const minzoom = Math.max(l.minzoom ?? 0, built);
+    return minzoom > 0 ? { ...l, minzoom } : l;
+  });
+}
+
+/** The layers with the catalogue's zoom ranges (no pointer). */
+export const UV_LAYERS: readonly LayerSpec[] = uvLayers(null);
 
 /**
  * Which UrbanView layers are visible for the rail state. A dependent layer (ownership,

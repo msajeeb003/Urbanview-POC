@@ -148,6 +148,11 @@ interface ShellState {
 
   zoomLabel: string;
   scale: { label: string; widthPx: number };
+  /**
+   * The map's zoom level, null without a map (no token, or before it exists). The rail and the
+   * legend compare it with each layer's published zoom range (`layerState`).
+   */
+  zoom: number | null;
 
   /** Last toast; `visible` flips off after 2.6 s but the text stays for the fade-out. */
   toast: { id: number; message: string; visible: boolean } | null;
@@ -182,7 +187,7 @@ interface ShellState {
   flashUncovered(reason: UncoveredReason): void;
   setFocus(focus: CameraFocus | null): void;
   setDataVersion(version: string | null): void;
-  setCamera(zoomLabel: string, scale: { label: string; widthPx: number }): void;
+  setCamera(zoomLabel: string, scale: { label: string; widthPx: number }, zoom: number | null): void;
   showToast(message: string): void;
   hideToast(id: number): void;
   openModal(spec: ModalSpec): void;
@@ -237,6 +242,7 @@ export const useShell = create<ShellState>()((set) => ({
 
   zoomLabel: "1.0×",
   scale: { label: "250 m", widthPx: 80 },
+  zoom: null,
 
   toast: null,
   modal: null,
@@ -288,7 +294,7 @@ export const useShell = create<ShellState>()((set) => ({
   },
   setFocus: (focus) => set({ focus }),
   setDataVersion: (dataVersion) => set({ dataVersion }),
-  setCamera: (zoomLabel, scale) => set({ zoomLabel, scale }),
+  setCamera: (zoomLabel, scale, zoom) => set({ zoomLabel, scale, zoom }),
   showToast: (message) => set({ toast: { id: ++toastSeq, message, visible: true } }),
   hideToast: (id) => set((s) => (s.toast?.id === id ? { toast: { ...s.toast, visible: false } } : {})),
   openModal: (modal) => set({ modal }),

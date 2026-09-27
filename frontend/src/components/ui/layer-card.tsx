@@ -38,8 +38,12 @@ export interface LayerCardProps {
   paidLocked?: boolean;
   /** Optional mono sub-label under the name (ignored while paid-locked). */
   sub?: string;
-  /** The "not covered" note: the published data has nothing for this layer yet (muted sub-label). */
+  /**
+   * Why the map draws nothing for the layer right now (muted sub-label, under `sub` when both):
+   * `no_data` = the published data has nothing for it yet, `zoom_in` = it is drawn closer in.
+   */
   note?: string;
+  noteKind?: "no_data" | "zoom_in";
   /** "Subscription" on a paid-locked card (the shell's language). */
   lockedLabel?: string;
   title?: string;
@@ -56,6 +60,7 @@ export function LayerCard({
   paidLocked = false,
   sub,
   note,
+  noteKind = "no_data",
   lockedLabel = "Subscription",
   title,
   onClick,
@@ -80,11 +85,12 @@ export function LayerCard({
         <span className="nm">{name}</span>
         {paidLocked ? (
           <span className="subnm lockedsub">{lockedLabel}</span>
-        ) : sub ? (
-          <span className="subnm">{sub}</span>
-        ) : note ? (
-          <span className="subnm nodatasub">{note}</span>
-        ) : null}
+        ) : (
+          <>
+            {sub && <span className="subnm">{sub}</span>}
+            {note && <span className={noteKind === "zoom_in" ? "subnm zoomsub" : "subnm nodatasub"}>{note}</span>}
+          </>
+        )}
       </span>
       <span className="chk">
         <IconCheckTiny />

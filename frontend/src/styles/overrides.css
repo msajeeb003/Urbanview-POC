@@ -751,13 +751,15 @@
 
 /* 15. Shell language switch (not in the mock; the setup ticket's EN / ME, spec §10 item 2): a nav
       button showing the language it switches to, in the nav's style, kept at every width; and the
-      layer card's "no data yet" note (the published version has nothing for the layer). */
+      layer card's muted notes: "no data yet" (the published version has nothing for the layer) and
+      "zoom in to see" (the layer is on, the map is zoomed out past its data's range). */
 .topnav .langbtn {
   font-family: var(--mono);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
-.lyr .subnm.nodatasub {
+.lyr .subnm.nodatasub,
+.lyr .subnm.zoomsub {
   color: var(--ink-3);
 }
 

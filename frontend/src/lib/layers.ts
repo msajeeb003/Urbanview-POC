@@ -8,6 +8,10 @@
  * Cadastral and urban (planned) parcels are separate layers and are never merged. Names, group
  * titles and legend text shown on screen come from the string table (`layer.<id>`, `group.<id>`,
  * `legend.*`, `zoneType.*`) through the legend context's translator; `name` is the English one.
+ *
+ * `layerState` is the one answer the rail, the legend and the map share about a card: off, locked,
+ * on but waiting for its required layer, on with nothing published, on but zoomed out past the
+ * range its data is drawn at, or shown. A card that is on never silently draws nothing.
  */
 import type { TilesCurrent } from "@/lib/api/types";
 import { translate, type Translate } from "@/lib/i18n/strings";
@@ -57,6 +61,8 @@ export type LegendMark =
 export interface LegendGroup {
   title: string;
   unit?: string;
+  /** Why the layer draws nothing right now ("zoom in to see", "no data yet"), next to the title. */
+  note?: string;
   rows: { mark: LegendMark; label: string }[];
 }
 
@@ -70,6 +76,8 @@ export interface LegendContext {
   marketUnlocked: boolean;
   choropleth: ChoroplethState;
   classes: CellClasses | null | undefined;
+  /** Each card's `layerState` (the map's zoom and the published version); absent = all shown. */
+  states?: Partial<Record<LayerId, LayerState>>;
   /** The shell's translator (English when absent). */
   t?: Translate;
 }
@@ -90,7 +98,10 @@ export interface LayerDef {
   swatch: Swatch;
   /** Source-layers in the published tile archive; empty for the Mapbox base style. */
   published: string[];
-  /** Lowest zoom the archive has features for (the catalogue's range). */
+  /**
+   * Lowest zoom the archive has features for (the catalogue's range, `publish_layers.LAYERS`);
+   * the tile pointer's own per-layer range wins when it lists one (`layerMinZoom`).
+   */
   minZoom: number;
   legend: (ctx: LegendContext) => LegendGroup | null;
 }
@@ -254,7 +265,7 @@ export const LAYERS: readonly LayerDef[] = [
     choropleth: "price",
     swatch: { kind: "heat2" },
     published: ["zone_cells"],
-    minZoom: 10,
+    minZoom: 8,
     legend: (ctx) => {
       if (!ctx.marketUnlocked) return null;
       const served = ctx.classes?.zone_cells?.[priceMetric(ctx.choropleth.price).column];
@@ -316,15 +327,96 @@ export function toggleLayer(
  * features (a layer missing from the list was left out of the build for the same reason). Only
  * said of a published archive, and never of the base map.
  */
-export function hasNoData(layer: LayerDef, tiles: TilesCurrent | undefined): boolean {
+export function hasNoData(layer: LayerDef, tiles: TilesCurrent | null | undefined): boolean {
   if (!tiles || tiles.status !== "published" || !tiles.archive_url || layer.published.length === 0) return false;
   const counts = new Map((tiles.layers ?? []).map((l) => [l.id, l.features]));
   return layer.published.every((id) => !counts.get(id));
 }
 
-/** Legend groups for the drawn layers, in rail order; empty = "No overlays active". */
+/**
+ * Legend groups for the layers that are on, in rail order; empty = "No overlays active". A layer
+ * the map cannot draw right now says why next to its title: "zoom in to see" (its rows stay: they
+ * are what appears closer in) or "no data yet" (no rows: nothing will appear until a publish).
+ */
 export function legendGroups(ctx: LegendContext): LegendGroup[] {
   return LAYERS.filter((l) => ctx.layers[l.id] && (!l.paid || ctx.marketUnlocked))
-    .map((l) => l.legend(ctx))
+    .map((l): LegendGroup | null => {
+      const group = l.legend(ctx);
+      if (!group) return null;
+      const state = ctx.states?.[l.id];
+      if (state === "no_data") return { title: group.title, note: tx(ctx)("legend.noDataYet"), rows: [] };
+      if (state === "zoom_in") return { ...group, note: tx(ctx)("legend.zoomIn") };
+      return group;
+    })
     .filter((g): g is LegendGroup => !!g);
+}
+
+/**
+ * Lowest zoom the map draws the card's data at: the published archive's range for its
+ * source-layers (the tile pointer lists each one's `min_zoom`, as built after the publish job's
+ * clamps), else the catalogue's value in the registry. A card with several source-layers draws
+ * from the lowest of them; the base map (no source-layer) from 0.
+ */
+export function layerMinZoom(layer: LayerDef, tiles: TilesCurrent | null | undefined): number {
+  if (layer.published.length === 0) return 0;
+  return Math.min(...layer.published.map((id) => servedMinZoom(id, tiles) ?? layer.minZoom));
+}
+
+/**
+ * The pointer lists the source-layer with no feature: the publish job left it out of the archive,
+ * so the map adds no style layer for it (Mapbox would only warn that it does not exist).
+ */
+export function sourceLayerEmpty(sourceLayer: string, tiles: TilesCurrent | null | undefined): boolean {
+  const served = tiles?.layers?.find((l) => l.id === sourceLayer);
+  return !!served && !served.features;
+}
+
+/** The pointer's minimum zoom for one source-layer, or null when it does not list it. */
+export function servedMinZoom(sourceLayer: string, tiles: TilesCurrent | null | undefined): number | null {
+  const served = tiles?.layers?.find((l) => l.id === sourceLayer);
+  return served && Number.isFinite(served.min_zoom) ? served.min_zoom : null;
+}
+
+/**
+ * What a card's layer does on the map right now:
+ * - `locked`: paid, without the market entitlement (the card opens the offer, nothing is drawn);
+ * - `off`: switched off;
+ * - `requires`: on, but it shades a layer that is off (the rail's dep note, the legend's suffix);
+ * - `no_data`: on, but the published version has no feature for it;
+ * - `zoom_in`: on, but the map is zoomed out past the range its data is published for;
+ * - `shown`: drawn.
+ * Without a map (`zoom` null) the zoom never hides a layer.
+ */
+export type LayerState = "locked" | "off" | "requires" | "no_data" | "zoom_in" | "shown";
+
+export interface LayerView {
+  layers: Record<LayerId, boolean>;
+  marketUnlocked: boolean;
+  /** The map's zoom, or null before the map exists (no token, not loaded yet). */
+  zoom: number | null;
+}
+
+export function layerState(id: LayerId, view: LayerView, tiles: TilesCurrent | null | undefined): LayerState {
+  const l = layerById(id);
+  if (l.paid && !view.marketUnlocked) return "locked";
+  if (!view.layers[id]) return "off";
+  if (l.requires && !view.layers[l.requires]) return "requires";
+  if (hasNoData(l, tiles)) return "no_data";
+  // the style draws a layer from its minzoom on (Mapbox: zoom >= minzoom); a hair of tolerance for
+  // the zoom a fit or an animation ends on
+  if (view.zoom != null && view.zoom < layerMinZoom(l, tiles) - 1e-6) return "zoom_in";
+  return "shown";
+}
+
+/**
+ * Every card's state as one string in rail order ("docareas:shown,base:shown,…"): a stable value
+ * for store selectors, so the rail and the legend re-render when a state changes, not on every
+ * camera frame. `parseLayerStates` reads it back.
+ */
+export function layerStatesKey(view: LayerView, tiles: TilesCurrent | null | undefined): string {
+  return LAYERS.map((l) => `${l.id}:${layerState(l.id, view, tiles)}`).join(",");
+}
+
+export function parseLayerStates(key: string): Record<LayerId, LayerState> {
+  return Object.fromEntries(key.split(",").map((pair) => pair.split(":"))) as Record<LayerId, LayerState>;
 }
