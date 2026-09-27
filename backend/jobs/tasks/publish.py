@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from core.parcel_links import LinkRules
 from jobs.base import JobContext, JobResult, JobTask
 from jobs.celery_app import celery_app
 from jobs.publish_pipeline import PublishPipeline
@@ -81,8 +82,7 @@ async def _publish_approved(job: JobContext) -> JobResult:
             storage=storage,
             tile_builder=tile_builder,
             municipality_id=job.municipality_id,
-            min_overlap_m2=settings.locate_min_overlap_m2,
-            min_overlap_fraction=settings.locate_min_overlap_fraction,
+            link_rules=LinkRules.from_settings(settings),
             keep_versions=settings.publish_keep_versions,
             min_zoom=settings.tiles_min_zoom,
             max_zoom=settings.tiles_max_zoom,

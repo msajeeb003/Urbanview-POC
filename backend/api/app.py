@@ -102,14 +102,9 @@ def create_app(
                 min_overlap_m2=settings.locate_min_overlap_m2,
                 min_overlap_fraction=settings.locate_min_overlap_fraction,
             )
-            # Same links, same thresholds: the panel and locate agree on which planned urban
-            # parcel corresponds to a cadastral parcel.
-            app.state.panel_service = PanelService(
-                municipality,
-                app.state.session_factory,
-                min_overlap_m2=settings.locate_min_overlap_m2,
-                min_overlap_fraction=settings.locate_min_overlap_fraction,
-            )
+            # The panels read the published links (core.parcel_links), which the publish job
+            # computes with locate's thresholds.
+            app.state.panel_service = PanelService(municipality, app.state.session_factory)
             app.state.zone_index_service = ZoneIndexService(
                 app.state.session_factory, municipality_id=municipality.id
             )

@@ -8,18 +8,17 @@ touched (rejected or under-review values are simply absent). ``data_version`` is
 current ``publish_versions`` row (``is_current``), read fresh on every call.
 
 Parameters: ``municipality_id`` and ``id`` for every statement; the cadastral and urban
-statements also take ``min_overlap_m2`` and ``min_overlap_fraction`` (the locate thresholds that
-decide when a planned urban parcel and a cadastral parcel are linked) and ``tz`` (the
-municipality's time zone: the market inputs are the version that applies on its local date,
-``core.assumptions``).
+statements also take ``tz`` (the municipality's time zone: the market inputs are the version that
+applies on its local date, ``core.assumptions``).
 
 Resolution rules shared with locate: the governing document of a cadastral parcel is the
 *adopted* document whose coverage contains ``ST_PointOnSurface(geom)``, most specific (smallest
-coverage) first; a cadastral parcel and a planned urban parcel are linked when their overlap is at
-least ``min_overlap_m2`` and ``min_overlap_fraction`` of the cadastral area; only urban parcels of
-adopted documents are linked. The primary urban parcel of a cadastral panel is the link with the
-largest overlap, then the smallest planned area, then the lowest id (contract 5.3); the primary
-cadastral parcel of an urban panel is the link with the largest overlap.
+coverage) first. The cadastral <-> planned parcel links are the published ones of the current
+version (``parcel_links``, computed by the publish job with locate's thresholds, ranked and
+classified by ``core.parcel_links``) to planned parcels of documents still adopted, live and
+current. The primary urban parcel of a cadastral panel is the rank-1 link: largest overlap, then
+the smallest planned area, then the lowest id (contract 5.3); the primary cadastral parcel of an
+urban panel is the link with the largest overlap.
 """
 
 from __future__ import annotations
@@ -281,7 +280,8 @@ SELECT
 
 # --- cadastral ------------------------------------------------------------------------------------
 
-_LINK_ORDER = "overlap_m2 DESC, area_m2 ASC, id ASC"
+_LINK_ORDER = "rank ASC, id ASC"  # the stored rank: largest overlap, smallest planned area, id
+_CADASTRAL_ORDER = "overlap_m2 DESC, area_m2 ASC, id ASC"
 
 CADASTRAL_SQL = f"""WITH{_VERSION},{_FIELDS},
 cad AS (
@@ -305,26 +305,30 @@ doc AS (
     ORDER BY ST_Area(d.coverage_geom) ASC, d.id DESC
     LIMIT 1
 ),
-ups AS (
-    -- planned urban parcels of adopted documents overlapping the cadastral parcel
+ups_kept AS (
+    -- the published links of the current version (core.parcel_links: slivers dropped, ranked,
+    -- classified) to planned parcels of documents still adopted, live and current
     SELECT u.id, u.urban_parcel_number, u.area_m2, u.document_id, u.block_id,
            {_document_ref("d")} AS document,
            CASE WHEN b.id IS NULL THEN NULL
                 ELSE jsonb_build_object('id', b.id, 'block_ref', b.block_ref) END AS urban_block,
-           ST_Area(ST_Intersection(u.geom, cad.geom)::geography) AS overlap_m2
-    FROM urban_parcels u
-    JOIN cad ON ST_Intersects(u.geom, cad.geom)
-    JOIN planning_documents d ON d.id = u.document_id AND d.status = 'adopted' AND d.coverage_live
+           l.overlap_area_m2 AS overlap_m2, l.overlap_ratio_of_cadastral,
+           l.overlap_ratio_of_urban, l.relation, l.rank
+    FROM parcel_links l
+    JOIN urban_parcels u ON u.id = l.urban_parcel_id
+    JOIN planning_documents d ON d.id = u.document_id AND d.status = 'adopted'
+         AND d.coverage_live AND d.is_current_version
     LEFT JOIN urban_blocks b ON b.id = u.block_id
-    WHERE u.municipality_id = :municipality_id
+    WHERE l.publish_version_id = (SELECT id FROM version)
+      AND l.cadastral_parcel_id = CAST(:id AS bigint)
       AND EXISTS (SELECT 1 FROM doc)
 ),
-ups_kept AS (
-    SELECT *
-    FROM ups
-    WHERE overlap_m2 >= CAST(:min_overlap_m2 AS double precision)
-      AND overlap_m2 >= CAST(:min_overlap_fraction AS double precision)
-                        * (SELECT area_m2 FROM cad)
+link_case AS (
+    -- the parcel's relation in the current version: its primary link's row or its none row
+    SELECT relation, reduction_pct
+    FROM parcel_links
+    WHERE publish_version_id = (SELECT id FROM version)
+      AND cadastral_parcel_id = CAST(:id AS bigint) AND rank = 1
 ),
 primary_up AS (
     SELECT * FROM ups_kept ORDER BY {_LINK_ORDER} LIMIT 1
@@ -379,9 +383,13 @@ SELECT
     (SELECT jsonb_build_object('id', id, 'name', name) FROM zone) AS zone,
     (SELECT COALESCE(jsonb_agg(jsonb_build_object(
         'id', id, 'urban_parcel_number', urban_parcel_number, 'area_m2', area_m2,
-        'overlap_m2', overlap_m2, 'document', document, 'urban_block', urban_block)
+        'overlap_m2', overlap_m2, 'overlap_ratio_of_cadastral', overlap_ratio_of_cadastral,
+        'overlap_ratio_of_urban', overlap_ratio_of_urban, 'relation', relation,
+        'document', document, 'urban_block', urban_block)
         ORDER BY {_LINK_ORDER}), '[]'::jsonb)
      FROM ups_kept) AS urban_parcels,
+    (SELECT jsonb_build_object('relation', relation, 'reduction_pct', reduction_pct)
+     FROM link_case) AS link_case,
     (SELECT docs FROM amendments) AS amendments,
     (SELECT fields FROM fields) AS fields,
     (SELECT vals FROM values_json) AS "values",{_MARKET_COLUMN},{_VERSION_COLUMNS}
@@ -437,20 +445,15 @@ zone_pick AS (
 zone AS (
     SELECT z.id, z.name FROM zones z WHERE z.id = (SELECT zone_id FROM zone_pick)
 ),{_AMENDMENTS},
-cads AS (
-    -- cadastral parcels overlapping the planned parcel; the link thresholds are relative to the
-    -- cadastral area, exactly as for the cadastral panel and locate
-    SELECT c.id, c.parcel_number, c.sub_number, c.ko_name, c.street_address, c.area_m2,
-           ST_Area(ST_Intersection(c.geom, up.geom)::geography) AS overlap_m2
-    FROM cadastral_parcels c
-    JOIN up ON ST_Intersects(c.geom, up.geom)
-    WHERE c.municipality_id = :municipality_id AND c.retired_at IS NULL
-),
 cads_kept AS (
-    SELECT *
-    FROM cads
-    WHERE overlap_m2 >= CAST(:min_overlap_m2 AS double precision)
-      AND overlap_m2 >= CAST(:min_overlap_fraction AS double precision) * area_m2
+    -- the published links of the current version to this planned parcel (core.parcel_links)
+    SELECT c.id, c.parcel_number, c.sub_number, c.ko_name, c.street_address, c.area_m2,
+           l.overlap_area_m2 AS overlap_m2, l.overlap_ratio_of_cadastral,
+           l.overlap_ratio_of_urban, l.relation
+    FROM parcel_links l
+    JOIN cadastral_parcels c ON c.id = l.cadastral_parcel_id AND c.retired_at IS NULL
+    WHERE l.publish_version_id = (SELECT id FROM version)
+      AND l.urban_parcel_id = CAST(:id AS bigint)
 ),{_values("SELECT id FROM up", "SELECT document_id FROM up")},{_MARKET}
 SELECT
     (SELECT jsonb_build_object(
@@ -466,8 +469,9 @@ SELECT
     (SELECT COALESCE(jsonb_agg(jsonb_build_object(
         'parcel_id', id, 'parcel_number', parcel_number, 'sub_number', sub_number,
         'ko_name', ko_name, 'street_address', street_address, 'area_m2', area_m2,
-        'overlap_m2', overlap_m2)
-        ORDER BY {_LINK_ORDER}), '[]'::jsonb)
+        'overlap_m2', overlap_m2, 'overlap_ratio_of_cadastral', overlap_ratio_of_cadastral,
+        'overlap_ratio_of_urban', overlap_ratio_of_urban, 'relation', relation)
+        ORDER BY {_CADASTRAL_ORDER}), '[]'::jsonb)
      FROM cads_kept) AS cadastral_parcels,
     (SELECT docs FROM amendments) AS amendments,
     (SELECT fields FROM fields) AS fields,

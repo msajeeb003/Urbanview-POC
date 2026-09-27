@@ -31,7 +31,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from core.cadastre.dataset import refresh_derived_kos
-from core.parcel_links import recompute_current_links
+from core.parcel_links import LinkRules, recompute_current_links
 from core.storage import ObjectStorage
 
 SEEDS_DIR = Path(__file__).resolve().parents[2] / "database" / "seeds"
@@ -371,8 +371,7 @@ async def load_sample(
     links = await recompute_current_links(
         session,
         municipality_id=municipality_id,
-        min_overlap_m2=min_overlap_m2,
-        min_overlap_fraction=min_overlap_fraction,
+        rules=LinkRules(min_overlap_m2=min_overlap_m2, min_overlap_fraction=min_overlap_fraction),
     )
     counts["parcel_links"] = links["parcel_links"] if links else 0
     # the KO list of the parcel search: boundaries derived from the sample's parcels
@@ -618,8 +617,7 @@ async def load_synthetic_bulk(
     links = await recompute_current_links(
         session,
         municipality_id=municipality_id,
-        min_overlap_m2=min_overlap_m2,
-        min_overlap_fraction=min_overlap_fraction,
+        rules=LinkRules(min_overlap_m2=min_overlap_m2, min_overlap_fraction=min_overlap_fraction),
     )
     for table, _, _ in TABLES:
         await session.execute(text(f"ANALYZE {table}"))

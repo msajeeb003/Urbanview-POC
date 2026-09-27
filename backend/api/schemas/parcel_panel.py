@@ -21,10 +21,12 @@ from pydantic import BaseModel, Field
 
 from api.schemas.locate import LatLng
 from api.schemas.panel import (
+    RELATION_DESCRIPTION,
     AssumptionsVersion,
     BlockRef,
     DocumentCounts,
     DocumentRef,
+    LinkRelation,
     ZoneRef,
     ZoneTypicalParameters,
 )
@@ -81,7 +83,9 @@ class LinkedPlannedParcel(BaseModel):
     area_m2: float
     overlap_m2: float
     overlap_pct: float = Field(description="Share of the cadastral parcel covered, 0–100")
+    share_of_urban_pct: float = Field(description="Share of the planned parcel on it, 0–100")
     area_delta_m2: float = Field(description="planned − cadastral")
+    relation: LinkRelation = Field(description=RELATION_DESCRIPTION)
     rank: int = Field(description="1 = the calculation basis (largest overlap)")
     primary: bool
 
@@ -92,7 +96,22 @@ class CalculationBasisView(BaseModel):
     reason: BasisReason
     explanation_en: str
     explanation_me: str
-    split: bool = Field(description="The cadastral parcel lies in more than one planned parcel")
+    split: bool = Field(
+        description="Two or more planned parcels each cover at least LINK_SPLIT_MIN_FRACTION "
+        "(10 %) of the parcel"
+    )
+    relation: LinkRelation | None = Field(
+        default=None,
+        description=RELATION_DESCRIPTION + "; null when not covered or nothing is published",
+    )
+    no_urban_parcel: bool = Field(
+        default=False,
+        description='A covered parcel no planned parcel lies over: the "Not defined" state',
+    )
+    reduction_pct: float | None = Field(
+        default=None,
+        description="Share of the parcel in no planned parcel (taken for roads, public space), %",
+    )
     links: list[LinkedPlannedParcel] = Field(
         default_factory=list, description="From parcel_links of the current version, rank order"
     )

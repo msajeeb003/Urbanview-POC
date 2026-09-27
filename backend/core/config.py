@@ -177,6 +177,14 @@ class Settings(BaseSettings):
     # at least this many m² AND this share of the cadastral area (filters digitising slivers).
     locate_min_overlap_m2: float = Field(default=1.0, ge=0)
     locate_min_overlap_fraction: float = Field(default=0.02, ge=0, le=1)
+    # cadastral <-> planned parcel links (core.parcel_links, computed by the publish job): a
+    # cadastral parcel is split when two or more planned parcels each cover this share of it,
+    # merged when its planned parcel covers this share of two or more cadastral parcels; one-to-one
+    # parcels within this relative tolerance of each other are the same
+    link_split_min_fraction: float = Field(default=0.10, gt=0, le=1)
+    link_same_tolerance: float = Field(default=0.02, ge=0, lt=1)
+    # the agreed limit of a full recompute: slower runs are logged as a warning
+    parcel_links_max_seconds: float = Field(default=300, gt=0)
 
     # geocoding proxy (GET /v1/geocode, core.geocode)
     geocoder_provider: Literal["photon", "nominatim"] = "photon"

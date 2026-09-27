@@ -202,8 +202,11 @@ LAYERS: tuple[LayerSpec, ...] = (
                 " 'area_m2', c.area_m2, 'public_ownership', c.public_ownership,"
                 " 'restitution_or_legal_burden', c.restitution_or_legal_burden,"
                 " 'has_urban_parcel', l.urban_parcel_id IS NOT NULL,"
+                " 'no_urban_parcel', l.relation = 'none',"
                 " 'primary_urban_parcel_id', l.urban_parcel_id,"
-                " 'overlap_fraction', l.overlap_fraction, 'area_delta_m2', l.area_delta_m2,"
+                " 'relation', l.relation, 'reduction_pct', l.reduction_pct,"
+                " 'overlap_fraction', l.overlap_ratio_of_cadastral,"
+                " 'area_delta_m2', l.area_delta_m2,"
                 " 'zone_id', zc.id, 'zone_type', zc.zone_type)",
             )
         }

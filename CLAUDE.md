@@ -128,13 +128,17 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   rollback is a pointer flip and with no current version nothing is served. The sample's
   serving rows are version 1 from the seed loader.
 - One PostGIS statement per panel type (`panel_sql.PANEL_SQL`, CTEs + `jsonb_build_object`,
-  locate's style), nothing cached between requests. Governing document, cadastral ↔ planned
-  parcel links and the overlap thresholds are locate's (`LOCATE_MIN_OVERLAP_*`, handed to
-  `PanelService` in `api/app.py`), so both endpoints share `calculation_basis` (`urban` |
-  `cadastral`) and agree on which planned parcel corresponds to a cadastral parcel. A cadastral
-  panel with an urban basis embeds the **primary** link's planning and feasibility (largest
-  overlap, then smallest planned area, then lowest id); the other links sit in `urban_parcels`
-  (`split: true`).
+  locate's style), nothing cached between requests. The governing document is locate's rule;
+  the cadastral ↔ planned parcel links are the **published** ones of the current version
+  (`parcel_links`, see "Parcel links": computed by the publish job with locate's thresholds
+  `LOCATE_MIN_OVERLAP_*`), to planned parcels of documents still adopted, live and current. A
+  cadastral panel with an urban basis embeds the **primary** (rank-1) link's planning and
+  feasibility (largest overlap, then smallest planned area, then lowest id); every link sits in
+  `urban_parcels` with its shares of either parcel and the relation; the panel states
+  `relation` (same | reduced | enlarged | split | merged | none), `split` (two or more planned
+  parcels each over `LINK_SPLIT_MIN_FRACTION` of the parcel), `no_urban_parcel` (covered, no
+  planned parcel: the "Not defined" state) and `reduction_pct`; the urban panel's linked
+  cadastral parcels carry theirs.
 - **Field dictionary** `planning_fields` (product-wide, no `municipality_id`, seeded by migration
   0003, never by the seed loader): 13 rows in `sort_order`, the 11 Group 1 fields (`land_use`,
   `max_site_coverage_pct` IZ %, `max_far` II, `max_height_m`, `max_floors`, `building_line_m`,
@@ -250,15 +254,17 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   in one response, in display order, with bilingual labels (field dictionary + `panel_text`, the
   frontend hard-codes none; contract `docs/specs/panel-payload.md` section 13). One PostGIS
   statement (`PARCEL_PANEL_SQL`), pure builders (`build_parcel_panel`), the shared engine.
-  `GET /v1/panel` stays as it was (live links, all four panel types).
+  `GET /v1/panel` keeps its shapes (all four panel types) and reads the same published links.
 - **Header:** KO, parcel number, title, address, zone, block, documents with status and role
   (`governing`, `basis` when the planned parcel's document differs, `amendment`), the two
   cadastral flags, areas (cadastral, planned = the basis planned parcel, linked total for a
   split, the plan's stated area, delta m² / %, `mismatch` + bilingual note, always surfaced) and
   `calculation_basis`: `basis` urban | cadastral, `area_m2`, `reason` planned_parcel | split |
-  no_planned_parcel | not_covered | unpublished with a bilingual explanation, and the `links`
-  **from `parcel_links` of the current version** (rank order, filtered to documents still
-  adopted, live and current; only for a covered parcel; rank 1 = the basis).
+  no_planned_parcel | not_covered | unpublished with a bilingual explanation, `relation`,
+  `split`, `no_urban_parcel`, `reduction_pct`, and the `links` **from `parcel_links` of the
+  current version** (rank order, filtered to documents still adopted, live and current; only for
+  a covered parcel; rank 1 = the basis; each with `overlap_pct`, `share_of_urban_pct`,
+  `relation`).
 - **Group 1:** the 11 stored fields; a value resolves parcel → block → zone → document (the
   same precedence as the `urban_parcels` tile layer) and always carries `source` {document id +
   name, page, bbox, `file_id` (stored_files, null for seeded documents), note, registry URL,
@@ -284,7 +290,8 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   data state, key `panel:{app_version}+{PANEL_PAYLOAD_FORMAT}:{m}:{kind}:{id}:{version_id}:{token}`
   (`PANEL_PAYLOAD_FORMAT` in `panel_cache.py`: bump it when a body changes for the same data, so a
   deploy never serves bodies of the previous code) where `token`
-  hashes the current version's creation time and the state that changes panels outside a publish
+  hashes the current version's creation time, its links' computation time (a standalone
+  recompute) and the state that changes panels outside a publish
   (documents' status / live / version / file columns, the market versions that apply today in the
   municipality's time zone — a scheduled version taking effect changes the key at local midnight —
   current zone parameter sets), read by `STAMP_SQL` before the data (an entry can only be newer
@@ -295,13 +302,48 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   computed and `bypass`, Redis skipped for 5 s. 404 for an unknown id (nothing cached), 200
   `covered: false` for an uncovered parcel, 503 without PostGIS. A hit is one statement.
 - **Links for every version:** the publish job writes `parcel_links` per version
-  (`core/parcel_links.py`, shared SQL); the seed loader computes them for the seeded version
-  and migration 0013 backfilled current versions that had none (defaults 1 m² / 2 %).
+  (`core/parcel_links.py`, see "Parcel links"); the seed loader computes them for the seeded
+  version, migration 0013 backfilled current versions that had none and 0026 classified the
+  existing ones in place.
 - Tests: `tests/test_parcel_panel_unit.py` (builders on canned rows, engine equality, cache) and
   `tests/integration/test_parcel_panel_postgis.py` (sources open the cited page, missing height,
   split / fallback / cadastral / uncovered, both engines and `/v1/panel` agree, zone panel, cache
   keys after admin changes, one statement per hit, index-backed plans, p95 < 200 ms cold and warm,
   `rejected` after a publish).
+
+## Parcel links (`backend/core/parcel_links.py`, migrations 0011 / 0026)
+
+- **Existing vs planned (BRD §2.2: "Show both", "Calculation basis", "Never silent").** For
+  every served cadastral parcel, which planned urban parcels (of adopted, live, current-version
+  documents) cover it and by how much, and the reverse: one statement per publish version.
+  Candidates from the GiST `&&` / `ST_Intersects` join; intersections and areas in the
+  municipality's metric CRS (the cadastre profile's `area_crs_epsg`, EPSG:25834); slivers below
+  `LOCATE_MIN_OVERLAP_M2` (1 m²) or `LOCATE_MIN_OVERLAP_FRACTION` (2 %) of the cadastral parcel
+  dropped; ranked like the panel's primary (largest overlap, smallest planned area, lowest id).
+- **Table `parcel_links`**: per version and pair `overlap_area_m2`, `overlap_ratio_of_cadastral`,
+  `overlap_ratio_of_urban`, both areas as the cadastre and the plan state them
+  (`cadastral_area_m2`, `urban_area_m2`), `area_delta_m2`, `relation`, `reduction_pct`, `rank`,
+  `dataset_version` (the version's label); a cadastral parcel with no planned parcel has one
+  `none` row (`urban_parcel_id` null, rank 1: the map's `no_urban_parcel`, the panel's "Not
+  defined"). Per version, so a rollback flips them with the pointer.
+- **Relation** of a cadastral parcel, on each of its rows, first match: `none`; `split` (two or
+  more planned parcels each cover `LINK_SPLIT_MIN_FRACTION` 10 % of it); `merged` (its planned
+  parcel covers that share of two or more cadastral parcels); `reduced` (its planned parcel
+  covers less than that share of it); `same` (each covers all but `LINK_SAME_TOLERANCE` 2 % of the
+  other); `enlarged` (the planned parcel larger by more than the tolerance); else `reduced`.
+  `reduction_pct` = the share of the cadastral parcel in no planned parcel (taken for roads /
+  public space): the client's example, cadastral 100 → planned 75, is `reduced` by 25 %.
+- **Runs** as the publish job's `links` step after the geometry step (same transaction);
+  standalone for QA: `python -m core.parcel_links summary | recompute [--version N] [--json]`
+  (parcels per relation, parcels without a planned parcel, average reduction of the reduced
+  parcels, merged planned parcels, cadastral parcels covered more than once). Every recompute
+  stores its summary with the rules, metric SRID, `duration_ms` and `computed_at` on
+  `publish_versions.links_summary` and logs the time; above `PARCEL_LINKS_MAX_SECONDS` (300, the
+  agreed limit) it logs a warning. Coverage switched live after a publish reaches the links at the
+  next publish or a `recompute`.
+- Tests: `tests/integration/test_parcel_links_postgis.py` (one fixture per relation drawn in the
+  metric CRS, shares of a split parcel summing to 100 %, the three panels, the QA command, the
+  logged recompute over the 10 000-parcel synthetic volume).
 
 ## Source viewer (`api/services/source.py`, `api/routers/v1/source.py`)
 
@@ -1016,7 +1058,9 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   counted as `values_rejected`, so the parcel panel can say `rejected` without reading staging)
   → `geometry` (staged batches, see below) → `links` (`parcel_links`: cadastral ↔ planned
   overlaps with locate's thresholds, `rank 1` = the panel's primary: largest overlap, smallest
-  planned area, lowest id; `cadastral_unmatched` counted) → `cells` (`heatmap_cells` per block
+  planned area, lowest id, the relation of every cadastral parcel, `none` rows; the step reports
+  `cadastral_unmatched`, the parcels per relation and the recompute time, stored on the version
+  as `links_summary`) → `cells` (`heatmap_cells` per block
   and zone: area-weighted coverage % and FAR, max height, GFA / saleable area / market value
   sums through `core.engine.feasibility.compute_feasibility` with the zone's assumptions that
   apply on the publish day (its saleable share too; a set scheduled for later reaches the cells
@@ -1034,7 +1078,8 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   zone, same properties; point layers are built with `--drop-rate=1` so no label is thinned out),
   `document_coverage`, `urban_blocks`, `urban_parcels` (with the effective parameters:
   parcel → block → zone → document scope, plus `max_gfa_m2`), `cadastral_parcels` (with
-  `has_urban_parcel`, `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`, and the
+  `has_urban_parcel`, `no_urban_parcel`, `relation`, `reduction_pct`,
+  `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`, and the
   `zone_id` / `zone_type` of the zone containing the parcel's point on surface),
   `public_ownership`, `legal_burdens` (cadastral flags as their own layers), `land_use`,
   `traffic_network` (generic `layer_features`), `block_cells`, `zone_cells` (heatmaps). Empty

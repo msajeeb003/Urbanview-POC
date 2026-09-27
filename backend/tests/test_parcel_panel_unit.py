@@ -192,8 +192,10 @@ UP12 = {
     "urban_parcel_number": "UP 12",
     "area_m2": 959.6,
     "overlap_m2": 959.6,
-    "overlap_fraction": 0.7,
+    "overlap_ratio_of_cadastral": 0.7,
+    "overlap_ratio_of_urban": 1.0,
     "area_delta_m2": -411.3,
+    "relation": "reduced",
     "rank": 1,
     "document": DOC2,
     "urban_block": {"id": 1, "block_ref": "C2-01"},
@@ -272,6 +274,7 @@ def row(**overrides: Any) -> dict[str, Any]:
         "urban_block": {"id": 1, "block_ref": "C2-01"},
         "zone": {"id": 1, "name": "Centar"},
         "links": [UP12],
+        "link_case": {"relation": "reduced", "reduction_pct": 30.0},
         "amendments": [DOC3],
         "fields": FIELDS,
         "values": all_values(),
@@ -395,7 +398,9 @@ def test_header_explains_the_planned_parcel_basis():
     )
     assert "UP 12" in basis.explanation_en and "70%" in basis.explanation_en
     assert "UP 12" in basis.explanation_me and basis.links_source == "parcel_links"
+    assert (basis.relation, basis.reduction_pct, basis.no_urban_parcel) == ("reduced", 30.0, False)
     (link,) = basis.links
+    assert (link.relation, link.share_of_urban_pct) == ("reduced", 100.0)
     assert (link.urban_parcel_number, link.overlap_pct, link.rank, link.primary) == (
         "UP 12",
         70.0,
@@ -421,8 +426,9 @@ def test_split_parcel_explains_the_primary_link():
         "urban_parcel_number": "UP 31",
         "area_m2": 1233.8,
         "overlap_m2": 1233.8,
-        "overlap_fraction": 0.5625,
+        "overlap_ratio_of_cadastral": 0.5625,
         "area_delta_m2": -959.6,
+        "relation": "split",
     }
     up32 = {
         **UP12,
@@ -430,14 +436,17 @@ def test_split_parcel_explains_the_primary_link():
         "urban_parcel_number": "UP 32",
         "area_m2": 904.8,
         "overlap_m2": 904.8,
-        "overlap_fraction": 0.4125,
+        "overlap_ratio_of_cadastral": 0.4125,
         "area_delta_m2": -1288.6,
+        "relation": "split",
         "rank": 2,
     }
     cad = {**CAD, "area_m2": 2193.4}
-    panel = build_parcel_panel(row(cadastral=cad, links=[up31, up32]), PROFILE)
+    case = {"relation": "split", "reduction_pct": 2.5}
+    panel = build_parcel_panel(row(cadastral=cad, links=[up31, up32], link_case=case), PROFILE)
     basis = panel.header.calculation_basis
     assert basis.reason == "split" and basis.split and basis.area_m2 == 1233.8
+    assert basis.relation == "split" and basis.reduction_pct == 2.5 and not basis.no_urban_parcel
     assert [(li.urban_parcel_number, li.primary) for li in basis.links] == [
         ("UP 31", True),
         ("UP 32", False),
@@ -449,9 +458,11 @@ def test_split_parcel_explains_the_primary_link():
 
 
 def test_no_planned_parcel_uses_the_cadastral_area():
-    panel = build_parcel_panel(row(links=[]), PROFILE)
+    case = {"relation": "none", "reduction_pct": None}
+    panel = build_parcel_panel(row(links=[], link_case=case), PROFILE)
     basis = panel.header.calculation_basis
     assert (basis.basis, basis.area_m2, basis.reason) == ("cadastral", 1370.9, "no_planned_parcel")
+    assert (basis.relation, basis.no_urban_parcel, basis.reduction_pct) == ("none", True, None)
     assert "DUP Centar – Zona C2" in basis.explanation_en
     assert panel.header.areas.planned_m2 is None and not panel.header.areas.mismatch
     assert panel.group2.basis_area_m2 == 1370.9

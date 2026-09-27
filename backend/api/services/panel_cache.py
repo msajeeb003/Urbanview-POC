@@ -37,7 +37,7 @@ log = logging.getLogger("urbanview.panel.cache")
 # Part of the key namespace (``api.app``): bump it when a panel's body changes for the same data
 # (a new field, a new rule), so a deploy never serves bodies cached by the previous code.
 # 2: effective-dated assumptions and the zone's saleable share (migration 0023).
-PANEL_PAYLOAD_FORMAT = "2"
+PANEL_PAYLOAD_FORMAT = "3"
 
 CacheStatus = str  # hit | miss | bypass | revalidated
 
@@ -112,7 +112,8 @@ class PanelCache:
                 .mappings()
                 .one()
             )
-        parts = "|".join(str(row[k]) for k in ("version_created", "documents", "market", "typical"))
+        keys = ("version_created", "links_computed", "documents", "market", "typical")
+        parts = "|".join(str(row.get(k)) for k in keys)
         token = hashlib.sha1(parts.encode("utf-8")).hexdigest()[:16]
         version_id = row["version_id"]
         return Stamp(version_id=int(version_id) if version_id is not None else None, token=token)

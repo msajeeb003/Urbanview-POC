@@ -390,9 +390,12 @@ confirms the numbers; never regenerate it from an engine.
   flags: {public_ownership: bool, restitution_or_legal_burden: bool,
           note_en: "false means not flagged in the cadastral extract", note_me: "false znači da nije označeno u katastarskom izvodu"},
   urban_parcel_defined: bool,
-  urban_parcel: UrbanLink | null,          // primary: largest overlap, then smallest planned area, then lowest id (locate's rule)
-  urban_parcels: [UrbanLink],              // all links ≥ thresholds, same order
-  split: bool,                             // more than one link
+  urban_parcel: UrbanLink | null,          // primary (rank 1): largest overlap, then smallest planned area, then lowest id
+  urban_parcels: [UrbanLink],              // every published link of the current version, rank order
+  split: bool,                             // two or more planned parcels each cover ≥ LINK_SPLIT_MIN_FRACTION (10 %) of the parcel
+  relation: "same" | "reduced" | "enlarged" | "split" | "merged" | "none" | null,   // null when not covered or unpublished
+  no_urban_parcel: bool,                   // covered and no planned parcel: the "Not defined" state
+  reduction_pct: number | null,            // share of the parcel in no planned parcel (roads, public space), %
   areas: Areas,                            // cadastral vs primary urban parcel; urban fields null when none
   calculation_basis: "urban" | "cadastral",
   basis_area_m2,
@@ -400,12 +403,19 @@ confirms the numbers; never regenerate it from an engine.
   market_inputs: MarketInputsBlock | null, assumptions: AssumptionsBlock | null, feasibility: FeasibilityBlock | null,   // same condition
   covered: bool,                           // false when no adopted document governs the parcel → planning/market/assumptions/feasibility null
   centroid: {lat, lng}, geometry: GeoJSON }
-UrbanLink = {id, urban_parcel_number, area_m2, overlap_m2, share_of_cadastral_pct, share_of_linked_pct,
+UrbanLink = {id, urban_parcel_number, area_m2, overlap_m2, share_of_cadastral_pct, share_of_urban_pct,
+             share_of_linked_pct, relation,
              delta_pct,                    // (area_m2 − cadastral_area) / cadastral_area × 100
              document: DocumentRef, urban_block: BlockRef | null}
 ```
-Links use the same overlap thresholds as locate (`LOCATE_MIN_OVERLAP_M2`,
-`LOCATE_MIN_OVERLAP_FRACTION`); `share_of_linked_pct` values sum to 100 (± rounding). Governing
+Links are the published `parcel_links` of the current version (`core.parcel_links`, computed by
+the publish job with locate's overlap thresholds `LOCATE_MIN_OVERLAP_M2` /
+`LOCATE_MIN_OVERLAP_FRACTION`, areas in the metric CRS), to planned parcels of documents still
+adopted, live and current; `share_of_linked_pct` values sum to 100 (± rounding). Relation, first
+match: `none`; `split`; `merged` (its planned parcel covers ≥ 10 % of two or more cadastral
+parcels); `reduced` (its planned parcel covers < 10 % of it); `same` (each covers all but
+`LINK_SAME_TOLERANCE` 2 % of the other); `enlarged` (the planned parcel larger beyond the
+tolerance); else `reduced`. Cadastral 100 m² → planned 75 m²: `reduced`, `reduction_pct` 25. Governing
 document = the adopted document with the most-specific coverage containing
 `ST_PointOnSurface(geom)` (locate's rule); zone = governing document's zone, else the zone
 containing that point.
@@ -421,12 +431,13 @@ containing that point.
   header: Header,
   areas: Areas,                            // calculation_basis always "urban"
   calculation_basis: "urban", basis_area_m2,
+  relation: Relation | null,               // the primary cadastral parcel's relation (merged when the planned parcel joins several)
   covered: bool,                           // false when the parcel's document is not adopted → planning/market/assumptions/feasibility null, coverage_note_en/me
   planning: PlanningBlock | null, market_inputs: MarketInputsBlock | null,
   assumptions: AssumptionsBlock | null, feasibility: FeasibilityBlock | null,
   centroid, geometry }
 CadastralLink = {parcel_id, parcel_number, sub_number, ko_name, street_address, area_m2, overlap_m2,
-                 share_of_urban_pct, share_of_cadastral_pct}
+                 share_of_urban_pct, share_of_cadastral_pct, relation}
 ```
 
 ### 5.5 Shared blocks
@@ -674,10 +685,12 @@ English and Montenegrin on every item (the frontend hard-codes none). Numbers ar
     "calculation_basis": {
       "basis": "urban", "area_m2": 959.6, "reason": "planned_parcel",
       "explanation_en": "Calculations use planned urban parcel UP 12 (959.6 m²), which covers 70% of this cadastral parcel (1370.9 m²): …",
-      "explanation_me": "…", "split": false, "links_source": "parcel_links",
+      "explanation_me": "…", "split": false, "relation": "reduced", "no_urban_parcel": false,
+      "reduction_pct": 30.0, "links_source": "parcel_links",
       "links": [{"urban_parcel_id": 1, "urban_parcel_number": "UP 12", "document": {"…": "…"},
                  "urban_block": {"id": 1, "block_ref": "C2-01"}, "area_m2": 959.6, "overlap_m2": 959.6,
-                 "overlap_pct": 70.0, "area_delta_m2": -411.3, "rank": 1, "primary": true}]
+                 "overlap_pct": 70.0, "share_of_urban_pct": 100.0, "area_delta_m2": -411.3,
+                 "relation": "reduced", "rank": 1, "primary": true}]
     }
   },
   "group1": {
@@ -735,8 +748,9 @@ English and Montenegrin on every item (the frontend hard-codes none). Numbers ar
   zone → document and always has a `source`; `viewer_url` answers a signed link to the cited
   page (section 10). A null value always has a `reason`: `not_in_document`, `rejected` (the
   expert rejected the extracted value and nothing replaced it) or `unpublished`. Never a default.
-- **Calculation basis:** `planned_parcel` (one linked planned parcel), `split` (several: the
-  largest overlap is the basis, the others are listed with their own figures one click away via
+- **Calculation basis:** `planned_parcel` (linked planned parcel(s), not a split), `split` (two or
+  more each over 10 % of the parcel: the largest overlap is the basis, the others are listed with
+  their own figures one click away via
   `GET /v1/panel?type=urban&id=`), `no_planned_parcel` (cadastral area with the governing
   document's general values), `not_covered`, `unpublished`. Links come from `parcel_links` of
   the current publish version.

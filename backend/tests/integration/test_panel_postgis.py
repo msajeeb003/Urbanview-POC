@@ -125,12 +125,7 @@ PLANNING_PANELS = [
 # Tables large enough (with the synthetic volume) that a sequential scan would be a real defect;
 # the 1-40-row tables (zones, publish_versions, planning_fields, ...) are legitimately scanned.
 LARGE_TABLES = {"cadastral_parcels", "urban_parcels", "planning_documents"}
-COMMON = {
-    "municipality_id": "podgorica",
-    "min_overlap_m2": 1.0,
-    "min_overlap_fraction": 0.02,
-    "tz": "Europe/Podgorica",
-}
+COMMON = {"municipality_id": "podgorica", "tz": "Europe/Podgorica"}
 
 
 # --- helpers ------------------------------------------------------------------------------------
@@ -1458,12 +1453,14 @@ def _assert_indexed_and_fast(root: dict[str, Any], expected_indexes: set[str]) -
 @pytest.mark.parametrize("parcel_id", [1001, 1006, 1007])
 async def test_cadastral_plan_uses_spatial_indexes_and_is_fast(pg_conn, parcel_id):
     root = await _explain(pg_conn, CADASTRAL_SQL, {**COMMON, "id": parcel_id})
+    # the governing document by its coverage index; the links are the published ones
+    # (parcel_links by version + cadastral parcel), no spatial join at request time
     _assert_indexed_and_fast(
         root,
         {
             "cadastral_parcels_pkey",
             "idx_planning_documents_coverage_geom",
-            "idx_urban_parcels_geom",
+            "uq_parcel_links_version_pair",
         },
     )
 
@@ -1471,7 +1468,7 @@ async def test_cadastral_plan_uses_spatial_indexes_and_is_fast(pg_conn, parcel_i
 @pytest.mark.parametrize("urban_parcel_id", [1, 4, 5])
 async def test_urban_plan_uses_spatial_indexes_and_is_fast(pg_conn, urban_parcel_id):
     root = await _explain(pg_conn, URBAN_SQL, {**COMMON, "id": urban_parcel_id})
-    _assert_indexed_and_fast(root, {"idx_cadastral_parcels_geom"})
+    _assert_indexed_and_fast(root, {"ix_parcel_links_urban"})  # the published links
     index_names = {n["Index Name"] for n in _nodes(root["Plan"]) if n.get("Index Name")}
     # the parcel itself by primary key or by the (id, document_id) unique index
     assert index_names & {"urban_parcels_pkey", "uq_urban_parcels_id_document"}, index_names

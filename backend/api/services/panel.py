@@ -134,6 +134,11 @@ def _pct(part: float | None, whole: float | None) -> float | None:
     return _r1(part / whole * 100)
 
 
+def _ratio_pct(ratio: float | None) -> float:
+    """A stored overlap ratio (0-1, metric CRS) as a percentage, one decimal."""
+    return _r1(float(ratio) * 100) or 0.0 if ratio is not None else 0.0
+
+
 def _iso(value: Any) -> str | None:
     """ISO 8601; timestamps always in UTC with a ``Z`` (JSON built in SQL carries the session's
     offset, the ORM path carries the driver's), dates unchanged."""
@@ -620,17 +625,10 @@ class PanelService:
     """One statement per panel against the serving tables; no cache."""
 
     def __init__(
-        self,
-        profile: MunicipalityProfile,
-        session_factory: async_sessionmaker[AsyncSession],
-        *,
-        min_overlap_m2: float = 1.0,
-        min_overlap_fraction: float = 0.02,
+        self, profile: MunicipalityProfile, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
         self.profile = profile
         self.session_factory = session_factory
-        self.min_overlap_m2 = float(min_overlap_m2)
-        self.min_overlap_fraction = float(min_overlap_fraction)
 
     async def get_panel(
         self, panel_type: PanelType, entity_id: int, overrides: AssumptionOverrides
@@ -692,7 +690,7 @@ class PanelService:
     async def cadastral_panel(
         self, parcel_id: int, overrides: AssumptionOverrides
     ) -> CadastralPanel:
-        row = await self._execute(CADASTRAL_SQL, parcel_id, with_thresholds=True)
+        row = await self._execute(CADASTRAL_SQL, parcel_id)
         cad = _as_json(row["cadastral"])
         if cad is None:
             raise self._not_found("cadastral", parcel_id)
@@ -709,6 +707,11 @@ class PanelService:
         parcel_ref = _parcel_ref(cad["parcel_number"], cad["sub_number"])
         links = self._urban_links(_as_json(row["urban_parcels"]) or [], cadastral_area)
         primary = links[0] if links else None
+        # the parcel's case in the published links (core.parcel_links)
+        case = _as_json(row["link_case"]) or {}
+        relation = None
+        if covered and case:
+            relation = case.get("relation") if links else "none"
 
         basis: CalculationBasis
         if primary is not None:
@@ -789,7 +792,10 @@ class PanelService:
             urban_parcel_defined=primary is not None,
             urban_parcel=primary,
             urban_parcels=links,
-            split=len(links) > 1,
+            split=relation == "split",
+            relation=relation,
+            no_urban_parcel=covered and not links,
+            reduction_pct=case.get("reduction_pct") if links else None,
             areas=areas,
             calculation_basis=basis,
             basis_area_m2=basis_area,
@@ -820,7 +826,9 @@ class PanelService:
                     urban_parcel_number=u["urban_parcel_number"],
                     area_m2=_r1(area) or 0.0,
                     overlap_m2=_r1(overlap) or 0.0,
-                    share_of_cadastral_pct=_pct(overlap, cadastral_area) or 0.0,
+                    share_of_cadastral_pct=_ratio_pct(u.get("overlap_ratio_of_cadastral")),
+                    share_of_urban_pct=_ratio_pct(u.get("overlap_ratio_of_urban")),
+                    relation=u["relation"],
                     share_of_linked_pct=_pct(overlap, total_overlap) or 0.0,
                     delta_pct=_pct(area - cadastral_area, cadastral_area) or 0.0,
                     document=_document_ref(u["document"]),
@@ -832,7 +840,7 @@ class PanelService:
     # --- urban -------------------------------------------------------------------------------
 
     async def urban_panel(self, urban_parcel_id: int, overrides: AssumptionOverrides) -> UrbanPanel:
-        row = await self._execute(URBAN_SQL, urban_parcel_id, with_thresholds=True)
+        row = await self._execute(URBAN_SQL, urban_parcel_id)
         up = _as_json(row["urban_parcel"])
         if up is None:
             raise self._not_found("urban", urban_parcel_id)
@@ -924,6 +932,7 @@ class PanelService:
             ),
             areas=areas,
             basis_area_m2=basis_area,
+            relation=primary.relation if primary else None,
             covered=covered,
             coverage_note_en=note.en if note else None,
             coverage_note_me=note.me if note else None,
@@ -953,8 +962,9 @@ class PanelService:
                     street_address=c["street_address"],
                     area_m2=_r1(area) or 0.0,
                     overlap_m2=_r1(overlap) or 0.0,
-                    share_of_urban_pct=_pct(overlap, urban_area) or 0.0,
-                    share_of_cadastral_pct=_pct(overlap, area) or 0.0,
+                    share_of_urban_pct=_ratio_pct(c.get("overlap_ratio_of_urban")),
+                    share_of_cadastral_pct=_ratio_pct(c.get("overlap_ratio_of_cadastral")),
+                    relation=c["relation"],
                 )
             )
         return links
@@ -967,17 +977,12 @@ class PanelService:
             details={"type": panel_type, "id": entity_id},
         )
 
-    async def _execute(
-        self, sql: str, entity_id: int, *, with_thresholds: bool = False
-    ) -> Mapping[str, Any]:
+    async def _execute(self, sql: str, entity_id: int) -> Mapping[str, Any]:
         params: dict[str, Any] = {
             "municipality_id": self.profile.id,
             "id": entity_id,
             "tz": self.profile.timezone,
         }
-        if with_thresholds:
-            params["min_overlap_m2"] = self.min_overlap_m2
-            params["min_overlap_fraction"] = self.min_overlap_fraction
         async with self.session_factory() as session:
             result = await session.execute(text(sql), params)
             return result.mappings().one()

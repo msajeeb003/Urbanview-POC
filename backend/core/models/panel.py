@@ -103,6 +103,11 @@ class PublishVersion(Base):
         DateTime(timezone=True),
         comment="retention removed the archive object; the version cannot be restored",
     )
+    links_summary: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
+        comment="parcel links of the version (core.parcel_links): parcels per relation, links, "
+        "average reduction %, rules, duration, computed_at",
+    )
 
     __table_args__ = (
         UniqueConstraint("municipality_id", "label", name="uq_publish_versions_label"),

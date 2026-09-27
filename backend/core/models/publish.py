@@ -139,7 +139,14 @@ class LayerFeature(Base):
     )
 
 
+LINK_RELATIONS = ("same", "reduced", "enlarged", "split", "merged", "none")
+
+
 class ParcelLink(Base):
+    """Cadastral <-> planned urban parcel correspondence of a publish version (core.parcel_links,
+    BRD §2.2): one row per linked pair, one ``none`` row (no urban parcel) per cadastral parcel no
+    planned parcel covers; every row of a cadastral parcel carries its relation."""
+
     __tablename__ = "parcel_links"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -147,20 +154,45 @@ class ParcelLink(Base):
     publish_version_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("publish_versions.id", ondelete="CASCADE"), nullable=False
     )
+    dataset_version: Mapped[str | None] = mapped_column(
+        Text, comment="label of the publish version the links were computed for"
+    )
     cadastral_parcel_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("cadastral_parcels.id", ondelete="CASCADE"), nullable=False
     )
-    urban_parcel_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("urban_parcels.id", ondelete="CASCADE"), nullable=False
+    urban_parcel_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("urban_parcels.id", ondelete="CASCADE"),
+        comment="null = relation none: no planned parcel over the cadastral parcel",
     )
-    overlap_m2: Mapped[float] = mapped_column(Float(53), nullable=False)
-    overlap_fraction: Mapped[float] = mapped_column(
-        Float(53), nullable=False, comment="overlap / cadastral area"
+    cadastral_area_m2: Mapped[float] = mapped_column(
+        Float(53), nullable=False, comment="the cadastre's area of the cadastral parcel"
     )
-    area_delta_m2: Mapped[float] = mapped_column(
-        Float(53), nullable=False, comment="planned area - cadastral area"
+    urban_area_m2: Mapped[float | None] = mapped_column(
+        Float(53), comment="the plan's area of the planned parcel"
     )
-    rank: Mapped[int] = mapped_column(Integer, nullable=False, comment="1 = primary link")
+    overlap_area_m2: Mapped[float] = mapped_column(
+        Float(53), nullable=False, comment="intersection area in the municipality's metric CRS"
+    )
+    overlap_ratio_of_cadastral: Mapped[float] = mapped_column(
+        Float(53), nullable=False, comment="overlap / cadastral parcel area (metric CRS)"
+    )
+    overlap_ratio_of_urban: Mapped[float | None] = mapped_column(
+        Float(53), comment="overlap / planned parcel area (metric CRS)"
+    )
+    area_delta_m2: Mapped[float | None] = mapped_column(
+        Float(53), comment="planned area - cadastral area"
+    )
+    relation: Mapped[str] = mapped_column(
+        Text, nullable=False, comment="same | reduced | enlarged | split | merged | none"
+    )
+    reduction_pct: Mapped[float | None] = mapped_column(
+        Float(53),
+        comment="share of the cadastral parcel in no planned parcel (roads, public space), %",
+    )
+    rank: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="1 = primary link (or the none row)"
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -170,6 +202,20 @@ class ParcelLink(Base):
             name="uq_parcel_links_version_pair",
         ),
         Index("ix_parcel_links_urban", "publish_version_id", "urban_parcel_id"),
+        Index(
+            "uq_parcel_links_version_none",
+            "publish_version_id",
+            "cadastral_parcel_id",
+            unique=True,
+            postgresql_where=text("urban_parcel_id IS NULL"),
+        ),
+        CheckConstraint(
+            "relation IN ('same', 'reduced', 'enlarged', 'split', 'merged', 'none')",
+            name="ck_parcel_links_relation",
+        ),
+        CheckConstraint(
+            "(urban_parcel_id IS NULL) = (relation = 'none')", name="ck_parcel_links_none"
+        ),
     )
 
 

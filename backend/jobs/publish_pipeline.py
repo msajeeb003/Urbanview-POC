@@ -50,7 +50,7 @@ from core.cadastre.dataset import apply_cadastral_datasets
 from core.engine.feasibility import Assumptions, MarketInputs, compute_feasibility
 from core.engine.shared import DEFAULT_SALEABLE_SHARE, FORMULA_VERSION
 from core.gis.georef.stage import apply_georef_datasets
-from core.parcel_links import recompute_parcel_links
+from core.parcel_links import LinkRules, recompute_parcel_links
 from core.zones.staging import apply_zone_datasets
 from jobs.base import JobContext, JobResult
 from jobs.publish_layers import (
@@ -732,6 +732,7 @@ class PublishPipeline:
         municipality_id: str,
         min_overlap_m2: float = 1.0,
         min_overlap_fraction: float = 0.02,
+        link_rules: LinkRules | None = None,
         keep_versions: int = 3,
         min_zoom: int = 8,
         max_zoom: int = 16,
@@ -745,8 +746,9 @@ class PublishPipeline:
         self.tile_builder = tile_builder
         self.municipality_id = municipality_id
         self.timezone = timezone
-        self.min_overlap_m2 = float(min_overlap_m2)
-        self.min_overlap_fraction = float(min_overlap_fraction)
+        self.link_rules = link_rules or LinkRules(
+            min_overlap_m2=float(min_overlap_m2), min_overlap_fraction=float(min_overlap_fraction)
+        )
         self.keep_versions = max(2, int(keep_versions))
         self.min_zoom = int(min_zoom)
         self.max_zoom = int(max_zoom)
@@ -833,9 +835,19 @@ class PublishPipeline:
 
                 current = "links"
                 await progress.start(current)
-                counts.update(await self._compute_links(session, version_id))
+                links = await self._compute_links(session, version_id)
+                counts.update(
+                    parcel_links=links["parcel_links"],
+                    cadastral_unmatched=links["cadastral_unmatched"],
+                    link_relations=links["relations"],
+                    links_duration_ms=links["duration_ms"],
+                )
                 await progress.done(
-                    current, {k: counts[k] for k in ("parcel_links", "cadastral_unmatched")}
+                    current,
+                    {
+                        k: links[k]
+                        for k in ("parcel_links", "cadastral_unmatched", "relations", "duration_ms")
+                    },
                 )
 
                 current = "cells"
@@ -1084,13 +1096,12 @@ class PublishPipeline:
                         counts["geometry"][f"{layer_id}_carried"] = result.rowcount
         return counts
 
-    async def _compute_links(self, session: AsyncSession, version_id: int) -> dict[str, int]:
+    async def _compute_links(self, session: AsyncSession, version_id: int) -> dict[str, Any]:
         return await recompute_parcel_links(
             session,
             municipality_id=self.municipality_id,
             version_id=version_id,
-            min_overlap_m2=self.min_overlap_m2,
-            min_overlap_fraction=self.min_overlap_fraction,
+            rules=self.link_rules,
         )
 
     async def _compute_cells(self, session: AsyncSession, version_id: int) -> dict[str, int]:

@@ -362,15 +362,19 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     block_cells = {f["id"]: f["properties"] for f in tiles.layers["block_cells"]}
     assert block_cells[2]["max_far"] == 2.4 and block_cells[2]["price_band"] == 1
 
-    # parcel links: one primary per linked cadastral parcel, fractions within (0, 1]
+    # parcel links: one rank-1 row per cadastral parcel (its primary link or its none row),
+    # shares within (0, 1]
     links = await rows(
         app,
-        "SELECT cadastral_parcel_id, urban_parcel_id, rank, overlap_fraction FROM parcel_links "
+        "SELECT cadastral_parcel_id, urban_parcel_id, rank, overlap_ratio_of_cadastral AS ratio, "
+        "relation FROM parcel_links "
         "WHERE publish_version_id = :v AND cadastral_parcel_id IN (1001, 1002, 1003)",
         v=result["version_id"],
     )
     assert any(link["cadastral_parcel_id"] == 1001 and link["rank"] == 1 for link in links)
-    assert all(0 < link["overlap_fraction"] <= 1.0001 for link in links)
+    linked = [link for link in links if link["urban_parcel_id"] is not None]
+    assert linked and all(0 < link["ratio"] <= 1.0001 for link in linked)
+    assert all(link["relation"] == "none" for link in links if link["urban_parcel_id"] is None)
     primaries = [link for link in links if link["rank"] == 1]
     assert len({link["cadastral_parcel_id"] for link in primaries}) == len(primaries)
     cadastral = {f["id"]: f["properties"] for f in tiles.layers["cadastral_parcels"]}

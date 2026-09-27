@@ -2020,6 +2020,12 @@ export interface components {
             share_of_urban_pct: number;
             /** Share Of Cadastral Pct */
             share_of_cadastral_pct: number;
+            /**
+             * Relation
+             * @description The cadastral parcel's relation to the plan (core.parcel_links): same | reduced | enlarged | split | merged | none
+             * @enum {string}
+             */
+            relation: "same" | "reduced" | "enlarged" | "split" | "merged" | "none";
         };
         /** CadastralMunicipalities */
         CadastralMunicipalities: {
@@ -2107,9 +2113,25 @@ export interface components {
             urban_parcels?: components["schemas"]["UrbanLink"][];
             /**
              * Split
-             * @description More than one linked planned urban parcel
+             * @description Two or more planned parcels each cover at least LINK_SPLIT_MIN_FRACTION (10 %) of the parcel
              */
             split: boolean;
+            /**
+             * Relation
+             * @description The cadastral parcel's relation to the plan (core.parcel_links): same | reduced | enlarged | split | merged | none; null when not covered or nothing is published
+             */
+            relation?: ("same" | "reduced" | "enlarged" | "split" | "merged" | "none") | null;
+            /**
+             * No Urban Parcel
+             * @description A covered parcel no planned parcel lies over: the "Not defined" state
+             * @default false
+             */
+            no_urban_parcel: boolean;
+            /**
+             * Reduction Pct
+             * @description Share of the parcel in no planned parcel (taken for roads, public space), %
+             */
+            reduction_pct?: number | null;
             areas: components["schemas"]["Areas"];
             /**
              * Calculation Basis
@@ -2206,9 +2228,25 @@ export interface components {
             explanation_me: string;
             /**
              * Split
-             * @description The cadastral parcel lies in more than one planned parcel
+             * @description Two or more planned parcels each cover at least LINK_SPLIT_MIN_FRACTION (10 %) of the parcel
              */
             split: boolean;
+            /**
+             * Relation
+             * @description The cadastral parcel's relation to the plan (core.parcel_links): same | reduced | enlarged | split | merged | none; null when not covered or nothing is published
+             */
+            relation?: ("same" | "reduced" | "enlarged" | "split" | "merged" | "none") | null;
+            /**
+             * No Urban Parcel
+             * @description A covered parcel no planned parcel lies over: the "Not defined" state
+             * @default false
+             */
+            no_urban_parcel: boolean;
+            /**
+             * Reduction Pct
+             * @description Share of the parcel in no planned parcel (taken for roads, public space), %
+             */
+            reduction_pct?: number | null;
             /**
              * Links
              * @description From parcel_links of the current version, rank order
@@ -4108,10 +4146,21 @@ export interface components {
              */
             overlap_pct: number;
             /**
+             * Share Of Urban Pct
+             * @description Share of the planned parcel on it, 0–100
+             */
+            share_of_urban_pct: number;
+            /**
              * Area Delta M2
              * @description planned − cadastral
              */
             area_delta_m2: number;
+            /**
+             * Relation
+             * @description The cadastral parcel's relation to the plan (core.parcel_links): same | reduced | enlarged | split | merged | none
+             * @enum {string}
+             */
+            relation: "same" | "reduced" | "enlarged" | "split" | "merged" | "none";
             /**
              * Rank
              * @description 1 = the calculation basis (largest overlap)
@@ -6622,6 +6671,17 @@ export interface components {
             /** Share Of Cadastral Pct */
             share_of_cadastral_pct: number;
             /**
+             * Share Of Urban Pct
+             * @description Share of the planned parcel on this one
+             */
+            share_of_urban_pct: number;
+            /**
+             * Relation
+             * @description The cadastral parcel's relation to the plan (core.parcel_links): same | reduced | enlarged | split | merged | none
+             * @enum {string}
+             */
+            relation: "same" | "reduced" | "enlarged" | "split" | "merged" | "none";
+            /**
              * Share Of Linked Pct
              * @description Share of all linked overlap; sums to 100
              */
@@ -6675,6 +6735,11 @@ export interface components {
             calculation_basis: "urban";
             /** Basis Area M2 */
             basis_area_m2: number;
+            /**
+             * Relation
+             * @description The relation of the primary cadastral parcel (merged when the planned parcel joins several); null without a linked cadastral parcel
+             */
+            relation?: ("same" | "reduced" | "enlarged" | "split" | "merged" | "none") | null;
             /**
              * Covered
              * @description False when the parcel's document is not adopted

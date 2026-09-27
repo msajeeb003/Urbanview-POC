@@ -471,8 +471,10 @@ def linked_parcels(links_raw: Sequence[Mapping[str, Any]]) -> list[LinkedPlanned
                 urban_block=BlockRef(**raw["urban_block"]) if raw.get("urban_block") else None,
                 area_m2=_r1(raw["area_m2"]) or 0.0,
                 overlap_m2=_r1(raw["overlap_m2"]) or 0.0,
-                overlap_pct=_r1(float(raw["overlap_fraction"]) * 100) or 0.0,
+                overlap_pct=_r1(float(raw["overlap_ratio_of_cadastral"]) * 100) or 0.0,
+                share_of_urban_pct=_r1(float(raw["overlap_ratio_of_urban"] or 0) * 100) or 0.0,
                 area_delta_m2=_r1(raw["area_delta_m2"]) or 0.0,
+                relation=raw["relation"],
                 rank=int(raw["rank"]),
                 primary=index == 0,
             )
@@ -487,9 +489,15 @@ def basis_view(
     links: list[LinkedPlannedParcel],
     cadastral_area_m2: float,
     document_name: str | None,
+    case: Mapping[str, Any] | None = None,
 ) -> CalculationBasisView:
     cadastral = _r1(cadastral_area_m2) or 0.0
     params: dict[str, Any] = {"cadastral_m2": cadastral}
+    # the parcel's case in the published links (core.parcel_links)
+    case = case or {}
+    relation = None
+    if covered and published and case:
+        relation = case.get("relation") if links else "none"
     if not covered:
         basis, area, reason = "cadastral", cadastral, "not_covered"
     elif not published:
@@ -499,7 +507,7 @@ def basis_view(
         # the shared planned-first rule (engine: select_calculation_basis)
         choice = select_calculation_basis(primary.area_m2, cadastral)
         basis, area = choice["calculation_basis"], choice["plot_area"]
-        reason = "split" if len(links) > 1 else "planned_parcel"
+        reason = "split" if relation == "split" else "planned_parcel"
         params.update(
             urban_parcel_number=primary.urban_parcel_number,
             planned_m2=primary.area_m2,
@@ -517,7 +525,10 @@ def basis_view(
         reason=reason,  # type: ignore[arg-type]
         explanation_en=explanation.en,
         explanation_me=explanation.me,
-        split=len(links) > 1,
+        split=relation == "split",
+        relation=relation,
+        no_urban_parcel=covered and published and not links,
+        reduction_pct=case.get("reduction_pct") if links else None,
         links=links,
     )
 
@@ -607,6 +618,7 @@ def build_parcel_panel(row: Mapping[str, Any], profile: MunicipalityProfile) -> 
         links=links,
         cadastral_area_m2=cadastral_area,
         document_name=basis_document.name if basis_document else None,
+        case=_as_json(row.get("link_case")),
     )
 
     group1 = market = assumptions = group2 = engine = None

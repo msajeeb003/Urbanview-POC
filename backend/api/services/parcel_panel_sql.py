@@ -91,7 +91,8 @@ doc AS (
 links AS (
     -- published links of the current version, of documents still adopted, live and current
     SELECT u.id, u.urban_parcel_number, u.area_m2, u.document_id, u.block_id,
-           l.overlap_m2, l.overlap_fraction, l.area_delta_m2, l.rank,
+           l.overlap_area_m2 AS overlap_m2, l.overlap_ratio_of_cadastral,
+           l.overlap_ratio_of_urban, l.area_delta_m2, l.relation, l.rank,
            {_document_ref("d")} AS document,
            CASE WHEN b.id IS NULL THEN NULL
                 ELSE jsonb_build_object('id', b.id, 'block_ref', b.block_ref) END AS urban_block
@@ -103,6 +104,13 @@ links AS (
     WHERE l.publish_version_id = (SELECT id FROM version)
       AND l.cadastral_parcel_id = CAST(:id AS bigint)
       AND EXISTS (SELECT 1 FROM doc)
+),
+link_case AS (
+    -- the parcel's relation in the current version: its primary link's row or its none row
+    SELECT relation, reduction_pct
+    FROM parcel_links
+    WHERE publish_version_id = (SELECT id FROM version)
+      AND cadastral_parcel_id = CAST(:id AS bigint) AND rank = 1
 ),
 primary_up AS (
     SELECT * FROM links ORDER BY {_LINK_ORDER} LIMIT 1
@@ -196,11 +204,13 @@ SELECT
     (SELECT jsonb_build_object('id', id, 'name', name) FROM zone) AS zone,
     (SELECT COALESCE(jsonb_agg(jsonb_build_object(
         'id', id, 'urban_parcel_number', urban_parcel_number, 'area_m2', area_m2,
-        'overlap_m2', overlap_m2, 'overlap_fraction', overlap_fraction,
-        'area_delta_m2', area_delta_m2, 'rank', rank, 'document', document,
-        'urban_block', urban_block)
+        'overlap_m2', overlap_m2, 'overlap_ratio_of_cadastral', overlap_ratio_of_cadastral,
+        'overlap_ratio_of_urban', overlap_ratio_of_urban, 'area_delta_m2', area_delta_m2,
+        'relation', relation, 'rank', rank, 'document', document, 'urban_block', urban_block)
         ORDER BY {_LINK_ORDER}), '[]'::jsonb)
      FROM links) AS links,
+    (SELECT jsonb_build_object('relation', relation, 'reduction_pct', reduction_pct)
+     FROM link_case) AS link_case,
     (SELECT docs FROM amendments) AS amendments,
     (SELECT fields FROM fields) AS fields,
     (SELECT vals FROM values_json) AS "values",
@@ -264,6 +274,8 @@ SELECT
         AS version_id,
     (SELECT created_at::text FROM publish_versions
      WHERE municipality_id = :municipality_id AND is_current) AS version_created,
+    (SELECT links_summary->>'computed_at' FROM publish_versions
+     WHERE municipality_id = :municipality_id AND is_current) AS links_computed,
     (SELECT md5(COALESCE(string_agg(concat_ws(':', id, name, status::text, coverage_live,
                                               is_current_version, zone_id, amends_document_id,
                                               file_id, file_key, page_count,

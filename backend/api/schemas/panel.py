@@ -425,12 +425,21 @@ class Flags(BaseModel):
     note_me: str
 
 
+LinkRelation = Literal["same", "reduced", "enlarged", "split", "merged", "none"]
+RELATION_DESCRIPTION = (
+    "The cadastral parcel's relation to the plan (core.parcel_links): same | reduced | enlarged "
+    "| split | merged | none"
+)
+
+
 class UrbanLink(BaseModel):
     id: int
     urban_parcel_number: str
     area_m2: float
     overlap_m2: float
     share_of_cadastral_pct: float
+    share_of_urban_pct: float = Field(description="Share of the planned parcel on this one")
+    relation: LinkRelation = Field(description=RELATION_DESCRIPTION)
     share_of_linked_pct: float = Field(description="Share of all linked overlap; sums to 100")
     delta_pct: float = Field(description="(area_m2 − cadastral_area) / cadastral_area × 100")
     document: DocumentRef
@@ -479,7 +488,22 @@ class CadastralPanel(PanelBase):
         default=None, description="Primary: largest overlap, then smallest planned area, lowest id"
     )
     urban_parcels: list[UrbanLink] = Field(default_factory=list)
-    split: bool = Field(description="More than one linked planned urban parcel")
+    split: bool = Field(
+        description="Two or more planned parcels each cover at least LINK_SPLIT_MIN_FRACTION "
+        "(10 %) of the parcel"
+    )
+    relation: LinkRelation | None = Field(
+        default=None,
+        description=RELATION_DESCRIPTION + "; null when not covered or nothing is published",
+    )
+    no_urban_parcel: bool = Field(
+        default=False,
+        description='A covered parcel no planned parcel lies over: the "Not defined" state',
+    )
+    reduction_pct: float | None = Field(
+        default=None,
+        description="Share of the parcel in no planned parcel (taken for roads, public space), %",
+    )
     areas: Areas
     calculation_basis: CalculationBasis
     basis_area_m2: float
@@ -505,6 +529,7 @@ class CadastralLink(BaseModel):
     overlap_m2: float
     share_of_urban_pct: float
     share_of_cadastral_pct: float
+    relation: LinkRelation = Field(description=RELATION_DESCRIPTION)
 
 
 class UrbanIdentification(BaseModel):
@@ -526,6 +551,11 @@ class UrbanPanel(PanelBase):
     areas: Areas
     calculation_basis: Literal["urban"] = "urban"
     basis_area_m2: float
+    relation: LinkRelation | None = Field(
+        default=None,
+        description="The relation of the primary cadastral parcel (merged when the planned "
+        "parcel joins several); null without a linked cadastral parcel",
+    )
     covered: bool = Field(description="False when the parcel's document is not adopted")
     coverage_note_en: str | None = None
     coverage_note_me: str | None = None
