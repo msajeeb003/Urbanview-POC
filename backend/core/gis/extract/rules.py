@@ -170,6 +170,10 @@ class SheetRule(_Model):
     page: int = 1
     scale: float  # the drawing's scale denominator, proven by the assessment (1:1000 -> 1000)
     offset_m: tuple[float, float] = (0.0, 0.0)  # sheet frame -> document frame, ground metres
+    # where the plan's north points on the displayed page (after its /Rotate), to the nearest
+    # quarter turn: the grid tool turns page vectors into east / north with it (the fit then finds
+    # the exact rotation from the control points). Novi Grad's sheets are displayed north-right.
+    north: Literal["up", "right", "down", "left"] = "up"
     layers: list[str]  # the target layers this sheet supplies
     exclude: list[tuple[float, float, float, float]] = Field(
         default_factory=list

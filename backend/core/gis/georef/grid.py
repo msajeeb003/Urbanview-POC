@@ -7,7 +7,9 @@ distance on the page at the sheet's proven scale, turned by the lattice's measur
 rounded to the grid interval, which gives it its exact coordinate. A seed must be within half an
 interval (50 m) of the truth: a seed 100 m off shifts every cross by 100 m while the fit stays
 perfect, so the seed's source goes into the report and the cadastral overlap check catches a gross
-shift. The display orientation of the page (its /Rotate) is taken as north-up.
+shift. The displayed page (after its /Rotate) is taken as north-up unless the sheet's rule says
+where north points (``north: right | down | left``): a sheet drawn another way round would
+otherwise get a turned or mirrored lattice that still fits perfectly.
 """
 
 from __future__ import annotations
@@ -72,6 +74,19 @@ def _display(sheet: Sheet, x_pt: float, y_pt: float) -> tuple[float, float]:
     return (x * a + y * c + e, -(x * b + y * d + f))
 
 
+def to_east_north(vectors: np.ndarray, north: str) -> np.ndarray:
+    """Page vectors already turned onto the lattice's axes -> (east, north), for the side of the
+    displayed page the plan's north points to."""
+    gx, gy = vectors[:, 0], vectors[:, 1]
+    if north == "right":
+        return np.column_stack((-gy, gx))
+    if north == "down":
+        return np.column_stack((-gx, -gy))
+    if north == "left":
+        return np.column_stack((gy, -gx))
+    return vectors
+
+
 def lattice_angle(points: np.ndarray) -> float:
     """The lattice's angle (degrees, in (-45, 45]) from nearest-neighbour directions."""
     if len(points) < 2:
@@ -107,10 +122,12 @@ def suggest_grid_points(
     cos_t, sin_t = math.cos(theta), math.sin(theta)
     sx, sy = _display(sheet, seed[0], seed[1])
     delta = (display - (sx, sy)) * k
-    # turn the page vectors back by the lattice angle: grid axes = east / north
+    # turn the page vectors back by the lattice angle onto the grid axes, then name them east /
+    # north by where the sheet's north points (a quarter-turn ambiguity the lattice cannot settle)
     ground = np.column_stack(
         (delta[:, 0] * cos_t + delta[:, 1] * sin_t, -delta[:, 0] * sin_t + delta[:, 1] * cos_t)
     )
+    ground = to_east_north(ground, rule.north)
     approx = ground + (seed[2], seed[3])
     exact = np.round(approx / interval_m) * interval_m
     offsets = approx - exact

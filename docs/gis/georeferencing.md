@@ -80,8 +80,14 @@ crosses carry no labels, so one seed is enough. The seed is a position on the sh
 coordinate known to within 50 m (a vertex-table point, a street corner read from the geoportal).
 Every cross's coordinate is then the seed plus its measured distance, rounded to the grid. A seed
 more than 50 m off moves *every* cross by 100 m and the fit cannot tell, so the seed's source goes
-in the point notes. The staging's cadastral checks catch a gross shift (below). The displayed page
-(its /Rotate) is taken as north-up.
+in the point notes. The staging's cadastral checks catch a gross shift (below).
+
+**Orientation.** The grid tool reads the displayed page (after its /Rotate) as north-up unless the
+sheet's rule says where north points: `north: right | down | left` (to the nearest quarter turn;
+the lattice measures the rest of the angle, and the fit finds the exact rotation). A sheet drawn
+another way round and read as north-up gets a turned or mirrored lattice that still fits
+perfectly, so settle the orientation before the grid: the order of streets on the sheet against a
+map (OpenStreetMap) is a quick check. The Novi Grad sheets (/Rotate 270) are displayed north-right.
 
 ## The fit
 
@@ -166,14 +172,22 @@ extraction writes is the template). Draw it either over the rendered sheet (`ext
 points (`--frame sheet:<id>`). Use `method: affine` for the paper's distortion, and `--redrawn` so
 the dataset records `manual_redraw`. Everything else is the same.
 
-## Status of the POC documents (2026-09-27)
+## Status of the POC documents (2026-09-28)
 
-The tooling, tests and admin display are done. The POC sheets are not georeferenced yet:
+The tooling, tests and admin display are done.
 
-- Each sheet needs **one seed** within ±50 m for its grid crosses: Novi Grad parcel sheet, Stara
-  Varoš parts 1 and 2. For Novi Grad, the vertex table on sheet 10 gives X = 6 603 501.68,
-  Y = 4 700 163.54 for one vertex, but that vertex's position on the parcel sheet still has to be
-  found.
+- **Novi Grad 1 i 2: georeferenced.** Sheets displayed north-right (`north: right`), lattice
+  turned 20.7°. Seed: the crossing of the Bulevar Svetog Petra Cetinjskog and Svetozara Markovića
+  axes, read on the sheet from the extracted street axes (pt 943.70 / 2172.99) and in
+  OpenStreetMap, converted to EPSG:3908 in PostGIS (E 6 603 398.5, N 4 700 540.8; 17 m from its
+  grid node). 67 grid crosses, 2 disabled (touched by other linework, 0.8 / 0.7 m): Helmert on 65
+  points, RMSE 0.015 m, max 0.074 m, scale 0.99997, rotation 159.34°. Independent checks: the
+  Vasa Raičkovića × Svetozara Markovića crossing lands 3.0 m from OpenStreetMap; the plan's street
+  axes lie a median 2.0–2.7 m from OpenStreetMap's centre lines of Moskovska, Svetozara
+  Markovića, Vasa Raičkovića and 13. jula (no systematic shift beyond 3 m: PROJ's EPSG:3908 datum
+  shift is enough here until UZN's parameters arrive). The vertex table on sheet 10 is drawn in
+  outlines, not text, so it could not be used as a check.
+- Stara Varoš parts 1 and 2 still need their seed.
 - The Stara Varoš land-use sheet has no grid. It needs 4+ points from cadastral corners, or from
   features it shares with the parts 1 and 2 sheets.
 - The cadastral base is not loaded yet (access not confirmed). Until it is, snapping and the

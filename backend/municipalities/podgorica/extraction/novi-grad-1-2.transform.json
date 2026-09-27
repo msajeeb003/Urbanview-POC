@@ -1,0 +1,575 @@
+{
+  "document": "novi-grad-1-2",
+  "crs": "EPSG:3908",
+  "method": "helmert",
+  "params": {
+    "a": -0.9356462240858713,
+    "b": -0.3528592919022039,
+    "c": 6603985.19780546,
+    "d": 0.3528592919022039,
+    "e": -0.9356462240858713,
+    "f": 4701123.629490699
+  },
+  "scale": 0.9999717678654099,
+  "rotation_deg": 159.33708772300926,
+  "rmse_m": 0.0148,
+  "max_residual_m": 0.0742,
+  "max_rmse_m": 0.5,
+  "min_points": 4,
+  "points_used": 65,
+  "points_sha256": "8ee1173c320971566e20c7d6db92b5773a59be34f1c7013aca2153389f1a659e",
+  "sheets": [
+    {
+      "sheet": "parcels",
+      "page": 1,
+      "points": 65,
+      "rmse_m": 0.0148,
+      "page_to_crs": [
+        -0.3300751957191823,
+        -0.1244809168654997,
+        6603985.19780546,
+        0.1244809168654997,
+        -0.3300751957191823,
+        4701123.629490699
+      ]
+    },
+    {
+      "sheet": "land-use",
+      "page": 1,
+      "points": 0,
+      "rmse_m": null,
+      "page_to_crs": [
+        -0.3300751957191823,
+        -0.1244809168654997,
+        6603985.88335417,
+        0.1244809168654997,
+        -0.3300751957191823,
+        4701127.487658644
+      ]
+    }
+  ],
+  "residuals": [
+    {
+      "id": "parcels-g001",
+      "sheet": "parcels",
+      "dx_m": 0.015,
+      "dy_m": 0.0726,
+      "r_m": 0.0742,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g002",
+      "sheet": "parcels",
+      "dx_m": -0.0126,
+      "dy_m": -0.0123,
+      "r_m": 0.0177,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g003",
+      "sheet": "parcels",
+      "dx_m": 0.0041,
+      "dy_m": 0.0014,
+      "r_m": 0.0044,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g004",
+      "sheet": "parcels",
+      "dx_m": -0.0062,
+      "dy_m": -0.0061,
+      "r_m": 0.0087,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g005",
+      "sheet": "parcels",
+      "dx_m": 0.0114,
+      "dy_m": -0.0002,
+      "r_m": 0.0114,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g007",
+      "sheet": "parcels",
+      "dx_m": -0.0004,
+      "dy_m": -0.0033,
+      "r_m": 0.0033,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g008",
+      "sheet": "parcels",
+      "dx_m": -0.0024,
+      "dy_m": -0.0122,
+      "r_m": 0.0125,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g009",
+      "sheet": "parcels",
+      "dx_m": 0.0024,
+      "dy_m": -0.0133,
+      "r_m": 0.0135,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g010",
+      "sheet": "parcels",
+      "dx_m": -0.0094,
+      "dy_m": 0.0067,
+      "r_m": 0.0116,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g011",
+      "sheet": "parcels",
+      "dx_m": 0.0069,
+      "dy_m": -0.0011,
+      "r_m": 0.007,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g012",
+      "sheet": "parcels",
+      "dx_m": -0.0076,
+      "dy_m": -0.0072,
+      "r_m": 0.0104,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g013",
+      "sheet": "parcels",
+      "dx_m": 0.0062,
+      "dy_m": -0.0063,
+      "r_m": 0.0088,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g014",
+      "sheet": "parcels",
+      "dx_m": -0.0112,
+      "dy_m": 0.0026,
+      "r_m": 0.0115,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g015",
+      "sheet": "parcels",
+      "dx_m": -0.0047,
+      "dy_m": 0.0091,
+      "r_m": 0.0103,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g016",
+      "sheet": "parcels",
+      "dx_m": -0.0028,
+      "dy_m": -0.0194,
+      "r_m": 0.0196,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g017",
+      "sheet": "parcels",
+      "dx_m": -0.0028,
+      "dy_m": -0.0048,
+      "r_m": 0.0055,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g018",
+      "sheet": "parcels",
+      "dx_m": 0.0081,
+      "dy_m": -0.0163,
+      "r_m": 0.0182,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g019",
+      "sheet": "parcels",
+      "dx_m": -0.0009,
+      "dy_m": 0.003,
+      "r_m": 0.0032,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g020",
+      "sheet": "parcels",
+      "dx_m": -0.0065,
+      "dy_m": 0.005,
+      "r_m": 0.0082,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g021",
+      "sheet": "parcels",
+      "dx_m": 0.0044,
+      "dy_m": -0.0066,
+      "r_m": 0.0079,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g022",
+      "sheet": "parcels",
+      "dx_m": -0.0015,
+      "dy_m": -0.0081,
+      "r_m": 0.0082,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g023",
+      "sheet": "parcels",
+      "dx_m": -0.0061,
+      "dy_m": 0.0081,
+      "r_m": 0.0101,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g024",
+      "sheet": "parcels",
+      "dx_m": 0.0081,
+      "dy_m": 0.0019,
+      "r_m": 0.0084,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g025",
+      "sheet": "parcels",
+      "dx_m": -0.0199,
+      "dy_m": -0.004,
+      "r_m": 0.0203,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g026",
+      "sheet": "parcels",
+      "dx_m": 0.0057,
+      "dy_m": -0.0084,
+      "r_m": 0.0102,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g027",
+      "sheet": "parcels",
+      "dx_m": -0.0088,
+      "dy_m": -0.0014,
+      "r_m": 0.0089,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g028",
+      "sheet": "parcels",
+      "dx_m": 0.0119,
+      "dy_m": -0.0042,
+      "r_m": 0.0126,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g029",
+      "sheet": "parcels",
+      "dx_m": -0.0013,
+      "dy_m": 0.0105,
+      "r_m": 0.0106,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g030",
+      "sheet": "parcels",
+      "dx_m": 0.0095,
+      "dy_m": -0.0014,
+      "r_m": 0.0096,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g031",
+      "sheet": "parcels",
+      "dx_m": -0.0108,
+      "dy_m": -0.0051,
+      "r_m": 0.0119,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g032",
+      "sheet": "parcels",
+      "dx_m": 0.0059,
+      "dy_m": 0.0087,
+      "r_m": 0.0105,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g033",
+      "sheet": "parcels",
+      "dx_m": -0.0132,
+      "dy_m": -0.0023,
+      "r_m": 0.0134,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g034",
+      "sheet": "parcels",
+      "dx_m": 0.0166,
+      "dy_m": -0.0017,
+      "r_m": 0.0167,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g035",
+      "sheet": "parcels",
+      "dx_m": -0.007,
+      "dy_m": 0.002,
+      "r_m": 0.0072,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g036",
+      "sheet": "parcels",
+      "dx_m": 0.0014,
+      "dy_m": 0.004,
+      "r_m": 0.0042,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g037",
+      "sheet": "parcels",
+      "dx_m": -0.0095,
+      "dy_m": -0.0084,
+      "r_m": 0.0126,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g038",
+      "sheet": "parcels",
+      "dx_m": 0.0012,
+      "dy_m": -0.0189,
+      "r_m": 0.0189,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g039",
+      "sheet": "parcels",
+      "dx_m": -0.0076,
+      "dy_m": 0.014,
+      "r_m": 0.0159,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g041",
+      "sheet": "parcels",
+      "dx_m": -0.0058,
+      "dy_m": 0.0001,
+      "r_m": 0.0058,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g042",
+      "sheet": "parcels",
+      "dx_m": 0.0052,
+      "dy_m": -0.0115,
+      "r_m": 0.0126,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g043",
+      "sheet": "parcels",
+      "dx_m": -0.0047,
+      "dy_m": -0.006,
+      "r_m": 0.0076,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g044",
+      "sheet": "parcels",
+      "dx_m": -0.0094,
+      "dy_m": 0.0099,
+      "r_m": 0.0137,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g045",
+      "sheet": "parcels",
+      "dx_m": 0.0014,
+      "dy_m": 0.0129,
+      "r_m": 0.013,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g046",
+      "sheet": "parcels",
+      "dx_m": -0.001,
+      "dy_m": -0.0121,
+      "r_m": 0.0121,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g047",
+      "sheet": "parcels",
+      "dx_m": 0.0099,
+      "dy_m": -0.009,
+      "r_m": 0.0134,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g048",
+      "sheet": "parcels",
+      "dx_m": 0.0052,
+      "dy_m": 0.0068,
+      "r_m": 0.0086,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g049",
+      "sheet": "parcels",
+      "dx_m": -0.0047,
+      "dy_m": 0.0123,
+      "r_m": 0.0132,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g050",
+      "sheet": "parcels",
+      "dx_m": 0.0063,
+      "dy_m": 0.0007,
+      "r_m": 0.0063,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g051",
+      "sheet": "parcels",
+      "dx_m": -0.0082,
+      "dy_m": -0.0054,
+      "r_m": 0.0099,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g052",
+      "sheet": "parcels",
+      "dx_m": 0.0046,
+      "dy_m": -0.0043,
+      "r_m": 0.0063,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g053",
+      "sheet": "parcels",
+      "dx_m": -0.0008,
+      "dy_m": 0.0197,
+      "r_m": 0.0197,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g054",
+      "sheet": "parcels",
+      "dx_m": 0.0099,
+      "dy_m": 0.0092,
+      "r_m": 0.0136,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g055",
+      "sheet": "parcels",
+      "dx_m": -0.0009,
+      "dy_m": -0.0032,
+      "r_m": 0.0033,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g056",
+      "sheet": "parcels",
+      "dx_m": 0.0075,
+      "dy_m": -0.0012,
+      "r_m": 0.0075,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g057",
+      "sheet": "parcels",
+      "dx_m": -0.0161,
+      "dy_m": 0.0026,
+      "r_m": 0.0164,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g058",
+      "sheet": "parcels",
+      "dx_m": 0.0137,
+      "dy_m": 0.0031,
+      "r_m": 0.0141,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g059",
+      "sheet": "parcels",
+      "dx_m": -0.0055,
+      "dy_m": -0.0079,
+      "r_m": 0.0096,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g060",
+      "sheet": "parcels",
+      "dx_m": 0.0113,
+      "dy_m": 0.0059,
+      "r_m": 0.0127,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g061",
+      "sheet": "parcels",
+      "dx_m": -0.009,
+      "dy_m": 0.0022,
+      "r_m": 0.0093,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g062",
+      "sheet": "parcels",
+      "dx_m": 0.0018,
+      "dy_m": -0.0097,
+      "r_m": 0.0099,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g063",
+      "sheet": "parcels",
+      "dx_m": 0.0093,
+      "dy_m": 0.0022,
+      "r_m": 0.0095,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g064",
+      "sheet": "parcels",
+      "dx_m": -0.0052,
+      "dy_m": 0.0093,
+      "r_m": 0.0106,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g065",
+      "sheet": "parcels",
+      "dx_m": 0.0204,
+      "dy_m": 0.0048,
+      "r_m": 0.0209,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g066",
+      "sheet": "parcels",
+      "dx_m": -0.0077,
+      "dy_m": -0.0011,
+      "r_m": 0.0077,
+      "outlier": false
+    },
+    {
+      "id": "parcels-g067",
+      "sheet": "parcels",
+      "dx_m": 0.0066,
+      "dy_m": -0.0072,
+      "r_m": 0.0098,
+      "outlier": false
+    }
+  ],
+  "warnings": [],
+  "fitted_at": "2026-09-27T18:46:46+00:00"
+}

@@ -223,7 +223,24 @@ def test_affine_fits_a_stretched_sheet_and_helmert_warns_on_a_wrong_scale() -> N
 GRID_W, GRID_H = 1600.0, 1200.0
 
 
-def grid_sheet() -> tuple[bytes, list[tuple[float, float, float, float]]]:
+def turned(theta_deg: float):
+    """A truth like ``truth`` / ``truth_inverse`` with another rotation: 90.35° draws the plan with
+    its north pointing right on the page, 180.35° down, -89.65° left."""
+    c, s = math.cos(math.radians(theta_deg)), math.sin(math.radians(theta_deg))
+
+    def world(x: float, y: float) -> tuple[float, float]:
+        return (E0 + c * x - s * y, N0 + s * x + c * y)
+
+    def local(e: float, n: float) -> tuple[float, float]:
+        de, dn = e - E0, n - N0
+        return (c * de + s * dn, -s * de + c * dn)
+
+    return world, local
+
+
+def grid_sheet(
+    world=truth, local=truth_inverse
+) -> tuple[bytes, list[tuple[float, float, float, float]]]:
     """A sheet with the state grid's crosses (layer MREZA, 3 mm arms) at the truth's 100 m nodes,
     and a few other small paths on another layer. Returns the PDF and every cross as (x_pt, y_pt
     in the sheet frame, easting, northing)."""
@@ -232,13 +249,13 @@ def grid_sheet() -> tuple[bytes, list[tuple[float, float, float, float]]]:
     grid = doc.add_ocg("MREZA", on=True)
     other = doc.add_ocg("PARCELE", on=True)
     arm = 3 / 25.4 * 72 / 2  # half of a 3 mm arm, in points
-    corners = [truth(x * syn.K, y * syn.K) for x in (0, GRID_W) for y in (0, GRID_H)]
+    corners = [world(x * syn.K, y * syn.K) for x in (0, GRID_W) for y in (0, GRID_H)]
     es = [e for e, _ in corners]
     ns = [n for _, n in corners]
     crosses = []
     for e in np.arange(math.ceil(min(es) / 100) * 100, max(es), 100.0):
         for n in np.arange(math.ceil(min(ns) / 100) * 100, max(ns), 100.0):
-            lx, ly = truth_inverse(float(e), float(n))
+            lx, ly = local(float(e), float(n))
             x, y = lx / syn.K, ly / syn.K
             if not (20 < x < GRID_W - 20 and 20 < y < GRID_H - 20):
                 continue
@@ -286,6 +303,37 @@ def test_grid_crosses_become_exact_control_points_from_one_rough_seed() -> None:
         x, y, ce, cn = min(crosses, key=lambda c: math.dist((p.x_pt, p.y_pt), c[:2]))
         assert (p.easting, p.northing) == (ce + 100.0, cn)
     assert fit(wrong.points, doc, crs=CRS).rmse_m < 0.005
+
+
+@pytest.mark.parametrize(("north", "quarter"), [("right", 90.0), ("down", 180.0), ("left", -90.0)])
+def test_a_sheet_drawn_north_right_down_or_left_needs_its_rule(north, quarter) -> None:
+    world, local = turned(quarter + 0.35)
+    pdf, crosses = grid_sheet(world, local)
+    doc = rules()
+    rule = doc.sheets[0].model_copy(update={"file": "grid.pdf", "north": north})
+    sheet = load_sheet(pdf, rule, keep=[Selector(layer_regex="^mreza$")])
+    sx, sy = 500.0, 420.0
+    e, n = world(sx * syn.K, sy * syn.K)
+    seed = (sx, sy, e + 23.0, n - 17.0)
+    suggestion = suggest_grid_points(sheet, rule, seed=seed)
+    assert suggestion.warnings == []
+    assert len(suggestion.points) == len(crosses) >= 12
+    for p in suggestion.points:
+        _, _, ce, cn = min(crosses, key=lambda c: math.dist((p.x_pt, p.y_pt), c[:2]))
+        assert (p.easting, p.northing) == (ce, cn)
+    result = fit(suggestion.points, doc, crs=CRS)
+    assert result.ok and result.rmse_m < 0.005
+    turn = (result.transform.rotation_deg - (quarter + 0.35) + 180) % 360 - 180
+    assert turn == pytest.approx(0, abs=0.001)
+    # read as if north were up, the same crosses get a turned or mirrored lattice that still fits
+    # perfectly: nothing but the rule can tell
+    as_up = suggest_grid_points(sheet, rule.model_copy(update={"north": "up"}), seed=seed)
+    nearest = [min(crosses, key=lambda c: math.dist((p.x_pt, p.y_pt), c[:2])) for p in as_up.points]
+    misplaced = [
+        p for p, c in zip(as_up.points, nearest, strict=True) if (p.easting, p.northing) != c[2:]
+    ]
+    assert len(as_up.points) == len(crosses) and len(misplaced) >= len(crosses) - 1
+    assert fit(as_up.points, doc, crs=CRS).rmse_m < 0.005
 
 
 # --- apply with GDAL --------------------------------------------------------------------------

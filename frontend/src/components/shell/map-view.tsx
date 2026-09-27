@@ -25,6 +25,9 @@
  *   parcel, planning-document coverage; `lib/map/pick.ts`), a click on nothing drops a pin and
  *   asks `/v1/locate`. A drag never selects (`clickTolerance` 3 px). Hover outlines parcels and
  *   plan areas and turns the cursor into a pointer.
+ * - With Mapbox's light style (the default) the base map is restyled to the wireframe's (land,
+ *   white major and cream minor roads, the river; no buildings, land cover or points of interest:
+ *   `lib/map/basemap.ts`) before UrbanView's layers go on top.
  * - `map_loaded` is emitted once the style and the first tiles have loaded (`idle`).
  */
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -37,6 +40,7 @@ import { useTilesCurrent } from "@/lib/api/hooks";
 import type { MunicipalityProfile, TilesCurrent } from "@/lib/api/types";
 import { formatZoomFactor, scaleBar } from "@/lib/format";
 import { sourceLayerEmpty } from "@/lib/layers";
+import { LIGHT_STYLE, wireframeBasemap } from "@/lib/map/basemap";
 import { fitOptions, fitPadding } from "@/lib/map/camera";
 import { pickFeature, type PickType } from "@/lib/map/pick";
 import {
@@ -55,7 +59,7 @@ import { useSelection } from "@/lib/selection";
 import { highlightOf, useShell } from "@/lib/store";
 
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
-const STYLE = process.env.NEXT_PUBLIC_MAPBOX_STYLE || "mapbox://styles/mapbox/light-v11";
+const STYLE = process.env.NEXT_PUBLIC_MAPBOX_STYLE || LIGHT_STYLE;
 const FIT_PADDING = 24;
 /** Padding around a searched parcel or zone. */
 const FOCUS_PADDING = FIT_PADDING * 4;
@@ -83,6 +87,21 @@ const toBounds = (b: Bbox): LngLatBounds => [
   [b[0], b[1]],
   [b[2], b[3]],
 ];
+
+/** The wireframe's colours on the light style's own layers (a custom style is left as designed). */
+function applyBasemap(map: MapboxMap) {
+  if (STYLE !== LIGHT_STYLE) return;
+  for (const change of wireframeBasemap(map.getStyle()?.layers ?? [])) {
+    if (!map.getLayer(change.id)) continue;
+    try {
+      if ("hide" in change) map.setLayoutProperty(change.id, "visibility", "none");
+      else for (const [prop, value] of Object.entries(change.paint)) map.setPaintProperty(change.id, prop as never, value as never);
+    } catch (err) {
+      // a base style that differs from the one this was written for keeps its own look there
+      if (process.env.NODE_ENV !== "production") console.warn("[map] base map layer left as is", change.id, err);
+    }
+  }
+}
 
 /** Add (or replace) the UrbanView source and layers for the current published archive. */
 function installTiles(map: MapboxMap, tiles: TilesCurrent | undefined): number | null {
@@ -322,6 +341,7 @@ export function MapView({
       map.on("load", () => {
         const img = hatchImage();
         if (!map.hasImage(HATCH_IMAGE)) map.addImage(HATCH_IMAGE, img);
+        applyBasemap(map);
         installedVersion.current = installTiles(map, tilesRef.current);
         ready = true;
         syncAll();

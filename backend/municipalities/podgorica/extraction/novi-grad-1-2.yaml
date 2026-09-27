@@ -15,6 +15,10 @@ sheets:
     sha256: 9e8f18274613215a23ba09c9cd0d6c79c94b16143e619503f080d11391ead4e7
     # the PDF viewport says 1:776; 68 grid crosses 100 mm apart prove the stated 1:1000
     scale: 1000
+    # displayed (/Rotate 270) with north to the right: along Moskovska, Bulevar Revolucije, Sv. Petra
+    # Cetinjskog and 13. jula follow each other from left to right, as they do northwards in
+    # OpenStreetMap; the grid lattice is turned a further ~23 degrees
+    north: right
     layers: [plan_boundary, urban_parcels, urban_blocks, planned_traffic]
   - id: land-use
     file: 02 Novi Grad 1 i 2/Novi Grad 1 i 2 - Land use.pdf
@@ -23,6 +27,7 @@ sheets:
     # plotted 0.7 m / 3.9 m off the parcel sheet: `offset --base parcels --sheet land-use
     # --pdf-layer '^PARCELE_GRANICE$'` (1021 of 1000 sampled vertices agree)
     offset_m: [0.72, -3.852]
+    north: right  # plotted like the parcel sheet
     layers: [planned_land_use]
 
 layers:
