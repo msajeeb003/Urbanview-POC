@@ -1,0 +1,421 @@
+{
+  "document": "stara-varos",
+  "crs": "EPSG:3908",
+  "method": "helmert",
+  "params": {
+    "a": 1.0000251370006197,
+    "b": -5.124954426515331e-06,
+    "c": 6603564.6589050535,
+    "d": 5.124954426515331e-06,
+    "e": 1.0000251370006197,
+    "f": 4699779.556905533
+  },
+  "scale": 1.0000251370137518,
+  "rotation_deg": 0.0002936308778340889,
+  "rmse_m": 0.0049,
+  "max_residual_m": 0.009,
+  "max_rmse_m": 0.5,
+  "min_points": 4,
+  "points_used": 44,
+  "points_sha256": "98e036189736fc5e08c9493a771a77cf9a2b025aa8f862260538321965ae02ac",
+  "sheets": [
+    {
+      "sheet": "part-1",
+      "page": 1,
+      "points": 28,
+      "rmse_m": 0.0051,
+      "page_to_crs": [
+        0.1763933227764982,
+        -9.039850168992319e-07,
+        6603564.6589050535,
+        9.039850168992319e-07,
+        0.1763933227764982,
+        4699779.556905533
+      ]
+    },
+    {
+      "sheet": "part-2",
+      "page": 1,
+      "points": 16,
+      "rmse_m": 0.0047,
+      "page_to_crs": [
+        0.1763933227764982,
+        -9.039850168992319e-07,
+        6603483.463753636,
+        9.039850168992319e-07,
+        0.1763933227764982,
+        4699410.84522135
+      ]
+    },
+    {
+      "sheet": "land-use",
+      "page": 1,
+      "points": 0,
+      "rmse_m": null,
+      "page_to_crs": [
+        0.3527866455529964,
+        -1.8079700337984638e-06,
+        6603437.093729045,
+        1.8079700337984638e-06,
+        0.3527866455529964,
+        4699383.334292192
+      ]
+    }
+  ],
+  "residuals": [
+    {
+      "id": "part-1-g001",
+      "sheet": "part-1",
+      "dx_m": -0.001,
+      "dy_m": 0.0025,
+      "r_m": 0.0026,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g002",
+      "sheet": "part-1",
+      "dx_m": -0.0037,
+      "dy_m": 0.0009,
+      "r_m": 0.0038,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g003",
+      "sheet": "part-1",
+      "dx_m": -0.0067,
+      "dy_m": -0.0001,
+      "r_m": 0.0067,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g004",
+      "sheet": "part-1",
+      "dx_m": -0.0005,
+      "dy_m": 0.0028,
+      "r_m": 0.0028,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g005",
+      "sheet": "part-1",
+      "dx_m": 0.0057,
+      "dy_m": 0.0023,
+      "r_m": 0.0061,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g006",
+      "sheet": "part-1",
+      "dx_m": -0.0035,
+      "dy_m": 0.0018,
+      "r_m": 0.0039,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g007",
+      "sheet": "part-1",
+      "dx_m": -0.0032,
+      "dy_m": 0.0012,
+      "r_m": 0.0034,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g008",
+      "sheet": "part-1",
+      "dx_m": -0.0062,
+      "dy_m": 0.0002,
+      "r_m": 0.0062,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g009",
+      "sheet": "part-1",
+      "dx_m": 0.0001,
+      "dy_m": -0.0006,
+      "r_m": 0.0006,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g010",
+      "sheet": "part-1",
+      "dx_m": 0.0062,
+      "dy_m": -0.0011,
+      "r_m": 0.0063,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g011",
+      "sheet": "part-1",
+      "dx_m": -0.003,
+      "dy_m": -0.0016,
+      "r_m": 0.0034,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g012",
+      "sheet": "part-1",
+      "dx_m": -0.0026,
+      "dy_m": -0.0021,
+      "r_m": 0.0034,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g013",
+      "sheet": "part-1",
+      "dx_m": 0.0035,
+      "dy_m": -0.0026,
+      "r_m": 0.0044,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g014",
+      "sheet": "part-1",
+      "dx_m": -0.0057,
+      "dy_m": -0.0031,
+      "r_m": 0.0065,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g015",
+      "sheet": "part-1",
+      "dx_m": 0.0006,
+      "dy_m": -0.0003,
+      "r_m": 0.0006,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g016",
+      "sheet": "part-1",
+      "dx_m": 0.0067,
+      "dy_m": -0.0008,
+      "r_m": 0.0068,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g017",
+      "sheet": "part-1",
+      "dx_m": -0.0025,
+      "dy_m": -0.0013,
+      "r_m": 0.0028,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g018",
+      "sheet": "part-1",
+      "dx_m": -0.0021,
+      "dy_m": -0.0018,
+      "r_m": 0.0028,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g019",
+      "sheet": "part-1",
+      "dx_m": 0.004,
+      "dy_m": -0.0023,
+      "r_m": 0.0046,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g020",
+      "sheet": "part-1",
+      "dx_m": -0.0052,
+      "dy_m": -0.0028,
+      "r_m": 0.0059,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g021",
+      "sheet": "part-1",
+      "dx_m": -0.0048,
+      "dy_m": -0.0033,
+      "r_m": 0.0059,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g022",
+      "sheet": "part-1",
+      "dx_m": 0.0011,
+      "dy_m": 0.0059,
+      "r_m": 0.006,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g023",
+      "sheet": "part-1",
+      "dx_m": 0.0072,
+      "dy_m": 0.0054,
+      "r_m": 0.009,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g024",
+      "sheet": "part-1",
+      "dx_m": -0.002,
+      "dy_m": 0.0049,
+      "r_m": 0.0053,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g025",
+      "sheet": "part-1",
+      "dx_m": -0.0016,
+      "dy_m": 0.0044,
+      "r_m": 0.0047,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g026",
+      "sheet": "part-1",
+      "dx_m": 0.0045,
+      "dy_m": 0.0039,
+      "r_m": 0.0059,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g027",
+      "sheet": "part-1",
+      "dx_m": -0.0047,
+      "dy_m": 0.0033,
+      "r_m": 0.0057,
+      "outlier": false
+    },
+    {
+      "id": "part-1-g028",
+      "sheet": "part-1",
+      "dx_m": -0.0043,
+      "dy_m": 0.0028,
+      "r_m": 0.0052,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g001",
+      "sheet": "part-2",
+      "dx_m": -0.0028,
+      "dy_m": -0.0008,
+      "r_m": 0.003,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g002",
+      "sheet": "part-2",
+      "dx_m": 0.0033,
+      "dy_m": -0.0013,
+      "r_m": 0.0036,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g003",
+      "sheet": "part-2",
+      "dx_m": 0.0036,
+      "dy_m": -0.0018,
+      "r_m": 0.0041,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g006",
+      "sheet": "part-2",
+      "dx_m": 0.0038,
+      "dy_m": -0.0047,
+      "r_m": 0.0061,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g007",
+      "sheet": "part-2",
+      "dx_m": 0.0042,
+      "dy_m": -0.0052,
+      "r_m": 0.0067,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g008",
+      "sheet": "part-2",
+      "dx_m": -0.0018,
+      "dy_m": -0.0039,
+      "r_m": 0.0043,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g009",
+      "sheet": "part-2",
+      "dx_m": 0.0047,
+      "dy_m": -0.0049,
+      "r_m": 0.0068,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g010",
+      "sheet": "part-2",
+      "dx_m": 0.0016,
+      "dy_m": -0.0059,
+      "r_m": 0.0061,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g011",
+      "sheet": "part-2",
+      "dx_m": -0.0013,
+      "dy_m": 0.0023,
+      "r_m": 0.0026,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g012",
+      "sheet": "part-2",
+      "dx_m": -0.004,
+      "dy_m": 0.0008,
+      "r_m": 0.0041,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g013",
+      "sheet": "part-2",
+      "dx_m": 0.0025,
+      "dy_m": -0.0003,
+      "r_m": 0.0025,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g014",
+      "sheet": "part-2",
+      "dx_m": -0.0008,
+      "dy_m": 0.0026,
+      "r_m": 0.0027,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g015",
+      "sheet": "part-2",
+      "dx_m": 0.0054,
+      "dy_m": 0.0021,
+      "r_m": 0.0058,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g016",
+      "sheet": "part-2",
+      "dx_m": 0.0057,
+      "dy_m": 0.0016,
+      "r_m": 0.0059,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g017",
+      "sheet": "part-2",
+      "dx_m": -0.0035,
+      "dy_m": 0.0011,
+      "r_m": 0.0037,
+      "outlier": false
+    },
+    {
+      "id": "part-2-g018",
+      "sheet": "part-2",
+      "dx_m": 0.003,
+      "dy_m": 0.0001,
+      "r_m": 0.003,
+      "outlier": false
+    }
+  ],
+  "warnings": [],
+  "fitted_at": "2026-09-27T21:08:40+00:00"
+}

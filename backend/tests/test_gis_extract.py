@@ -26,7 +26,15 @@ from shapely.geometry import LineString, MultiPolygon, Point, Polygon  # noqa: E
 
 from core.gis.extract import geometry as G  # noqa: E402
 from core.gis.extract.__main__ import _vertices, main  # noqa: E402
-from core.gis.extract.extract import extract_document, read_labels  # noqa: E402
+from core.gis.extract.extract import (  # noqa: E402
+    Feature,
+    Label,
+    _build_derived,
+    _Context,
+    assign_labels,
+    extract_document,
+    read_labels,
+)
 from core.gis.extract.glyphs import read_glyph_labels  # noqa: E402
 from core.gis.extract.gpkg import (  # noqa: E402
     APPLICATION_ID,
@@ -365,6 +373,74 @@ def test_hole_faces_of_ribbons_sit_on_the_centre_lines() -> None:
     (face,) = [f for f in G.hole_faces(ribbons, 0.1) if f.area > 1]
     assert face.area == pytest.approx(100, rel=1e-3)
     assert face.bounds == pytest.approx((0, 0, 10, 10), abs=1e-3)
+
+
+def _square_ribbons(x0: float, y0: float, x1: float, y1: float, w: float = 0.2) -> list[Polygon]:
+    """A rectangle drawn as four 2w wide filled ribbons along its edges."""
+    return [
+        Polygon([(x0 - w, y0 - w), (x1 + w, y0 - w), (x1 + w, y0 + w), (x0 - w, y0 + w)]),
+        Polygon([(x0 - w, y1 - w), (x1 + w, y1 - w), (x1 + w, y1 + w), (x0 - w, y1 + w)]),
+        Polygon([(x0 - w, y0 - w), (x0 + w, y0 - w), (x0 + w, y1 + w), (x0 - w, y1 + w)]),
+        Polygon([(x1 - w, y0 - w), (x1 + w, y0 - w), (x1 + w, y1 + w), (x1 - w, y1 + w)]),
+    ]
+
+
+def test_hole_faces_cut_out_a_parcel_drawn_inside_another() -> None:
+    # a 4 x 4 kiosk parcel drawn inside a 20 x 20 square, its ribbons touching nothing
+    ribbons = _square_ribbons(0, 0, 20, 20) + _square_ribbons(8, 8, 12, 12)
+    faces = [f for f in G.hole_faces(ribbons, 0.1) if f.area > 1]
+    kiosk, square = sorted(faces, key=lambda f: f.area)
+    assert kiosk.area == pytest.approx(16, rel=1e-3)
+    assert kiosk.bounds == pytest.approx((8, 8, 12, 12), abs=1e-3)
+    # the square is the ring around the kiosk, both on the ribbons' centre lines
+    assert square.area == pytest.approx(400 - 16, rel=1e-3)
+    assert square.bounds == pytest.approx((0, 0, 20, 20), abs=1e-3)
+    assert not square.contains(Point(10, 10))
+    assert square.intersection(kiosk).area == pytest.approx(0, abs=1e-3)
+
+
+def test_a_label_on_the_line_two_faces_share_goes_to_the_face_no_label_names() -> None:
+    faces = [
+        Polygon([(0, 0), (10, 0), (10, 10), (0, 10)]),
+        Polygon([(10, 0), (20, 0), (20, 10), (10, 10)]),
+    ]
+
+    def label(value: str, x: float, y: float) -> Label:
+        return Label(value, f"UP {value}", Point(x, y), "a", (0, 0, 0, 0), None, ())
+
+    inside = label("1", 5, 5)
+    shared = label("2", 10, 5)  # centred on the common edge: as near to both faces
+    again = label("1", 10, 7)  # a second "UP 1" on the edge stays with its parcel
+    below = label("1", 5, -0.2)  # outside, near the first face only
+    per_face, flags, left = assign_labels(faces, [inside, shared, again, below], 0.5)
+    assert per_face[0] == [inside, again, below] and per_face[1] == [shared]
+    assert flags[1] == {"label_nearest"} and left == []
+    # without a label inside the first face, the tie goes to the nearest, lower index first
+    per_face, _, _ = assign_labels(faces, [shared], 0.5)
+    assert per_face[0] == [shared]
+
+
+def test_derived_block_closes_a_narrow_gap_and_keeps_all_of_its_parcels() -> None:
+    # two parcels of block A around an irregular courtyard, a third across a 3 m lane: a
+    # closing with mitred corners cut about 9 m² out of the first two
+    court = Polygon([(24.6, 27.3), (19.3, 24.2), (10.5, 17.5), (31.3, 17.8)])
+    ring = Polygon([(0, 0), (40, 0), (40, 40), (0, 40)]).difference(court)
+    parcels = [
+        ring.intersection(Polygon([(0, 0), (20, 0), (20, 40), (0, 40)])),
+        ring.intersection(Polygon([(20, 0), (40, 0), (40, 40), (20, 40)])),
+        Polygon([(43, 0), (60, 0), (60, 40), (43, 40)]),
+    ]
+    ctx = _Context(rules=_rules(), sheets={"a": None})
+    ctx.layers["urban_parcels"] = [
+        Feature("urban_parcels", p, "a", 1, [], attrs={"block_ref": "A"}) for p in parcels
+    ]
+    rule = LayerRule(method="derive", derive_from="urban_parcels", derive_by="block_ref", close_m=4)
+    (block,) = _build_derived(ctx, "urban_blocks", rule)
+    assert block.attrs == {"block_ref": "A"}
+    assert len(G.polygon_parts(block.geom)) == 1  # the lane is closed
+    assert block.geom.bounds == pytest.approx((0, 0, 60, 40), abs=1e-3)
+    for parcel in parcels:
+        assert parcel.difference(block.geom).area < 1e-3
 
 
 # --- output -----------------------------------------------------------------------------------

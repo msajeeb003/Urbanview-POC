@@ -187,7 +187,18 @@ The tooling, tests and admin display are done.
   Markovića, Vasa Raičkovića and 13. jula (no systematic shift beyond 3 m: PROJ's EPSG:3908 datum
   shift is enough here until UZN's parameters arrive). The vertex table on sheet 10 is drawn in
   outlines, not text, so it could not be used as a check.
-- Stara Varoš parts 1 and 2 still need their seed.
+- **Stara Varoš: georeferenced.** Sheets displayed north-up (no /Rotate), parts 1 and 2 in one
+  local frame by their offsets, the land-use sheet (no grid) placed by its offset against part 1.
+  The obvious seed misled: the sheet's "stari most" label read as the Tabački most put the seed
+  42 m from its grid node, near the ambiguous half interval, and both nearby lattices fitted
+  perfectly. The lattice was settled against OpenStreetMap instead: every shift of the lattice by
+  100 m steps within ±600 m was scored by the median distance from the plan's street axes to
+  OpenStreetMap's roads; one shift stood out (300 m west, 300 m north of the label's reading:
+  median 1.1 m, 89 % of the axes within 3 m, the next best 6.8 m / 28 %). Part 2's seed came from
+  part 1's fit and landed on a node exactly. 47 grid crosses, 3 of part 2 disabled (a consistent
+  0.63 m offset, drawn off): Helmert on 44 points, RMSE 0.005 m, scale 1.000025, rotation
+  0.0003°. The same check after the fit: the street axes lie a median 1.1 m from OpenStreetMap's
+  roads (90 % within 3.5 m).
 - The Stara Varoš land-use sheet has no grid. It needs 4+ points from cadastral corners, or from
   features it shares with the parts 1 and 2 sheets.
 - The cadastral base is not loaded yet (access not confirmed). Until it is, snapping and the

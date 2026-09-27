@@ -248,35 +248,60 @@ def read_labels(
     return labels, notes
 
 
+LABEL_TIE_M = 0.01  # faces this much farther than the nearest one are as near to a label
+
+
 def assign_labels(
     faces: list[BaseGeometry], labels: list[Label], max_distance_m: float
 ) -> tuple[dict[int, list[Label]], dict[int, set[str]], list[Label]]:
     """Each label to the face containing its centre (the deepest one when faces overlap), else
-    to the nearest face within ``max_distance_m``. Returns labels per face, per-face flags and
-    the labels no face took."""
+    to the nearest face within ``max_distance_m``. A label centred on the line two faces share
+    is as near to both (``LABEL_TIE_M``): it goes to the one it already names, else to one no
+    label names, else to the nearest. Returns labels per face, per-face flags and the labels no
+    face took."""
     per_face: dict[int, list[Label]] = defaultdict(list)
     flags: dict[int, set[str]] = defaultdict(set)
     unassigned: list[Label] = []
     if not faces:
         return per_face, flags, list(labels)
     tree = shapely.STRtree(np.asarray(faces, dtype=object))
+    outside: list[Label] = []
     for lab in labels:
         inside = tree.query(lab.point, predicate="within").tolist()
         if inside:
             best = max(inside, key=lambda i: (faces[i].boundary.distance(lab.point), -i))
             per_face[best].append(lab)
-            continue
+        else:
+            outside.append(lab)
+    for lab in outside:
         if max_distance_m > 0:
             idx, dist = tree.query_nearest(
                 lab.point, max_distance=max_distance_m, return_distance=True
             )
             if len(idx):
-                best = int(sorted(zip(dist.tolist(), idx.tolist(), strict=True))[0][1])
+                reach = min(float(dist.min()) + LABEL_TIE_M, max_distance_m)
+                near = tree.query(lab.point, predicate="dwithin", distance=reach).tolist()
+                near = near or idx.tolist()
+                best = min(
+                    near,
+                    key=lambda i: (
+                        _claim(per_face.get(i, []), lab),
+                        faces[i].distance(lab.point),
+                        i,
+                    ),
+                )
                 per_face[best].append(lab)
                 flags[best].add("label_nearest")
                 continue
         unassigned.append(lab)
     return per_face, flags, unassigned
+
+
+def _claim(labels: list[Label], lab: Label) -> int:
+    """How well a face near a label suits it: 0 it holds a label of this value already, 1 it
+    holds none, 2 it holds another value."""
+    values = {x.value for x in labels}
+    return 0 if lab.value in values else 1 if not values else 2
 
 
 def _values(labels: Iterable[Label]) -> list[str]:
@@ -775,9 +800,9 @@ def _build_derived(ctx: _Context, layer: str, rule: LayerRule) -> list[_Candidat
     for value, feats in sorted(groups.items()):
         geom = shapely.union_all(np.asarray([f.geom for f in feats], dtype=object))
         if rule.close_m > 0:
-            geom = geom.buffer(rule.close_m, join_style="mitre").buffer(
-                -rule.close_m, join_style="mitre"
-            )
+            # a closing with a disc, kept together with the parts: mitred corners cut spikes
+            # into the features around a courtyard, so the result lost some of their area
+            geom = geom.union(geom.buffer(rule.close_m).buffer(-rule.close_m))
         if rule.clip and ctx.boundary is not None:
             geom = geom.intersection(ctx.boundary)
         cleaned, flags, counts = g.clean_polygon(geom, rule.min_area_m2)

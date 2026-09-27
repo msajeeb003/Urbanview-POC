@@ -7,8 +7,8 @@ Builders:
   centre, a dash to its axis: ``reduce_piece``) and their gaps closed by connectors between free
   ends (``bridge``), so the faces sit exactly on the lines' centres;
 - ``hole_faces``: wide polylines plotted as filled ribbons: buffer every piece so small gaps
-  close, union, take the holes and grow them back by the same distance plus the ribbons' half
-  width (mitred, so corners stay sharp);
+  close, union, take the holes (less any linework inside them) and grow them back by the same
+  distance plus the ribbons' half width (mitred, so corners stay sharp);
 - ``union_fills``: the filled pieces of one category (solid hatches plot as triangles) merged;
 - ``merge_lines``: stroke pieces joined into lines, dash gaps bridged by clustering endpoints.
 
@@ -232,7 +232,9 @@ def hole_faces(
     pieces: Sequence[BaseGeometry], gap_m: float, thickness_m: float | None = None
 ) -> list[Polygon]:
     """Faces enclosed by wide polylines plotted as filled ribbons (see the module docstring).
-    ``thickness_m`` defaults to the ribbons' median width."""
+    ``thickness_m`` defaults to the ribbons' median width. Linework lying wholly inside a hole
+    (a parcel drawn inside another, a kiosk in a square) is cut out of the enclosing face, so
+    the faces never overlap."""
     if not pieces:
         return []
     if thickness_m is None:
@@ -240,14 +242,19 @@ def hole_faces(
         thickness_m = widths[len(widths) // 2] if widths else 0.0
     radius = max(gap_m / 2, 1e-4)
     grown = shapely.buffer(np.asarray(pieces, dtype=object), radius, quad_segs=4)
-    network = shapely.union_all(grown)
+    parts = polygon_parts(shapely.union_all(grown))
+    shells = [Polygon(part.exterior) for part in parts]
+    tree = shapely.STRtree(np.asarray(shells, dtype=object)) if shells else None
     faces = []
     back = radius + thickness_m / 2
-    for part in polygon_parts(network):
+    for part in parts:
         for ring in part.interiors:
             hole = Polygon(ring)
             if hole.area <= 0:
                 continue
+            islands = tree.query(hole, predicate="contains").tolist() if tree is not None else []
+            if islands:
+                hole = hole.difference(shapely.union_all([shells[i] for i in islands]))
             faces.append(hole.buffer(back, join_style="mitre", mitre_limit=10.0))
     return faces
 

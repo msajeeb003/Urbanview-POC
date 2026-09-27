@@ -1,0 +1,138 @@
+# Extraction rules: UP "Stara Varoš" (izmjene i dopune), build plan ticket 07.
+#
+# Written with `python -m core.gis.extract styles` and the geometry assessment
+# (docs/gis/assessment). Manual fixes go in this file (offsets, excluded regions, label
+# overrides), never into the extracted data. Paths are relative to docs/gis/source for the CLI;
+# the geometry job finds each sheet by its SHA-256 among the stored files.
+#
+# Sheet 10 "Plan parcelacije, nivelacije i regulacije" is plotted in two parts (10a, 10b) that
+# overlap by a band of about 180 parcels; sheet 09 "Plan namjene površina" shows the whole plan.
+# All three are plots of the same AutoCAD model (the X-GEO_SV and X_Saobracaj_SV xrefs), so a
+# translation puts them in one frame; part-1 is the base.
+document:
+  id: stara-varos
+  name: UP Stara Varoš – izmjene i dopune
+  registry: eRegistri (lamp.gov.me), UP Stara Varoš – izmjene i dopune (#4207)
+
+sheets:
+  - id: part-1
+    file: 03 Stara Varoš/03 Stara Varoš - Urban parcels - Boundaries - Part 1.pdf
+    sha256: d250b2a53e4ad5ba09df3d2fbd9fdda99d3b6140dae9d396030c13ed1d2a7eca
+    # the viewport says 1:500; the 40 grid crosses (X-GEO_SV$0$MREZA) are 200 mm apart, 100 m
+    scale: 500
+    layers: [urban_parcels, planned_traffic]
+  - id: part-2
+    file: 03 Stara Varoš/03 Stara Varoš - Urban parcels - Boundaries - Part 2.pdf
+    sha256: e43d60c014aefd48ca9afd326778cd2e53b2af57b4695d4868491a1a907baa21
+    scale: 500  # 27 grid crosses 200 mm apart
+    # `offset --base part-1 --sheet part-2 --pdf-layer '^UP_Urbanisticka parcela_SS$'` (1114 of
+    # 1000 sampled vertices agree); the grid crosses of both sheets agree to 1 cm
+    offset_m: [-81.195, -368.702]
+    layers: [urban_parcels, planned_traffic]
+  - id: land-use
+    file: 03 Stara Varoš/03 Stara Varoš - Land use.pdf
+    sha256: dbf9a7259d36f7b1ce09e4261bd6fbcaa502598f525388d8c0bb4655e0dd2b3f
+    # no grid; the viewport's 1:1000 is proven by sheet 10's parcel ribbons, referenced into this
+    # sheet: at 1:1000 and this offset 7275 of their vertices lie within 0.5 m of part-1's (median
+    # 2 cm; a similarity fitted on them gives scale 0.99996, rotation 0.0001 degrees)
+    scale: 1000
+    # `offset --base part-1 --sheet land-use --pdf-layer '^UP_Urbanisticka parcela_SS$'` (1373 of
+    # 1000 sampled vertices agree; the cadastral base PARCELE_GRANICE gives the same within 2 cm)
+    offset_m: [-127.564, -396.212]
+    # the only sheet with the whole plan boundary: each part is cut off by its frame
+    layers: [plan_boundary, planned_land_use]
+
+layers:
+  # a pink dash-dot line of the model (dashes of about 3 mm, three 1.1 mm circles between them;
+  # the circles stand for their centres). UP-GRANICA_PLANA without the xref prefix is the legend
+  # sample, TTLB_891x925$0$K_UP-GRANICA_PLANA the key map. The boundary takes in the right half
+  # of the Morača and leaves out "dio zone B" (a separate plan, eRegistri #4210) as a 0.30 ha
+  # hole: 25.56 ha against 24.3 ha in the registry. It closes for gaps of 1.7-3 mm, always with
+  # the same area (to 12 m2).
+  plan_boundary:
+    method: polygonize
+    select: [{layer: "X-GEO_SV$0$UP-GRANICA_PLANA"}]
+    gap_mm: 2.0
+    min_area_m2: 10000
+
+  # every planned parcel is outlined with a wide polyline plotted as a filled ribbon, on the
+  # layer of its land use (UP_Urbanisticka parcela_SS, _MN, _PUJ, _K, _SV, _SR, _VO, _PUO,
+  # "trafo" and UP-Urbanisticka parcela_U): the parcels are the holes between the ribbons, grown
+  # back to their centre lines. The ids are text ("UP A164", "UP B2914/1", "UP E3147a",
+  # "UP TS 5"); faces without one (streets, squares) are dropped. A parcel cut off by one part's
+  # frame closes on the other part; the copies in the overlap merge by id. The neighbouring plans
+  # drawn on the sheets (Stara varoš – blok 7, dio zone A, zone B) carry no ids and lie outside
+  # the boundary; the "UP A164" of each legend too.
+  urban_parcels:
+    method: holes
+    select: [{layer_regex: '^UP[_-]Urbanisticka parcela'}]
+    gap_mm: 0.5
+    min_area_m2: 5
+    keep: labelled
+    labels:
+      source: text
+      select: [{layer: UP-Oznaka urb parc}]
+      pattern: 'UP\s*([A-F]\d{1,4}[a-z]?(?:/\d{1,2})?|TS\s*\d+)'
+      attribute: urban_parcel_number
+
+  # the plan's zones A-F: the parcels of each zone (the letter their id starts with) united and
+  # closed across the lanes inside the zone (gaps up to 12 m), clipped to the boundary; the
+  # streets between zones and the wider garden courtyards (UZP, not parcels) stay out. The
+  # dashed zone lines (X-GEO_SV$0$UP-BLOKOVI) are not needed.
+  urban_blocks:
+    method: derive
+    derive_from: urban_parcels
+    derive_by: block_ref
+    close_m: 6
+    min_area_m2: 100
+
+  # the land-use sheet fills or hatches every area on its category's layer (codes and names as
+  # in its legend): every planned parcel takes the category covering most of it, hatch lines
+  # counted 1.5 mm wide (the widest hatch, the K / SR / VPS cross-hatch, is 1.24 mm apart). The
+  # white code circles and legend boxes sit on the same layers, inside their own areas or
+  # outside the plan. Transformer station parcels (TS) have no category on the sheet.
+  planned_land_use:
+    method: classify
+    classify_from: urban_parcels
+    gap_mm: 1.5
+    min_share: 0.3
+    categories:
+      - {code: SS, name: površine za stanovanje srednje gustine, select: [{layer: UP-Povrs za stanovanje-SS}]}
+      - {code: SV, name: površine za stanovanje veće gustine, select: [{layer: UP-Povrs za stanovanje-SV}]}
+      - {code: CD, name: površine za centralne djelatnosti, select: [{layer: UP-Povrs za centralne djelatnosti}]}
+      - {code: MN, name: površine za mješovite namjene – stanovanje sa poslovanjem, select: [{layer: UP-Povrs za mjesovite namjene}]}
+      - {code: K, name: površine za kulturu, select: [{layer: UP-Povrs za kulturu}]}
+      - {code: SR, name: površine za sport i rekreaciju, select: [{layer: UP-Povrs za sport i rekreaciju}]}
+      - {code: VO, name: površine za vjerske objekte, select: [{layer: UP-Povrsine za verske objekte VO}]}
+      - {code: U, name: površine za pružanje usluga ishrane i pića – ugostiteljstvo, select: [{layer: UP-Povrs za ugostiteljstvo}]}
+      - {code: PUJ, name: površine za pejzažno uređenje javne namjene, select: [{layer: UP-Pov za pejz uredj PUJ}]}
+      - {code: UZP, name: uređene zelene površine – okućnice, select: [{layer: UP-Pov za pejz uredj UZP}]}
+      - {code: DS, name: površine saobraćajne infrastrukture, select: [{layer: "X_Saobracaj_SV$0$UP-Saobracajnice-htch"}]}
+      - {code: VPS, name: površinske vode, select: [{layer: UP-Povrsinske vode}]}
+      - {code: OP, name: ostale prirodne površine, select: [{layer: Up-Ostale prirodne povrsine}]}
+
+  # street axes (osovine), dash-dot: the dots are zero-length strokes and drop out, leaving
+  # 2.5 mm dashes 2.5 mm apart; gaps up to 3 mm are bridged (a dash and a gap are 5 mm, so the
+  # dashes of one axis never chain into one cluster)
+  planned_traffic:
+    method: lines
+    select: [{layer: "X_Saobracaj_SV$0$17osovine"}]
+    gap_mm: 3.0
+    min_length_m: 5
+    road_class: street_axis
+
+# the parameter table's parcel ids, one text line each: the zone letter, 1-4 digits and an
+# optional letter or /n (A99, A156a, B2914/1), and "TS 5"; the literal space keeps "TS" (the
+# land-use cell of TS 5) and the parcel area on the next line apart. 560 parcels; the drawing
+# also numbers 16 parcels the table does not list: nine of public green (PUJ), the Sahat kula
+# clock tower and its square (C5472/2, C5472/3) and the transformer stations TS 3, 4, 6, 7, 8.
+expected_parcels:
+  pdf: 03 Stara Varoš/03 Stara Varoš - Urban parcels - Planning parameters.pdf
+  sha256: 52ffc242b7cceb7ab97a6aa095f3879082ac3b049c0d3a00a19c43b0ffaf2066
+  pattern: '(?m)^\s*([A-F]\d{1,4}[a-z]?(?:/\d{1,2})?|TS \d+)\s*$'
+
+# every parcel id starts with its zone letter (the table's Zona column says the same for all
+# 559 of them); a TS parcel takes the zone whose closed outline covers more than half of it
+# (TS 5: D, as in the table; TS 7, 35 % inside zone E's outline, gets none)
+parcel_blocks:
+  from_number: '^([A-F])\d'
