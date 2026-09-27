@@ -125,7 +125,7 @@ function pointer(layers: Record<string, [number, number]>): TilesCurrent {
     data_version: "v1",
     version_id: 1,
     archive_url: "https://files.example/tiles.pmtiles",
-    layers: Object.entries(layers).map(([id, [min_zoom, features]]) => ({ id, geometry_type: "polygon", min_zoom, max_zoom: 16, features })),
+    layers: Object.entries(layers).map(([id, [min_zoom, features]]) => ({ id, geometry_type: "polygon", min_zoom, max_zoom: 16, features, available: true })),
   };
 }
 
