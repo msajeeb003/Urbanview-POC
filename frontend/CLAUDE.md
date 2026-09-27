@@ -613,7 +613,10 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
   document page: facts, "Add as" text / drawing / both + drop zone (PDF only, several at once:
   each file uploads, joins the version and, unless a drawing, is queued for extraction), the
   files table (role select, pages, scanned pages, extraction, cost, geometry, Remove disabled
-  with the API's reason once an item was approved) and the version history. "+ Upload document"
+  with the API's reason once an item was approved), the Georeferencing card (the latest
+  `georeference` run: status, RMSE against the limit, max residual, snapping, cadastral overlap
+  and mean offset, warning codes, one row per sheet with its RMSE; "Not georeferenced yet" with
+  the CLI to run otherwise) and the version history. "+ Upload document"
   takes PDFs, GIS files and cadastral extracts (kind from the extension, editable), a progress
   bar each; a known checksum is "Already uploaded" with a link to its document, never an error;
   PDFs continue to "Register a planning document" (name, type from the profile, DUP / PUP / PGR

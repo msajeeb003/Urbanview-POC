@@ -390,6 +390,52 @@ class DocumentFileOut(BaseModel):
     )
 
 
+class GeoreferenceSheet(BaseModel):
+    sheet: str
+    page: int | None = None
+    points: int = Field(description="Enabled control points on the sheet")
+    rmse_m: float | None = Field(default=None, description="Null when the sheet has no point")
+
+
+class GeoreferenceOut(BaseModel):
+    """The document version's latest georeferencing run (``core.gis.georef``): the transform's
+    residual report per sheet, the snapping to the cadastral base and the validation. Rows are
+    written by the georeferencing CLI; the publish job serves a staged run's geometry."""
+
+    dataset_version: str
+    status: Literal["staged", "invalid", "published", "superseded"]
+    source: Literal["extraction", "manual_redraw"]
+    crs: str = Field(description="The plan's projected CRS the control points are in")
+    method: Literal["helmert", "affine"]
+    rmse_m: float
+    max_rmse_m: float | None = Field(default=None, description="The document's threshold")
+    max_residual_m: float | None = None
+    points_used: int
+    sheets: list[GeoreferenceSheet] = Field(default_factory=list)
+    snap_tolerance_m: float | None = None
+    snapped_vertices: int | None = None
+    snapped_ratio: float | None = Field(
+        default=None, description="Share of planned parcel / block vertices moved onto the cadastre"
+    )
+    near_misses: int | None = Field(
+        default=None, description="Vertices near a cadastral vertex but beyond the tolerance"
+    )
+    cadastral_overlap_share: float | None = Field(
+        default=None, description="Share of the planned parcel area lying on cadastral parcels"
+    )
+    systematic_offset_m: float | None = Field(
+        default=None,
+        description=(
+            "Mean distance, in one direction, from planned vertices to the cadastral vertices "
+            "they follow (within three tolerances): the overlay check, near 0 when aligned"
+        ),
+    )
+    errors: list[str] = Field(default_factory=list, description="Validation error codes")
+    warnings: list[str] = Field(default_factory=list, description="Validation warning codes")
+    created_at: datetime
+    published_at: datetime | None = None
+
+
 class DocumentOut(BaseModel):
     id: int
     lineage_id: int = Field(description="Id of the first version; all versions share it")
@@ -440,6 +486,10 @@ class DocumentOut(BaseModel):
             "The latest extraction run of this version: queued -> extracting -> "
             "ready_for_review | failed, pages failed / skipped, items written"
         ),
+    )
+    georeference: GeoreferenceOut | None = Field(
+        default=None,
+        description="The latest georeferencing run of this version: RMSE per sheet, snapping",
     )
 
 

@@ -2784,6 +2784,8 @@ export interface components {
             preprocessing?: components["schemas"]["PreprocessSummary"] | null;
             /** @description The latest extraction run of this version: queued -> extracting -> ready_for_review | failed, pages failed / skipped, items written */
             extraction?: components["schemas"]["ExtractionRunOut"] | null;
+            /** @description The latest georeferencing run of this version: RMSE per sheet, snapping */
+            georeference?: components["schemas"]["GeoreferenceOut"] | null;
         };
         /** DocumentPanel */
         DocumentPanel: {
@@ -3427,6 +3429,107 @@ export interface components {
              * @enum {string}
              */
             kind: "address" | "street" | "place" | "poi" | "other";
+        };
+        /**
+         * GeoreferenceOut
+         * @description The document version's latest georeferencing run (``core.gis.georef``): the transform's
+         *     residual report per sheet, the snapping to the cadastral base and the validation. Rows are
+         *     written by the georeferencing CLI; the publish job serves a staged run's geometry.
+         */
+        GeoreferenceOut: {
+            /** Dataset Version */
+            dataset_version: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "staged" | "invalid" | "published" | "superseded";
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "extraction" | "manual_redraw";
+            /**
+             * Crs
+             * @description The plan's projected CRS the control points are in
+             */
+            crs: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "helmert" | "affine";
+            /** Rmse M */
+            rmse_m: number;
+            /**
+             * Max Rmse M
+             * @description The document's threshold
+             */
+            max_rmse_m?: number | null;
+            /** Max Residual M */
+            max_residual_m?: number | null;
+            /** Points Used */
+            points_used: number;
+            /** Sheets */
+            sheets?: components["schemas"]["GeoreferenceSheet"][];
+            /** Snap Tolerance M */
+            snap_tolerance_m?: number | null;
+            /** Snapped Vertices */
+            snapped_vertices?: number | null;
+            /**
+             * Snapped Ratio
+             * @description Share of planned parcel / block vertices moved onto the cadastre
+             */
+            snapped_ratio?: number | null;
+            /**
+             * Near Misses
+             * @description Vertices near a cadastral vertex but beyond the tolerance
+             */
+            near_misses?: number | null;
+            /**
+             * Cadastral Overlap Share
+             * @description Share of the planned parcel area lying on cadastral parcels
+             */
+            cadastral_overlap_share?: number | null;
+            /**
+             * Systematic Offset M
+             * @description Mean distance, in one direction, from planned vertices to the cadastral vertices they follow (within three tolerances): the overlay check, near 0 when aligned
+             */
+            systematic_offset_m?: number | null;
+            /**
+             * Errors
+             * @description Validation error codes
+             */
+            errors?: string[];
+            /**
+             * Warnings
+             * @description Validation warning codes
+             */
+            warnings?: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Published At */
+            published_at?: string | null;
+        };
+        /** GeoreferenceSheet */
+        GeoreferenceSheet: {
+            /** Sheet */
+            sheet: string;
+            /** Page */
+            page?: number | null;
+            /**
+             * Points
+             * @description Enabled control points on the sheet
+             */
+            points: number;
+            /**
+             * Rmse M
+             * @description Null when the sheet has no point
+             */
+            rmse_m?: number | null;
         };
         /** Group1 */
         Group1: {

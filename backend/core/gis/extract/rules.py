@@ -211,6 +211,20 @@ class DocumentInfo(_Model):
     registry: str | None = None
 
 
+class GeorefSettings(_Model):
+    """How the document's geometry is georeferenced (``core.gis.georef``): control points in the
+    sheets' PDF points (a CSV next to this file) fitted to the plan's projected CRS."""
+
+    crs: str | None = None  # the plan's projected CRS; default: the profile's source_crs_epsg
+    method: Literal["helmert", "affine"] = "helmert"  # affine for scanned / redrawn sheets
+    max_rmse_m: float = Field(default=0.5, gt=0)  # a fit above this is rejected
+    min_points: int = Field(default=4, ge=3)
+    points: str | None = None  # control-point CSV; default <rules file stem>.points.csv
+    transform: str | None = None  # ogr2ogr -ct: the plan CRS -> EPSG:4326 operation (datum shift)
+    snap_tolerance_m: float = Field(default=0.5, ge=0)  # planned vertices -> cadastral vertices
+    grid_layer_regex: str = "^mreza$"  # the layer of the grid crosses (the state grid, 100 m)
+
+
 class DocumentRules(_Model):
     document: DocumentInfo
     sheets: list[SheetRule]
@@ -218,6 +232,7 @@ class DocumentRules(_Model):
     expected_parcels: TableSource | None = None  # the parcel ids the plan must yield (QA)
     parcel_blocks: ParcelBlocks | None = None
     label_overrides: dict[str, str] = Field(default_factory=dict)  # label text read -> corrected
+    georef: GeorefSettings = Field(default_factory=GeorefSettings)
 
     @field_validator("layers")
     @classmethod

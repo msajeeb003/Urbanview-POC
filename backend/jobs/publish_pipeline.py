@@ -13,7 +13,8 @@ behind but the job's error. Steps, each reported to ``pipeline_jobs.progress``:
    public panel says ``rejected`` without reading the review queue);
 4. ``geometry``: staged batches applied: entity layers upserted by natural key (stable ids),
    generic layers copied into ``layer_features`` for the version (untouched layers carried
-   forward), document coverage updated; batches marked published;
+   forward), document coverage updated; batches marked published; zone, cadastral and
+   georeferencing datasets whose batches were applied marked published;
 5. ``links``: cadastral ↔ planned parcel overlaps recomputed with location resolution's
    thresholds (rank 1 = the panel's primary), unmatched cadastral parcels counted;
 6. ``cells``: block and zone heatmap cells from the effective parameters and the current market
@@ -48,6 +49,7 @@ from core.assumptions import live_versions_sql
 from core.cadastre.dataset import apply_cadastral_datasets
 from core.engine.feasibility import Assumptions, MarketInputs, compute_feasibility
 from core.engine.shared import DEFAULT_SALEABLE_SHARE, FORMULA_VERSION
+from core.gis.georef.stage import apply_georef_datasets
 from core.parcel_links import recompute_parcel_links
 from core.zones.staging import apply_zone_datasets
 from jobs.base import JobContext, JobResult
@@ -497,7 +499,8 @@ UPSERT_SQL: dict[str, list[str]] = {
                COALESCE(CAST(s.properties->>'area_m2' AS double precision), {_AREA}),
                (SELECT b.id FROM urban_blocks b
                 WHERE b.municipality_id = s.municipality_id
-                  AND b.block_ref = s.properties->>'block_ref' ORDER BY b.id LIMIT 1),
+                  AND b.block_ref = s.properties->>'block_ref'
+                ORDER BY ST_Intersects(b.geom, s.geom) DESC, b.id LIMIT 1),
                CAST(s.properties->>'document_id' AS bigint), :label
         FROM staging_geometry s WHERE s.batch_id = :batch
         ON CONFLICT (document_id, urban_parcel_number)
@@ -506,6 +509,8 @@ UPSERT_SQL: dict[str, list[str]] = {
                       dataset_version = EXCLUDED.dataset_version
         """
     ],
+    # a block's letter recurs across plans ("Blok A" of two documents): a staged block updates
+    # the block of that ref it overlaps, else it is a new block
     "urban_blocks": [
         f"""
         UPDATE urban_blocks b
@@ -516,7 +521,7 @@ UPSERT_SQL: dict[str, list[str]] = {
             dataset_version = :label
         FROM staging_geometry s
         WHERE s.batch_id = :batch AND b.municipality_id = s.municipality_id
-          AND b.block_ref = s.properties->>'block_ref'
+          AND b.block_ref = s.properties->>'block_ref' AND ST_Intersects(b.geom, s.geom)
         """,
         f"""
         INSERT INTO urban_blocks (municipality_id, block_ref, geom, zone_id, dataset_version)
@@ -526,7 +531,7 @@ UPSERT_SQL: dict[str, list[str]] = {
         FROM staging_geometry s
         WHERE s.batch_id = :batch AND NOT EXISTS (
             SELECT 1 FROM urban_blocks b WHERE b.municipality_id = s.municipality_id
-              AND b.block_ref = s.properties->>'block_ref')
+              AND b.block_ref = s.properties->>'block_ref' AND ST_Intersects(b.geom, s.geom))
         """,
     ],
     "zones": [
@@ -1064,6 +1069,10 @@ class PublishPipeline:
         )
         if cadastre["cadastral_datasets"]:
             counts["cadastre"] = cadastre
+        # a georeferenced document (core.gis.georef) is published once its batches are applied
+        georef = await apply_georef_datasets(session, municipality_id=m, version_id=version_id)
+        if georef["georef_datasets"]:
+            counts["georef"] = georef
         if previous_id is not None:
             for layer_id in GENERIC_LAYER_IDS:
                 if layer_id not in newest_generic:

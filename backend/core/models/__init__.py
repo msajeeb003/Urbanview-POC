@@ -23,6 +23,7 @@ from core.models.admin import (
 from core.models.analytics import AnalyticsEventRecord
 from core.models.cadastre import CadastralDataset, CadastralMunicipality
 from core.models.extraction import ExtractionRun, ExtractionRunChunk
+from core.models.georef import GeorefDataset
 from core.models.market import MarketDataItem, MarketImport
 from core.models.orders import EmailLogEntry, Order
 from core.models.panel import (
@@ -65,6 +66,7 @@ __all__ = [
     "ExtractionRunChunk",
     "FinancialAssumption",
     "GeometryBatch",
+    "GeorefDataset",
     "HeatmapCell",
     "LayerFeature",
     "MarketDataItem",

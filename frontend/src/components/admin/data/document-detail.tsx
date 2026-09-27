@@ -37,10 +37,10 @@ import {
   setFileRoleAction,
 } from "@/lib/admin/data-actions";
 import { relativeTime, utcStamp } from "@/lib/admin/format";
-import type { AdminDocument, AdminDocumentFile, FileRole } from "@/lib/api/types";
+import type { AdminDocument, AdminDocumentFile, AdminGeoreference, FileRole } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
-import { AdminCard, StatusChip } from "../parts";
+import { AdminCard, type ChipTone, StatusChip } from "../parts";
 
 import { DocumentActions, FileActions } from "./data-screen";
 import { ActionButton, AutoRefresh, PillView } from "./parts";
@@ -146,6 +146,122 @@ function FilesTable({ doc }: { doc: AdminDocument }) {
         })}
       </tbody>
     </table>
+  );
+}
+
+const GEOREF_STATUS: Record<AdminGeoreference["status"], { tone: ChipTone; label: string }> = {
+  staged: { tone: "pend", label: "Staged · publish to serve" },
+  published: { tone: "ok", label: "Published" },
+  invalid: { tone: "rev", label: "Refused by the validation" },
+  superseded: { tone: "pend", label: "Superseded" },
+};
+
+function metres(value: number | null | undefined): string {
+  return value == null ? "—" : `${value.toFixed(3)} m`;
+}
+
+function percent(value: number | null | undefined): string {
+  return value == null ? "—" : `${(value * 100).toFixed(1)} %`;
+}
+
+/** The residual report of the latest georeferencing run: RMSE per sheet against the document's
+ * threshold, the snapping to the cadastral base and the validation (core.gis.georef). */
+function GeoreferenceCard({ geo }: { geo: AdminGeoreference | null | undefined }) {
+  if (!geo) {
+    return (
+      <AdminCard title="Georeferencing" sub="Control points on the sheets fitted to the plan's coordinate system">
+        <div className="admin-note">
+          Not georeferenced yet. Control points, the fit and its residuals are prepared with{" "}
+          <span className="mono">python -m core.gis.georef</span> (grid / add → fit → apply --stage); the result shows here.
+        </div>
+      </AdminCard>
+    );
+  }
+  const status = GEOREF_STATUS[geo.status];
+  const limit = geo.max_rmse_m ?? null;
+  return (
+    <AdminCard
+      title="Georeferencing"
+      sub={`${geo.method === "helmert" ? "Helmert" : "Affine"} fit to ${geo.crs} · ${geo.points_used} control points${geo.source === "manual_redraw" ? " · redrawn sheets" : ""}`}
+    >
+      <dl className="docfacts">
+        <div>
+          <dt>Status</dt>
+          <dd>
+            <StatusChip tone={status.tone}>{status.label}</StatusChip>
+          </dd>
+        </div>
+        <div>
+          <dt>RMSE</dt>
+          <dd className="mono">
+            {metres(geo.rmse_m)}
+            {limit != null ? ` (limit ${limit} m)` : ""} · max residual {metres(geo.max_residual_m)}
+          </dd>
+        </div>
+        <div>
+          <dt>Snapping</dt>
+          <dd className="mono">
+            {geo.snap_tolerance_m ? (
+              <>
+                {percent(geo.snapped_ratio)} of vertices within {geo.snap_tolerance_m} m · {geo.near_misses ?? 0} near misses
+              </>
+            ) : (
+              "off"
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>On the cadastre</dt>
+          <dd className="mono">
+            {percent(geo.cadastral_overlap_share)} of the planned parcel area
+            {geo.systematic_offset_m != null ? ` · mean offset ${metres(geo.systematic_offset_m)}` : ""}
+          </dd>
+        </div>
+        <div>
+          <dt>Dataset</dt>
+          <dd className="mono">
+            {geo.dataset_version} · {utcStamp(geo.created_at)}
+            {geo.published_at ? ` · published ${utcStamp(geo.published_at)}` : ""}
+          </dd>
+        </div>
+        {(geo.errors?.length ?? 0) + (geo.warnings?.length ?? 0) > 0 && (
+          <div className="wide">
+            <dt>Validation</dt>
+            <dd className="mono">{[...(geo.errors ?? []), ...(geo.warnings ?? [])].join(" · ")}</dd>
+          </div>
+        )}
+      </dl>
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th>Sheet</th>
+            <th>Page</th>
+            <th>Control points</th>
+            <th>RMSE</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {(geo.sheets ?? []).map((s) => (
+            <tr key={s.sheet}>
+              <td className="mono">{s.sheet}</td>
+              <td className="mono">{s.page ?? "—"}</td>
+              <td className="mono">{s.points}</td>
+              <td className="mono">{metres(s.rmse_m)}</td>
+              <td>
+                {s.rmse_m == null ? (
+                  <StatusChip tone="pend">No points</StatusChip>
+                ) : limit == null || s.rmse_m <= limit ? (
+                  <StatusChip tone="ok">Within limit</StatusChip>
+                ) : (
+                  <StatusChip tone="rev">Above limit</StatusChip>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </AdminCard>
   );
 }
 
@@ -304,6 +420,8 @@ export function DocumentDetail({ doc, zones, types }: { doc: AdminDocument; zone
         )}
         <FilesTable doc={doc} />
       </AdminCard>
+
+      <GeoreferenceCard geo={doc.georeference} />
 
       <AdminCard title="Version history" sub="Re-registering a document creates a new version; earlier versions and their values stay">
         <table className="tbl">

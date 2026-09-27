@@ -1183,6 +1183,56 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   `tests/cadastre/`: GeoPackage import with a KO layer, publish, lookup at the right spot,
   re-import diff, retiring, refusals, access gate, ownership layers unavailable).
 
+## Georeferencing (`backend/core/gis/georef/`, migration 0025, `docs/gis/georeferencing.md`)
+
+- **From the extraction's local frame to EPSG:4326.** Control points per document in
+  `<rules stem>.points.csv` next to the extraction rules (`id, sheet, x_pt, y_pt, easting,
+  northing, source grid | label | table | cadastre | corner | manual, note, enabled`; positions in
+  the sheet's PDF points, origin bottom-left; disabled, never deleted). `fit.py`: Helmert (vector
+  sheets) or affine (scanned / redrawn) from the document's local frame (`pt × scale × 0.0254/72 +
+  offset_m`, so one transform serves every sheet; per-sheet `page_to_crs` derived) to the plan CRS
+  (`georef.crs` in the rules, else the profile's `source_crs_epsg`: **EPSG:3908** for Podgorica,
+  not 25834); residuals, RMSE overall and per sheet, leave-one-out outliers, a Helmert scale warning
+  (> 1 % = wrong sheet scale); rejected above `georef.max_rmse_m` (0.5) or under `min_points` (4).
+  The stored `<stem>.transform.json` carries the enabled points' SHA-256: `apply` refuses it once
+  the points change. `grid.py`: the grid crosses of `georef.grid_layer_regex` (MREZA) become exact
+  control points from one seed within ±50 m (a seed 100 m off shifts everything: the staging's
+  cadastral checks catch it). `apply.py`: the transform on every layer, then ogr2ogr (`-s_srs` plan
+  CRS, `-t_srs EPSG:4326`, `-ct` from `georef.transform` / `--ct` for a better datum operation than
+  PROJ's ±10 m EPSG:3965) into one GeoPackage; `digest` (dataset label excluded) is reproduced by
+  a re-run. Redrawn sheets: the same layers and columns, `--frame local | sheet:<id>`, `--redrawn`.
+- **Stage** (`stage.py`, PostGIS, one transaction, the CLI commits): planned parcels and blocks
+  snapped to the served cadastral parcels in the cadastre's `area_crs_epsg` (`ST_Snap`, vertices
+  within `georef.snap_tolerance_m` 0.5 m; farther ones stay: re-parcelling is intended); per
+  feature `vertices` / `snapped_vertices` / `snapped_ratio`; `<doc>.snap-log.csv` lists moved
+  vertices and near misses (1–3 tolerances); the mean vector to the cadastre over the close
+  vertices is the overlay check (`systematic_offset_m`). Validation: errors `outside_extent`
+  (profile bounds), `no_cadastral_overlap` (cadastral parcels around, zero overlap), `no_features`
+  -> dataset `invalid`, nothing staged, exit 1; warnings `no_cadastral_base`, `parcel_overlaps`
+  (> 1 m²), `unnumbered_parcels`, `repeated_parcel_numbers`, `systematic_offset` (> half the
+  tolerance over ≥ 5 vertices), `no_common_vertices`. Batches: `document_coverage` (key = document
+  id), `urban_parcels` (`<doc>|UP <n>`, the profile's `urban_parcel.abbreviation`),
+  `urban_blocks` (the plan's label; publish matches a block by label AND overlap, since labels
+  recur across plans), `land_use` / `traffic_network` (generic: the batch carries the other
+  documents' features from the newest staged batch or the current version; a re-run replaces the
+  document's own). Every feature has `document_id`, `dataset_version`.
+- **Record** `georef_datasets` (`geo-<doc>-<yyyymmdd>-<n>`, staged | invalid | published |
+  superseded, source extraction | manual_redraw, CRS, method, transform JSON with residuals,
+  `rmse_m`, `max_residual_m`, `points_used`, `sheets` per-sheet RMSE, `snap` (+ overlap),
+  `validation`, `batches`, `output_sha256`, `gpkg_key`); a newer staged run supersedes the
+  document's staged one; the publish job's geometry step publishes a dataset once its batches
+  are applied (`apply_georef_datasets`, the previous published one superseded). `DocumentOut.
+  georeference` (admin) is the latest run: RMSE vs limit, per-sheet table, snapping, overlap
+  share, offset, warning codes; the console's document page shows it.
+- CLI `python -m core.gis.georef points | add | disable | enable | grid | fit | apply [--stage]
+  | datasets | show` (exit 1 = fit above the threshold / dataset refused, 2 = input / GDAL error).
+  Tests: `tests/test_georef_unit.py` (a synthetic sheet with a known truth: zero RMSE and the
+  truth's parameters, a bad point found and the fit rejected, affine vs Helmert, grid crosses
+  from a rough seed, GDAL output against an analytic UTM inverse, redrawn-sheet frame, the CLI)
+  and `tests/integration/test_georef_postgis.py` (CLI through staging on seeded parcel 1001:
+  snapped / near miss / re-parcelled vertices, dataset row, admin summary, publish, re-run digest,
+  refusals, systematic offset, land-use carry-forward).
+
 ## GIS track: geometry assessment (`backend/core/gis/`, `docs/gis/`)
 
 - **Week-1 gate 1** (BRD "Geometry extraction: to be determined by sample assessment"):

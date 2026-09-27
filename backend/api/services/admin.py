@@ -61,6 +61,8 @@ from api.schemas.admin import (
     FileList,
     FileRole,
     FileSummary,
+    GeoreferenceOut,
+    GeoreferenceSheet,
     ItemCounts,
     JobOut,
     JobStateFilter,
@@ -362,6 +364,17 @@ JOB_STATE_FILTERS: dict[str, tuple[str, ...]] = {
 }
 
 
+# the latest georeferencing run of a document version (core.gis.georef, migration 0025)
+_GEOREF_JSON = """
+    jsonb_build_object(
+        'dataset_version', g.dataset_version, 'status', g.status, 'source', g.source,
+        'crs', g.crs, 'method', g.method, 'rmse_m', g.rmse_m,
+        'max_rmse_m', g.transform->'max_rmse_m', 'max_residual_m', g.max_residual_m,
+        'points_used', g.points_used, 'sheets', g.sheets, 'snap', g.snap,
+        'validation', g.validation, 'created_at', g.created_at, 'published_at', g.published_at)
+"""
+
+
 def _document_sql(extra: str) -> str:
     return f"""
     SELECT d.id, d.name, d.type, d.status::text AS status, d.source, d.source_url, d.zone_id,
@@ -379,6 +392,8 @@ def _document_sql(extra: str) -> str:
            f.preprocess -> 'summary' AS preprocessing,
            (SELECT {RUN_JSON} FROM extraction_runs r WHERE r.document_id = d.id
             ORDER BY r.id DESC LIMIT 1) AS extraction,
+           (SELECT {_GEOREF_JSON} FROM georef_datasets g WHERE g.document_id = d.id
+            ORDER BY g.id DESC LIMIT 1) AS georeference,
            COALESCE((SELECT jsonb_agg(jsonb_build_object(
                          'id', v.id, 'version', v.version, 'status', v.status::text,
                          'is_current_version', v.is_current_version, 'name', v.name,
@@ -673,6 +688,36 @@ def _document_out(row: Mapping[str, Any]) -> DocumentOut:
         review=_review_summary(row["review"]),
         preprocessing=_preprocessing(row.get("preprocessing")),
         extraction=_extraction(row.get("extraction")),
+        georeference=_georeference(row.get("georeference")),
+    )
+
+
+def _georeference(raw: Mapping[str, Any] | None) -> GeoreferenceOut | None:
+    if not raw:
+        return None
+    snap = raw.get("snap") or {}
+    validation = raw.get("validation") or {}
+    return GeoreferenceOut(
+        dataset_version=raw["dataset_version"],
+        status=raw["status"],
+        source=raw["source"],
+        crs=raw["crs"],
+        method=raw["method"],
+        rmse_m=raw["rmse_m"],
+        max_rmse_m=raw.get("max_rmse_m"),
+        max_residual_m=raw.get("max_residual_m"),
+        points_used=raw["points_used"],
+        sheets=[GeoreferenceSheet(**s) for s in raw.get("sheets") or []],
+        snap_tolerance_m=snap.get("tolerance_m"),
+        snapped_vertices=snap.get("snapped_vertices"),
+        snapped_ratio=snap.get("snapped_ratio"),
+        near_misses=snap.get("near_misses"),
+        cadastral_overlap_share=(snap.get("overlap") or {}).get("overlap_share"),
+        systematic_offset_m=snap.get("systematic_offset_m"),
+        errors=[e["code"] for e in validation.get("errors") or []],
+        warnings=[w["code"] for w in validation.get("warnings") or []],
+        created_at=raw["created_at"],
+        published_at=raw.get("published_at"),
     )
 
 

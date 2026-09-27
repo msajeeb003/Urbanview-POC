@@ -10961,6 +10961,17 @@
               }
             ],
             "description": "The latest extraction run of this version: queued -> extracting -> ready_for_review | failed, pages failed / skipped, items written"
+          },
+          "georeference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeoreferenceOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest georeferencing run of this version: RMSE per sheet, snapping"
           }
         },
         "type": "object",
@@ -12571,6 +12582,241 @@
           "kind"
         ],
         "title": "GeocodeResult"
+      },
+      "GeoreferenceOut": {
+        "properties": {
+          "dataset_version": {
+            "type": "string",
+            "title": "Dataset Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "staged",
+              "invalid",
+              "published",
+              "superseded"
+            ],
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "extraction",
+              "manual_redraw"
+            ],
+            "title": "Source"
+          },
+          "crs": {
+            "type": "string",
+            "title": "Crs",
+            "description": "The plan's projected CRS the control points are in"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "helmert",
+              "affine"
+            ],
+            "title": "Method"
+          },
+          "rmse_m": {
+            "type": "number",
+            "title": "Rmse M"
+          },
+          "max_rmse_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Rmse M",
+            "description": "The document's threshold"
+          },
+          "max_residual_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Residual M"
+          },
+          "points_used": {
+            "type": "integer",
+            "title": "Points Used"
+          },
+          "sheets": {
+            "items": {
+              "$ref": "#/components/schemas/GeoreferenceSheet"
+            },
+            "type": "array",
+            "title": "Sheets"
+          },
+          "snap_tolerance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snap Tolerance M"
+          },
+          "snapped_vertices": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapped Vertices"
+          },
+          "snapped_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapped Ratio",
+            "description": "Share of planned parcel / block vertices moved onto the cadastre"
+          },
+          "near_misses": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Near Misses",
+            "description": "Vertices near a cadastral vertex but beyond the tolerance"
+          },
+          "cadastral_overlap_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadastral Overlap Share",
+            "description": "Share of the planned parcel area lying on cadastral parcels"
+          },
+          "systematic_offset_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Systematic Offset M",
+            "description": "Mean distance, in one direction, from planned vertices to the cadastral vertices they follow (within three tolerances): the overlay check, near 0 when aligned"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors",
+            "description": "Validation error codes"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Validation warning codes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_version",
+          "status",
+          "source",
+          "crs",
+          "method",
+          "rmse_m",
+          "points_used",
+          "created_at"
+        ],
+        "title": "GeoreferenceOut",
+        "description": "The document version's latest georeferencing run (``core.gis.georef``): the transform's\nresidual report per sheet, the snapping to the cadastral base and the validation. Rows are\nwritten by the georeferencing CLI; the publish job serves a staged run's geometry."
+      },
+      "GeoreferenceSheet": {
+        "properties": {
+          "sheet": {
+            "type": "string",
+            "title": "Sheet"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Points",
+            "description": "Enabled control points on the sheet"
+          },
+          "rmse_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rmse M",
+            "description": "Null when the sheet has no point"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sheet",
+          "points"
+        ],
+        "title": "GeoreferenceSheet"
       },
       "Group1": {
         "properties": {
