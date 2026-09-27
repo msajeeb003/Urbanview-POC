@@ -9544,24 +9544,60 @@
       },
       "CellClasses": {
         "properties": {
-          "block_cells": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/MetricClasses"
-            },
-            "type": "object",
-            "title": "Block Cells"
+          "coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricClasses"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "zone_cells": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/MetricClasses"
-            },
-            "type": "object",
-            "title": "Zone Cells"
+          "far": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricClasses"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "height": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricClasses"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gfa": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricClasses"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sale_price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricClasses"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
         "title": "CellClasses",
-        "description": "Choropleth classes of the current version's cells, per tile layer and metric."
+        "description": "The heatmaps' classes of the current version (``core.choropleth``), per layer."
       },
       "ComputedField": {
         "properties": {
@@ -15831,6 +15867,16 @@
       },
       "MetricClasses": {
         "properties": {
+          "layer": {
+            "type": "string",
+            "title": "Layer",
+            "description": "coverage | far | height | gfa | sale_price"
+          },
+          "source_layer": {
+            "type": "string",
+            "title": "Source Layer",
+            "description": "The heatmap's tile source-layer (heat_<layer>)"
+          },
           "method": {
             "type": "string",
             "title": "Method",
@@ -15877,6 +15923,17 @@
             ],
             "title": "Max"
           },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
           "count": {
             "type": "integer",
             "title": "Count",
@@ -15885,23 +15942,31 @@
           "null_count": {
             "type": "integer",
             "title": "Null Count",
-            "description": "Cells without a value: drawn as no data"
+            "description": "Blocks / zones without a value: drawn as not covered"
           },
           "zero_class": {
             "type": "boolean",
             "title": "Zero Class",
-            "description": "0 is its own class first (sale rate: not saleable)"
+            "description": "0 is its own class first (sale price: not saleable)"
+          },
+          "decimals": {
+            "type": "integer",
+            "title": "Decimals",
+            "default": 0
           }
         },
         "type": "object",
         "required": [
+          "layer",
+          "source_layer",
           "method",
           "breaks",
           "count",
           "null_count",
           "zero_class"
         ],
-        "title": "MetricClasses"
+        "title": "MetricClasses",
+        "description": "One heatmap's classes, stored with its cells (``choropleth_classes``): the cells' ``band``\nin the tiles and the legend rows come from these breaks."
       },
       "MunicipalityProfile": {
         "properties": {
@@ -20940,7 +21005,13 @@
                 "type": "null"
               }
             ],
-            "description": "Classes of the block / zone cells: the map colours and legend share them"
+            "description": "The heatmaps' stored classes: the tiles' bands and the legend share them"
+          },
+          "heatmaps_refreshing": {
+            "type": "boolean",
+            "title": "Heatmaps Refreshing",
+            "description": "Another assumptions version applies since the tiles were built: the sale-price heatmap is being rebuilt (refresh_heatmaps job)",
+            "default": false
           }
         },
         "type": "object",

@@ -107,9 +107,9 @@ each entry. Rail order, groups and names are the wireframe's.
 | Parcels | Public ownership | off | requires Cadastral parcels (▲ + "Needs … tap to turn on"); shades #4F6D82 | `public_ownership` |
 | Parcels | Restitution / legal | off | requires Cadastral parcels; shades #9E5568 | `legal_burdens` |
 | Context | Land use | off | zone-type tint by `category` | `land_use` |
-| Context | FAR heatmap | off | parameter choropleth; field chips FAR / Coverage / Height / GFA | `block_cells` |
+| Context | FAR heatmap | off | parameter choropleth; field chips FAR / Coverage / Floors / GFA | `heat_far`, `heat_coverage`, `heat_height`, `heat_gfa` |
 | Context | Planned traffic | off | dashed grey lines | `traffic_network` |
-| Feasibility | Price heatmap | off | sale-price choropleth; paid: locked while `marketUnlocked` is false (click = `market_data_interest` + the market-data intent modal); field chips Low / Expected / High | `zone_cells` |
+| Feasibility | Price heatmap | off | sale-price choropleth; paid: locked while `marketUnlocked` is false (click = `market_data_interest` + the market-data intent modal); field chips Low / Expected / High | `heat_sale_price` |
 
 - **Cards** are toggled by clicking (swatch + name), each independently, with one rule: **only one
   choropleth is on at a time** (`toggleLayer`: turning one on turns the other off, toast "… turned
@@ -130,12 +130,15 @@ each entry. Rail order, groups and names are the wireframe's.
   (`zoom`, set by the map with the zoom label) as one string, so the rail and legend re-render
   when a state changes, not on every camera frame. A rail click reads the store at the click,
   never the last render's snapshot.
-- **Choropleths** (`src/lib/map/classes.ts`): colours, legend rows and Mapbox expressions come from
-  the classes `/v1/tiles/current` serves (`cell_classes`, computed from the version's cells:
-  quintile breaks for block metrics, the profile's €/m² bands for sale rates, 0 = "not saleable"),
-  so legend and map always match. Parameter classes run along #EFE3CE → #B4744A; price bands use
-  the wireframe's gold steps. **Cells without a value get the "no data" hatch** (a separate layer
-  on `!has(field)`), never the lowest class. Without served classes the wireframe's look is the
+- **Choropleths** (`src/lib/map/classes.ts`): one source-layer per heatmap (`heat_<layer>`, the
+  field chips pick which of the four planning layers is drawn: the others' filters are `NONE`);
+  legend rows come from the classes `/v1/tiles/current` serves (`cell_classes`, stored with the
+  cells: quintile breaks for the planning layers, the profile's €/m² bands for the sale price, 0 =
+  "not saleable") and the map colours each cell by the `band` the API gave it (`band_low` /
+  `band_high` for the low / high price), so legend and map always match. Height is floors above
+  ground (`max_floors`; the URL code stays `height`). Parameter classes run along #EFE3CE →
+  #B4744A; price bands use the wireframe's gold steps. **Cells without a value get the "no data"
+  hatch** (a separate layer on `!has("value")`), never the lowest class. Without served classes the wireframe's look is the
   fallback (a continuous gradient, "Low → high"; the fixed bands). Field changes restyle with
   `setPaintProperty` / `setFilter`; toggles with `setLayoutProperty`: no source reload.
 - **Legend** (`legendGroups`): one group per layer that is on, in rail order, the wireframe's rows

@@ -26,7 +26,7 @@ import {
   type MetricClasses,
 } from "./classes";
 import { fitOptions, fitPadding } from "./camera";
-import { LAYER_GROUPS, UV_LAYERS, choroplethStyle, uvLayers } from "./style";
+import { LAYER_GROUPS, NONE, UV_LAYERS, choroplethStyle, uvLayers } from "./style";
 
 /** Minimal evaluator for the colour expressions the schemes build (step / case / to-number / get). */
 function evaluate(expr: unknown, props: Record<string, number>): unknown {
@@ -53,6 +53,9 @@ function evaluate(expr: unknown, props: Record<string, number>): unknown {
 }
 
 const farClasses: MetricClasses = {
+  layer: "far",
+  source_layer: "heat_far",
+  decimals: 2,
   method: "quantile",
   unit: null,
   breaks: [1.22, 1.68, 2.22, 2.72],
@@ -78,13 +81,14 @@ describe("registry", () => {
 
   it("starts each map layer at its catalogue zoom", () => {
     expect(UV_LAYERS.find((l) => l.id === "uv-cad-fill")!.minzoom).toBe(13);
-    expect(UV_LAYERS.find((l) => l.id === "uv-heatfar-fill")!.minzoom).toBe(10);
-    expect(UV_LAYERS.find((l) => l.id === "uv-heatmkt-fill")!.minzoom).toBe(8); // zone_cells: 8 in the catalogue
+    expect(UV_LAYERS.find((l) => l.id === "uv-heat-far-fill")!.minzoom).toBe(10);
+    expect(UV_LAYERS.find((l) => l.id === "uv-heat-height-nodata")!.minzoom).toBe(10);
+    expect(UV_LAYERS.find((l) => l.id === "uv-heatmkt-fill")!.minzoom).toBe(8); // heat_sale_price: 8 in the catalogue
     expect(UV_LAYERS.find((l) => l.id === "uv-blocks-label")!.minzoom).toBe(15);
   });
 
   it("starts each map layer where the published archive has its source-layer, as the rail says", () => {
-    const tiles = pointer({ cadastral_parcels: [14, 3], urban_blocks: [11, 2], zone_cells: [8, 2] });
+    const tiles = pointer({ cadastral_parcels: [14, 3], urban_blocks: [11, 2], heat_sale_price: [8, 2] });
     const specs = uvLayers(tiles);
     const at = (id: string) => specs.find((l) => l.id === id)!.minzoom;
     expect(at("uv-cad-fill")).toBe(14); // a clamped build wins over the catalogue's 13
@@ -126,6 +130,7 @@ function pointer(layers: Record<string, [number, number]>): TilesCurrent {
     version_id: 1,
     archive_url: "https://files.example/tiles.pmtiles",
     layers: Object.entries(layers).map(([id, [min_zoom, features]]) => ({ id, geometry_type: "polygon", min_zoom, max_zoom: 16, features, available: true })),
+    heatmaps_refreshing: false,
   };
 }
 
@@ -143,8 +148,8 @@ describe("layer state: what the map draws for each card", () => {
     urban_parcels: [13, 6],
     public_ownership: [13, 1],
     land_use: [10, 0],
-    block_cells: [10, 2],
-    zone_cells: [8, 2],
+    heat_far: [10, 2],
+    heat_sale_price: [8, 2],
   });
 
   it("shows the default layers closer in, and says zoom in for parcels at the city framing", () => {
@@ -225,12 +230,13 @@ describe("legend", () => {
   });
 
   it("lists the served classes and a no-data row, and follows the selected field", () => {
-    const classes = { block_cells: { max_far: farClasses, max_height_m: { ...farClasses, unit: "m", breaks: [], min: 12, max: 12, null_count: 0 } }, zone_cells: {} };
+    const floors = { ...farClasses, layer: "height", source_layer: "heat_height", unit: "floors", breaks: [], min: 12, max: 12, null_count: 0, decimals: 0 };
+    const classes = { far: farClasses, height: floors };
     const far = legendGroups(ctx({ layers: { ...DEFAULT_LAYER_STATE, heatFAR: true }, classes })).find((x) => x.title === "FAR intensity")!;
     expect(far.rows.map((r) => r.label)).toEqual(["0.8 – 1.22", "1.22 – 1.68", "1.68 – 2.22", "2.22 – 2.72", "2.72 – 3.2", "No data"]);
     expect(far.rows.at(-1)!.mark).toEqual({ kind: "hatch" });
     const height = legendGroups(
-      ctx({ layers: { ...DEFAULT_LAYER_STATE, heatFAR: true }, classes, choropleth: { param: "max_height_m", price: "expected" } }),
+      ctx({ layers: { ...DEFAULT_LAYER_STATE, heatFAR: true }, classes, choropleth: { param: "max_floors", price: "expected" } }),
     ).find((x) => x.title === "Building height")!;
     expect(height.rows.map((r) => r.label)).toEqual(["12"]);
   });
@@ -255,27 +261,39 @@ describe("legend", () => {
 });
 
 describe("choropleth colours match the legend", () => {
-  it("parameter classes: every class's value gets its legend row's colour; nulls are not coloured", () => {
+  it("parameter classes: every cell gets the colour of the legend row the API banded it in", () => {
     const scheme = paramScheme("max_far", farClasses);
-    const probes = [0.8, 1.3, 2.0, 2.5, 3.2];
-    probes.forEach((far, i) => expect(evaluate(scheme.fillColor, { max_far: far })).toBe(scheme.rows[i].colour));
-    expect(evaluate(scheme.fillColor, { max_far: 1.22 })).toBe(scheme.rows[1].colour); // a break starts its class
+    [0, 1, 2, 3, 4].forEach((band) => expect(evaluate(scheme.fillColor, { band, value: 1 })).toBe(scheme.rows[band].colour));
     expect(scheme.rows[0].colour).toBe(gradientColours(5)[0]);
     expect(scheme.rows.at(-1)!.colour).toBe("#B4744A");
-    const style = choroplethStyle({ param: "max_far", price: "expected" }, { block_cells: { max_far: farClasses }, zone_cells: {} });
-    expect(style["uv-heatfar-fill"].filter).toEqual(["has", "max_far"]);
-    expect(style["uv-heatfar-nodata"].filter).toEqual(["!", ["has", "max_far"]]);
+    const style = choroplethStyle({ param: "max_far", price: "expected" }, { far: farClasses });
+    expect(style["uv-heat-far-fill"].filter).toEqual(["has", "value"]);
+    expect(style["uv-heat-far-nodata"].filter).toEqual(["!", ["has", "value"]]);
+    // the other fields' layers draw nothing while FAR is selected
+    expect(style["uv-heat-height-fill"].filter).toEqual(NONE);
+    expect(style["uv-heat-gfa-nodata"].filter).toEqual(NONE);
+  });
+
+  it("parameter fallback without classes: the gradient on the value", () => {
+    const scheme = paramScheme("max_far", null);
+    expect(scheme.classed).toBe(false);
+    expect(JSON.stringify(scheme.fillColor)).toContain('"get","value"');
   });
 
   it("price bands: 0 is not saleable, the bands follow the served breaks", () => {
-    const scheme = priceScheme("low", { ...farClasses, method: "fixed", breaks: [1300, 1700, 2100], zero_class: true });
-    expect(scheme.column).toBe("sale_rate_low_eur_m2");
-    const at = (v: number) => evaluate(scheme.fillColor, { sale_rate_low_eur_m2: v });
+    const scheme = priceScheme("low", { ...farClasses, layer: "sale_price", method: "fixed", breaks: [1300, 1700, 2100], zero_class: true });
+    expect(scheme.column).toBe("low");
+    const at = (band: number) => evaluate(scheme.fillColor, { band_low: band });
     expect(at(0)).toBe(NOT_SALEABLE_COLOUR);
-    expect([at(900), at(1300), at(1800), at(2450)]).toEqual(scheme.rows.slice(1).map((r) => r.colour));
+    expect([at(1), at(2), at(3), at(4)]).toEqual(scheme.rows.slice(1).map((r) => r.colour));
+    // without served classes: the wireframe's bands on the value itself
+    const fallback = priceScheme("expected", null);
+    const on = (v: number) => evaluate(fallback.fillColor, { value: v });
+    expect(on(0)).toBe(NOT_SALEABLE_COLOUR);
+    expect([on(900), on(1300), on(1800), on(2450)]).toEqual(fallback.rows.slice(1).map((r) => r.colour));
     const style = choroplethStyle({ param: "max_gfa_m2", price: "high" }, null);
-    expect(style["uv-heatmkt-fill"].filter).toEqual(["has", "sale_rate_high_eur_m2"]);
-    expect(style["uv-heatfar-nodata"].filter).toEqual(["!", ["has", "max_gfa_m2"]]);
+    expect(style["uv-heatmkt-fill"].filter).toEqual(["has", "high"]);
+    expect(style["uv-heat-gfa-nodata"].filter).toEqual(["!", ["has", "value"]]);
   });
 });
 

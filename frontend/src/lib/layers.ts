@@ -16,8 +16,8 @@
 import type { TilesCurrent } from "@/lib/api/types";
 import { translate, type Translate } from "@/lib/i18n/strings";
 import {
+  paramMetric,
   paramScheme,
-  priceMetric,
   priceScheme,
   type CellClasses,
   type ParamMetric,
@@ -232,11 +232,11 @@ export const LAYERS: readonly LayerDef[] = [
     defaultOn: false,
     choropleth: "param",
     swatch: { kind: "heat1" },
-    published: ["block_cells"],
+    published: ["heat_far", "heat_coverage", "heat_height", "heat_gfa"],
     minZoom: 10,
     legend: (ctx) => {
       const metric = ctx.choropleth.param;
-      const classes = ctx.classes?.block_cells?.[metric];
+      const classes = ctx.classes?.[paramMetric(metric).layer];
       const scheme = paramScheme(metric, classes);
       const t = tx(ctx);
       const rows: LegendGroup["rows"] = scheme.classed
@@ -264,11 +264,11 @@ export const LAYERS: readonly LayerDef[] = [
     paid: true,
     choropleth: "price",
     swatch: { kind: "heat2" },
-    published: ["zone_cells"],
+    published: ["heat_sale_price"],
     minZoom: 8,
     legend: (ctx) => {
       if (!ctx.marketUnlocked) return null;
-      const served = ctx.classes?.zone_cells?.[priceMetric(ctx.choropleth.price).column];
+      const served = ctx.classes?.sale_price;
       const t = tx(ctx);
       const words = { notSaleable: t("legend.notSaleable"), under: t("legend.priceUnder"), above: t("legend.priceAbove") };
       const rows: LegendGroup["rows"] = priceScheme(ctx.choropleth.price, served, words).rows.map((r) => ({

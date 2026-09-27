@@ -180,9 +180,9 @@ colours; `dash` = white with 1.5 px dashed brand; `docdash` = white with 2 px da
 | 6 | `owner` | Public ownership | Parcels | off | `#4F6D82` | requires `cadastre` | `public_ownership` |
 | 7 | `restit` | Restitution / legal | Parcels | off | `#9E5568` | requires `cadastre` | `legal_burdens` |
 | 8 | `landuse` | Land use | Context | off | `#b98a5a` | | `land_use` |
-| 9 | `heatFAR` | FAR heatmap | Context | off | heat1 | | `block_cells` |
+| 9 | `heatFAR` | FAR heatmap | Context | off | heat1 | | `heat_far` (+ `heat_coverage`, `heat_height`, `heat_gfa`) |
 | 10 | `traffic` | Planned traffic | Context | off | `#5b5b5b` | | `traffic_network` |
-| 11 | `heatMkt` | Price heatmap | Feasibility | off | heat2 | paid (lock) | `zone_cells` |
+| 11 | `heatMkt` | Price heatmap | Feasibility | off | heat2 | paid (lock) | `heat_sale_price` |
 
 **Map chrome.** Legend card top-left (16 / 16): max-width 264, padding 16 19, radius 8, shadow-lg,
 `max-height: calc(100% − 92px)`, scrolls; `h4` "Legend" 15 / 600 with a `–` / `+` minimise button

@@ -4,7 +4,9 @@ geometry lands in the serving tables.
 Every entry is data: a source-layer name, the geometry type, the zoom range and the SQL that
 yields one GeoJSON feature per row for a given ``publish_version_id`` (``:v``) and
 ``municipality_id`` (``:m``). The public map toggles each layer independently (BRD §2.1); the
-heatmap layers (``block_cells``, ``zone_cells``) carry the choropleth values.
+heatmaps are one source-layer each (``heat_coverage``, ``heat_far``, ``heat_height``,
+``heat_gfa`` per urban block, ``heat_sale_price`` per zone) from ``choropleth_cells``: every block
+/ zone, with ``value`` and ``band`` where it has a cell (none: drawn as not covered).
 
 Staged layers (``STAGED_LAYERS``): the ``properties`` keys the GIS ingestion job must write for
 each ``layer_id`` in ``staging_geometry``; the publish job upserts entity layers by natural key so
@@ -44,6 +46,12 @@ EFFECTIVE_VALUE = """COALESCE(
 def effective(key: str, col: str = "value_number") -> str:
     return EFFECTIVE_VALUE.format(key=key, col=col)
 
+
+# The legend row of a low / high sale price: the rule of the stored bands (core.choropleth.band)
+# over the stored classes, 0 = not saleable
+_PRICE_BAND = """CASE WHEN {col} IS NULL THEN NULL WHEN {col} <= 0 THEN 0 ELSE 1 + (
+        SELECT count(*) FROM jsonb_array_elements_text(k.breaks) b
+        WHERE CAST(b AS double precision) <= {col}) END"""
 
 # A zone is covered when at least one of its planning documents is adopted, live and current
 # with a coverage geometry (the same documents location resolution uses). The map colours covered
@@ -304,61 +312,62 @@ LAYERS: tuple[LayerSpec, ...] = (
         """,
         "Planned traffic network",
     ),
-    LayerSpec(
-        "block_cells",
-        "polygon",
-        10,
-        16,
-        f"""
-        SELECT {
-            _feature(
-                "h.cell_id",
-                "h.geom",
-                "jsonb_build_object('id', h.cell_id,"
-                " 'ref', h.cell_ref, 'parcel_count', h.parcel_count,"
-                " 'stated_count', h.stated_count,"
-                " 'max_site_coverage_pct', h.max_site_coverage_pct,"
-                " 'max_height_m', h.max_height_m, 'max_far', h.max_far,"
-                " 'max_gfa_m2', h.max_gfa_m2, 'saleable_area_m2', h.saleable_area_m2,"
-                " 'sale_rate_eur_m2', h.sale_rate_eur_m2,"
-                " 'sale_rate_low_eur_m2', h.sale_rate_low_eur_m2,"
-                " 'sale_rate_high_eur_m2', h.sale_rate_high_eur_m2,"
-                " 'market_value_eur', h.market_value_eur, 'price_band', h.price_band)",
-            )
-        }
-        FROM heatmap_cells h
-        WHERE h.municipality_id = :m AND h.publish_version_id = :v AND h.cell_type = 'block'
-        ORDER BY h.cell_id
-        """,
-        "Heatmap cells per urban block (coverage, height, FAR, GFA, saleable area, price band)",
+    *(
+        LayerSpec(
+            f"heat_{layer}",
+            "polygon",
+            10,
+            16,
+            f"""
+            SELECT {
+                _feature(
+                    "b.id",
+                    "b.geom",
+                    "jsonb_strip_nulls(jsonb_build_object('id', b.id, 'ref', b.block_ref,"
+                    " 'value', c.value, 'band', c.value_band, 'unit', c.unit, 'label', c.label,"
+                    " 'parcel_count', c.parcel_count))",
+                )
+            }
+            FROM urban_blocks b
+            LEFT JOIN choropleth_cells c ON c.publish_version_id = :v AND c.layer = '{layer}'
+                 AND c.cell_id = b.id
+            WHERE b.municipality_id = :m ORDER BY b.id
+            """,
+            f"Heatmap per urban block: {description}",
+        )
+        for layer, description in (
+            ("coverage", "max site coverage % (area-weighted mean of the block's parcels)"),
+            ("far", "max floor area ratio (area-weighted mean)"),
+            ("height", "floors above ground (the tallest parcel; label = the plan's notation)"),
+            ("gfa", "max gross floor area (sum of FAR x planned parcel area)"),
+        )
     ),
     LayerSpec(
-        "zone_cells",
+        "heat_sale_price",
         "polygon",
         8,
         16,
         f"""
         SELECT {
             _feature(
-                "h.cell_id",
-                "h.geom",
-                "jsonb_build_object('id', h.cell_id,"
-                " 'ref', h.cell_ref, 'parcel_count', h.parcel_count,"
-                " 'stated_count', h.stated_count,"
-                " 'max_site_coverage_pct', h.max_site_coverage_pct,"
-                " 'max_height_m', h.max_height_m, 'max_far', h.max_far,"
-                " 'max_gfa_m2', h.max_gfa_m2, 'saleable_area_m2', h.saleable_area_m2,"
-                " 'sale_rate_eur_m2', h.sale_rate_eur_m2,"
-                " 'sale_rate_low_eur_m2', h.sale_rate_low_eur_m2,"
-                " 'sale_rate_high_eur_m2', h.sale_rate_high_eur_m2,"
-                " 'market_value_eur', h.market_value_eur, 'price_band', h.price_band)",
+                "z.id",
+                "z.geom",
+                "jsonb_strip_nulls(jsonb_build_object('id', z.id, 'ref', z.name,"
+                " 'value', c.value, 'low', c.value_low, 'high', c.value_high,"
+                " 'band', c.value_band, 'band_low', "
+                + _PRICE_BAND.format(col="c.value_low")
+                + ", 'band_high', "
+                + _PRICE_BAND.format(col="c.value_high")
+                + ", 'unit', c.unit, 'assumptions_version', c.assumptions_version))",
             )
         }
-        FROM heatmap_cells h
-        WHERE h.municipality_id = :m AND h.publish_version_id = :v AND h.cell_type = 'zone'
-        ORDER BY h.cell_id
+        FROM zones z
+        LEFT JOIN choropleth_cells c ON c.publish_version_id = :v AND c.layer = 'sale_price'
+             AND c.cell_id = z.id
+        LEFT JOIN choropleth_classes k ON k.publish_version_id = :v AND k.layer = 'sale_price'
+        WHERE z.municipality_id = :m ORDER BY z.id
         """,
-        "Heatmap cells per zone",
+        "Heatmap per zone: sale price €/m² (expected, low, high) of the assumptions that apply",
     ),
 )
 

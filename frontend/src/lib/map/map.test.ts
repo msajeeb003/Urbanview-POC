@@ -21,8 +21,11 @@ const CATALOGUE = new Set([
   "legal_burdens",
   "land_use",
   "traffic_network",
-  "block_cells",
-  "zone_cells",
+  "heat_coverage",
+  "heat_far",
+  "heat_height",
+  "heat_gfa",
+  "heat_sale_price",
 ]);
 
 const square = (x: number, y: number, s = 1) => ({

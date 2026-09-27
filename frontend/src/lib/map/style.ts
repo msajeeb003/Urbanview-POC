@@ -11,7 +11,15 @@
 import type { TilesCurrent } from "@/lib/api/types";
 import { ZONE_TYPES, isDrawn, layerById, servedMinZoom, type ChoroplethState, type LayerId } from "@/lib/layers";
 
-import { hasValue, noValue, paramScheme, priceMetric, priceScheme, type CellClasses } from "./classes";
+import {
+  PARAM_METRICS,
+  hasValue,
+  heatSourceLayer,
+  noValue,
+  paramScheme,
+  priceScheme,
+  type CellClasses,
+} from "./classes";
 
 import { SOURCE_ID } from "./tiles";
 
@@ -78,20 +86,23 @@ const BASE_LAYERS: readonly LayerSpec[] = [
   }),
   // choropleths: colours and filters are set from the served classes (`choroplethStyle`); cells
   // without a value get the "no data" hatch, never the lowest class
-  layer("uv-heatfar-fill", "fill", "block_cells", {
-    filter: hasValue("max_far"),
-    paint: { "fill-color": paramScheme("max_far", null).fillColor, "fill-opacity": 0.78 },
-  }),
-  layer("uv-heatfar-nodata", "fill", "block_cells", {
-    filter: noValue("max_far"),
-    paint: { "fill-pattern": HATCH_IMAGE, "fill-opacity": 0.8 },
-  }),
-  layer("uv-heatmkt-fill", "fill", "zone_cells", {
-    filter: hasValue("sale_rate_eur_m2"),
+  // one source-layer per planning field; only the selected field's pair is drawn (filters)
+  ...PARAM_METRICS.flatMap((m) => [
+    layer(`uv-heat-${m.layer}-fill`, "fill", heatSourceLayer(m.layer), {
+      filter: m.key === "max_far" ? hasValue("value") : NONE,
+      paint: { "fill-color": paramScheme(m.key, null).fillColor, "fill-opacity": 0.78 },
+    }),
+    layer(`uv-heat-${m.layer}-nodata`, "fill", heatSourceLayer(m.layer), {
+      filter: m.key === "max_far" ? noValue("value") : NONE,
+      paint: { "fill-pattern": HATCH_IMAGE, "fill-opacity": 0.8 },
+    }),
+  ]),
+  layer("uv-heatmkt-fill", "fill", heatSourceLayer("sale_price"), {
+    filter: hasValue("value"),
     paint: { "fill-color": priceScheme("expected", null).fillColor, "fill-opacity": 1 },
   }),
-  layer("uv-heatmkt-nodata", "fill", "zone_cells", {
-    filter: noValue("sale_rate_eur_m2"),
+  layer("uv-heatmkt-nodata", "fill", heatSourceLayer("sale_price"), {
+    filter: noValue("value"),
     paint: { "fill-pattern": HATCH_IMAGE, "fill-opacity": 0.8 },
   }),
   layer("uv-traffic-line", "line", "traffic_network", {
@@ -171,7 +182,7 @@ export const LAYER_GROUPS: Record<LayerId, readonly string[]> = {
   owner: ["uv-owner-fill"],
   restit: ["uv-restit-fill"],
   landuse: ["uv-landuse-fill"],
-  heatFAR: ["uv-heatfar-fill", "uv-heatfar-nodata"],
+  heatFAR: PARAM_METRICS.flatMap((m) => [`uv-heat-${m.layer}-fill`, `uv-heat-${m.layer}-nodata`]),
   traffic: ["uv-traffic-line"],
   heatMkt: ["uv-heatmkt-fill", "uv-heatmkt-nodata"],
 };
@@ -222,15 +233,21 @@ export function choroplethStyle(
   choropleth: ChoroplethState,
   classes: CellClasses | null | undefined,
 ): Record<string, { filter: Expr; paint?: Record<string, unknown> }> {
-  const param = paramScheme(choropleth.param, classes?.block_cells?.[choropleth.param]);
-  const column = priceMetric(choropleth.price).column;
-  const price = priceScheme(choropleth.price, classes?.zone_cells?.[column]);
-  return {
-    "uv-heatfar-fill": { filter: hasValue(param.column), paint: { "fill-color": param.fillColor } },
-    "uv-heatfar-nodata": { filter: noValue(param.column) },
-    "uv-heatmkt-fill": { filter: hasValue(price.column), paint: { "fill-color": price.fillColor } },
-    "uv-heatmkt-nodata": { filter: noValue(price.column) },
-  };
+  const out: Record<string, { filter: Expr; paint?: Record<string, unknown> }> = {};
+  for (const m of PARAM_METRICS) {
+    if (m.key !== choropleth.param) {
+      out[`uv-heat-${m.layer}-fill`] = { filter: NONE };
+      out[`uv-heat-${m.layer}-nodata`] = { filter: NONE };
+      continue;
+    }
+    const param = paramScheme(m.key, classes?.[m.layer]);
+    out[`uv-heat-${m.layer}-fill`] = { filter: hasValue(param.column), paint: { "fill-color": param.fillColor } };
+    out[`uv-heat-${m.layer}-nodata`] = { filter: noValue(param.column) };
+  }
+  const price = priceScheme(choropleth.price, classes?.sale_price);
+  out["uv-heatmkt-fill"] = { filter: hasValue(price.column), paint: { "fill-color": price.fillColor } };
+  out["uv-heatmkt-nodata"] = { filter: noValue(price.column) };
+  return out;
 }
 
 export interface Highlight {

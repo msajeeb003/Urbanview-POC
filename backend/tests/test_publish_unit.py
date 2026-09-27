@@ -10,14 +10,7 @@ from pathlib import Path
 import pytest
 
 from jobs.publish_layers import GENERIC_LAYER_IDS, LAYER_IDS, LAYERS, STAGED_LAYERS
-from jobs.publish_pipeline import (
-    STEPS,
-    ParcelFigures,
-    aggregate_cell,
-    market_inputs_from_row,
-    next_label,
-    price_bands,
-)
+from jobs.publish_pipeline import STEPS, next_label
 from jobs.tiles import (
     LayerFile,
     TileBuildError,
@@ -34,8 +27,11 @@ BRD_LAYERS = {
     "public_ownership",
     "legal_burdens",
     "traffic_network",
-    "block_cells",
-    "zone_cells",
+    "heat_coverage",
+    "heat_far",
+    "heat_height",
+    "heat_gfa",
+    "heat_sale_price",
 }
 
 
@@ -63,6 +59,19 @@ def test_ownership_layers_depend_on_loaded_flags():
         assert "retired_at IS NULL" in by_id[layer_id].sql, layer_id
 
 
+def test_heatmaps_are_one_source_layer_each_with_value_and_band():
+    by_id = {layer.id: layer for layer in LAYERS}
+    for name in ("coverage", "far", "height", "gfa"):
+        sql = by_id[f"heat_{name}"].sql
+        assert f"c.layer = '{name}'" in sql and "FROM urban_blocks b" in sql
+        assert "LEFT JOIN choropleth_cells" in sql  # every block: not covered without a cell
+        assert "'value', c.value" in sql and "'band', c.value_band" in sql
+    price = by_id["heat_sale_price"].sql
+    assert "FROM zones z" in price and "c.layer = 'sale_price'" in price
+    assert "'band_low'" in price and "'band_high'" in price and "choropleth_classes k" in price
+    assert "block_cells" not in by_id and "zone_cells" not in by_id
+
+
 def test_layer_catalogue_is_consistent():
     assert len(set(LAYER_IDS)) == len(LAYER_IDS)
     assert BRD_LAYERS <= set(LAYER_IDS)
@@ -71,7 +80,7 @@ def test_layer_catalogue_is_consistent():
         assert 0 <= layer.min_zoom <= layer.max_zoom <= 22
         assert ":m" in layer.sql and "jsonb_build_object('type', 'Feature'" in layer.sql
     versioned = {"urban_parcels", "cadastral_parcels", "land_use", "traffic_network"}
-    versioned |= {"block_cells", "zone_cells"}
+    versioned |= {"heat_coverage", "heat_far", "heat_height", "heat_gfa", "heat_sale_price"}
     for layer in LAYERS:
         if layer.id in versioned:
             assert ":v" in layer.sql, layer.id
@@ -87,53 +96,11 @@ def test_layer_catalogue_is_consistent():
     assert STEPS[0] == "preflight" and STEPS[-2:] == ("flip", "prune")
 
 
-def test_cells_aggregate_area_weighted_means_and_sums():
-    parcels = [
-        ParcelFigures(1000, 3.0, 50, 27.5, 3000, 2100, 5_145_000),
-        ParcelFigures(3000, 1.0, 30, 12, 3000, 2100, 3_465_000),
-        ParcelFigures(500, None, None, None, None, None, None),  # nothing stated
-    ]
-    cell = aggregate_cell(parcels)
-    assert (cell.parcel_count, cell.stated_count) == (3, 2)
-    assert cell.max_far == pytest.approx(1.5)  # (3.0*1000 + 1.0*3000) / 4000
-    assert cell.max_site_coverage_pct == pytest.approx(35.0)
-    assert cell.max_height_m == 27.5
-    assert cell.max_gfa_m2 == 6000 and cell.saleable_area_m2 == 4200
-    assert cell.market_value_eur == 8_610_000
-    empty = aggregate_cell([])
-    assert empty.parcel_count == 0 and empty.max_far is None and empty.max_gfa_m2 is None
-
-
-def test_price_bands_are_terciles_of_the_zone_rates():
-    assert price_bands({1: 2450.0, 2: 1650.0}) == {1: 2, 2: 1}
-    assert price_bands({1: 1000.0, 2: 2000.0, 3: 3000.0}) == {1: 1, 2: 2, 3: 3}
-    assert price_bands({1: 1000.0, 2: 1000.0, 3: 3000.0}) == {1: 1, 2: 1, 3: 2}
-    assert price_bands({}) == {}
-
-
 def test_next_label_counts_within_the_day():
     today = datetime(2026, 9, 25, 9, 0, tzinfo=UTC)
     assert next_label([], today) == "2026-09-25.1"
     assert next_label(["2026-09-25.1", "2026-09-25.2", "other"], today) == "2026-09-25.3"
     assert next_label(["2026-09-25.2"], today) == "2026-09-25.1"
-
-
-def test_market_inputs_from_row_keeps_absolute_bounds():
-    row = {
-        "land_rate_eur_m2": 1350,
-        "build_rate_eur_m2": 860,
-        "design_rate_eur_m2": 90,
-        "sale_rate_eur_m2": 2450,
-        "range_low_factor": 0.86,
-        "range_high_factor": 1.15,
-        "land_rate_low_eur_m2": None,
-        "land_rate_high_eur_m2": None,
-        "sale_rate_low_eur_m2": 2200,
-        "sale_rate_high_eur_m2": 2700,
-    }
-    market = market_inputs_from_row(row)
-    assert market.sale_bounds == (2200.0, 2700.0) and market.land_bounds is None
-    assert market.build_bounds is None and market.range_high_factor == 1.15
 
 
 def test_tippecanoe_and_tile_join_commands():

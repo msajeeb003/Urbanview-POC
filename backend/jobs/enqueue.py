@@ -45,6 +45,7 @@ JOB_TYPES: dict[str, JobType] = {
         ),
         JobType("process_geometry", "jobs.tasks.ingestion.process_geometry", "geo", "geo"),
         JobType("publish_approved", "jobs.tasks.publish.publish_approved", "publish", "publish"),
+        JobType("refresh_heatmaps", "jobs.tasks.publish.refresh_heatmaps", "publish", "publish"),
         JobType("send_email", "jobs.tasks.email.send_email", "email", "email"),
         JobType(
             "import_market_data", "jobs.tasks.market.import_market_data", "extraction", "extract"

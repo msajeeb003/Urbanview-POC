@@ -83,6 +83,11 @@ class RollbackRequest(BaseModel):
 
 
 class MetricClasses(BaseModel):
+    """One heatmap's classes, stored with its cells (``choropleth_classes``): the cells' ``band``
+    in the tiles and the legend rows come from these breaks."""
+
+    layer: str = Field(description="coverage | far | height | gfa | sale_price")
+    source_layer: str = Field(description="The heatmap's tile source-layer (heat_<layer>)")
     method: str = Field(description="quantile | fixed (the municipality profile's bands)")
     unit: str | None = None
     breaks: list[float] = Field(
@@ -91,16 +96,21 @@ class MetricClasses(BaseModel):
     )
     min: float | None = None
     max: float | None = None
+    mean: float | None = None
     count: int = Field(description="Cells with a value")
-    null_count: int = Field(description="Cells without a value: drawn as no data")
-    zero_class: bool = Field(description="0 is its own class first (sale rate: not saleable)")
+    null_count: int = Field(description="Blocks / zones without a value: drawn as not covered")
+    zero_class: bool = Field(description="0 is its own class first (sale price: not saleable)")
+    decimals: int = 0
 
 
 class CellClasses(BaseModel):
-    """Choropleth classes of the current version's cells, per tile layer and metric."""
+    """The heatmaps' classes of the current version (``core.choropleth``), per layer."""
 
-    block_cells: dict[str, MetricClasses] = Field(default_factory=dict)
-    zone_cells: dict[str, MetricClasses] = Field(default_factory=dict)
+    coverage: MetricClasses | None = None
+    far: MetricClasses | None = None
+    height: MetricClasses | None = None
+    gfa: MetricClasses | None = None
+    sale_price: MetricClasses | None = None
 
 
 class TilesCurrent(BaseModel):
@@ -117,5 +127,10 @@ class TilesCurrent(BaseModel):
     max_zoom: int | None = None
     cell_classes: CellClasses | None = Field(
         default=None,
-        description="Classes of the block / zone cells: the map colours and legend share them",
+        description="The heatmaps' stored classes: the tiles' bands and the legend share them",
+    )
+    heatmaps_refreshing: bool = Field(
+        default=False,
+        description="Another assumptions version applies since the tiles were built: the "
+        "sale-price heatmap is being rebuilt (refresh_heatmaps job)",
     )

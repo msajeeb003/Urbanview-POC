@@ -3,10 +3,13 @@
  * breaks the API serves with the tile pointer (`cell_classes`), so the legend always matches what
  * the map draws. Null values never get a class: they are drawn with the "no data" hatch.
  *
- * - Parameter choropleth (block cells): graded classes along the wireframe's FAR-heatmap gradient
+ * - Parameter choropleth (one source-layer per field, `heat_coverage | heat_far | heat_height |
+ *   heat_gfa`, per urban block): graded classes along the wireframe's FAR-heatmap gradient
  *   #EFE3CE → #B4744A.
- * - Sale-price choropleth (zone cells): the wireframe's price bands (grey "not saleable" for 0,
- *   then gold alpha steps).
+ * - Sale-price choropleth (`heat_sale_price`, per zone): the wireframe's price bands (grey "not
+ *   saleable" for 0, then gold alpha steps).
+ * Each cell in the tiles carries its `band` (the legend row, computed by the API from the same
+ * stored breaks), so the map colours by band and the legend lists the served classes.
  * Without served classes (nothing published yet, or an older API) the wireframe's own look is the
  * fallback: a continuous gradient ("Low → high") and the wireframe's fixed €/m² bands.
  */
@@ -15,11 +18,15 @@ import type { components } from "@/lib/api/schema";
 export type MetricClasses = components["schemas"]["MetricClasses"];
 export type CellClasses = components["schemas"]["CellClasses"];
 
-export type ParamMetric = "max_far" | "max_site_coverage_pct" | "max_height_m" | "max_gfa_m2";
+export type ParamMetric = "max_far" | "max_site_coverage_pct" | "max_floors" | "max_gfa_m2";
+/** The API's heatmap layers (`cell_classes` keys; source-layer `heat_<layer>`). */
+export type HeatLayer = "coverage" | "far" | "height" | "gfa";
 export type PriceMetric = "low" | "expected" | "high";
 
 export interface ParamMetricDef {
   key: ParamMetric;
+  /** The heatmap layer that holds the field. */
+  layer: HeatLayer;
   /** Chip label on the card. */
   short: string;
   /** Card sub-label and legend title. */
@@ -32,16 +39,20 @@ export interface ParamMetricDef {
 }
 
 export const PARAM_METRICS: readonly ParamMetricDef[] = [
-  { key: "max_far", short: "FAR", label: "Floor area ratio", legendTitle: "FAR intensity", legendUnit: "floor area ratio", decimals: 2, fallbackMax: 3.4 },
-  { key: "max_site_coverage_pct", short: "Coverage", label: "Site coverage", legendTitle: "Site coverage", legendUnit: "% of parcel", decimals: 0, fallbackMax: 100 },
-  { key: "max_height_m", short: "Height", label: "Building height", legendTitle: "Building height", legendUnit: "m", decimals: 1, fallbackMax: 40 },
-  { key: "max_gfa_m2", short: "GFA", label: "Max gross floor area", legendTitle: "Max GFA", legendUnit: "m² per block", decimals: 0, fallbackMax: 20000 },
+  { key: "max_far", layer: "far", short: "FAR", label: "Floor area ratio", legendTitle: "FAR intensity", legendUnit: "floor area ratio", decimals: 2, fallbackMax: 3.4 },
+  { key: "max_site_coverage_pct", layer: "coverage", short: "Coverage", label: "Site coverage", legendTitle: "Site coverage", legendUnit: "% of parcel", decimals: 0, fallbackMax: 100 },
+  { key: "max_floors", layer: "height", short: "Floors", label: "Floors above ground", legendTitle: "Building height", legendUnit: "floors above ground", decimals: 0, fallbackMax: 12 },
+  { key: "max_gfa_m2", layer: "gfa", short: "GFA", label: "Max gross floor area", legendTitle: "Max GFA", legendUnit: "m² per block", decimals: 0, fallbackMax: 20000 },
 ];
 
-export const PRICE_METRICS: readonly { key: PriceMetric; short: string; column: string; label: string }[] = [
-  { key: "low", short: "Low", column: "sale_rate_low_eur_m2", label: "Low sale price" },
-  { key: "expected", short: "Expected", column: "sale_rate_eur_m2", label: "Expected sale price" },
-  { key: "high", short: "High", column: "sale_rate_high_eur_m2", label: "High sale price" },
+/** The tile source-layer of a heatmap layer. */
+export const heatSourceLayer = (layer: HeatLayer | "sale_price"): string => `heat_${layer}`;
+
+/** Sale-price variants: the property holding the rate and the one holding its band. */
+export const PRICE_METRICS: readonly { key: PriceMetric; short: string; column: string; band: string; label: string }[] = [
+  { key: "low", short: "Low", column: "low", band: "band_low", label: "Low sale price" },
+  { key: "expected", short: "Expected", column: "value", band: "band", label: "Expected sale price" },
+  { key: "high", short: "High", column: "high", band: "band_high", label: "High sale price" },
 ];
 
 export const paramMetric = (key: ParamMetric) => PARAM_METRICS.find((m) => m.key === key)!;
@@ -88,7 +99,7 @@ export interface ChoroplethScheme {
   rows: ClassRow[];
   /** `fill-color` for features that have a value (an expression, or one colour for one class). */
   fillColor: Expr | string;
-  /** Property the cell layer is coloured by. */
+  /** Property that holds the value: a cell without it is drawn as not covered. */
   column: string;
   /** False: no classes were served, the legend shows the fallback gradient. */
   classed: boolean;
@@ -101,12 +112,15 @@ function step(value: Expr, colours: string[], breaks: number[]): Expr {
   return out;
 }
 
+/** The cell's legend row as the API banded it: `band` (0 = the first row). */
+const bandOf = (property: string): Expr => ["to-number", ["get", property]];
+
 export function paramScheme(metric: ParamMetric, classes: MetricClasses | null | undefined): ChoroplethScheme {
   const def = paramMetric(metric);
-  const value: Expr = ["to-number", ["get", metric]];
+  const value: Expr = ["to-number", ["get", "value"]];
   if (!classes || classes.count === 0 || classes.min == null || classes.max == null) {
     return {
-      column: metric,
+      column: "value",
       classed: false,
       rows: [],
       fillColor: ["interpolate", ["linear"], value, 0, gradientColours(2)[0], def.fallbackMax, gradientColours(2)[1]],
@@ -121,7 +135,9 @@ export function paramScheme(metric: ParamMetric, classes: MetricClasses | null |
     const label = lo === hi ? num(lo, def.decimals) : `${num(lo, def.decimals)} – ${num(hi, def.decimals)}`;
     return { colour, label };
   });
-  return { column: metric, classed: true, rows, fillColor: breaks.length ? step(value, colours, breaks) : colours[0] };
+  // band i is class i: the colour of the legend row the API put the cell in
+  const bands = colours.slice(1).map((_, i) => i + 1);
+  return { column: "value", classed: true, rows, fillColor: breaks.length ? step(bandOf("band"), colours, bands) : colours[0] };
 }
 
 /** The price legend's words (`{v}` = the amount); English by default. */
@@ -137,8 +153,9 @@ export function priceScheme(
   classes: MetricClasses | null | undefined,
   words: PriceWords = PRICE_WORDS,
 ): ChoroplethScheme {
-  const { column } = priceMetric(metric);
-  const breaks = classes?.breaks?.length ? classes.breaks : FALLBACK_PRICE_BREAKS;
+  const { column, band } = priceMetric(metric);
+  const served = !!classes?.breaks?.length;
+  const breaks = served ? classes!.breaks : FALLBACK_PRICE_BREAKS;
   const colours = goldColours(breaks.length + 1);
   const value: Expr = ["to-number", ["get", column]];
   const rows: ClassRow[] = [{ colour: NOT_SALEABLE_COLOUR, label: words.notSaleable }];
@@ -153,12 +170,11 @@ export function priceScheme(
           : `€${EUR.format(lo)} – ${EUR.format(hi)}`;
     rows.push({ colour, label });
   });
-  return {
-    column,
-    classed: !!classes?.breaks?.length,
-    rows,
-    fillColor: ["case", ["<=", value, 0], NOT_SALEABLE_COLOUR, step(value, colours, breaks)],
-  };
+  // served: band 0 = not saleable, band i = the i-th price band; else the fallback bands on the value
+  const fillColor: Expr = served
+    ? step(bandOf(band), [NOT_SALEABLE_COLOUR, ...colours], colours.map((_, i) => i + 1))
+    : ["case", ["<=", value, 0], NOT_SALEABLE_COLOUR, step(value, colours, breaks)];
+  return { column, classed: served, rows, fillColor };
 }
 
 /** Features that have a value for the column (MVT drops null properties). */

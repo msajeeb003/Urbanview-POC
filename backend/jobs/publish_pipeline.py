@@ -17,8 +17,9 @@ behind but the job's error. Steps, each reported to ``pipeline_jobs.progress``:
    georeferencing datasets whose batches were applied marked published;
 5. ``links``: cadastral ↔ planned parcel overlaps recomputed with location resolution's
    thresholds (rank 1 = the panel's primary), unmatched cadastral parcels counted;
-6. ``cells``: block and zone heatmap cells from the effective parameters and the current market
-   assumptions, through the shared formula engine (no arithmetic of its own);
+6. ``cells``: the heatmap surfaces (``core.choropleth``): coverage, FAR, floors and GFA per urban
+   block from the effective parameters, the sale price per zone from the assumptions version that
+   applies today, each layer's classes stored with its cells;
 7. ``export``: one newline-delimited GeoJSON file per catalogue layer (``jobs.publish_layers``);
 8. ``tiles``: the tile builder (tippecanoe + tile-join) makes one PMTiles archive;
 9. ``upload``: the archive goes to the private bucket under ``{m}/tiles/{version}/…``;
@@ -34,7 +35,7 @@ import json
 import logging
 import shutil
 import tempfile
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -45,10 +46,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from api.services.audit import write_audit
-from core.assumptions import live_versions_sql
 from core.cadastre.dataset import apply_cadastral_datasets
-from core.engine.feasibility import Assumptions, MarketInputs, compute_feasibility
-from core.engine.shared import DEFAULT_SALEABLE_SHARE, FORMULA_VERSION
+from core.choropleth import compute_choropleth
+from core.engine.shared import FORMULA_VERSION
 from core.gis.georef.stage import apply_georef_datasets
 from core.parcel_links import LinkRules, recompute_parcel_links
 from core.zones.staging import apply_zone_datasets
@@ -57,7 +57,6 @@ from jobs.publish_layers import (
     GENERIC_LAYER_IDS,
     LAYERS,
     STAGED_LAYERS,
-    URBAN_PARCEL_INPUTS_SQL,
     LayerSpec,
 )
 from jobs.tiles import LayerFile, TileBuilder
@@ -137,102 +136,6 @@ class Progress:
 # --- pure helpers (unit-tested) -------------------------------------------------------------------
 
 
-@dataclass(frozen=True, slots=True)
-class ParcelFigures:
-    area_m2: float
-    max_far: float | None
-    max_site_coverage_pct: float | None
-    max_height_m: float | None
-    max_gfa_m2: float | None
-    saleable_area_m2: float | None
-    market_value_eur: float | None
-
-
-@dataclass(slots=True)
-class CellFigures:
-    parcel_count: int = 0
-    stated_count: int = 0
-    max_site_coverage_pct: float | None = None
-    max_height_m: float | None = None
-    max_far: float | None = None
-    max_gfa_m2: float | None = None
-    saleable_area_m2: float | None = None
-    market_value_eur: float | None = None
-
-
-def aggregate_cell(parcels: Iterable[ParcelFigures]) -> CellFigures:
-    """Area-weighted means for coverage and FAR, the maximum height, sums for the areas and the
-    market value; a figure stays ``None`` until at least one parcel states it."""
-    out = CellFigures()
-    cov_weight = cov_sum = far_weight = far_sum = 0.0
-    gfa = saleable = value = 0.0
-    has_gfa = has_saleable = has_value = False
-    for p in parcels:
-        out.parcel_count += 1
-        stated = False
-        if p.max_site_coverage_pct is not None:
-            cov_weight += p.area_m2
-            cov_sum += p.max_site_coverage_pct * p.area_m2
-            stated = True
-        if p.max_far is not None:
-            far_weight += p.area_m2
-            far_sum += p.max_far * p.area_m2
-            stated = True
-        if p.max_height_m is not None:
-            out.max_height_m = max(out.max_height_m or 0.0, p.max_height_m)
-            stated = True
-        if p.max_gfa_m2 is not None:
-            gfa += p.max_gfa_m2
-            has_gfa = stated = True
-        if p.saleable_area_m2 is not None:
-            saleable += p.saleable_area_m2
-            has_saleable = True
-        if p.market_value_eur is not None:
-            value += p.market_value_eur
-            has_value = True
-        if stated:
-            out.stated_count += 1
-    if cov_weight:
-        out.max_site_coverage_pct = round(cov_sum / cov_weight, 2)
-    if far_weight:
-        out.max_far = round(far_sum / far_weight, 3)
-    if has_gfa:
-        out.max_gfa_m2 = round(gfa, 2)
-    if has_saleable:
-        out.saleable_area_m2 = round(saleable, 2)
-    if has_value:
-        out.market_value_eur = round(value, 2)
-    return out
-
-
-def price_bands(rates: Mapping[int, float], bands: int = 3) -> dict[int, int]:
-    """Tercile (by default) band per zone from its sale rate: 1 = lowest ... ``bands`` = highest;
-    equal rates share a band."""
-    ordered = sorted(set(rates.values()))
-    if not ordered:
-        return {}
-    band_of_rate = {rate: 1 + (index * bands) // len(ordered) for index, rate in enumerate(ordered)}
-    return {zone_id: band_of_rate[rate] for zone_id, rate in rates.items()}
-
-
-def sale_rate_range(market: MarketInputs | None) -> tuple[float | None, float | None]:
-    """Low / high sale rate of a market row: its absolute bounds, else expected × the range
-    factors (the bounds the feasibility engine uses)."""
-    if market is None:
-        return None, None
-    if market.sale_bounds is not None:
-        return float(market.sale_bounds[0]), float(market.sale_bounds[1])
-    rate = float(market.sale_rate_eur_m2)
-    return round(rate * float(market.range_low_factor), 2), round(
-        rate * float(market.range_high_factor), 2
-    )
-
-
-def expected_or_none(result: Any, key: str) -> float | None:
-    figure = result.get(key)
-    return float(figure.expected) if figure.status == "ok" and figure.expected is not None else None
-
-
 def next_label(existing: Iterable[str], today: datetime) -> str:
     """``YYYY-MM-DD.n``: the first n not taken for the day."""
     prefix = today.strftime("%Y-%m-%d")
@@ -241,25 +144,6 @@ def next_label(existing: Iterable[str], today: datetime) -> str:
     while f"{prefix}.{n}" in taken:
         n += 1
     return f"{prefix}.{n}"
-
-
-def market_inputs_from_row(row: Mapping[str, Any]) -> MarketInputs:
-    def bounds(prefix: str) -> tuple[float, float] | None:
-        low, high = row.get(f"{prefix}_low_eur_m2"), row.get(f"{prefix}_high_eur_m2")
-        return (float(low), float(high)) if low is not None and high is not None else None
-
-    return MarketInputs(
-        land_rate_eur_m2=float(row["land_rate_eur_m2"]),
-        build_rate_eur_m2=float(row["build_rate_eur_m2"]),
-        design_rate_eur_m2=float(row["design_rate_eur_m2"]),
-        sale_rate_eur_m2=float(row["sale_rate_eur_m2"]),
-        range_low_factor=float(row["range_low_factor"]),
-        range_high_factor=float(row["range_high_factor"]),
-        land_bounds=bounds("land_rate"),
-        build_bounds=bounds("build_rate"),
-        design_bounds=bounds("design_rate"),
-        sale_bounds=bounds("sale_rate"),
-    )
 
 
 # --- SQL -----------------------------------------------------------------------------------------
@@ -618,65 +502,7 @@ CARRY_GENERIC_SQL = text(
     WHERE f.municipality_id = :m AND f.publish_version_id = :prev AND f.layer_id = :layer
     """
 )
-# The assumptions that apply on the publish day (core.assumptions): a version scheduled for a
-# later date is not in the cells until a publish after that date.
-ASSUMPTIONS_SQL = text(
-    f"""
-    SELECT zone_id, land_rate_eur_m2, build_rate_eur_m2, design_rate_eur_m2, sale_rate_eur_m2,
-           range_low_factor, range_high_factor, saleable_share,
-           land_rate_low_eur_m2, land_rate_high_eur_m2, build_rate_low_eur_m2,
-           build_rate_high_eur_m2, design_rate_low_eur_m2, design_rate_high_eur_m2,
-           sale_rate_low_eur_m2, sale_rate_high_eur_m2
-    FROM ({live_versions_sql()}) f
-    """
-)
-PARCEL_ZONE_SQL = text(
-    f"""
-    WITH inputs AS ({URBAN_PARCEL_INPUTS_SQL})
-    SELECT i.*, COALESCE(i.zone_id, (
-               SELECT z.id FROM zones z
-               WHERE z.municipality_id = :m
-                 AND ST_Contains(z.geom, ST_PointOnSurface(u.geom))
-               ORDER BY ST_Area(z.geom) ASC, z.id ASC LIMIT 1)) AS effective_zone_id
-    FROM inputs i JOIN urban_parcels u ON u.id = i.id
-    """
-)
-INSERT_CELL_SQL = {
-    "block": text(
-        """
-        INSERT INTO heatmap_cells (municipality_id, publish_version_id, cell_type, cell_id,
-            cell_ref, geom, parcel_count, stated_count, max_site_coverage_pct, max_height_m,
-            max_far, max_gfa_m2, saleable_area_m2, sale_rate_eur_m2, sale_rate_low_eur_m2,
-            sale_rate_high_eur_m2, market_value_eur, price_band)
-        SELECT :m, :v, 'block', b.id, b.block_ref, b.geom, :parcel_count, :stated_count,
-               :max_site_coverage_pct, :max_height_m, :max_far, :max_gfa_m2, :saleable_area_m2,
-               :sale_rate_eur_m2, :sale_rate_low_eur_m2, :sale_rate_high_eur_m2,
-               :market_value_eur, :price_band
-        FROM urban_blocks b WHERE b.id = :cell_id AND b.municipality_id = :m
-        """
-    ),
-    "zone": text(
-        """
-        INSERT INTO heatmap_cells (municipality_id, publish_version_id, cell_type, cell_id,
-            cell_ref, geom, parcel_count, stated_count, max_site_coverage_pct, max_height_m,
-            max_far, max_gfa_m2, saleable_area_m2, sale_rate_eur_m2, sale_rate_low_eur_m2,
-            sale_rate_high_eur_m2, market_value_eur, price_band)
-        SELECT :m, :v, 'zone', z.id, z.name, z.geom, :parcel_count, :stated_count,
-               :max_site_coverage_pct, :max_height_m, :max_far, :max_gfa_m2, :saleable_area_m2,
-               :sale_rate_eur_m2, :sale_rate_low_eur_m2, :sale_rate_high_eur_m2,
-               :market_value_eur, :price_band
-        FROM zones z WHERE z.id = :cell_id AND z.municipality_id = :m
-        """
-    ),
-}
-ALL_CELL_IDS_SQL = {
-    "block": text(
-        "SELECT b.id, b.zone_id FROM urban_blocks b WHERE b.municipality_id = :m ORDER BY b.id"
-    ),
-    "zone": text(
-        "SELECT z.id, z.id AS zone_id FROM zones z WHERE z.municipality_id = :m ORDER BY z.id"
-    ),
-}
+
 UNSET_CURRENT_SQL = text(
     "UPDATE publish_versions SET is_current = false WHERE municipality_id = :m AND is_current"
 )
@@ -690,6 +516,20 @@ FLIP_SQL = text(
     RETURNING published_at
     """
 )
+REFRESH_VERSION_SQL = text(
+    """
+    SELECT id, label, archive_key FROM publish_versions
+    WHERE municipality_id = :m AND is_current FOR UPDATE
+    """
+)
+REFRESH_ARCHIVE_SQL = text(
+    """
+    UPDATE publish_versions
+    SET archive_size_bytes = :size, archive_sha256 = :sha256, layers = CAST(:layers AS jsonb),
+        counts = COALESCE(counts, '{}'::jsonb) || CAST(:counts AS jsonb)
+    WHERE id = :id
+    """
+)
 PRUNE_CANDIDATES_SQL = text(
     """
     SELECT id, label, archive_key FROM publish_versions
@@ -699,7 +539,8 @@ PRUNE_CANDIDATES_SQL = text(
 )
 PRUNE_ROWS_SQL = (
     text("DELETE FROM parcel_links WHERE publish_version_id = :id"),
-    text("DELETE FROM heatmap_cells WHERE publish_version_id = :id"),
+    text("DELETE FROM choropleth_cells WHERE publish_version_id = :id"),
+    text("DELETE FROM choropleth_classes WHERE publish_version_id = :id"),
     text("DELETE FROM layer_features WHERE publish_version_id = :id"),
     text(
         "UPDATE publish_versions SET archive_pruned_at = now(), archive_key = NULL WHERE id = :id"
@@ -733,6 +574,7 @@ class PublishPipeline:
         min_overlap_m2: float = 1.0,
         min_overlap_fraction: float = 0.02,
         link_rules: LinkRules | None = None,
+        price_breaks: Sequence[float] = (),
         keep_versions: int = 3,
         min_zoom: int = 8,
         max_zoom: int = 16,
@@ -749,6 +591,7 @@ class PublishPipeline:
         self.link_rules = link_rules or LinkRules(
             min_overlap_m2=float(min_overlap_m2), min_overlap_fraction=float(min_overlap_fraction)
         )
+        self.price_breaks = tuple(float(b) for b in price_breaks)
         self.keep_versions = max(2, int(keep_versions))
         self.min_zoom = int(min_zoom)
         self.max_zoom = int(max_zoom)
@@ -852,8 +695,9 @@ class PublishPipeline:
 
                 current = "cells"
                 await progress.start(current)
-                counts.update(await self._compute_cells(session, version_id))
-                await progress.done(current, {k: counts[k] for k in ("block_cells", "zone_cells")})
+                heat = await self._compute_cells(session, version_id)
+                counts["choropleth_cells"] = {k: v["count"] for k, v in heat.items()}
+                await progress.done(current, counts["choropleth_cells"])
 
                 current = "export"
                 await progress.start(current)
@@ -1104,83 +948,104 @@ class PublishPipeline:
             rules=self.link_rules,
         )
 
-    async def _compute_cells(self, session: AsyncSession, version_id: int) -> dict[str, int]:
+    async def refresh(self, job: JobContext) -> JobResult:
+        """``refresh_heatmaps``: the current version's heatmaps recomputed (the sale price from the
+        assumptions versions that apply today) and its archive rebuilt around them in place, so
+        the map follows another assumptions version without a new publish. The version, its
+        values and links stay; a version without an archive (the seeded one) gets its cells only.
+        """
+        started = perf_counter()
         m = self.municipality_id
-        market_rows = (
-            (await session.execute(ASSUMPTIONS_SQL, {"m": m, "tz": self.timezone})).mappings().all()
-        )
-        market_by_zone: dict[int | None, MarketInputs] = {
-            row["zone_id"]: market_inputs_from_row(row) for row in market_rows
-        }
-        # the zone's own default saleable share when its version sets one (migration 0023)
-        share_by_zone: dict[int | None, float] = {
-            row["zone_id"]: float(row["saleable_share"])
-            for row in market_rows
-            if row["saleable_share"] is not None
-        }
-        # a zone without its own current row has no market figures (never the municipality-wide
-        # row's): its cells carry no sale rate and the map draws them as not covered
-        bands = price_bands(
-            {zone_id: mk.sale_rate_eur_m2 for zone_id, mk in market_by_zone.items() if zone_id}
-        )
-        parcels = (
-            (await session.execute(PARCEL_ZONE_SQL, {"m": m, "v": version_id})).mappings().all()
-        )
-        by_block: dict[int, list[ParcelFigures]] = {}
-        by_zone: dict[int, list[ParcelFigures]] = {}
-        for p in parcels:
-            zone_id = p["effective_zone_id"]
-            market = market_by_zone.get(zone_id) if zone_id else None
-            share = share_by_zone.get(zone_id, DEFAULT_SALEABLE_SHARE)
-            result = compute_feasibility(
-                p["area_m2"],
-                p["max_far"],
-                p["max_site_coverage_pct"],
-                market,
-                Assumptions(saleable_share=share),
-            )
-            figures = ParcelFigures(
-                area_m2=float(p["area_m2"] or 0.0),
-                max_far=p["max_far"],
-                max_site_coverage_pct=p["max_site_coverage_pct"],
-                max_height_m=p["max_height_m"],
-                max_gfa_m2=expected_or_none(result, "max_gfa_m2"),
-                saleable_area_m2=expected_or_none(result, "saleable_area_m2"),
-                market_value_eur=expected_or_none(result, "revenue_eur"),
-            )
-            if p["block_id"] is not None:
-                by_block.setdefault(p["block_id"], []).append(figures)
-            if zone_id is not None:
-                by_zone.setdefault(zone_id, []).append(figures)
-        written = {"block_cells": 0, "zone_cells": 0}
-        for cell_type, groups in (("block", by_block), ("zone", by_zone)):
-            cells = (await session.execute(ALL_CELL_IDS_SQL[cell_type], {"m": m})).mappings().all()
-            for cell in cells:
-                figures = aggregate_cell(groups.get(cell["id"], []))
-                zone_id = cell["zone_id"]
-                market = market_by_zone.get(zone_id) if zone_id else None
-                await session.execute(
-                    INSERT_CELL_SQL[cell_type],
-                    {
-                        "m": m,
-                        "v": version_id,
-                        "cell_id": cell["id"],
-                        "parcel_count": figures.parcel_count,
-                        "stated_count": figures.stated_count,
-                        "max_site_coverage_pct": figures.max_site_coverage_pct,
-                        "max_height_m": figures.max_height_m,
-                        "max_far": figures.max_far,
-                        "max_gfa_m2": figures.max_gfa_m2,
-                        "saleable_area_m2": figures.saleable_area_m2,
-                        "sale_rate_eur_m2": market.sale_rate_eur_m2 if market else None,
-                        "sale_rate_low_eur_m2": sale_rate_range(market)[0],
-                        "sale_rate_high_eur_m2": sale_rate_range(market)[1],
-                        "market_value_eur": figures.market_value_eur,
-                        "price_band": bands.get(zone_id) if zone_id else None,
+        work_dir = Path(tempfile.mkdtemp(prefix=f"heatmaps-{job.id}-", dir=self.tmp_dir))
+        try:
+            async with self.session_factory() as session:
+                row = (await session.execute(REFRESH_VERSION_SQL, {"m": m})).mappings().first()
+                if row is None:
+                    return JobResult(result={"refreshed": False, "reason": "unpublished"})
+                version_id, label = int(row["id"]), row["label"]
+                heat = await self._compute_cells(session, version_id)
+                cells = {k: v["count"] for k, v in heat.items()}
+                archive_key = row["archive_key"]
+                layers: list[dict[str, Any]] = []
+                if archive_key:
+                    layer_files = await self._export_layers(session, version_id, work_dir)
+                    layers = [
+                        {
+                            "id": lf.layer_id,
+                            "geometry_type": lf.geometry_type,
+                            "min_zoom": lf.min_zoom,
+                            "max_zoom": lf.max_zoom,
+                            "features": lf.feature_count,
+                            "available": lf.available,
+                            "unavailable_reason": lf.unavailable_reason,
+                        }
+                        for lf in layer_files
+                    ]
+                    report = await asyncio.to_thread(
+                        self.tile_builder.build,
+                        [lf for lf in layer_files if lf.feature_count > 0],
+                        work_dir / f"{label}.pmtiles",
+                    )
+                    # the same key: the pointer and every signed link stay valid, PMTiles
+                    # readers see the new ETag and reload
+                    await asyncio.to_thread(
+                        self.storage.put_file, archive_key, report.archive, ARCHIVE_CONTENT_TYPE
+                    )
+                    await session.execute(
+                        REFRESH_ARCHIVE_SQL,
+                        {
+                            "id": version_id,
+                            "size": report.size_bytes,
+                            "sha256": report.sha256,
+                            "layers": json.dumps(layers),
+                            "counts": json.dumps({"choropleth_cells": cells}),
+                        },
+                    )
+                await write_audit(
+                    session,
+                    municipality_id=m,
+                    action="heatmaps.refresh",
+                    actor=(job.payload or {}).get("requested_by") or "system",
+                    entity_type="publish_version",
+                    entity_id=version_id,
+                    details={
+                        "label": label,
+                        "job_id": job.id,
+                        "cells": cells,
+                        "archive_rebuilt": bool(archive_key),
                     },
                 )
-                written[f"{cell_type}_cells"] += 1
-        return written
+                await session.commit()
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+        duration_ms = int((perf_counter() - started) * 1000)
+        log.info(
+            "heatmaps of version %s (%s) refreshed in %s ms: %s",
+            version_id,
+            label,
+            duration_ms,
+            cells,
+        )
+        return JobResult(
+            result={
+                "refreshed": True,
+                "version_id": version_id,
+                "label": label,
+                "choropleth_cells": cells,
+                "archive_rebuilt": bool(archive_key),
+                "layers": layers,
+                "duration_ms": duration_ms,
+            }
+        )
+
+    async def _compute_cells(self, session: AsyncSession, version_id: int) -> dict[str, Any]:
+        return await compute_choropleth(
+            session,
+            municipality_id=self.municipality_id,
+            version_id=version_id,
+            timezone=self.timezone,
+            price_breaks=self.price_breaks,
+        )
 
     async def _export_layers(
         self, session: AsyncSession, version_id: int, work_dir: Path

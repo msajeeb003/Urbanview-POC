@@ -180,7 +180,7 @@ def create_app(
                 municipality_id=municipality.id,
                 keep_versions=settings.publish_keep_versions,
                 tiles_url_expires_seconds=settings.tiles_url_expires_seconds,
-                price_band_breaks=municipality.price_band_breaks_eur_m2,
+                timezone=municipality.timezone,
             )
             app.state.email_service = EmailService(
                 app.state.session_factory,
@@ -194,8 +194,14 @@ def create_app(
                 municipality_id=municipality.id,
                 session_ttl_days=settings.staff_session_days,
             )
+            # a saved / retired market set that applies today rebuilds the sale-price heatmap
+            publish_service = app.state.publish_service
             app.state.admin_config_service = AdminConfigService(
-                app.state.session_factory, municipality=municipality
+                app.state.session_factory,
+                municipality=municipality,
+                on_assumptions_changed=lambda: publish_service.refresh_heatmaps_if_stale(
+                    reason="assumptions"
+                ),
             )
             app.state.engine_proposal_service = EngineProposalService(
                 app.state.session_factory, municipality_id=municipality.id

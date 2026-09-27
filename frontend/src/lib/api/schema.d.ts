@@ -2261,17 +2261,14 @@ export interface components {
         };
         /**
          * CellClasses
-         * @description Choropleth classes of the current version's cells, per tile layer and metric.
+         * @description The heatmaps' classes of the current version (``core.choropleth``), per layer.
          */
         CellClasses: {
-            /** Block Cells */
-            block_cells?: {
-                [key: string]: components["schemas"]["MetricClasses"];
-            };
-            /** Zone Cells */
-            zone_cells?: {
-                [key: string]: components["schemas"]["MetricClasses"];
-            };
+            coverage?: components["schemas"]["MetricClasses"] | null;
+            far?: components["schemas"]["MetricClasses"] | null;
+            height?: components["schemas"]["MetricClasses"] | null;
+            gfa?: components["schemas"]["MetricClasses"] | null;
+            sale_price?: components["schemas"]["MetricClasses"] | null;
         };
         /** ComputedField */
         ComputedField: {
@@ -4629,8 +4626,22 @@ export interface components {
             effective_from?: string | null;
             version?: components["schemas"]["AssumptionsVersion"] | null;
         };
-        /** MetricClasses */
+        /**
+         * MetricClasses
+         * @description One heatmap's classes, stored with its cells (``choropleth_classes``): the cells' ``band``
+         *     in the tiles and the legend rows come from these breaks.
+         */
         MetricClasses: {
+            /**
+             * Layer
+             * @description coverage | far | height | gfa | sale_price
+             */
+            layer: string;
+            /**
+             * Source Layer
+             * @description The heatmap's tile source-layer (heat_<layer>)
+             */
+            source_layer: string;
             /**
              * Method
              * @description quantile | fixed (the municipality profile's bands)
@@ -4647,6 +4658,8 @@ export interface components {
             min?: number | null;
             /** Max */
             max?: number | null;
+            /** Mean */
+            mean?: number | null;
             /**
              * Count
              * @description Cells with a value
@@ -4654,14 +4667,19 @@ export interface components {
             count: number;
             /**
              * Null Count
-             * @description Cells without a value: drawn as no data
+             * @description Blocks / zones without a value: drawn as not covered
              */
             null_count: number;
             /**
              * Zero Class
-             * @description 0 is its own class first (sale rate: not saleable)
+             * @description 0 is its own class first (sale price: not saleable)
              */
             zero_class: boolean;
+            /**
+             * Decimals
+             * @default 0
+             */
+            decimals: number;
         };
         /** MunicipalityProfile */
         MunicipalityProfile: {
@@ -6586,8 +6604,14 @@ export interface components {
             min_zoom?: number | null;
             /** Max Zoom */
             max_zoom?: number | null;
-            /** @description Classes of the block / zone cells: the map colours and legend share them */
+            /** @description The heatmaps' stored classes: the tiles' bands and the legend share them */
             cell_classes?: components["schemas"]["CellClasses"] | null;
+            /**
+             * Heatmaps Refreshing
+             * @description Another assumptions version applies since the tiles were built: the sale-price heatmap is being rebuilt (refresh_heatmaps job)
+             * @default false
+             */
+            heatmaps_refreshing: boolean;
         };
         /** Totals */
         Totals: {

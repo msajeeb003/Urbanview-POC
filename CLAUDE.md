@@ -1060,12 +1060,7 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   overlaps with locate's thresholds, `rank 1` = the panel's primary: largest overlap, smallest
   planned area, lowest id, the relation of every cadastral parcel, `none` rows; the step reports
   `cadastral_unmatched`, the parcels per relation and the recompute time, stored on the version
-  as `links_summary`) → `cells` (`heatmap_cells` per block
-  and zone: area-weighted coverage % and FAR, max height, GFA / saleable area / market value
-  sums through `core.engine.feasibility.compute_feasibility` with the zone's assumptions that
-  apply on the publish day (its saleable share too; a set scheduled for later reaches the cells
-  with the first publish after its date), `sale_rate_eur_m2`, `price_band` = tercile of the zone
-  sale rates) → `export`
+  as `links_summary`) → `cells` (the heatmaps, `core.choropleth`, see "Heatmaps") → `export`
   (one newline-delimited GeoJSON file per catalogue layer) → `tiles` (tippecanoe per layer with
   its own zoom range, `tile-join` into one PMTiles archive: one source layer per map layer,
   independent visibility) → `upload` (`{m}/tiles/{version_id}/{label}.pmtiles`, private bucket)
@@ -1082,7 +1077,8 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`, and the
   `zone_id` / `zone_type` of the zone containing the parcel's point on surface),
   `public_ownership`, `legal_burdens` (cadastral flags as their own layers), `land_use`,
-  `traffic_network` (generic `layer_features`), `block_cells`, `zone_cells` (heatmaps). Empty
+  `traffic_network` (generic `layer_features`), `heat_coverage`, `heat_far`, `heat_height`,
+  `heat_gfa` (every urban block), `heat_sale_price` (every zone): the heatmaps. Empty
   layers are left out of the build but listed with 0 features.
 - **Zone type** (migration 0014): `zones.zone_type` res | com | mix | pub | grn (CHECK) or null
   (not classified: drawn neutral, never a guessed colour); from the seed or the staged `zones`
@@ -1096,7 +1092,8 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   `layer_features` for the version (the newest staged batch wins, older ones `superseded`;
   layers without a new batch are carried forward). Batches end `published` with
   `published_version_id`.
-- **Versions and rollback.** Values, `layer_features`, `parcel_links`, `heatmap_cells` and the
+- **Versions and rollback.** Values, `layer_features`, `parcel_links`, `choropleth_cells` /
+  `choropleth_classes` and the
   archive are per version; entity geometry is upserted in place (a geometry rollback needs a
   re-ingest: documented limitation). `POST /v1/admin/publish/rollback {version_id?}` flips
   `is_current` to the given version (default the one before the current), audited
@@ -1105,27 +1102,61 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   versions beyond the newest N lose their archive object and derived rows
   (`archive_pruned_at`); version rows and values stay for history. Never the current or the
   previous version.
-- **Choropleth classes** (`api/services/cell_classes.py`): the tile pointer carries
-  `cell_classes` for the current version's cells, computed on read in one statement (cells are
-  immutable per version): per block metric (`max_far`, `max_site_coverage_pct`, `max_height_m`,
-  `max_gfa_m2`) quintile breaks over non-null values, rounded and de-duplicated; per zone sale
-  rate (`sale_rate_eur_m2` and its `_low_` / `_high_` bounds, migration 0015: the market row's
-  absolute bounds, else expected × range factors) the profile's fixed bands
-  (`price_band_breaks_eur_m2`, Podgorica 1300 / 1700 / 2100; 0 = not saleable), quantiles when
-  none are configured. `null_count` = cells drawn as no data. The public map colours and its
-  legend use the same classes.
 - **Tiles pointer.** `GET /v1/tiles/current` (public, `no-store`): `status` published |
   unpublished, `data_version`, `version_id`, `published_at`, one signed `archive_url`
   (`TILES_URL_EXPIRES_SECONDS`, PMTiles range requests) + `expires_at`, `layers`, `min_zoom`,
-  `max_zoom`. The seeded version has no archive (`archive_url: null`).
+  `max_zoom`, `cell_classes` (the heatmaps' stored classes per layer) and
+  `heatmaps_refreshing`. The seeded version has no archive (`archive_url: null`).
 - **Run it.** The worker image builds tippecanoe 2.79 (`backend/Dockerfile.worker`,
   `TIPPECANOE_BIN` / `TILE_JOIN_BIN`); `TILES_MIN_ZOOM` / `TILES_MAX_ZOOM` clamp the catalogue's
   per-layer ranges; `PUBLISH_TMP_DIR` for the scratch files. Tests: `tests/test_publish_unit.py`
-  (catalogue, cell aggregation, price bands, labels, tippecanoe commands) and
+  (catalogue, the heatmap layers, labels, tippecanoe commands) and
   `tests/integration/test_publish_postgis.py` (through the API with eager Celery, a fake tile
   builder and storage: refusal naming the document, the amended value in the panel and the tile
   layer, cells and links, staged geometry, rollback, idempotency, retention). Tests wanting a
   clean pointer reset version 1 to current and delete newer versions.
+
+## Heatmaps (`backend/core/choropleth.py`, migration 0027)
+
+- **The surfaces of BRD §2.1**, one tile source-layer each: `coverage`, `far`, `height`, `gfa` per
+  urban block from the published planning values, `sale_price` per zone from the assumptions. A
+  parcel's value is its effective one (parcel → block → zone → document, the tiles' precedence),
+  so a block-level figure the plan states applies to every parcel of the block. Rules per field:
+  coverage % (IZ) and FAR (II) = **area-weighted mean** over the block's planned parcels that
+  state them (weights: the planned parcel areas); height = the **maximum** floors above ground,
+  parsed from the plan's notation with the profile's `[extraction.floor_notation]` tokens
+  (`P+4` = 5, `P+5+Pk` = 7; `label` keeps the notation); GFA = **sum** of FAR x planned parcel
+  area (the engine's formula). Sale price = the expected €/m² of the zone's assumptions version
+  that applies today, exactly as stored, with low / high (absolute bounds, else expected x
+  factors).
+- **`choropleth_cells`** (per version, layer and cell): `value`, `value_low` / `value_high`,
+  `value_band`, `unit`, `label`, `parcel_count`, `source_kind` planning | assumptions,
+  `dataset_version`, `assumptions_id` / `assumptions_version`. A block or zone without a value has
+  no row (absence is data); the tiles still carry it, without `value`, so the map draws it as not
+  covered, never as zero.
+- **`choropleth_classes`** (per version and layer), stored with the cells so the legend and the
+  tiles agree: quintile breaks of the version's values for the planning layers (rounded,
+  de-duplicated), the profile's fixed bands `price_band_breaks_eur_m2` (1300 / 1700 / 2100) for the
+  sale price with 0 = not saleable; min / max / mean, count, `null_count` (blocks / zones without
+  a value). `value_band` = the cell's legend row: the number of breaks <= value (sale price: 0 =
+  not saleable, then 1 + that number); the tiles carry `band` (and `band_low` / `band_high` for
+  the sale price) and the map colours by it. `GET /v1/tiles/current` serves the stored classes as
+  `cell_classes`.
+- **Runs** as the publish job's `cells` step after the parcel links. The **`refresh_heatmaps`**
+  job (publish queue) recomputes the current version's cells and rebuilds its archive in place
+  (same key: signed links stay valid, PMTiles readers reload on the new ETag), audited
+  `heatmaps.refresh`. It is queued when the sale-price cells no longer match the assumptions that
+  apply today: right after an admin saves or retires a market set (`AdminConfigService`'s hook),
+  and when `GET /v1/tiles/current` finds them stale (a scheduled set took effect at midnight; the
+  pointer then says `heatmaps_refreshing: true`); one per version, not again within 10 minutes of a
+  failed one; only for a version with tiles. QA: `python -m core.choropleth summary | recompute
+  [--version N] [--layer L] [--json]` (min / max / mean, counts and breaks per layer; a recompute
+  does not rebuild the tiles).
+- Tests: `tests/test_choropleth_unit.py` (the rules per field, breaks, bands, classes, sale
+  range) and `tests/integration/test_choropleth_postgis.py` (two blocks and two zones through the
+  publish job: values, no cell without data, bands from the stored classes in the tiles and the
+  pointer, a market set saved for today rebuilding the sale-price heatmap and the tiles, the QA
+  command).
 
 ## Zones and their planning documents (`backend/core/zones/`, `data/zones/`)
 

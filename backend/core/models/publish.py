@@ -8,8 +8,8 @@
 - ``layer_features``: versioned generic map layers (planned land use, traffic network).
 - ``parcel_links``: cadastral ↔ planned parcel overlaps per version (rank 1 = primary), the
   same thresholds as location resolution.
-- ``heatmap_cells``: block and zone aggregates of the published parameters and the current
-  market assumptions (the choropleth / heatmap layers).
+- the heatmap surfaces are ``choropleth_cells`` / ``choropleth_classes``
+  (``core.models.choropleth``, migration 0027, which replaced 0011's ``heatmap_cells``).
 
 Every row carries ``publish_version_id`` except the staging tables; the public API and the tile
 export read the version flagged ``is_current``.
@@ -38,7 +38,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.db import Base
-from core.models.planning import gist_index, multipolygon
+from core.models.planning import gist_index
 
 
 def any_geometry() -> Geometry:
@@ -216,53 +216,4 @@ class ParcelLink(Base):
         CheckConstraint(
             "(urban_parcel_id IS NULL) = (relation = 'none')", name="ck_parcel_links_none"
         ),
-    )
-
-
-class HeatmapCell(Base):
-    __tablename__ = "heatmap_cells"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    municipality_id: Mapped[str] = mapped_column(Text, nullable=False)
-    publish_version_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("publish_versions.id", ondelete="CASCADE"), nullable=False
-    )
-    cell_type: Mapped[str] = mapped_column(Text, nullable=False, comment="block | zone")
-    cell_id: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, comment="urban_blocks.id | zones.id"
-    )
-    cell_ref: Mapped[str | None] = mapped_column(Text, comment="block ref | zone name")
-    geom: Mapped[Any] = mapped_column(multipolygon(), nullable=False)
-    parcel_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
-    stated_count: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        server_default=text("0"),
-        comment="parcels with at least one heatmap parameter",
-    )
-    max_site_coverage_pct: Mapped[float | None] = mapped_column(Float(53))
-    max_height_m: Mapped[float | None] = mapped_column(Float(53))
-    max_far: Mapped[float | None] = mapped_column(Float(53))
-    max_gfa_m2: Mapped[float | None] = mapped_column(Float(53))
-    saleable_area_m2: Mapped[float | None] = mapped_column(Float(53))
-    sale_rate_eur_m2: Mapped[float | None] = mapped_column(Float(53))
-    sale_rate_low_eur_m2: Mapped[float | None] = mapped_column(
-        Float(53),
-        comment="Low sale rate €/m²: absolute bound, else expected × low factor",
-    )
-    sale_rate_high_eur_m2: Mapped[float | None] = mapped_column(
-        Float(53),
-        comment="High sale rate €/m²: absolute bound, else expected × high factor",
-    )
-    market_value_eur: Mapped[float | None] = mapped_column(Float(53))
-    price_band: Mapped[int | None] = mapped_column(
-        Integer, comment="1 (lowest) .. 3 (highest) tercile of the zone sale rates"
-    )
-
-    __table_args__ = (
-        CheckConstraint("cell_type IN ('block', 'zone')", name="ck_heatmap_cells_type"),
-        UniqueConstraint(
-            "publish_version_id", "cell_type", "cell_id", name="uq_heatmap_cells_version_cell"
-        ),
-        gist_index("heatmap_cells", "geom"),
     )

@@ -22,6 +22,7 @@ from core.models.admin import (
 )
 from core.models.analytics import AnalyticsEventRecord
 from core.models.cadastre import CadastralDataset, CadastralMunicipality
+from core.models.choropleth import ChoroplethCell, ChoroplethClass
 from core.models.extraction import ExtractionRun, ExtractionRunChunk
 from core.models.georef import GeorefDataset
 from core.models.market import MarketDataItem, MarketImport
@@ -46,7 +47,6 @@ from core.models.planning import (
 )
 from core.models.publish import (
     GeometryBatch,
-    HeatmapCell,
     LayerFeature,
     ParcelLink,
     StagingGeometry,
@@ -58,6 +58,8 @@ __all__ = [
     "AuditLogEntry",
     "Base",
     "CadastralDataset",
+    "ChoroplethCell",
+    "ChoroplethClass",
     "CadastralMunicipality",
     "CadastralParcel",
     "EmailLogEntry",
@@ -67,7 +69,6 @@ __all__ = [
     "FinancialAssumption",
     "GeometryBatch",
     "GeorefDataset",
-    "HeatmapCell",
     "LayerFeature",
     "MarketDataItem",
     "MarketImport",

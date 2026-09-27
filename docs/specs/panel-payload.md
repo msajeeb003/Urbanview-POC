@@ -650,11 +650,14 @@ field is `not_stated`.
   `urban_blocks`, `urban_parcels` (properties: parcel number, area, block, document, effective
   `max_far`, `max_site_coverage_pct`, `max_height_m`, `max_floors`, `land_use`, `max_gfa_m2`),
   `cadastral_parcels` (number, sub-number, KO, address, area, ownership and burden flags,
-  `has_urban_parcel`, `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`),
-  `public_ownership`, `legal_burdens`, `land_use`, `traffic_network`, `block_cells` and
-  `zone_cells` (heatmap values: `max_site_coverage_pct`, `max_height_m`, `max_far`,
-  `max_gfa_m2`, `saleable_area_m2`, `sale_rate_eur_m2`, `market_value_eur`, `price_band` 1–3).
-  Feature `id` = the entity id (cadastral `id` is the Parcel ID; cells carry the block / zone
+  `has_urban_parcel`, `no_urban_parcel`, `relation`, `reduction_pct`,
+  `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`), `public_ownership`,
+  `legal_burdens`, `land_use`, `traffic_network`, and one layer per heatmap: `heat_coverage`,
+  `heat_far`, `heat_height`, `heat_gfa` (every urban block: `value`, `band`, `unit`, `label` = the
+  floor notation for height, `parcel_count`; no `value` = not covered) and `heat_sale_price`
+  (every zone: `value`, `low`, `high`, `band`, `band_low`, `band_high`, `unit`,
+  `assumptions_version`); the bands follow the pointer's `cell_classes`.
+  Feature `id` = the entity id (cadastral `id` is the Parcel ID; heatmaps carry the block / zone
   id), so a click can go straight to `GET /v1/panel?type=…&id=…`.
 
 ## 13. Display-shaped panels — `GET /v1/parcels/{id}/panel`, `GET /v1/zones/{id}/panel` (added 2026-09-26)

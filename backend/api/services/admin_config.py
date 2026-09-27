@@ -30,7 +30,7 @@ uniqueness (e-mail) here.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -523,10 +523,18 @@ class AdminConfigService:
         *,
         municipality: MunicipalityProfile,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        on_assumptions_changed: Callable[[], Awaitable[Any]] | None = None,
     ) -> None:
         self.session_factory = session_factory
         self.municipality = municipality
         self.clock = clock
+        self.on_assumptions_changed = on_assumptions_changed
+
+    async def _assumptions_changed(self) -> None:
+        """After a committed market change: the sale-price heatmap follows the sets that apply
+        today (``refresh_heatmaps``, queued only when they differ from the published cells)."""
+        if self.on_assumptions_changed is not None:
+            await self.on_assumptions_changed()
 
     @property
     def municipality_id(self) -> str:
@@ -656,6 +664,7 @@ class AdminConfigService:
                 effective_from=payload.effective_from or today,
             )
             await self._commit(session)
+        await self._assumptions_changed()
         return await self.get_assumptions(new_id)
 
     async def create_assumptions_batch(
@@ -691,6 +700,7 @@ class AdminConfigService:
                 for item in payload.sets
             ]
             await self._commit(session)
+        await self._assumptions_changed()
         return AssumptionsBatchOut(items=[await self.get_assumptions(i) for i in ids])
 
     @staticmethod
@@ -755,6 +765,7 @@ class AdminConfigService:
                 rate_sources=rate_sources,
             )
             await self._commit(session)
+        await self._assumptions_changed()
         return await self.get_assumptions(new_id)
 
     async def _insert_assumptions_version(
@@ -810,6 +821,7 @@ class AdminConfigService:
                 after={"status": "retired", "is_current": False, "retired_by": principal.subject},
             )
             await session.commit()
+        await self._assumptions_changed()
         return await self.get_assumptions(assumptions_id)
 
     async def preview_parcels(self, zone_id: int, *, limit: int = 12) -> PreviewParcelList:

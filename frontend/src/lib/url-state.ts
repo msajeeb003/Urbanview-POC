@@ -24,7 +24,7 @@ export const LAYERS_PARAM = "layers";
 const PARAM_CODES: Record<ParamMetric, string> = {
   max_far: "far",
   max_site_coverage_pct: "coverage",
-  max_height_m: "height",
+  max_floors: "height",
   max_gfa_m2: "gfa",
 };
 const PARAM_FROM_CODE = Object.fromEntries(Object.entries(PARAM_CODES).map(([k, v]) => [v, k])) as Record<string, ParamMetric>;

@@ -12,7 +12,8 @@ is recomputed. The public API only ever reads the current version.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping, Sequence
+import logging
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -30,9 +31,9 @@ from api.schemas.publish import (
 )
 from api.services.admin import EnqueuedJob
 from api.services.audit import write_audit
-from api.services.cell_classes import cell_classes
 from api.services.jobs import JOB_JSON, job_out
 from core.auth import Principal
+from core.choropleth import sale_price_stale, stored_classes
 from core.errors import ConflictError, NotFoundError
 from jobs.enqueue import JobDispatcher, enqueue_job
 from jobs.publish_pipeline import PENDING_SQL
@@ -82,12 +83,28 @@ PUBLISH_JOBS_SQL = text(
 )
 
 
+log = logging.getLogger("urbanview.publish")
+
+
 def _utc(value: Any) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, str):
         value = datetime.fromisoformat(value)
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+# a refresh of the version queued / running, or requested in the last minutes (a failing one is
+# not retried on every map load)
+RECENT_REFRESH_SQL = text(
+    """
+    SELECT 1 FROM pipeline_jobs
+    WHERE municipality_id = :m AND type = 'refresh_heatmaps' AND target_id = :v
+      AND (status IN ('queued', 'running', 'retrying')
+           OR requested_at > now() - interval '10 minutes')
+    LIMIT 1
+    """
+)
 
 
 class PublishService:
@@ -101,7 +118,7 @@ class PublishService:
         keep_versions: int = 3,
         tiles_url_expires_seconds: int = 3600,
         max_attempts: int = 1,
-        price_band_breaks: Sequence[float] = (),
+        timezone: str = "UTC",
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.session_factory = session_factory
@@ -111,7 +128,7 @@ class PublishService:
         self.keep_versions = int(keep_versions)
         self.tiles_url_expires_seconds = int(tiles_url_expires_seconds)
         self.max_attempts = int(max_attempts)
-        self.price_band_breaks = tuple(float(b) for b in price_band_breaks)
+        self.timezone = timezone
         self.clock = clock
 
     # --- output ----------------------------------------------------------------------------------
@@ -191,13 +208,11 @@ class PublishService:
             row = (
                 (await session.execute(CURRENT_SQL, {"m": self.municipality_id})).mappings().first()
             )
-            classes = (
-                await cell_classes(session, row["id"], price_breaks=self.price_band_breaks)
-                if row is not None
-                else None
-            )
+            classes = await stored_classes(session, row["id"]) if row is not None else None
         if row is None:
             return TilesCurrent(status="unpublished", data_version="unpublished")
+        # a scheduled assumptions version took effect since the tiles were built: rebuild them
+        refreshing = await self.refresh_heatmaps_if_stale(reason="tiles_pointer")
         version = self._version_out(row, signed=True)
         expires_at = (
             self.clock() + timedelta(seconds=self.tiles_url_expires_seconds)
@@ -215,7 +230,47 @@ class PublishService:
             min_zoom=version.min_zoom,
             max_zoom=version.max_zoom,
             cell_classes=CellClasses.model_validate(classes),
+            heatmaps_refreshing=refreshing,
         )
+
+    async def refresh_heatmaps_if_stale(self, *, reason: str) -> bool:
+        """Queue ``refresh_heatmaps`` when the current version's sale-price cells come from other
+        assumptions versions than the ones that apply today (saved, retired or scheduled since).
+        Idempotent (one active job per version) and never raising: the heatmap stays as it was
+        when the queue is down. True while a refresh is due."""
+        m = self.municipality_id
+        try:
+            async with self.session_factory() as session:
+                row = (await session.execute(CURRENT_SQL, {"m": m})).mappings().first()
+                # only a version with tiles has a map heatmap to rebuild (not the seeded one)
+                if (
+                    row is None
+                    or not row["archive_key"]
+                    or not await sale_price_stale(
+                        session, version_id=int(row["id"]), timezone=self.timezone, m=m
+                    )
+                ):
+                    return False
+                recent = (
+                    await session.execute(RECENT_REFRESH_SQL, {"m": m, "v": int(row["id"])})
+                ).first()
+            if recent is not None:
+                return True  # queued / running, or failed a moment ago: not once per request
+            await enqueue_job(
+                self.session_factory,
+                self.dispatcher,
+                municipality_id=m,
+                job_type="refresh_heatmaps",
+                payload={"reason": reason, "requested_by": f"system:{reason}"},
+                target_type="publish_run",
+                target_id=int(row["id"]),
+                max_attempts=3,
+                requested_by=f"system:{reason}",
+            )
+            return True
+        except Exception:  # noqa: BLE001 - the pointer / the admin write must not fail on it
+            log.warning("could not queue refresh_heatmaps", exc_info=True)
+            return False
 
     # --- writes ----------------------------------------------------------------------------------
 

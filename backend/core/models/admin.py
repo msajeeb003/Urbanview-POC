@@ -213,7 +213,7 @@ class PipelineJob(Base):
         nullable=False,
         comment=(
             "extract_document | preprocess_file | process_geometry | publish_approved | send_email"
-            " | import_market_data"
+            " | import_market_data | refresh_heatmaps"
         ),
     )
     queue: Mapped[str] = mapped_column(
@@ -276,7 +276,7 @@ class PipelineJob(Base):
         ),
         CheckConstraint(
             "type IN ('extract_document', 'preprocess_file', 'process_geometry', "
-            "'publish_approved', 'send_email', 'import_market_data')",
+            "'publish_approved', 'send_email', 'import_market_data', 'refresh_heatmaps')",
             name="ck_pipeline_jobs_type",
         ),
         CheckConstraint("attempts >= 0 AND max_attempts >= 1", name="ck_pipeline_jobs_attempts"),

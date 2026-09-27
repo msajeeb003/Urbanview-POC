@@ -31,7 +31,8 @@ EXPERT = "expert-token-1234"
 TOKENS = f"{ADMIN}:admin:ops,{REVIEWER}:reviewer:vesna,{EXPERT}:expert:marko"
 CLEANUP = (
     "DELETE FROM parcel_links WHERE publish_version_id <> 1",
-    "DELETE FROM heatmap_cells WHERE municipality_id = 'podgorica'",
+    "DELETE FROM choropleth_cells WHERE municipality_id = 'podgorica'",
+    "DELETE FROM choropleth_classes WHERE municipality_id = 'podgorica'",
     "DELETE FROM layer_features WHERE municipality_id = 'podgorica'",
     "DELETE FROM staging_geometry WHERE municipality_id = 'podgorica'",
     "DELETE FROM geometry_batches WHERE municipality_id = 'podgorica'",
@@ -267,10 +268,12 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     counts = result["counts"]
     assert counts["values_published"] == 1 and counts["items_skipped"] == 0
     assert counts["values_carried"] == 39  # 40 seeded values minus the overridden one
-    assert counts["parcel_links"] > 0 and counts["block_cells"] >= 2 and counts["zone_cells"] >= 2
+    heat = counts["choropleth_cells"]
+    assert counts["parcel_links"] > 0 and heat["far"] >= 2 and heat["sale_price"] >= 2
     assert {layer["id"] for layer in result["layers"]} >= {
         "urban_parcels",
-        "zone_cells",
+        "heat_far",
+        "heat_sale_price",
         "land_use",
     }
 
@@ -328,39 +331,40 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
         13,
         1,
     )
+    # this run's rows (audit_log is append-only: earlier tests' publishes stay in it)
     actions = await rows(
         app,
         "SELECT action, actor FROM audit_log WHERE municipality_id = 'podgorica' "
-        "AND action LIKE 'publish.%' ORDER BY id",
+        "AND action LIKE 'publish.%' AND ((entity_type = 'pipeline_job' AND entity_id = :job) "
+        "OR (entity_type = 'publish_version' AND entity_id = :v)) ORDER BY id",
+        job=job["id"],
+        v=result["version_id"],
     )
     assert [a["action"] for a in actions] == ["publish.request", "publish.complete"]
     assert {a["actor"] for a in actions} == {"vesna"}
 
-    # heatmap cells: block SA-01 holds UP 7 alone (FAR 2.4 on 1370.9 m2), zone 2's sale rate
-    (block,) = await rows(
-        app,
-        "SELECT * FROM heatmap_cells WHERE cell_type = 'block' AND cell_id = 2 "
-        "AND publish_version_id = :v",
-        v=result["version_id"],
-    )
-    assert (block["parcel_count"], block["stated_count"], block["max_far"]) == (1, 1, 2.4)
+    # heatmap cells: block SA-01 holds UP 7 alone (FAR 2.4, P+5+Pk = 7 floors), the zones'
+    # sale prices exactly as their assumptions state them, in the profile's bands
+    cells = {
+        (r["layer"], r["cell_id"]): r
+        for r in await rows(
+            app,
+            "SELECT * FROM choropleth_cells WHERE publish_version_id = :v",
+            v=result["version_id"],
+        )
+    }
     (up7,) = await rows(app, "SELECT area_m2 FROM urban_parcels WHERE id = 3")
-    gfa = round(2.4 * up7["area_m2"], 2)  # the engine's basis is the planned parcel's area
-    assert block["max_gfa_m2"] == pytest.approx(gfa) and block["sale_rate_eur_m2"] == 1650
-    assert block["saleable_area_m2"] == pytest.approx(round(0.7 * gfa, 2), abs=0.02)
-    assert block["price_band"] == 1
-    assert block["market_value_eur"] > 0
-    (zone,) = await rows(
-        app,
-        "SELECT * FROM heatmap_cells WHERE cell_type = 'zone' AND cell_id = 1 "
-        "AND publish_version_id = :v",
-        v=result["version_id"],
-    )
-    assert (
-        zone["parcel_count"] >= 4 and zone["sale_rate_eur_m2"] == 2450 and zone["price_band"] == 2
-    )
-    block_cells = {f["id"]: f["properties"] for f in tiles.layers["block_cells"]}
-    assert block_cells[2]["max_far"] == 2.4 and block_cells[2]["price_band"] == 1
+    far = cells[("far", 2)]
+    assert (far["value"], far["parcel_count"], far["source_kind"]) == (2.4, 1, "planning")
+    gfa = cells[("gfa", 2)]["value"]
+    assert gfa == pytest.approx(2.4 * up7["area_m2"], abs=0.01)  # the engine's formula
+    assert (cells[("height", 2)]["value"], cells[("height", 2)]["label"]) == (7, "P+5+Pk")
+    for zone_id, rate, band_no in ((1, 2450, 4), (2, 1650, 2)):
+        zone = cells[("sale_price", zone_id)]
+        assert (zone["value"], zone["value_band"], zone["unit"]) == (rate, band_no, "€/m²")
+        assert zone["source_kind"] == "assumptions" and zone["assumptions_id"] is not None
+    heat_far = {f["id"]: f["properties"] for f in tiles.layers["heat_far"]}
+    assert heat_far[2]["value"] == 2.4 and "band" in heat_far[2]
 
     # parcel links: one rank-1 row per cadastral parcel (its primary link or its none row),
     # shares within (0, 1]
