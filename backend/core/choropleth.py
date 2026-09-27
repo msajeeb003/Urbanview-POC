@@ -152,9 +152,11 @@ def quantile_breaks(values: Sequence[float], decimals: int) -> list[float]:
     positive = sorted(float(v) for v in values if v is not None and v > 0)
     if not positive:
         return []
-    floor = min(float(v) for v in values if v is not None)
-    candidates = [percentile(positive, q) for q in QUANTILES]
-    return _rounded((c for c in candidates if c > floor), decimals)
+    # rounded first: a quintile rounded down onto the minimum would open an empty first class
+    floor = _rounded([min(float(v) for v in values if v is not None)], decimals)[0]
+    return [
+        b for b in _rounded((percentile(positive, q) for q in QUANTILES), decimals) if b > floor
+    ]
 
 
 def band(value: float, breaks: Sequence[float], *, zero_class: bool) -> int:
@@ -568,6 +570,29 @@ def _print(classes: Mapping[str, Mapping[str, Any]]) -> None:
         )
 
 
+async def _queue_refresh(factory: Any, m: str, version_id: int) -> int:
+    """The ``refresh_heatmaps`` job for the version: cells and tiles rebuilt by the worker."""
+    import getpass
+
+    from jobs.enqueue import CeleryDispatcher, enqueue_job
+
+    by = f"cli:{getpass.getuser()}"
+    outcome = await enqueue_job(
+        factory,
+        CeleryDispatcher(),
+        municipality_id=m,
+        job_type="refresh_heatmaps",
+        payload={"reason": "cli", "requested_by": by},
+        target_type="publish_run",
+        target_id=version_id,
+        max_attempts=3,
+        requested_by=by,
+    )
+    state = "queued" if outcome.created else "already queued / running"
+    print(f"refresh_heatmaps job {outcome.job_id} for version {version_id}: {state}")
+    return 0
+
+
 async def _run(args: argparse.Namespace) -> int:
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -587,6 +612,8 @@ async def _run(args: argparse.Namespace) -> int:
             if version_id is None:
                 print("nothing is published yet", file=sys.stderr)
                 return 1
+            if args.command == "refresh":
+                return await _queue_refresh(async_sessionmaker(engine), m, int(version_id))
             if args.command == "recompute":
                 await compute_choropleth(
                     session,
@@ -611,11 +638,12 @@ async def _run(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m core.choropleth",
-        description="Heatmap cells of a publish version: min / max / mean per layer and the "
-        "stored classes (summary), or a recompute (default: the current version). A recompute "
-        "does not rebuild the tiles: publish, or run the refresh_heatmaps job, for that.",
+        description="Heatmap cells of a publish version (default: the current one): min / max "
+        "/ mean per layer and the stored classes (summary), a recompute of the cells and classes "
+        "(recompute: the tiles are not rebuilt), or the refresh_heatmaps job that recomputes them "
+        "and rebuilds the tiles (refresh).",
     )
-    parser.add_argument("command", choices=("summary", "recompute"))
+    parser.add_argument("command", choices=("summary", "recompute", "refresh"))
     parser.add_argument("--municipality")
     parser.add_argument("--version", type=int, help="publish version id (default: current)")
     parser.add_argument("--layer", action="append", choices=LAYERS)

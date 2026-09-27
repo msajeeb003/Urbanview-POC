@@ -62,6 +62,13 @@ def test_quantile_breaks_are_rounded_unique_and_above_the_minimum():
     assert quantile_breaks([2.4, 2.4, 2.4], 2) == []  # one value: one class
     assert quantile_breaks([], 2) == []
     assert quantile_breaks([0.0, 0.0, 5.0], 0) == [5.0]  # zeros never make a class start
+    # two blocks of 7 and 9 floors: the quintiles 7.4 ... 8.6 round to 7, 8, 8, 9; a break on the
+    # minimum would leave the first class empty, so the classes start at 8 and 9
+    assert quantile_breaks([7.0, 9.0], 0) == [8.0, 9.0]
+    assert (
+        band(7.0, [8.0, 9.0], zero_class=False) == 0
+        and band(9.0, [8.0, 9.0], zero_class=False) == 2
+    )
 
 
 def test_bands_are_legend_rows():

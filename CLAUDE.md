@@ -1149,9 +1149,10 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   apply today: right after an admin saves or retires a market set (`AdminConfigService`'s hook),
   and when `GET /v1/tiles/current` finds them stale (a scheduled set took effect at midnight; the
   pointer then says `heatmaps_refreshing: true`); one per version, not again within 10 minutes of a
-  failed one; only for a version with tiles. QA: `python -m core.choropleth summary | recompute
-  [--version N] [--layer L] [--json]` (min / max / mean, counts and breaks per layer; a recompute
-  does not rebuild the tiles).
+  failed one; only for a version with tiles. QA: `python -m core.choropleth summary | recompute |
+  refresh [--version N] [--layer L] [--json]` (min / max / mean, counts and breaks per layer; a
+  recompute does not rebuild the tiles, `refresh` queues the job that does). Breaks are rounded
+  before they are compared with the minimum, so no legend class is empty.
 - Tests: `tests/test_choropleth_unit.py` (the rules per field, breaks, bands, classes, sale
   range) and `tests/integration/test_choropleth_postgis.py` (two blocks and two zones through the
   publish job: values, no cell without data, bands from the stored classes in the tiles and the

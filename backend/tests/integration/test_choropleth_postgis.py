@@ -298,3 +298,9 @@ async def test_heatmaps_are_computed_banded_and_follow_the_assumptions(
     assert summary["far"]["max"] >= 1.75 and summary["far"]["min"] <= 1.75
     assert summary["sale_price"]["min"] == 1250 and summary["sale_price"]["count"] >= 3
     assert summary["height"]["unit"] == "floors" and summary["gfa"]["mean"] is not None
+
+    # refresh: the job again on demand (cells and tiles), whatever the assumptions say
+    runs = len(tiles.runs)
+    assert await asyncio.to_thread(choropleth_module.main, ["refresh"]) == 0
+    assert "refresh_heatmaps job" in capsys.readouterr().out
+    assert len(tiles.runs) == runs + 1
