@@ -6,8 +6,7 @@
  * each independently:
  *
  * - core layers only toast "Core layer — always visible";
- * - choropleth cards show their field selector while on, and only one choropleth is on at a time
- *   (turning one on turns the other off, with a toast).
+ * - choropleth cards show their field selector while on; both heatmaps may be on together.
  *
  * Every real toggle emits `layer_toggled { layer_id, on }` (the published layer key).
  *
@@ -24,7 +23,7 @@ import { useTrack } from "@/lib/analytics/react";
 import { useTilesCurrent } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n";
 import { PARAM_METRICS, PRICE_METRICS } from "@/lib/map/classes";
-import { LAYERS, analyticsLayerId, hasNoData, layerById, layerState, toggleLayer, type LayerDef } from "@/lib/layers";
+import { LAYERS, analyticsLayerId, hasNoData, layerState, toggleLayer, type LayerDef } from "@/lib/layers";
 import { useLayerStates } from "@/lib/map/use-layer-states";
 import { useShell } from "@/lib/store";
 
@@ -97,12 +96,6 @@ export function LayerRail() {
     const result = toggleLayer(layers, l.id);
     setLayers(result.layers);
     track("layer_toggled", { layer_id: analyticsLayerId(l), on: result.on });
-    if (result.switchedOff) {
-      const other = layerById(result.switchedOff);
-      track("layer_toggled", { layer_id: analyticsLayerId(other), on: false });
-      showToast(t("toast.oneHeatmap", { name: nameOf(other) }));
-      return;
-    }
     if (!result.on) return;
     // turned on but nothing appears: say why
     const now = layerState(l.id, { layers: result.layers, zoom }, tiles);

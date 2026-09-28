@@ -1184,7 +1184,7 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   layers, skipped items, pruned versions and the duration; progress is written per step.
 - **Layer catalogue** (`jobs.publish_layers.LAYERS`, data not code): `zones` (with `zone_type`
   and `covered` = the zone has an adopted, live, current document with coverage; the map colours
-  covered zones by type and mutes the rest), `zone_labels` (one `ST_PointOnSurface` point per
+  covered zones by type and draws no other zone), `zone_labels` (one `ST_PointOnSurface` point per
   zone, same properties; point layers are built with `--drop-rate=1` so no label is thinned out),
   `document_coverage`, `urban_blocks`, `urban_parcels` (with the effective parameters:
   parcel → block → zone → document scope, plus `max_gfa_m2`), `cadastral_parcels` (with

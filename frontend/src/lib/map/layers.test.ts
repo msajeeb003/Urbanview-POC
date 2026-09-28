@@ -68,8 +68,9 @@ const farClasses: MetricClasses = {
 describe("registry", () => {
   it("has the wireframe's cards in rail order, minus the out-of-POC ones, each with map layers or the base style", () => {
     // no planned traffic (MVP layer), no ownership / restitution (bulk cadastral access not confirmed)
-    expect(LAYERS.map((l) => l.id)).toEqual(["docareas", "base", "zones", "cadastre", "planned", "landuse", "heatFAR", "heatMkt"]);
-    expect(LAYERS.filter((l) => l.core).map((l) => l.id)).toEqual(["docareas", "base", "zones"]);
+    // the POC plan's seven layers each toggle; only the plan areas and the base map are core
+    expect(LAYERS.map((l) => l.id)).toEqual(["docareas", "base", "zones", "blocks", "cadastre", "planned", "landuse", "heatFAR", "heatMkt"]);
+    expect(LAYERS.filter((l) => l.core).map((l) => l.id)).toEqual(["docareas", "base"]);
     for (const l of LAYERS) if (l.id !== "base") expect(LAYER_GROUPS[l.id].length, l.id).toBeGreaterThan(0);
     // cadastral and planned parcels are separate layers on separate source-layers
     const src = (id: "cadastre" | "planned") => new Set(UV_LAYERS.filter((s) => LAYER_GROUPS[id].includes(s.id)).map((s) => s["source-layer"]));
@@ -99,14 +100,14 @@ describe("registry", () => {
     expect(layerMinZoom(layerById("base"), tiles)).toBe(0);
   });
 
-  it("keeps one choropleth on at a time and never toggles a core layer", () => {
+  it("toggles every card on its own (both heatmaps may be on) and never a core layer", () => {
     const withFar = toggleLayer(DEFAULT_LAYER_STATE, "heatFAR");
-    expect(withFar).toMatchObject({ on: true, switchedOff: null });
+    expect(withFar.on).toBe(true);
     const withPrice = toggleLayer(withFar.layers, "heatMkt");
-    expect(withPrice.switchedOff).toBe("heatFAR");
-    expect(withPrice.layers.heatFAR).toBe(false);
-    expect(withPrice.layers.heatMkt).toBe(true);
-    expect(toggleLayer(DEFAULT_LAYER_STATE, "zones").layers).toBe(DEFAULT_LAYER_STATE);
+    expect(withPrice.layers.heatFAR && withPrice.layers.heatMkt).toBe(true);
+    expect(toggleLayer(DEFAULT_LAYER_STATE, "zones")).toMatchObject({ on: false, layers: { zones: false, blocks: true } });
+    expect(toggleLayer(DEFAULT_LAYER_STATE, "blocks")).toMatchObject({ on: false, layers: { zones: true, blocks: false } });
+    expect(toggleLayer(DEFAULT_LAYER_STATE, "docareas").layers).toBe(DEFAULT_LAYER_STATE);
     expect(toggleLayer(DEFAULT_LAYER_STATE, "landuse").layers.heatFAR).toBe(false); // others untouched
   });
 });
@@ -193,12 +194,11 @@ describe("legend", () => {
 
   it("lists the default layers with the wireframe's rows", () => {
     const groups = legendGroups(ctx());
-    expect(groups.map((g) => g.title)).toEqual(["Planning documents", "Urban zones", "Cadastral parcels", "Urban parcels"]);
-    expect(groups[1].rows.map((r) => r.label)).toEqual([
-      "Residential", "Commercial", "Mixed use", "Public / institutional", "Green / recreation", "Urban block boundary",
-    ]);
-    expect(groups[2].rows[0].label).toBe("Parcel outline");
-    expect(groups[3].rows[0].label).toBe("Parcel — click to open");
+    expect(groups.map((g) => g.title)).toEqual(["Planning documents", "Urban zones", "Urban blocks", "Cadastral parcels", "Urban parcels"]);
+    expect(groups[1].rows.map((r) => r.label)).toEqual(["Residential", "Commercial", "Mixed use", "Public / institutional", "Green / recreation"]);
+    expect(groups[2].rows.map((r) => r.label)).toEqual(["Urban block boundary"]);
+    expect(groups[3].rows[0].label).toBe("Parcel outline");
+    expect(groups[4].rows[0].label).toBe("Parcel — click to open");
   });
 
   it("falls back to the wireframe's FAR gradient without served classes", () => {
@@ -279,17 +279,17 @@ describe("?layers= links", () => {
     expect(formatLayersParam(DEFAULT_LAYER_STATE, DEFAULT_CHOROPLETH)).toBeNull();
     const layers = { ...DEFAULT_LAYER_STATE, cadastre: false, landuse: true, heatFAR: true };
     const value = formatLayersParam(layers, { param: "max_gfa_m2", price: "expected" })!;
-    expect(value).toBe("planned,landuse,heatFAR:gfa");
+    expect(value).toBe("zones,blocks,planned,landuse,heatFAR:gfa"); // zones and blocks toggle too now
     const parsed = parseLayersParam(`?layers=${value}`)!;
     expect(parsed.layers).toEqual(layers);
     expect(parsed.choropleth.param).toBe("max_gfa_m2");
   });
 
-  it("keeps core layers on, ignores unknown ids and keeps one choropleth", () => {
+  it("keeps core layers on, ignores unknown ids and allows both heatmaps", () => {
     const parsed = parseLayersParam("?layers=heatMkt:high,zones,bogus,heatFAR:far")!;
     expect(parsed.layers.zones && parsed.layers.docareas && parsed.layers.base).toBe(true);
-    expect(parsed.layers.heatMkt).toBe(true);
-    expect(parsed.layers.heatFAR).toBe(false);
+    expect(parsed.layers.blocks).toBe(false); // listed layers only
+    expect(parsed.layers.heatMkt && parsed.layers.heatFAR).toBe(true);
     expect(parsed.choropleth.price).toBe("high");
     expect(parseLayersParam("?layers=none")!.layers.cadastre).toBe(false);
     expect(parseLayersParam("?layers=bogus")).toBeNull();

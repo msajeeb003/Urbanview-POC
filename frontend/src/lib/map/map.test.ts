@@ -35,11 +35,13 @@ describe("pickFeature", () => {
   const urban = { layer: { id: HIT_LAYERS.urban }, properties: { id: 31, zone_id: 2 }, geometry: square(0.5, 0.5) };
   const doc = { layer: { id: HIT_LAYERS.document }, properties: { id: 4, zone_id: 2 }, geometry: square(0, 0, 10) };
 
-  it("prefers the cadastral parcel, then the planned parcel, then the plan area", () => {
+  it("prefers the cadastral parcel, then the planned parcel, then the plan area, then the zone", () => {
+    const zone = { layer: { id: HIT_LAYERS.zone }, properties: { id: 2, name: "Novi Grad" }, geometry: square(0, 0, 20) };
     // queryRenderedFeatures returns top-most first: planned parcel above cadastral above plan area
-    expect(pickFeature([urban, cad, doc])).toMatchObject({ type: "cadastral", id: 7, zoneId: 2, linkedUrbanId: 31 });
-    expect(pickFeature([urban, doc])).toMatchObject({ type: "urban", id: 31, linkedUrbanId: null });
-    expect(pickFeature([doc])).toMatchObject({ type: "document", id: 4 });
+    expect(pickFeature([urban, cad, doc, zone])).toMatchObject({ type: "cadastral", id: 7, zoneId: 2, linkedUrbanId: 31 });
+    expect(pickFeature([urban, doc, zone])).toMatchObject({ type: "urban", id: 31, linkedUrbanId: null });
+    expect(pickFeature([doc, zone])).toMatchObject({ type: "document", id: 4 });
+    expect(pickFeature([zone])).toMatchObject({ type: "zone", id: 2, properties: { name: "Novi Grad" } });
     expect(pickFeature([])).toBeNull();
   });
 
@@ -66,12 +68,14 @@ describe("style", () => {
     expect(new Set(grouped)).toEqual(new Set(ids)); // every layer follows exactly one rail toggle
   });
 
-  it("colours zones by type at 24 % and mutes the uncovered ones", () => {
+  it("colours zones by type at 24 % and draws covered zones only", () => {
     const fill = UV_LAYERS.find((l) => l.id === "uv-zones-fill")!;
     expect(fill.paint!["fill-opacity"]).toBe(0.24);
     expect(JSON.stringify(fill.paint!["fill-color"])).toContain("#8A7A8E");
-    expect(fill.filter).toEqual(["!=", ["get", "covered"], false]);
-    expect(UV_LAYERS.find((l) => l.id === "uv-zones-nodata-hatch")!.filter).toEqual(["==", ["get", "covered"], false]);
+    const covered = ["!=", ["get", "covered"], false];
+    // outside coverage: the base map only (no fill, outline or label of an uncovered zone)
+    for (const id of ["uv-zones-fill", "uv-zones-line", "uv-zones-label"]) expect(UV_LAYERS.find((l) => l.id === id)!.filter, id).toEqual(covered);
+    expect(UV_LAYERS.some((l) => l.id.startsWith("uv-zones-nodata"))).toBe(false);
     expect(UV_LAYERS.find((l) => l.id === "uv-zones-label")!["source-layer"]).toBe("zone_labels");
   });
 
@@ -84,13 +88,17 @@ describe("style", () => {
 
   it("highlights the selection, its planned parcel, and a hover that is not the selection", () => {
     const sel = highlightOf({ kind: "feature", type: "cadastral", id: 7, zoneId: 2, linkedUrbanId: 31, via: "click" });
-    expect(sel).toEqual({ cadastral: 7, urban: 31, document: null });
-    const f = highlightFilters(sel, { cadastral: 7, urban: null, document: 4 });
+    expect(sel).toEqual({ cadastral: 7, urban: 31, document: null, zone: null });
+    const f = highlightFilters(sel, { cadastral: 7, urban: null, document: 4, zone: null });
     expect(f["uv-cad-sel-line"]).toEqual(["==", ["get", "id"], 7]);
     expect(f["uv-urban-sel-line"]).toEqual(["==", ["get", "id"], 31]);
     expect(f["uv-cad-hover-line"]).toEqual(NONE);
     expect(f["uv-doc-hover-line"]).toEqual(["==", ["get", "id"], 4]);
-    expect(highlightOf({ kind: "point", point: { lng: 1, lat: 2 }, via: "click" })).toEqual({ cadastral: null, urban: null, document: null });
+    expect(highlightOf({ kind: "point", point: { lng: 1, lat: 2 }, via: "click" })).toEqual({ cadastral: null, urban: null, document: null, zone: null });
+    // a clicked (or searched) zone is outlined
+    const zone = highlightOf({ kind: "zone", id: 3, name: "Novi Grad", via: "click" });
+    expect(zone).toEqual({ cadastral: null, urban: null, document: null, zone: 3 });
+    expect(highlightFilters(zone, zone)["uv-zones-sel-line"]).toEqual(["==", ["get", "id"], 3]);
   });
 
   it("builds the no-data hatch image", () => {

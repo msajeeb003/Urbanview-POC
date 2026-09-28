@@ -93,11 +93,6 @@ export function parseLayersParam(search: string): { layers: Record<LayerId, bool
     if (id === "heatMkt" && field && (PRICE_CODES as string[]).includes(field)) choropleth.price = field as PriceMetric;
   }
   if (!known) return null;
-  // one choropleth at a time, as on the rail: the first listed wins
-  if (layers.heatFAR && layers.heatMkt) {
-    const first = raw.split(",").map((t) => t.trim().split(":")[0]).find((t) => t === "heatFAR" || t === "heatMkt");
-    layers[first === "heatFAR" ? "heatMkt" : "heatFAR"] = false;
-  }
   return { layers, choropleth };
 }
 

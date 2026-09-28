@@ -164,6 +164,17 @@ export function useSelection() {
     async (pick: Pick, clickPoint: LngLat) => {
       track("search_performed", searchProps("click", true, null));
       const s = useShell.getState();
+      if (pick.type === "zone") {
+        // a covered zone with no parcel or plan area under the click: the zone panel, outlined
+        const name = typeof pick.properties.name === "string" ? pick.properties.name : "";
+        s.setSelection({ kind: "zone", id: pick.id, name, via: "click" });
+        s.setCoverWarn(false);
+        s.dropPin(null);
+        s.setCoords(clickPoint);
+        s.setPanelHidden(false);
+        s.setSheet("half");
+        return;
+      }
       const sel: FeatureSelection = {
         kind: "feature",
         type: pick.type,

@@ -9,7 +9,9 @@
  * titles and legend text shown on screen come from the string table (`layer.<id>`, `group.<id>`,
  * `legend.*`, `zoneType.*`) through the legend context's translator; `name` is the English one.
  * Out of the POC and so not in the rail: planned traffic (an MVP layer) and the ownership /
- * restitution layers (only with confirmed bulk cadastral access).
+ * restitution layers (only with confirmed bulk cadastral access). The POC plan's seven layers
+ * (zones, cadastral parcels, planned parcels, land use, urban blocks, the parameter heatmap and the
+ * sale-price heatmap) each toggle on their own; only the plan areas and the base map are core.
  *
  * `layerState` is the one answer the rail, the legend and the map share about a card: off, on with
  * nothing published, on but zoomed out past the range its data is drawn at, or shown. A card that
@@ -41,6 +43,7 @@ export type LayerId =
   | "docareas"
   | "base"
   | "zones"
+  | "blocks"
   | "cadastre"
   | "planned"
   | "landuse"
@@ -86,7 +89,7 @@ export interface LayerDef {
   defaultOn: boolean;
   /** Always visible; the card shows the muted check and only toasts on click. */
   core?: boolean;
-  /** Choropleth card: shows a field selector while on; only one choropleth is on at a time. */
+  /** Choropleth card: shows a field selector while on. */
   choropleth?: "param" | "price";
   swatch: Swatch;
   /** Source-layers in the published tile archive; empty for the Mapbox base style. */
@@ -150,14 +153,20 @@ export const LAYERS: readonly LayerDef[] = [
     name: "Urban zones",
     group: "base",
     defaultOn: true,
-    core: true,
     swatch: { kind: "zones" },
-    published: ["zones", "urban_blocks", "zone_labels"],
+    published: ["zones", "zone_labels"],
     minZoom: 8,
-    legend: (ctx) => ({
-      title: title(ctx, "zones"),
-      rows: [...zoneRows(ctx), { mark: { kind: "blockdash" }, label: tx(ctx)("legend.blockBoundary") }],
-    }),
+    legend: (ctx) => ({ title: title(ctx, "zones"), rows: zoneRows(ctx) }),
+  },
+  {
+    id: "blocks",
+    name: "Urban blocks",
+    group: "base",
+    defaultOn: true,
+    swatch: { kind: "blockdash" },
+    published: ["urban_blocks"],
+    minZoom: 11,
+    legend: (ctx) => ({ title: title(ctx, "blocks"), rows: [{ mark: { kind: "blockdash" }, label: tx(ctx)("legend.blockBoundary") }] }),
   },
   {
     id: "cadastre",
@@ -241,28 +250,11 @@ export const DEFAULT_CHOROPLETH: ChoroplethState = { param: "max_far", price: "e
 /** The value `layer_toggled.layer_id` carries: the published layer key. */
 export const analyticsLayerId = (l: LayerDef): string => l.published[0] ?? l.id;
 
-/**
- * Toggle one card. Only one choropleth is on at a time (a readable map): switching one on
- * switches the other off, reported in `switchedOff`. Core layers never change.
- */
-export function toggleLayer(
-  layers: Record<LayerId, boolean>,
-  id: LayerId,
-): { layers: Record<LayerId, boolean>; on: boolean; switchedOff: LayerId | null } {
-  const def = layerById(id);
-  if (def.core) return { layers, on: true, switchedOff: null };
+/** Toggle one card, independently of every other (POC plan). Core layers never change. */
+export function toggleLayer(layers: Record<LayerId, boolean>, id: LayerId): { layers: Record<LayerId, boolean>; on: boolean } {
+  if (layerById(id).core) return { layers, on: true };
   const on = !layers[id];
-  const next = { ...layers, [id]: on };
-  let switchedOff: LayerId | null = null;
-  if (on && def.choropleth) {
-    for (const other of LAYERS) {
-      if (other.choropleth && other.id !== id && next[other.id]) {
-        next[other.id] = false;
-        switchedOff = other.id;
-      }
-    }
-  }
-  return { layers: next, on, switchedOff };
+  return { layers: { ...layers, [id]: on }, on };
 }
 
 /**

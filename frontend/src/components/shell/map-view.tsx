@@ -19,7 +19,7 @@
  * - The map follows the rail exactly. Once the style has loaded, every change of the layers, the
  *   choropleth fields and the selection is applied the moment it happens,
  *   also while tiles are still loading (Mapbox takes layout, filter and paint changes then; the
- *   state at `load` is applied by the load handler). The zoom goes to the store, so a card and
+ *   state at `style.load` is applied by its handler). The zoom goes to the store, so a card and
  *   its legend group say "zoom in to see" for a layer that is on but not drawn at this zoom.
  * - Click: the top-priority feature under the pointer is selected (cadastral parcel, planned
  *   parcel, planning-document coverage; `lib/map/pick.ts`), a click on nothing drops a pin and
@@ -78,7 +78,7 @@ const PIN_SVG =
 
 type Bbox = [number, number, number, number];
 type LngLatBounds = [[number, number], [number, number]];
-const NO_HOVER: Highlight = { cadastral: null, urban: null, document: null };
+const NO_HOVER: Highlight = { cadastral: null, urban: null, document: null, zone: null };
 
 // Start fetching Mapbox GL as soon as this module is evaluated (hydration), not at effect time.
 const mapboxModule = TOKEN && typeof window !== "undefined" ? import("mapbox-gl") : null;
@@ -178,7 +178,7 @@ export function MapView({
     tilesRef.current = tiles;
     useShell.getState().setDataVersion(tiles?.data_version ?? null);
     const map = mapRef.current;
-    // before the style's `load` there is nothing to swap: the load handler installs this pointer
+    // before `style.load` there is nothing to swap: its handler installs this pointer
     if (!map || installedVersion.current === undefined) return;
     const next = hasArchive(tiles) ? (tiles.version_id ?? null) : null;
     if (next !== installedVersion.current) {
@@ -257,7 +257,7 @@ export function MapView({
       map.keyboard.disableRotation();
       map.addControl(new mapboxgl.AttributionControl({ compact: true }), "top-right");
 
-      /** The style has loaded: UrbanView's layers exist and take changes (set once, in `load`). */
+      /** The style has loaded: UrbanView's layers exist and take changes (set once, in `style.load`). */
       let ready = false;
       /**
        * The first view is the start bounds (S1: the city extent). The constructor fits them when the
@@ -338,7 +338,9 @@ export function MapView({
         }
       };
 
-      map.on("load", () => {
+      // `style.load`, not `load`: UrbanView's source goes on as soon as the style is parsed, so its
+      // tiles download alongside the base map's instead of after all of them (first render)
+      map.on("style.load", () => {
         const img = hatchImage();
         if (!map.hasImage(HATCH_IMAGE)) map.addImage(HATCH_IMAGE, img);
         applyBasemap(map);
@@ -406,7 +408,7 @@ export function MapView({
       unsubscribers.push(
         useShell.subscribe((st, prev) => {
           if (st.pin !== prev.pin) syncPin(st.pin);
-          // Before `load` there are no layers: the load handler applies the state as it is then.
+          // Before `style.load` there are no layers: its handler applies the state as it is then.
           // After it, every change is applied at once, whether or not tiles are still loading.
           if (ready) {
             if (st.layers !== prev.layers) apply(() => syncVisibility(map));

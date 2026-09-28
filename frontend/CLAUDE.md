@@ -101,7 +101,8 @@ each entry. Rail order, groups and names are the wireframe's.
 |---|---|---|---|---|
 | Base | Planning documents | on | core (always on, muted check, click toasts "Core layer — always visible") | `document_coverage` |
 | Base | Base map | on | core | Mapbox style |
-| Base | Urban zones | on | core; also draws urban block boundaries (dotted) with block refs and zone labels | `zones`, `urban_blocks`, `zone_labels` |
+| Base | Urban zones | on | covered zones only (type fill, outline, label); a click opens the zone panel | `zones`, `zone_labels` |
+| Base | Urban blocks | on | block boundaries (dotted) with block refs (z15+) | `urban_blocks` |
 | Parcels | Cadastral parcels | on | never merged with planned parcels | `cadastral_parcels` |
 | Parcels | Urban parcels | on | planned parcels, dashed brand outline | `urban_parcels` |
 | Context | Land use | off | zone-type tint by `category` | `land_use` |
@@ -112,10 +113,12 @@ Not in the POC (scope audit 2026-09-28): the wireframe's Public ownership and Re
 cards (only with confirmed bulk cadastral access; the API marks those layers unavailable) and
 Planned traffic (an MVP layer; not published).
 
-- **Cards** are toggled by clicking (swatch + name), each independently, with one rule: **only one
-  choropleth is on at a time** (`toggleLayer`: turning one on turns the other off, toast "… turned
-  off — one heatmap at a time"). States: on / off / core (◆ in the markup, hidden by the
-  wireframe CSS, muted check). The rendered wireframe has no tint on an "on" card and an 8 px card radius (its
+- **Cards** are toggled by clicking (swatch + name), each independently (`toggleLayer`): the POC
+  plan's seven layers (zones, blocks, cadastral and planned parcels, land use, the two heatmaps,
+  which may be on together) each have their own card, unlike the mock's core zones card with the
+  blocks folded in and its one-heatmap rule (S1 check, 2026-09-28). States: on / off / core
+  (Planning documents and Base map only: ◆ in the markup, hidden by the wireframe CSS, muted
+  check). The rendered wireframe has no tint on an "on" card and an 8 px card radius (its
   late CSS passes override the 10 px and the tint); that is what ships.
 - **A card never claims a layer the map is not drawing.** `layerState` (`lib/layers.ts`) is the one
   answer the rail, the legend and the map share: `off` / `no_data` (the published version lists
@@ -141,7 +144,7 @@ Planned traffic (an MVP layer; not published).
   fallback (a continuous gradient, "Low → high"; the fixed bands). Field changes restyle with
   `setPaintProperty` / `setFilter`; toggles with `setLayoutProperty`: no source reload.
 - **Legend** (`legendGroups`): one group per layer that is on, in rail order, the wireframe's rows
-  (zone types + "Urban block boundary", "Parcel outline", "Parcel — click to open", "Coverage area
+  (zone types, "Urban block boundary", "Parcel outline", "Parcel — click to open", "Coverage area
   — click to open", FAR "Low →
   high" with unit "floor area ratio", price bands with unit "€/m² land"), class rows for served
   classes and "No data" when some cells have none; a `note` by the title for a layer that is on
@@ -150,8 +153,7 @@ Planned traffic (an MVP layer; not published).
 - **`?layers=`** (`lib/url-state.ts`): the toggleable layers that are on with the choropleth field
   (`landuse,heatFAR:gfa`, `heatMkt:low`); absent for the default view, `none` for nothing on; a
   link restores it on load, then the parameter follows the rail.
-- **Events**: `layer_toggled { layer_id: <published key>, on }` on every toggle (a switched-off
-  choropleth too).
+- **Events**: `layer_toggled { layer_id: <published key>, on }` on every toggle.
 
 ## Map (S1 "Map — Landing": `src/components/shell/map-view.tsx`, `src/lib/map/*`)
 
@@ -168,11 +170,12 @@ Planned traffic (an MVP layer; not published).
   Mapbox spreads it over its default, the fitted zoom turns NaN and the fit is dropped, which once
   opened the map on a corner of its bounds over Skadar Lake), and the padding shrinks to the box
   (`fitPadding`). `clickTolerance: 3` = a drag of more than 3 px never selects.
-- **The map follows the rail exactly.** Once the style has loaded (`load`), every change of the
-  layers, the choropleth fields and the selection is applied the moment
+- **The map follows the rail exactly.** Once the style has loaded (`style.load`, which also adds
+  UrbanView's source then, so its tiles download alongside the base map's instead of after them),
+  every change of the layers, the choropleth fields and the selection is applied the moment
   it happens, also while tiles are still loading (layout, filter and paint changes do not need
   them; gating on `isStyleLoaded()`, false whenever a source is loading, dropped changes and left
-  the map out of step until the next toggle). Before `load` the load handler applies the state as
+  the map out of step until the next toggle). Before `style.load` its handler applies the state as
   it is then; a refused change re-applies the whole state at the next `idle`.
 - **PMTiles on Mapbox.** Mapbox GL has no `addProtocol` (MapLibre's API); 3.x has the experimental
   `mapboxgl.addTileProvider(name, moduleUrl)`: every map worker imports the module and asks it for
@@ -187,8 +190,9 @@ Planned traffic (an MVP layer; not published).
   first paint has it. The object store must allow CORS `GET` with `Range` from the site origin.
 - **Layers** (`lib/map/style.ts`, wireframe values; fills and lines under the base map's labels,
   our labels on top): zones filled by `zone_type` at 24 % + boundary at 40 %, a label from the
-  `zone_labels` point layer; zones with `covered: false` muted (#E6E9EE) with the "no data yet"
-  hatch, never a type colour; dashed coverage; cadastral parcels tinted by their zone type; dashed
+  `zone_labels` point layer, for covered zones only: outside coverage the map shows the base map
+  alone, no zone geometry (POC plan; `covered: false` zones are neither filled, outlined nor
+  labelled); a selected zone gets a brand outline; dashed coverage; cadastral parcels tinted by their zone type; dashed
   planned parcels; block boundaries and refs (z15+); context overlays; hover layers (cursor
   pointer + outline) and selection layers (brand outline + glow; a cadastral selection also
   highlights its primary planned parcel). Visibility follows the rail (`visibleLayerIds`). Each
@@ -200,8 +204,10 @@ Planned traffic (an MVP layer; not published).
   minor roads, river `#BCCEC8` at .85 with a `#A4B9B2` line) and buildings, land cover, points
   of interest, airports and footpaths are hidden; place, street and water labels stay. A custom
   `NEXT_PUBLIC_MAPBOX_STYLE` is left as designed.
-- **Click** (`lib/map/pick.ts`): features under the pointer on the three hit layers; priority
-  cadastral parcel > planned parcel > coverage area. Cadastral: highlight + pin at the rendered
+- **Click** (`lib/map/pick.ts`): features under the pointer on the hit layers; priority
+  cadastral parcel > planned parcel > coverage area > zone. A zone (covered, so drawn, with no
+  parcel or plan area under the click) becomes the selection with its outline and the zone
+  panel, no pin. Cadastral: highlight + pin at the rendered
   centroid at once, then `/v1/locate` at the click confirms zone, planned link and coverage (the
   pin moves to the API centroid; uncovered = S6). Planned parcel: always covered (tiles hold
   adopted plans only). Coverage area: highlight, no pin. Nothing hit: pin + `/v1/locate`; a
@@ -216,7 +222,8 @@ Planned traffic (an MVP layer; not published).
   the parameter quietly; an API outage keeps it.
 - **Selection store** (`lib/store.ts`): `selection` = `point` | `parcel` (search pending) |
   `feature {type: cadastral | urban | document, id, zoneId, linkedUrbanId, via}` | `zone {id,
-  name}` (a zone picked in the search: framed, not highlighted, as in the mock); `highlightOf`
+  name, via: search | click}` (a zone picked in the search is framed; either way it is outlined);
+  `highlightOf`
   derives the map highlight; the panel reads the same selection.
 - **Events**: `map_loaded` once the style and first tiles are in (`idle`, with `load_ms`; without a
   token on first render with `renderer: none`); `search_performed {search_kind, matched}` per

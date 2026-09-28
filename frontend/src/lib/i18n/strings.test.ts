@@ -37,6 +37,7 @@ describe("shell text in Montenegrin", () => {
     expect(groups.map((g) => g.title)).toEqual([
       "Planski dokumenti",
       "Urbane zone",
+      "Urbanistički blokovi",
       "Katastarske parcele",
       "Urbanističke parcele",
       translate("me", "layer.landuse"),

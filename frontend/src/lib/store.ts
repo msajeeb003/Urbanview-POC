@@ -28,13 +28,13 @@ export type FeatureType = "cadastral" | "urban" | "document";
  * - `feature`: a selected map feature: cadastral parcel (`id` = Parcel ID), planned (urban)
  *   parcel, or planning-document coverage area; `linkedUrbanId` is the cadastral parcel's primary
  *   planned parcel, highlighted with it.
- * - `zone`: a covered zone picked in the search (its panel is `/v1/zones/{id}/panel`); the map
- *   frames it, nothing is highlighted (the wireframe's `selectZone`).
+ * - `zone`: a zone picked in the search (framed) or clicked on the map; its panel is
+ *   `/v1/zones/{id}/panel` and the map outlines it.
  */
 export type Selection =
   | { kind: "point"; point: LngLat; via: "click" | "address" }
   | { kind: "parcel"; ref: { ko: string; number: string; sub: string | null } }
-  | { kind: "zone"; id: number; name: string; via: "search" }
+  | { kind: "zone"; id: number; name: string; via: "search" | "click" }
   | {
       kind: "feature";
       type: FeatureType;
@@ -65,9 +65,13 @@ export function highlightOf(selection: Selection | null): {
   cadastral: number | null;
   urban: number | null;
   document: number | null;
+  zone: number | null;
 } {
-  if (!selection || selection.kind !== "feature") return { cadastral: null, urban: null, document: null };
+  const none = { cadastral: null, urban: null, document: null, zone: null };
+  if (selection?.kind === "zone") return { ...none, zone: selection.id };
+  if (!selection || selection.kind !== "feature") return none;
   return {
+    ...none,
     cadastral: selection.type === "cadastral" ? selection.id : null,
     urban: selection.type === "urban" ? selection.id : selection.type === "cadastral" ? selection.linkedUrbanId : null,
     document: selection.type === "document" ? selection.id : null,
