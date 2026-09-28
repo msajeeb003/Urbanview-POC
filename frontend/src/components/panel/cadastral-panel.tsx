@@ -4,8 +4,9 @@
  * S3 cadastral parcel panel (wireframe `renderPanelCadastral`), from
  * `GET /v1/panel?type=cadastral&id=`: header (CADASTRAL PARCEL + zone type, "Parcel #1042",
  * "Centar · Podgorica I"), the identification grid, "Corresponding urban parcel" (a card per
- * planned parcel over it, "Open urban parcel →", and the area comparison; "Not defined" when the
- * plan defines none; the coverage note when no adopted plan covers it) and the CTA stack.
+ * planned parcel over it with how much of the parcel it covers, "Open urban parcel →", and the
+ * area comparison with the area the calculations use; "Not defined" when the plan defines none;
+ * the coverage note when no adopted plan covers it), the data version and the CTA stack.
  * Cadastral and urban parcels are separate objects: the card moves to the urban parcel's panel.
  */
 import { useEffect } from "react";
@@ -17,8 +18,8 @@ import { useSelection } from "@/lib/selection";
 import { useShell } from "@/lib/store";
 
 import { IdGrid } from "../ui/id-grid";
-import { PanelHead, PanelLoading, PanelUnavailable, usePanelViewed } from "./panel-parts";
-import { AreaCompare, ParcelCtas, formatArea, parcelNo, useZoneTypeName } from "./parcel-parts";
+import { DataVersionLine, PanelHead, PanelLoading, PanelUnavailable, usePanelViewed } from "./panel-parts";
+import { AreaCompare, BasisLine, ParcelCtas, formatArea, parcelNo, useZoneTypeName } from "./parcel-parts";
 
 function Eyebrow({ typeName }: { typeName?: string | null }) {
   return (
@@ -60,7 +61,8 @@ function UrbanCard({
       {primary && count === 1 ? (
         <div className="upd">
           This cadastral parcel corresponds to an urban parcel in the adopted plan. Building rights — land use, height,
-          coverage, FAR — are defined on the <b>urban parcel</b>, not on the cadastral one.
+          coverage, FAR — are defined on the <b>urban parcel</b>, not on the cadastral one. It covers{" "}
+          <b>{formatArea(link.overlap_m2)} m²</b> of this parcel ({link.share_of_cadastral_pct}%).
         </div>
       ) : primary ? (
         <div className="upd">
@@ -109,6 +111,20 @@ function Corresponding({ data }: { data: CadastralPanelData }) {
     );
   }
   const open = (link: UrbanLink) => selectLinkedParcel({ type: "urban", id: link.id, zoneId });
+  // the planned parcel's area is the basis; a split uses the one covering the largest share (rank 1)
+  const basis =
+    data.calculation_basis !== "urban" ? (
+      <>
+        <BasisLine>All calculations use the cadastral parcel area</BasisLine> ({data.areas.basis_reason_en}).
+      </>
+    ) : links.length > 1 ? (
+      <BasisLine>
+        All calculations use the area of urban parcel {(data.urban_parcel ?? links[0]).urban_parcel_number}, which
+        covers the largest share of it.
+      </BasisLine>
+    ) : (
+      <BasisLine>All calculations use the urban parcel area.</BasisLine>
+    );
   return (
     <>
       {links.map((link, i) => (
@@ -116,7 +132,9 @@ function Corresponding({ data }: { data: CadastralPanelData }) {
       ))}
       {cad.cadastral_area_m2 != null && (
         <div style={{ marginTop: 11 }}>
-          <AreaCompare cadastralM2={cad.cadastral_area_m2} urbanM2={links.map((l) => l.area_m2)} label="urban" />
+          <AreaCompare cadastralM2={cad.cadastral_area_m2} urbanM2={links.map((l) => l.area_m2)} label="urban">
+            {basis}
+          </AreaCompare>
         </div>
       )}
     </>
@@ -174,6 +192,7 @@ export function CadastralPanel({ parcelId }: { parcelId: number }) {
           </div>
           <Corresponding data={data} />
         </div>
+        <DataVersionLine version={data.data_version} date={data.data_version_date} />
       </div>
       <ParcelCtas
         question={`Tell me about cadastral parcel #${no}`}

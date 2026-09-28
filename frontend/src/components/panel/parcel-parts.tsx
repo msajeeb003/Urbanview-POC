@@ -110,6 +110,16 @@ export function AreaCompare({
 }
 
 /** The comparison card when there is nothing to compare with (the fact is still stated). */
+/** The comparison card's last line: which area the calculations use (the planned one when there is one). */
+export function BasisLine({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <br />
+      <span style={{ color: "var(--brand-dark)", fontWeight: 600 }}>{children}</span>
+    </>
+  );
+}
+
 export function AreaNote({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="vscard">

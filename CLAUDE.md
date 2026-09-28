@@ -104,7 +104,10 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   the Python copy of the engine, held byte-identical to the TypeScript package's fixtures. PMTiles
   come from the private MinIO bucket through Caddy with signed links, no CDN. Auth.js signs staff
   in through a Credentials provider over the backend's magic-link tokens. The tablet / phone layout
-  (≤ 860 px drawer + bottom sheet, setup ticket) stays as built; it gets no further work.
+  (≤ 860 px drawer + bottom sheet, setup ticket) stays as built; it gets no further work. Group 1
+  keeps the wireframe's "Free" badge (not a lock or paywall).
+- **Open (S3 check):** a separate `land_use_code` in Group 1 and a `sample_size` per market
+  input: neither is in the data yet (`docs/specs/frontend-design.md` §10 item 22).
 
 ## Location resolution (`backend/api/services/locate_sql.py`, `resolver.py`)
 

@@ -757,6 +757,7 @@ def build_zone_panel(row: Mapping[str, Any], profile: MunicipalityProfile) -> Zo
             adopted=int(counts.get("adopted") or 0),
             in_progress=int(counts.get("in_progress") or 0),
             superseded=int(counts.get("superseded") or 0),
+            covered=sum(1 for d in documents if d.covered),
         ),
         typical_parameters=_typical_parameters(_as_json(row["typical_parameters"])),
     )

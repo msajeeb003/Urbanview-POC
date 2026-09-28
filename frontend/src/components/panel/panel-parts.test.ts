@@ -4,7 +4,17 @@ import type { MunicipalityProfile } from "@/lib/api/types";
 import { formatDate, formatFigure } from "@/lib/format";
 import { nextSheet } from "@/lib/store";
 
-import { docTypeLabel, documentMeta, heightText, planPhrase, zoneTypicalLine, type DocZone, type ZoneDoc } from "./panel-parts";
+import {
+  dataVersionText,
+  docTypeLabel,
+  documentMeta,
+  documentMetaParts,
+  heightText,
+  planPhrase,
+  zoneTypicalLine,
+  type DocZone,
+  type ZoneDoc,
+} from "./panel-parts";
 
 function doc(overrides: Partial<ZoneDoc> = {}): ZoneDoc {
   return {
@@ -45,6 +55,29 @@ describe("documentMeta (zone panel document list)", () => {
       "eRegistri",
     );
     expect(documentMeta(doc({ status: "superseded", covered: false, parcel_count: null }))).toBe("source PDF · eRegistri");
+  });
+});
+
+describe("documentMetaParts (the registry name becomes a link)", () => {
+  it("marks only the registry name as the source part", () => {
+    const parts = documentMetaParts(doc({ registry_url: "https://lamp.gov.me/PlanningDocument/Details/4182" }));
+    expect(parts.filter((p) => p.source).map((p) => p.text)).toEqual(["eRegistri"]);
+    expect(parts.map((p) => p.text).join(" · ")).toBe(documentMeta(doc()));
+  });
+  it("has no source part without a stated source", () => {
+    expect(documentMetaParts(doc({ source: null })).some((p) => p.source)).toBe(false);
+  });
+});
+
+describe("dataVersionText", () => {
+  it("names the published version and its date", () => {
+    expect(dataVersionText("stara-varos-live", "2026-09-27")).toBe(
+      `Data version stara-varos-live · published ${formatDate("2026-09-27")}`,
+    );
+    expect(dataVersionText("sample-2026-09-22")).toBe("Data version sample-2026-09-22");
+  });
+  it("says so before anything is published", () => {
+    expect(dataVersionText("unpublished", null)).toBe("No planning data published yet");
   });
 });
 

@@ -37,7 +37,8 @@ log = logging.getLogger("urbanview.panel.cache")
 # Part of the key namespace (``api.app``): bump it when a panel's body changes for the same data
 # (a new field, a new rule), so a deploy never serves bodies cached by the previous code.
 # 2: effective-dated assumptions and the zone's saleable share (migration 0023).
-PANEL_PAYLOAD_FORMAT = "3"
+# 4: the zone view's counts.covered is filled in.
+PANEL_PAYLOAD_FORMAT = "4"
 
 CacheStatus = str  # hit | miss | bypass | revalidated
 

@@ -2,10 +2,11 @@
 
 /**
  * Pieces every information panel variant shares: the sticky header (wireframe `.phead`), the
- * loading and error bodies, the document status chip (`.dstat`), `panel_viewed`, and the small
- * text helpers for plan types and typical heights.
+ * loading and error bodies, the document status chip (`.dstat`), `panel_viewed`, the small
+ * text helpers for plan types and typical heights, the registry link of a document and the line
+ * naming the published data version a panel shows.
  */
-import { useEffect, type ReactNode } from "react";
+import { Fragment, useEffect, type ReactNode } from "react";
 
 import { useTrack } from "@/lib/analytics/react";
 import type { DocumentPanel, MunicipalityProfile, ZonePanel } from "@/lib/api/types";
@@ -55,23 +56,64 @@ export function heightText(t: { max_height_m?: number | null; max_floors?: numbe
 export type ZoneDoc = ZonePanel["planning_documents"][number];
 export type DocZone = DocumentPanel["zones"][number];
 
+/** One part of a document's meta line; `source` marks the registry name (a link when it has one). */
+export interface MetaPart {
+  text: string;
+  source?: true;
+}
+
 /**
  * The meta line of a zone's document: `source PDF · eRegistri · adopted 12 May 2019 · 4 parcels
  * with data`; an adopted document the map does not cover yet says "not yet digitised".
  */
-export function documentMeta(d: ZoneDoc): string {
-  const parts: string[] = [];
-  if (d.file_available) parts.push("source PDF");
-  if (d.source) parts.push(d.source);
+export function documentMetaParts(d: ZoneDoc): MetaPart[] {
+  const parts: MetaPart[] = [];
+  if (d.file_available) parts.push({ text: "source PDF" });
+  if (d.source) parts.push({ text: d.source, source: true });
   const adopted = d.adopted_on ? formatDate(d.adopted_on) : null;
-  if (adopted) parts.push(`adopted ${adopted}`);
+  if (adopted) parts.push({ text: `adopted ${adopted}` });
   if (d.covered) {
     const n = d.parcel_count ?? 0;
-    parts.push(`${n} ${n === 1 ? "parcel" : "parcels"} with data`);
+    parts.push({ text: `${n} ${n === 1 ? "parcel" : "parcels"} with data` });
   } else if (d.status === "adopted") {
-    parts.push("not yet digitised");
+    parts.push({ text: "not yet digitised" });
   }
-  return parts.join(" · ");
+  return parts;
+}
+
+export function documentMeta(d: ZoneDoc): string {
+  return documentMetaParts(d)
+    .map((p) => p.text)
+    .join(" · ");
+}
+
+/** The document's registry entry (eRegistri), opened in a new tab. */
+export function RegistryLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a className="srclink" href={href} target="_blank" rel="noopener noreferrer" title="Open the registry entry">
+      {children}
+    </a>
+  );
+}
+
+/** The meta line with the registry name as a link to the document's registry entry. */
+export function DocumentMeta({ doc }: { doc: ZoneDoc }) {
+  return documentMetaParts(doc).map((p, i) => (
+    <Fragment key={i}>
+      {i > 0 && " · "}
+      {p.source && doc.registry_url ? <RegistryLink href={doc.registry_url}>{p.text}</RegistryLink> : p.text}
+    </Fragment>
+  ));
+}
+
+/** Which published data a panel shows: `Data version stara-varos-live · published 27 Sep 2026`. */
+export function dataVersionText(version: string, date?: string | null): string {
+  if (version === "unpublished") return "No planning data published yet";
+  return `Data version ${version}${date ? ` · published ${formatDate(date)}` : ""}`;
+}
+
+export function DataVersionLine({ version, date }: { version: string; date?: string | null }) {
+  return <p className="dataversion">{dataVersionText(version, date)}</p>;
 }
 
 /** A zone the document spans: `24 m · FAR 3.2` from its typical values (height, else floors). */

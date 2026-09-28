@@ -610,6 +610,7 @@ def test_zone_panel_builder():
     assert docs[2].type_name.startswith("Detaljni urbanistički plan")
     assert docs[3].covered is False and docs[3].status == "in_progress"
     assert panel.counts.adopted == 1 and panel.typical_parameters is None
+    assert panel.counts.covered == 1  # the documents the map covers, as /v1/panel counts them
 
 
 # --- cache ----------------------------------------------------------------------------------------

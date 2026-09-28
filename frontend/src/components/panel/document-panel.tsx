@@ -4,8 +4,9 @@
  * S3 planning-document panel (wireframe `renderPanelDoc`: clicking a coverage area), from
  * `GET /v1/panel?type=document&id=`: header (PLANNING DOCUMENT + status, name, "DUP — Detailed
  * urban plan" from the profile), document details with the source chip (the PDF's first page, or
- * the registry entry), the general planning information of its zone, coverage counts and one row
- * per zone spanned (typical height · FAR), and the CTA stack: "Ask about this document" (the
+ * the registry entry) and the source row (the registry name links to its eRegistri entry), the
+ * general planning information of its zone, coverage counts and one row per zone spanned (typical
+ * height · FAR), the data version, and the CTA stack: "Ask about this document" (the
  * assistant with the question typed in, `ai_interest`) and "How we read a planning document"
  * (the methodology, step 2).
  */
@@ -26,10 +27,12 @@ import { IconAsk, IconSteps } from "../ui/icons";
 import { PanelRow } from "../ui/panel-row";
 import { SourceRef } from "../ui/source-ref";
 import {
+  DataVersionLine,
   DocStatusChip,
   PanelHead,
   PanelLoading,
   PanelUnavailable,
+  RegistryLink,
   docTypeLabel,
   planPhrase,
   usePanelViewed,
@@ -73,8 +76,18 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
   const doc = data.document;
   const typeLabel = docTypeLabel(doc.type, profile);
   const adopted = doc.adopted_on ? formatDate(doc.adopted_on) : null;
-  const sourceText = [doc.file_available ? "PDF" : null, doc.source].filter(Boolean).join(" · ") || "—";
   const registryUrl = doc.registry_url;
+  const registry = registryUrl ? <RegistryLink href={registryUrl}>{doc.source ?? "eRegistri"}</RegistryLink> : doc.source;
+  const sourceValue =
+    doc.file_available || registry ? (
+      <>
+        {doc.file_available && "PDF"}
+        {doc.file_available && registry && " · "}
+        {registry}
+      </>
+    ) : (
+      "—"
+    );
   const openDocument = doc.file_available
     ? () => void openSource({ documentId: doc.id, page: 1 })
     : registryUrl
@@ -100,7 +113,7 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
           <PanelRow label="Type" value={doc.type ?? "—"} text />
           <PanelRow label="Status" value={<DocStatusChip status={doc.status} />} />
           {adopted && <PanelRow label="Adopted" value={adopted} text />}
-          <PanelRow label="Source" value={sourceText} text />
+          <PanelRow label="Source" value={sourceValue} text />
           {data.amendments_in_progress.length > 0 && (
             <div className="prow" style={{ flexDirection: "column", alignItems: "stretch", gap: 5 }}>
               <span className="pk">Amendments</span>
@@ -144,6 +157,7 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
             </div>
           )}
         </div>
+        <DataVersionLine version={data.data_version} date={data.data_version_date} />
       </div>
       <div className="ctastack">
         <Cta

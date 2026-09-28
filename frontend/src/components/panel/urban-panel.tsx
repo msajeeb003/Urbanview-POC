@@ -26,7 +26,16 @@ import { PanelRow } from "../ui/panel-row";
 import { SourceRef } from "../ui/source-ref";
 import { MarketSection } from "./market-section";
 import { PanelHead, PanelLoading, PanelUnavailable, usePanelViewed } from "./panel-parts";
-import { AreaCompare, AreaNote, ParcelCtas, RowSource, formatArea, parcelNo, useZoneTypeName } from "./parcel-parts";
+import {
+  AreaCompare,
+  AreaNote,
+  BasisLine,
+  ParcelCtas,
+  RowSource,
+  formatArea,
+  parcelNo,
+  useZoneTypeName,
+} from "./parcel-parts";
 
 /** Keys the mock's seven rows show (height and floors share "Max building height"). */
 const MOCK_KEYS = new Set([
@@ -185,15 +194,10 @@ export function UrbanPanel({ urbanParcelId }: { urbanParcelId: number }) {
     .sort((a, b) => (a.page ?? Infinity) - (b.page ?? Infinity))[0];
 
   const basisLine = basisIsUrban ? (
-    <>
-      <br />
-      <span style={{ color: "var(--brand-dark)", fontWeight: 600 }}>All calculations use the urban parcel area.</span>
-    </>
+    <BasisLine>All calculations use the urban parcel area.</BasisLine>
   ) : (
     <>
-      <br />
-      <span style={{ color: "var(--brand-dark)", fontWeight: 600 }}>All calculations use the cadastral parcel area</span>{" "}
-      ({areas.basis_reason_en}).
+      <BasisLine>All calculations use the cadastral parcel area</BasisLine> ({areas.basis_reason_en}).
     </>
   );
 

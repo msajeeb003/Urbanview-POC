@@ -4,9 +4,11 @@
  * S3 zone panel (wireframe `renderPanelZone`), from `GET /v1/panel?type=zone&id=`:
  * header (ZONE + zone type, name, "Internal city division · ≈ city quarter"), the zone's planning
  * documents (status, source, adoption date when known, "n parcels with data" for a document the
- * map covers — a click opens its document panel — or "not yet digitised"), the zone-level
- * planning values from the staff-maintained parameter set (with their source page), and the
- * closing note. A zone without an adopted plan says so instead of listing nothing.
+ * map covers — a click opens its document panel — or "not yet digitised"; the registry name links
+ * to its eRegistri entry), "General planning information" (the zone's summary, BRD §2.3), the
+ * zone-level planning values from the staff-maintained parameter set (with their source page),
+ * the closing note and the data version. A zone without an adopted plan says so instead of
+ * listing nothing.
  */
 import { useEffect } from "react";
 
@@ -22,11 +24,12 @@ import { IconDoc } from "../ui/icons";
 import { PanelRow } from "../ui/panel-row";
 import { SourceRef } from "../ui/source-ref";
 import {
+  DataVersionLine,
   DocStatusChip,
+  DocumentMeta,
   PanelHead,
   PanelLoading,
   PanelUnavailable,
-  documentMeta,
   heightText,
   usePanelViewed,
   type ZoneDoc,
@@ -49,12 +52,15 @@ function Eyebrow({ type }: { type?: string | null }) {
 }
 
 /**
- * One document of the zone. Its icon opens the stored PDF in the source viewer (page 1); for a
- * document the map covers, the name opens its document panel (and its coverage is highlighted).
+ * One document of the zone. Its icon opens the stored PDF in the source viewer (page 1), the
+ * registry name in the meta line its eRegistri entry; for a document the map covers, the name (or
+ * the row) opens its document panel (and its coverage is highlighted).
  */
 function DocItem({ doc, zoneId }: { doc: ZoneDoc; zoneId: number }) {
   const setSelection = useShell((s) => s.setSelection);
   const openSource = useOpenSource();
+  const openDocument = () =>
+    setSelection({ kind: "feature", type: "document", id: doc.id, zoneId, linkedUrbanId: null, via: "click" });
   const icon = doc.file_available ? (
     <button
       type="button"
@@ -70,34 +76,38 @@ function DocItem({ doc, zoneId }: { doc: ZoneDoc; zoneId: number }) {
       <IconDoc />
     </span>
   );
-  const body = (
-    <span className="dn">
-      {doc.name}
-      <span className="dm">{documentMeta(doc)}</span>
+  const meta = (
+    <span className="dm">
+      <DocumentMeta doc={doc} />
     </span>
   );
   if (!doc.covered) {
     return (
       <div className="docitem static">
         {icon}
-        {body}
+        <span className="dn">
+          {doc.name}
+          {meta}
+        </span>
         <DocStatusChip status={doc.status} />
       </div>
     );
   }
   return (
-    <div className="docitem">
+    // the row opens the document too; its links and buttons keep their own action
+    <div
+      className="docitem"
+      onClick={(e) => {
+        if (!(e.target as Element).closest("a, button")) openDocument();
+      }}
+    >
       {icon}
-      <button
-        type="button"
-        className="dnbtn"
-        title="Open this planning document"
-        onClick={() =>
-          setSelection({ kind: "feature", type: "document", id: doc.id, zoneId, linkedUrbanId: null, via: "click" })
-        }
-      >
-        {body}
-      </button>
+      <span className="dn">
+        <button type="button" className="dnbtn" title="Open this planning document" onClick={openDocument}>
+          {doc.name}
+        </button>
+        {meta}
+      </span>
       <DocStatusChip status={doc.status} />
     </div>
   );
@@ -160,6 +170,18 @@ export function ZonePanel({ zoneId, name }: { zoneId: number; name?: string }) {
       </div>
       <div className="sect">
         <div className="secthead">
+          <span className="lbl">General planning information</span>
+        </div>
+        {data.zone.general_planning_summary ? (
+          <p style={{ fontSize: "12.5px", color: "var(--ink-2)", margin: "-2px 0 0", lineHeight: 1.55 }}>
+            {data.zone.general_planning_summary}
+          </p>
+        ) : (
+          <p className="panelnote">A general planning summary for this zone has not been written yet.</p>
+        )}
+      </div>
+      <div className="sect">
+        <div className="secthead">
           <span className="lbl">Zone-level planning</span>
           {source && (
             <SourceRef
@@ -189,6 +211,7 @@ export function ZonePanel({ zoneId, name }: { zoneId: number; name?: string }) {
           and the market feasibility.
         </p>
       </div>
+      <DataVersionLine version={data.data_version} date={data.data_version_date} />
     </div>
   );
 }

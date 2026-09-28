@@ -308,20 +308,25 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   zone groups N."), one `.docitem` per current document version: name, meta `source PDF ·
   eRegistri · adopted 12 May 2019 · 4 parcels with data` (`documentMeta`: PDF when stored, the
   adoption date when known, parcels for a document the map covers, `not yet digitised` for an
-  adopted one it does not), status chip Adopted / In progress / Superseded. A covered document is
-  a button that opens its document panel; the file icon of a stored document opens its page 1
-  in the source viewer. **No adopted plan:** a zone without an adopted document
+  adopted one it does not; the registry name links to its eRegistri entry), status chip Adopted /
+  In progress / Superseded. A covered document opens its document panel (its name is the button,
+  the row answers a click too); the file icon of a stored document opens its page 1 in the source
+  viewer. **No adopted plan:** a zone without an adopted document
   shows a "No adopted plan" note above whatever is listed, never an empty list (searching such a
-  zone first shows the S6 pill, then this panel). "Zone-level planning" from
+  zone first shows the S6 pill, then this panel). "General planning information": the zone's
+  summary (BRD §2.3), or a neutral note while none is written. "Zone-level planning" from
   `typical_parameters` (staff-maintained): predominant land use, typical FAR (II) and coverage
   (IZ) (abbreviations from the profile), typical height (`24 m · 7 floors`), with a source chip
   opening the cited page; "Typical values … not recorded yet" without a set. Closing note as in
-  the mock.
+  the mock, then the data version line (`DataVersionLine`: `Data version <label> · published
+  <date>`, mono, also under the document and cadastral panels; the urban panel names it in the
+  assumption sandbox).
 - **Planning document** (`renderPanelDoc`): eyebrow `PLANNING DOCUMENT` + `adopted plan` / `plan
   in progress` / `superseded plan`, title, sub `DUP — Detailed urban plan` (profile
   `terminology.document_types_en`, else `document_types`); "Document details" + Free + source
   chip (the PDF's page 1 through the source viewer when stored, else the registry entry): name,
-  type, status, `Adopted` date when known, source (`PDF · eRegistri`), amendments in progress;
+  type, status, `Adopted` date when known, source (`PDF · eRegistri`, the registry name a link to
+  its entry), amendments in progress;
   "General planning information" = the zone's summary (else the mock's generic text);
   "Coverage": zones spanned, cadastral and urban parcel counts, one row per zone (`24 m · FAR
   3.2` from its typical values); CTA stack: ghost "Ask about this document" (`ai_interest
@@ -358,11 +363,13 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   eyebrow `CADASTRAL PARCEL` + zone type (the zone index, `useZoneTypeName`), title `Parcel
   #1042[/sub]`, sub `<zone> · <KO>`; IdGrid parcel number, KO, urban block, cadastral area,
   governing document (full width, 11 px); "Corresponding urban parcel": one gold `.upcard` per
-  planned parcel over it (the first with the mock's text, a split's others with their overlap),
-  a click opens that urban parcel's panel (`selectLinkedParcel`, `parcel_selected {via: panel}`),
-  then the comparison card (`Cadastral 1,370.9 m² → urban 959.6 m². −30% taken for roads /
-  public space.`; a split lists every planned area and takes the delta on their total; a planned
-  parcel as large or larger says so, never a silent zero). No planned parcel: "Not defined" card
+  planned parcel over it (the first with the mock's text, every card with how much of the parcel
+  it covers, m² and %), a click opens that urban parcel's panel (`selectLinkedParcel`,
+  `parcel_selected {via: panel}`), then the comparison card (`Cadastral 1,370.9 m² → urban 959.6
+  m². −30% taken for roads / public space.`; a split lists every planned area and takes the
+  delta on their total; a planned parcel as large or larger says so, never a silent zero) ending
+  with the area the calculations use (`BasisLine`: the urban parcel's, for a split the one
+  covering the largest share), then the data version line. No planned parcel: "Not defined" card
   (mock text). No adopted plan: a "No adopted plan" card with the API's coverage note (the S6
   pill shows first).
 - **Urban parcel** (`urban-panel.tsx`, `renderPanelUrban` without the market section, which is
