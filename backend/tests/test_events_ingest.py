@@ -186,6 +186,10 @@ async def test_ip_detection_is_exact_not_pattern_happy(value, status):
         ("search_performed", {"search_kind": "address", "matched": "no"}),
         ("search_performed", {"search_kind": "address", "result": "street"}),
         ("search_performed", {"search_kind": "address", "recent": 1}),
+        ("search_performed", {"search_kind": "click", "lat": 95.0, "lng": 19.26}),
+        ("search_performed", {"search_kind": "click", "lat": 42.44, "lng": -181}),
+        ("search_performed", {"search_kind": "click", "lat": "42.44", "lng": 19.26}),
+        ("search_performed", {"search_kind": "click", "lat": True, "lng": 19.26}),
         ("layer_toggled", {}),
         ("layer_toggled", {"layer_id": "zones", "visible": "yes"}),
         ("source_reference_opened", {"document_id": 2}),
@@ -211,6 +215,27 @@ async def test_known_properties_are_typed_and_some_are_required(name, properties
     [
         ("search_performed", {"search_kind": "address"}),
         ("search_performed", {"search_kind": "click", "zone_id": 2}),
+        (
+            "search_performed",
+            {
+                "search_kind": "click",
+                "matched": True,
+                "lat": 42.4425,
+                "lng": 19.253,
+                "urban_parcel_id": 7,
+                "zone_id": 2,
+            },
+        ),
+        (
+            "search_performed",
+            {
+                "search_kind": "parcel_number",
+                "result": "parcel",
+                "lat": -90,
+                "lng": 180,
+                "parcel_id": 1001,
+            },
+        ),
         ("search_performed", {"search_kind": "parcel_number"}),
         (
             "search_performed",

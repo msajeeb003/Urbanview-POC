@@ -550,7 +550,9 @@ built is the product owner's call (§10, item 7).
     `search_address`, `search_parcel`, `search_no_result`. Built as the wireframe's single input
     (a typed parcel number switches to the parcel row + KO picker) and as
     `search_performed {search_kind, matched, result}`, the API's enum. Confirm, or ask for tabs
-    and new event names (a backend enum change).
+    and new event names (a backend enum change). Since the S2 check (2026-09-28, POC plan) every
+    `search_performed` also says where it landed (`lat` / `lng` to 4 decimals, the parcel, zone or
+    document ids), and a point search selects the planned parcel when no cadastral parcel is there.
 11. Zone panel (S3): the second S3 text asks for a breadcrumb "Podgorica › {zone}", a
     "Zoom to zone" button and "close returns to the map with the zone still highlighted"; the
     wireframe has none of them and its ✕ clears the selection. Not built; the search already

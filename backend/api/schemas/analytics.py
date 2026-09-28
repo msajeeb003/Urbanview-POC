@@ -9,13 +9,15 @@ Ingest rules (the prototype is a validation instrument, not a tracking product):
   personal data: a denylist of keys (name, email, phone, ip …) and a scan of string values for
   e-mail addresses and IP addresses reject the whole batch;
 - known properties are typed (ids are positive integers, ``search_kind`` is address | click |
-  parcel_number, ``amount_eur`` ≥ 0 …) and a few are required per event.
+  parcel_number, ``amount_eur`` ≥ 0, ``lat`` / ``lng`` in degrees …) and a few are required per
+  event.
 """
 
 from __future__ import annotations
 
 import ipaddress
 import json
+import math
 import re
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -97,7 +99,11 @@ INT_PROPERTIES: dict[str, int] = {  # key -> minimum
     "sessions": 1,
     "days_since_last": 0,
 }
-NUMBER_PROPERTIES: dict[str, float] = {"amount_eur": 0.0}
+NUMBER_PROPERTIES: dict[str, tuple[float, float]] = {  # key -> (minimum, maximum)
+    "amount_eur": (0.0, math.inf),
+    "lat": (-90.0, 90.0),  # where a search landed (the map sends 4 decimals, ≈ 11 m)
+    "lng": (-180.0, 180.0),
+}
 STRING_PROPERTIES = frozenset(
     {"layer_id", "order_id", "product", "trigger", "panel_type", "search_kind", "currency", "via"}
 )
@@ -186,11 +192,16 @@ class EventIn(BaseModel):
                 item = props[key]
                 if isinstance(item, bool) or not isinstance(item, int) or item < minimum:
                     raise ValueError(f"property {key!r} must be an integer ≥ {minimum}")
-        for key, minimum in NUMBER_PROPERTIES.items():
+        for key, (minimum, maximum) in NUMBER_PROPERTIES.items():
             if key in props and props[key] is not None:
                 item = props[key]
-                if isinstance(item, bool) or not isinstance(item, int | float) or item < minimum:
-                    raise ValueError(f"property {key!r} must be a number ≥ {minimum}")
+                if (
+                    isinstance(item, bool)
+                    or not isinstance(item, int | float)
+                    or not minimum <= item <= maximum
+                ):
+                    bounds = f"≥ {minimum}" if maximum == math.inf else f"in [{minimum}, {maximum}]"
+                    raise ValueError(f"property {key!r} must be a number {bounds}")
         for key in STRING_PROPERTIES:
             if key in props and props[key] is not None and not isinstance(props[key], str):
                 raise ValueError(f"property {key!r} must be a string")

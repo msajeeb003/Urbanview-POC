@@ -210,8 +210,10 @@ Planned traffic (an MVP layer; not published).
   panel, no pin. Cadastral: highlight + pin at the rendered
   centroid at once, then `/v1/locate` at the click confirms zone, planned link and coverage (the
   pin moves to the API centroid; uncovered = S6). Planned parcel: always covered (tiles hold
-  adopted plans only). Coverage area: highlight, no pin. Nothing hit: pin + `/v1/locate`; a
-  parcel there becomes the selection, uncovered = S6, covered without a parcel = the empty
+  adopted plans only). Coverage area: highlight, no pin. Nothing hit: pin + `/v1/locate`; the
+  cadastral parcel there becomes the selection, else the planned parcel containing the point
+  (`pointSelection`: plans served before the cadastral base still answer a click or an address
+  with their urban parcel panel; the pin stays on the point), uncovered = S6, covered without a parcel = the empty
   panel's pin note.
 - **S6** (`flashUncovered`): "Outside current coverage" pill (sub-text `no adopted plan`, or
   `outside <municipality>` for points outside the profile bounds) for 2.6 s with the panel closed,
@@ -226,8 +228,8 @@ Planned traffic (an MVP layer; not published).
   `highlightOf`
   derives the map highlight; the panel reads the same selection.
 - **Events**: `map_loaded` once the style and first tiles are in (`idle`, with `load_ms`; without a
-  token on first render with `renderer: none`); `search_performed {search_kind, matched}` per
-  search or map click (see "Search");
+  token on first render with `renderer: none`); `search_performed {search_kind, matched, lat, lng,
+  …ids}` per search or map click (see "Search");
   `parcel_selected {parcel_id | urban_parcel_id, parcel_type, zone_id, via: click | search | link}`.
 
 ## Search (S2 "Find a Location": `src/components/shell/search-box.tsx`, `src/lib/search.ts`)
@@ -260,8 +262,8 @@ coverage), title, mono sub-label.
 - **Parcel not found:** inline row `No parcel 1042/3 in Podgorica III` + `Check the number or
   choose another cadastral municipality`, the list stays open with every KO offered again, the map
   keeps its previous selection. No toast, no error styling.
-- **Outcomes:** address → pin, fly (z17), `/v1/locate` → parcel selected + panel, pin note when
-  covered without a parcel, S6 when uncovered; parcel → fly, select, panel or S6; zone as above.
+- **Outcomes:** address → pin, fly (z17), `/v1/locate` → parcel selected + panel (the cadastral
+  parcel, else the planned parcel at the point), pin note when covered without either, S6 when uncovered; parcel → fly, select, panel or S6; zone as above.
   The search closes and blurs on a pick.
 - **Recent searches:** the last 5 picks (address, zone, parcel with KO) in `localStorage`
   `uv.search.recent`, this browser only, shown when the input is focused and empty (sub-label
@@ -278,7 +280,10 @@ coverage), title, mono sub-label.
   zone kind) + `recent: true`. Address / zone picks are `matched: true`; a query left with no
   result (Enter, or closing the list on "No match") is one `{search_kind: address, matched:
   false}` per query text; parcel lookups report found / not found; a map click is matched when a
-  parcel is under it. Never the query text. The second ticket's `search_address`,
+  parcel (cadastral or planned) is under it. Every event also says where it landed: `lat` /
+  `lng` rounded to 4 decimals (≈ 11 m; the point clicked or picked, a parcel lookup's centroid)
+  and the ids found (`parcel_id`, `urban_parcel_id`, `zone_id`, `document_id` for a plan-area
+  click; a zone pick carries `zone_id` only). Never the query text. The second ticket's `search_address`,
   `search_parcel` and `search_no_result` are not in the API's enum: they map onto
   `search_performed` (open item in `docs/specs/frontend-design.md` §10).
 - **Latency:** the public Photon instance answers in about 2 s from the dev machine; the < 2 s
@@ -729,7 +734,8 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 - The selection flow (`src/lib/selection.ts`): map click (feature or empty), address suggestion,
   zone suggestion, KO + parcel number or `?parcel=` link → `/v1/locate`, `/v1/locate/parcel`
   or `/v1/parcels/{id}/panel` (cached under `queryKeys`, where panels read it) → selection +
-  highlight + pin (+ fly for searches) or S6, and `search_performed {search_kind, matched}`.
+  highlight + pin (+ fly for searches) or S6, and `search_performed {search_kind, matched}`
+  with where it landed (`lat` / `lng`, ids).
   The search calls answer an outcome (`found` / `not_found` / …) instead of toasting.
 - No secrets in `NEXT_PUBLIC_*`; the Mapbox token is a public token by design.
 - **API client** (`lib/api/client.ts`): base URL, `X-Request-ID` per request, the error envelope

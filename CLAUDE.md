@@ -982,7 +982,8 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   like an e-mail or IP address reject the whole batch with 422. Request IPs are never stored.
   Known properties are typed (`parcel_id`, `zone_id`, `document_id`, `page` … positive ints;
   `search_kind` ∈ address | click | parcel_number, `result` ∈ address | zone | parcel, booleans
-  `matched` / `recent` / `visible` / `on`; `panel_type`; `amount_eur` ≥ 0; `sessions`)
+  `matched` / `recent` / `visible` / `on`; `panel_type`; `amount_eur` ≥ 0; `lat` −90…90 and
+  `lng` −180…180, where a search landed, which the map sends rounded to 4 decimals; `sessions`)
   and some are required (`search_performed.search_kind`, `layer_toggled.layer_id`,
   `source_reference_opened.document_id + page`, `checkout_completed.amount_eur`). `zone_id` and
   `parcel_id` are copied into columns for grouping (no FKs).
