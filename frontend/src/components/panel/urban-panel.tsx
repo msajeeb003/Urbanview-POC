@@ -286,7 +286,12 @@ export function UrbanPanel({ urbanParcelId }: { urbanParcelId: number }) {
               title={firstCited ? `${firstCited.document_name}${firstCited.page ? `, page ${firstCited.page}` : ""}` : undefined}
               onClick={
                 firstCited
-                  ? () => void openSource({ documentId: firstCited.document_id, page: firstCited.page ?? 1 })
+                  ? () =>
+                      void openSource({
+                        documentId: firstCited.document_id,
+                        page: firstCited.page ?? 1,
+                        hint: { documentName: firstCited.document_name, page: firstCited.page ?? 1, registryUrl: firstCited.registry_url },
+                      })
                   : undefined
               }
             />

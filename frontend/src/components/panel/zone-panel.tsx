@@ -67,7 +67,9 @@ function DocItem({ doc, zoneId }: { doc: ZoneDoc; zoneId: number }) {
       className="di"
       title="Open the source PDF"
       aria-label={`Open the source PDF of ${doc.name}`}
-      onClick={() => openSource({ documentId: doc.id, page: 1 })}
+      onClick={() =>
+        openSource({ documentId: doc.id, page: 1, hint: { documentName: doc.name, page: 1, registryUrl: doc.registry_url } })
+      }
     >
       <IconDoc />
     </button>
@@ -186,7 +188,13 @@ export function ZonePanel({ zoneId, name }: { zoneId: number; name?: string }) {
           {source && (
             <SourceRef
               title={`${source.document_name ?? "Source document"}${source.page ? `, page ${source.page}` : ""}`}
-              onClick={() => void openSource({ documentId: source.document_id, page: source.page ?? 1 })}
+              onClick={() =>
+                void openSource({
+                  documentId: source.document_id,
+                  page: source.page ?? 1,
+                  hint: { documentName: source.document_name, page: source.page ?? 1, note: source.note, registryUrl: source.registry_url },
+                })
+              }
             />
           )}
         </div>

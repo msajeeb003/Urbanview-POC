@@ -89,7 +89,7 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
       "—"
     );
   const openDocument = doc.file_available
-    ? () => void openSource({ documentId: doc.id, page: 1 })
+    ? () => void openSource({ documentId: doc.id, page: 1, hint: { documentName: doc.name, page: 1, registryUrl } })
     : registryUrl
       ? () => window.open(registryUrl, "_blank", "noopener")
       : undefined;

@@ -17,9 +17,13 @@
  *   into view. Pages rendered as images (`kind: page_image`) are shown as images, without a
  *   rectangle (their pixel size says nothing about the page's points).
  * - Previous / next, a page number input, zoom − / +, "Open PDF" (a fresh signed link in a new
- *   tab); ← / → turn pages. A signed link that expired (403) is fetched again once, silently.
- * - Loading: a page-shaped skeleton. Failure: "This page could not be loaded" and Retry, never a
- *   red error.
+ *   tab); ← / → turn pages. A page the document does not have is refused with a note beside the
+ *   page number ("This document has 24 pages."). A signed link that expired (403) is fetched again
+ *   once, silently.
+ * - Loading: a page-shaped skeleton. Failure says why, never in red (`sourceFailure`): the PDF is
+ *   not stored yet (with the eRegistri entry), the cited page is not in the document, the value is
+ *   no longer published, or connection trouble (only that one offers Retry). The header keeps the
+ *   document and page the opener named (`target.hint`).
  */
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
@@ -28,6 +32,7 @@ import { useTrack } from "@/lib/analytics/react";
 import { api } from "@/lib/api/endpoints";
 import type { SourcePage } from "@/lib/api/types";
 import { loadPdfJs } from "@/lib/pdf";
+import { pageRangeNote, sourceFailure, type SourceFailure } from "@/lib/source-text";
 
 import { DocStatusChip } from "../panel/panel-parts";
 import { IconDoc } from "../ui/icons";
@@ -54,6 +59,8 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
   const track = useTrack();
   const [meta, setMeta] = useState<SourcePage | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+  const [failure, setFailure] = useState<SourceFailure | null>(null);
+  const [pageNote, setPageNote] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [pageNo, setPageNo] = useState<number | null>(null);
   const [pageInput, setPageInput] = useState("");
@@ -120,8 +127,11 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
         docRef.current = doc;
         setNumPages(doc.numPages);
         setState("ready");
-      } catch {
-        if (!cancelled) setState("failed");
+      } catch (error) {
+        if (!cancelled) {
+          setFailure(sourceFailure(error, target.hint));
+          setState("failed");
+        }
       }
     })();
     return () => {
@@ -177,7 +187,10 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
           }
         }
       } catch (error) {
-        if (!cancelled && (error as { name?: string })?.name !== "RenderingCancelledException") setState("failed");
+        if (!cancelled && (error as { name?: string })?.name !== "RenderingCancelledException") {
+          setFailure(sourceFailure(error));
+          setState("failed");
+        }
       }
     })();
     return () => {
@@ -195,21 +208,28 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
         const next = await api.sourcePage(meta.document_id, n);
         setImageUrl(next.url);
         setState("ready");
-      } catch {
+      } catch (error) {
+        setFailure(sourceFailure(error, target.hint));
         setState("failed");
       }
     },
-    [meta],
+    [meta, target],
   );
 
   const total = numPages ?? meta?.page_count ?? null;
   const goTo = (n: number) => {
-    if (total != null && (n < 1 || n > total)) return;
-    if (n < 1) return;
+    if (n < 1 || (total != null && n > total)) {
+      // a page the document does not have: keep the page on screen and say why
+      setPageInput(String(pageNo ?? meta?.page ?? ""));
+      if (total != null) setPageNote(pageRangeNote(total));
+      return;
+    }
+    setPageNote(null);
     setPageNo(n);
     setPageInput(String(n));
     if (meta?.kind === "page_image") void goToImagePage(n);
   };
+  const usable = meta != null && state !== "failed";
   const zoomBy = (factor: number) => setZoom(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, (zoom ?? shownScale) * factor)));
 
   const openPdf = async () => {
@@ -234,8 +254,15 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
   };
 
   const value = meta?.value;
+  const hint = target.hint;
   const valueText =
-    value && value.value != null ? `${value.label_en}: ${value.value}${value.unit ? ` ${value.unit}` : ""}` : null;
+    value && value.value != null
+      ? `${value.label_en}: ${value.value}${value.unit ? ` ${value.unit}` : ""}`
+      : meta
+        ? null
+        : (hint?.label ?? null);
+  const note = value?.note ?? (meta ? null : hint?.note);
+  const zoomable = usable && meta?.kind !== "page_image";
 
   return (
     <div className="srcviewer" onKeyDown={onKeyDown}>
@@ -243,18 +270,24 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
         icon={<IconDoc />}
         iconStyle={{ background: "var(--brand-tint)", color: "var(--brand)" }}
         eyebrow="Source document"
-        title={meta?.document_name ?? "Source document"}
+        title={meta?.document_name ?? hint?.documentName ?? "Source document"}
         lead={
           <span className="srclead">
-            <span className="mono">p.{pageNo ?? meta?.page ?? "—"}</span>
+            <span className="mono">p.{pageNo ?? meta?.page ?? failure?.page ?? hint?.page ?? "—"}</span>
             {meta && <DocStatusChip status={meta.document_status} />}
             {valueText && <span>{valueText}</span>}
-            {value?.note && <span className="srcnote">{value.note}</span>}
+            {note && <span className="srcnote">{note}</span>}
           </span>
         }
       />
       <div className="srctools" role="toolbar" aria-label="Page controls">
-        <button type="button" className="srcbtn" aria-label="Previous page" disabled={!pageNo || pageNo <= 1} onClick={() => pageNo && goTo(pageNo - 1)}>
+        <button
+          type="button"
+          className="srcbtn"
+          aria-label="Previous page"
+          disabled={!usable || !pageNo || pageNo <= 1}
+          onClick={() => pageNo && goTo(pageNo - 1)}
+        >
           ‹
         </button>
         <label className="srcpageno">
@@ -262,6 +295,7 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
           <input
             inputMode="numeric"
             value={pageInput}
+            disabled={!usable}
             onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ""))}
             onBlur={() => goTo(Number(pageInput) || pageNo || 1)}
             onKeyDown={(e) => {
@@ -274,39 +308,50 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
           type="button"
           className="srcbtn"
           aria-label="Next page"
-          disabled={!pageNo || (total != null && pageNo >= total)}
+          disabled={!usable || !pageNo || (total != null && pageNo >= total)}
           onClick={() => pageNo && goTo(pageNo + 1)}
         >
           ›
         </button>
+        <span className="srcpagenote" role="status">
+          {pageNote}
+        </span>
         <span className="srcspace" />
-        <button type="button" className="srcbtn" aria-label="Zoom out" disabled={meta?.kind === "page_image"} onClick={() => zoomBy(0.8)}>
+        <button type="button" className="srcbtn" aria-label="Zoom out" disabled={!zoomable} onClick={() => zoomBy(0.8)}>
           −
         </button>
         <span className="srczoom mono">{Math.round(shownScale * 100)}%</span>
-        <button type="button" className="srcbtn" aria-label="Zoom in" disabled={meta?.kind === "page_image"} onClick={() => zoomBy(1.25)}>
+        <button type="button" className="srcbtn" aria-label="Zoom in" disabled={!zoomable} onClick={() => zoomBy(1.25)}>
           +
         </button>
-        <button type="button" className="srcbtn srcopen" disabled={!meta} onClick={() => void openPdf()}>
+        <button type="button" className="srcbtn srcopen" disabled={!usable} onClick={() => void openPdf()}>
           Open PDF ↗
         </button>
       </div>
       <div className="srcpage" ref={scrollRef}>
         {state === "failed" ? (
           <div className="srcfail">
-            <p>This page could not be loaded.</p>
-            <button
-              type="button"
-              className="cta ghost"
-              style={{ width: "auto", padding: "0 16px", height: 38 }}
-              onClick={() => {
-                refreshedRef.current = false;
-                setState("loading");
-                setAttempt((a) => a + 1);
-              }}
-            >
-              Retry
-            </button>
+            <p>{failure?.message ?? "This page could not be loaded."}</p>
+            {failure?.registryUrl && (
+              <a className="srclink" href={failure.registryUrl} target="_blank" rel="noopener noreferrer">
+                See the document in eRegistri ↗
+              </a>
+            )}
+            {(failure?.retry ?? true) && (
+              <button
+                type="button"
+                className="cta ghost"
+                style={{ width: "auto", padding: "0 16px", height: 38 }}
+                onClick={() => {
+                  refreshedRef.current = false;
+                  setFailure(null);
+                  setState("loading");
+                  setAttempt((a) => a + 1);
+                }}
+              >
+                Retry
+              </button>
+            )}
           </div>
         ) : (
           <>

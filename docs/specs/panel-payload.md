@@ -600,6 +600,13 @@ SourceValue = {value_id, field_key, label_en, label_me, value, unit, urban_parce
   503 when storage cannot sign or the planning database is absent.
 - Headers: `Cache-Control: no-store`. Expiry: `SOURCE_URL_EXPIRES_SECONDS` (60–86400, default 900).
 - Analytics: the client emits `source_reference_opened` with `document_id` + `page` from the body.
+- The pilot technical scope names this `GET /api/documents/{id}/source?page=n`; it is
+  `GET /v1/source/{document_id}/page/{page}` here (the whole API is under `/v1`, kept after the
+  source viewer check of 2026-09-28), plus the value route above, which adds the box and note.
+- The public viewer turns the 404 details into its words: `reason = not_stored` → "The PDF of
+  this document is not stored in UrbanView yet." (+ the registry link), `page` + `page_count` →
+  "Page 30 is not in this document: it has 24 pages.", `value_id` → the value is no longer
+  published; only connection or server trouble (status 0, 429, 5xx) offers Retry.
 - Sample data: `make seed` uploads placeholder PDFs (`core.seeds.placeholder_pdf`) for documents
   1, 2, 4, 5; document 3 (in-progress amendment) has no file and answers 404 `not_stored`.
 

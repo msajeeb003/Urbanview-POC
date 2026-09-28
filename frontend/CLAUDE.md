@@ -351,9 +351,17 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   `bbox` (PDF points, origin bottom-left) is a translucent brand rectangle scrolled into view.
   `kind: page_image` → the PNG, no rectangle, no zoom. Controls: ‹ page input "of N" ›, − zoom %
   + (50–400 %), ← → keys, "Open PDF ↗" (the whole document at `#page=N` in a new tab; a fresh
-  link when the current one expires within a minute). An expired link (403) is re-fetched once,
-  silently. Loading: a page-shaped shimmer; failure: "This page could not be loaded." + Retry,
-  never red. `source_reference_opened { document_id, page, value_id? }` once per open. The
+  link when the current one expires within a minute); a typed page beyond the last snaps back
+  with "This document has 24 pages." beside the input. An expired link (403) is re-fetched once,
+  silently. Loading: a page-shaped shimmer. Failure says why, never in red (`sourceFailure` in
+  `lib/source-text.ts`, from the 404's details): "The PDF of this document is not stored in
+  UrbanView yet." + "See the document in eRegistri ↗", "Page 30 is not in this document: it has
+  24 pages.", "This value is no longer published…", or "This page could not be loaded. Check
+  your connection and try again." + Retry (only connection / server trouble retries); the page
+  controls are disabled while there is no page. The opener passes a `hint` (document name,
+  page, field label, note, registry link), so the header names the document and page before the
+  API answers and when it fails. `source_reference_opened { document_id, page, value_id? }` once
+  per open. The
   object store must allow CORS `GET` with `Range` and expose `Accept-Ranges`, `Content-Range`,
   `Content-Length` (as for the tiles). PDF.js loading, the document cache and the box maths are
   shared with the admin review queue's `PdfPageView` (`lib/pdf.ts`).
@@ -385,8 +393,10 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   Max coverage area — then the dictionary's other fields (building line, setbacks, parking,
   green area, utilities; API labels). Every stated value ends with a source icon (`.rowsrc`,
   `RowSource`): the cited page through the source viewer (`/v1/source/value/{value_id}`),
-  `source_reference_opened`; the title names document, page and "plan-wide value" for a
-  document-level fallback. Missing values are `—` with the reason as tooltip; computed rows carry
+  `source_reference_opened`; its title and accessible name are the reference itself
+  (`sourceRefText`: `Max number of floors: DUP Centar – Zona C2, page 14 · table 3 – UP 12`, +
+  "plan-wide value" for a document-level fallback), so the height row's two icons (metres,
+  floors) are told apart. Missing values are `—` with the reason as tooltip; computed rows carry
   their formula as tooltip.
 - **Parcel CTA stack** (`ParcelCtas`): gold "Order expert analysis" + price (`GET
   /v1/orders/pricing` tiers applied to the panel's `basis_area_m2` by `lib/pricing.ts`, the
@@ -795,7 +805,8 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 | `src/lib/api/*` | `client.ts` (fetch wrapper: base URL, `X-Request-ID`, `X-Session-ID`, error envelope → `ApiError`, timeouts, 429 retries), `endpoints.ts` (one function per route), `hooks.ts` (React Query: `useMunicipality`, `useLocate`, `useLocateParcel`, `useGeocode`, `useZones`, `usePanel`, `useSourceValue` / `useSourcePage`, `useTilesCurrent`, `useCreateOrder`, `useOrderStatus`, `useTrack`), `types.ts` (aliases), `schema.d.ts` (generated) |
 | `src/lib/store.ts` | shell state (zustand): rail, layers, view, AI, sheet, selection (point / parcel / feature / zone), pin, toast, modal, map controller |
 | `src/components/source/source-viewer.tsx` | the source viewer: signed link → PDF.js page (lazy), bbox highlight, pages, zoom, Open PDF, retry, `source_reference_opened` |
-| `src/lib/source.tsx` | `useOpenSource`: opens the source viewer for a value or a document page |
+| `src/lib/source.tsx` | `useOpenSource`: opens the source viewer for a value or a document page (with a `hint`) |
+| `src/lib/source-text.ts` | the source reference label (`sourceRefText`), the viewer's failure words (`sourceFailure`) and page-range note |
 | `src/lib/search.ts` | S2 rules: parcel + KO parsing, zone matching, zone of an address hit, suggestion rows, recent searches |
 | `src/lib/layers.ts`, `format.ts`, `selection.ts`, `storage.ts` | layer catalogue (+ `hasNoData`), formatters, selection flow, safe `localStorage` |
 | `src/lib/i18n/*` | `strings.ts` (the shell's string table en / me, `translate`), `index.tsx` (`LangProvider`, `useLang`, `useT`, `tNow`, `pickLang`), `config.ts` (cookie, default, `<html lang>`; server-safe) |

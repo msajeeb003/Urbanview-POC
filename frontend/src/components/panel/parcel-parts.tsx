@@ -17,6 +17,7 @@ import { requestOrder } from "@/lib/order";
 import type { OrderTarget } from "@/lib/order-form";
 import { formatPrice, priceFor } from "@/lib/pricing";
 import { useOpenSource } from "@/lib/source";
+import { sourceRefText } from "@/lib/source-text";
 import { useShell } from "@/lib/store";
 
 import { targetLabel } from "../order/order-modal";
@@ -132,36 +133,41 @@ export function AreaNote({ label, children }: { label: string; children: ReactNo
 /**
  * A value's source icon: opens the cited page of its document (`source_reference_opened`), by
  * value id when the value has one (the viewer adds its bbox and note), else by document and page.
+ * Its title and accessible name are the reference itself: field, document, page and the plan's
+ * note (`Max number of floors: DUP Centar – Zona C2, page 14 · table 3 – UP 12`), so two icons on
+ * one row (height and floors) are told apart.
  */
 export function RowSource({ fields }: { fields: (PlanningField | undefined)[] }) {
   const openSource = useOpenSource();
   const seen = new Set<string>();
   const sources = fields.flatMap((f) => {
     const s = f?.status === "stated" ? f.source : null;
-    if (!s) return [];
+    if (!f || !s) return [];
     const key = s.value_id != null ? `v${s.value_id}` : `d${s.document_id}:${s.page ?? 1}`;
     if (seen.has(key)) return [];
     seen.add(key);
-    return [{ key, source: s, fallback: !!f?.fallback }];
+    return [{ key, source: s, label: f.label_en, fallback: !!f.fallback }];
   });
   // a row without a source keeps the icon's width so its value lines up with the others
   if (sources.length === 0) return <span className="rowsrc spacer" aria-hidden />;
   return (
     <>
-      {sources.map(({ key, source, fallback }) => {
-        const where = `${source.document_name}${source.page ? `, page ${source.page}` : ""}`;
+      {sources.map(({ key, source, label, fallback }) => {
+        const ref = { label, documentName: source.document_name, page: source.page, note: source.note };
+        const { title, ariaLabel } = sourceRefText({ ...ref, fallback });
+        const hint = { ...ref, registryUrl: source.registry_url };
         return (
           <button
             key={key}
             type="button"
             className="rowsrc"
-            title={`${where}${fallback ? " · plan-wide value" : ""}`}
-            aria-label={`Open the source: ${where}`}
+            title={title}
+            aria-label={ariaLabel}
             onClick={() =>
               void openSource(
                 source.value_id != null
-                  ? { valueId: source.value_id }
-                  : { documentId: source.document_id, page: source.page ?? 1 },
+                  ? { valueId: source.value_id, hint }
+                  : { documentId: source.document_id, page: source.page ?? 1, hint },
               )
             }
           >
