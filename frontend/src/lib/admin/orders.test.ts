@@ -30,14 +30,15 @@ describe("status flow", () => {
 
   it("mirrors the API's guards and says why an action is not available", () => {
     expect(allowed(order("pending_payment"), "receive", "admin").enabled).toBe(true);
-    expect(allowed(order("paid"), "receive", "reviewer")).toMatchObject({ enabled: false, reason: expect.stringMatching(/awaits payment/) });
+    expect(allowed(order("paid"), "receive", "admin")).toMatchObject({ enabled: false, reason: expect.stringMatching(/awaits payment/) });
     expect(allowed(order("paid"), "refund", "admin").enabled).toBe(true);
     expect(allowed(order("in_progress"), "refund", "admin").enabled).toBe(true);
     expect(allowed(order("delivered"), "refund", "admin").enabled).toBe(false);
     expect(allowed(order("pending_payment"), "refund", "admin").enabled).toBe(false);
     // a failed payment can still be received (or checked again), never refunded
     expect(allowed(order("payment_failed"), "receive", "admin").enabled).toBe(true);
-    expect(allowed(order("payment_failed"), "notReceived", "reviewer").enabled).toBe(true);
+    expect(allowed(order("payment_failed"), "notReceived", "admin").enabled).toBe(true);
+    expect(allowed(order("pending_payment"), "receive", "reviewer").visible).toBe(false); // no order access
     expect(allowed(order("payment_failed"), "refund", "admin").enabled).toBe(false);
     expect(allowed(order("paid"), "start", "admin")).toMatchObject({ enabled: false, reason: "Assign an expert first." });
     expect(allowed(order("paid", true), "start", "admin").enabled).toBe(true);

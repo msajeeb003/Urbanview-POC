@@ -1,7 +1,9 @@
 """Staff login by magic link (public routes, rate-limited like everything else).
 
-- ``POST /v1/auth/magic-link {email}``: always 202 with the same neutral message; an active
-  staff address gets a single-use login link by e-mail (``magic_link`` template);
+- ``POST /v1/auth/magic-link {email}``: always 202 with the same neutral message, answered
+  before anything is looked up (the lookup, the audit row and the e-mail job run after the
+  response), so neither the body nor the time taken tells whether the address is a staff
+  account; an active staff address gets a single-use login link by e-mail (``magic_link``);
 - ``POST /v1/auth/magic-link/exchange {token}``: consumes the link, answers the session bearer
   token for the staff routes (401 for an unknown, used or expired link);
 - ``POST /v1/auth/sign-out`` (bearer): revokes that session; 204 whatever the token.
@@ -9,13 +11,17 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Response
 
 from api.deps import MagicLinkServiceDep
 from api.schemas.email import MagicLinkAccepted, MagicLinkExchange, MagicLinkRequest, SessionOut
+from api.services.auth import ACCEPTED, MagicLinkService
 from core.auth import bearer_token
+
+log = logging.getLogger("urbanview.auth")
 
 
 async def _no_store(response: Response) -> None:
@@ -33,9 +39,18 @@ router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[Depends(_no_stor
     responses={503: {"description": "The staff database is not configured"}},
 )
 async def request_magic_link(
-    payload: MagicLinkRequest, service: MagicLinkServiceDep
+    payload: MagicLinkRequest, service: MagicLinkServiceDep, background: BackgroundTasks
 ) -> MagicLinkAccepted:
-    return await service.request(payload.email)
+    background.add_task(_send_link, service, payload.email)
+    return ACCEPTED
+
+
+async def _send_link(service: MagicLinkService, email: str) -> None:
+    """After the response: never an error the caller could see (or time)."""
+    try:
+        await service.request(email)
+    except Exception:  # noqa: BLE001 - logged, the neutral answer is already sent
+        log.exception("magic-link request failed")
 
 
 @router.post(

@@ -10,7 +10,8 @@
  * queue extraction (the text / both PDFs), queue geometry (the drawing / both files), retry a
  * failed job, rerun an extraction, mark the coverage live or not, register a new version. The page
  * re-reads its data every 3 s while a job is queued or running (`AutoRefresh`), and stops after.
- * Filters (zone, status, state, job state, name) live in the URL.
+ * Filters (zone, status, state, job state, name) live in the URL. Reviewers read it without the
+ * write controls (`readOnly`: the pilot scope's "read-only documents").
  */
 import Form from "next/form";
 import Link from "next/link";
@@ -45,7 +46,7 @@ import type { AdminDocument, AdminDocumentFile } from "@/lib/api/types";
 
 import { AdminButton, AdminCard, DataTable, StatusChip } from "../parts";
 
-import { ActionButton, AutoRefresh, PillView } from "./parts";
+import { ActionButton, AutoRefresh, DataReadOnly, PillView, useDataReadOnly } from "./parts";
 import { RegisterDialog, type PickedFile, type TypeOption, type ZoneOption } from "./register-dialog";
 import { UploadDialog } from "./upload-dialog";
 
@@ -65,6 +66,7 @@ function coverageText(doc: AdminDocument): string {
 }
 
 export function DocumentActions({ doc, onNewVersion }: { doc: AdminDocument; onNewVersion?: () => void }) {
+  const readOnly = useDataReadOnly();
   const text = textFiles(doc);
   const drawings = drawingFiles(doc);
   return (
@@ -94,7 +96,7 @@ export function DocumentActions({ doc, onNewVersion }: { doc: AdminDocument; onN
           {doc.coverage_live ? "Mark not live" : "Mark live"}
         </ActionButton>
       )}
-      {onNewVersion && doc.is_current_version && (
+      {onNewVersion && doc.is_current_version && !readOnly && (
         <button type="button" className="abtn sm ghost" onClick={onNewVersion}>
           New version…
         </button>
@@ -228,12 +230,15 @@ export function DataScreen({
   filters,
   zones,
   types,
+  readOnly = false,
 }: {
   documents: AdminDocument[];
   total: number;
   filters: DocumentFilters;
   zones: ZoneOption[];
   types: TypeOption[];
+  /** Reviewers: documents, files and jobs without the write controls. */
+  readOnly?: boolean;
 }) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [register, setRegister] = useState<{ key: number; files: PickedFile[]; replaces: AdminDocument | null } | null>(
@@ -245,12 +250,12 @@ export function DataScreen({
   const filtered = hasFilters(filters);
 
   return (
-    <>
+    <DataReadOnly.Provider value={readOnly}>
       <AutoRefresh active={anyActive(documents)} />
       <AdminCard
         title="Data sources"
         sub="Public official data — version-controlled, licence recorded"
-        action={<AdminButton onClick={() => setUploadOpen(true)}>+ Upload document</AdminButton>}
+        action={readOnly ? undefined : <AdminButton onClick={() => setUploadOpen(true)}>+ Upload document</AdminButton>}
       >
         <DataTable
           rows={[...DATA_SOURCES]}
@@ -267,7 +272,7 @@ export function DataScreen({
       <AdminCard
         title="Planning documents"
         sub={`${total} ${filtered ? "matching " : ""}document${total === 1 ? "" : "s"} · current versions · each file's extraction and geometry`}
-        action={<AdminButton onClick={() => openRegister([])}>+ New document</AdminButton>}
+        action={readOnly ? undefined : <AdminButton onClick={() => openRegister([])}>+ New document</AdminButton>}
       >
         <Form action="/admin/data" className="datafilters" role="search">
           <input type="search" name="q" defaultValue={filters.q} placeholder="Search by name" aria-label="Search by name" />
@@ -373,6 +378,7 @@ export function DataScreen({
           replaces={register.replaces}
         />
       )}
-    </>
+      {readOnly && <div className="finfoot">Read only: administrators register documents, upload files and run the jobs.</div>}
+    </DataReadOnly.Provider>
   );
 }

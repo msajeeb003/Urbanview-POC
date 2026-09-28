@@ -2,7 +2,7 @@
 
 /**
  * The queue's progress header: "n of N reviewed" for the document in view with its counters, and
- * publishing. Publish (admins) appears only once the document has nothing pending — until then a
+ * publishing. Publish (admins and reviewers) appears only once the document has nothing pending — until then a
  * chip says how many are left — and publishes every document's approved values as a new data
  * version (the API refuses while any document has pending items; the blocking documents are
  * named). While the job runs the header follows its steps; then it shows the data version the map
@@ -21,11 +21,12 @@ import { StatusChip } from "../parts";
 
 export function PublishPanel({
   counters,
-  isAdmin,
+  canPublish,
   initialStatus,
 }: {
   counters: ReviewCounters | null;
-  isAdmin: boolean;
+  /** Admins and reviewers publish and roll back (pilot scope, A4). */
+  canPublish: boolean;
   initialStatus: PublishStatus | null;
 }) {
   const showToast = useShell((s) => s.showToast);
@@ -106,7 +107,7 @@ export function PublishPanel({
             {progress.pending} pending before publish
           </span>
         )}
-        {counters && progress.total > 0 && progress.pending === 0 && isAdmin && (
+        {counters && progress.total > 0 && progress.pending === 0 && canPublish && (
           <button
             type="button"
             className="abtn"
@@ -117,10 +118,10 @@ export function PublishPanel({
             {active ? "Publishing…" : "Publish"}
           </button>
         )}
-        {counters && progress.total > 0 && progress.pending === 0 && !isAdmin && (
+        {counters && progress.total > 0 && progress.pending === 0 && !canPublish && (
           <span className="rsub">Every item is decided — an administrator publishes.</span>
         )}
-        {isAdmin && previous && !confirming && (
+        {canPublish && previous && !confirming && (
           <button type="button" className="abtn ghost" disabled={busy || !!active} onClick={() => setConfirming(true)}>
             Rollback to previous
           </button>

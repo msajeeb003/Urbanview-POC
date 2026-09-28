@@ -53,6 +53,7 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
       doc={doc}
       zones={zoneOptions(zones?.zones)}
       types={documentTypeOptions(profile?.terminology.document_types, profile?.terminology.document_types_en)}
+      readOnly={access.readOnly}
     />
   );
 }

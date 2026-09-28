@@ -1,7 +1,8 @@
 """Magic-link login for the admin panel.
 
 ``request(email)`` queues the ``magic_link`` e-mail for an active staff user and answers the
-same way whether or not the address is known (no enumeration); the worker mints the single-use
+same way whether or not the address is known (no enumeration); the route runs it after its
+neutral 202 has been sent, so the time taken says nothing either. The worker mints the single-use
 token (hash in ``staff_login_tokens``, ``MAGIC_LINK_EXPIRES_SECONDS``) and sends the link
 ``{ADMIN_BASE_URL}/login?token=…``. ``exchange(token)`` consumes the token once, opens a staff
 session (``staff_sessions``, ``STAFF_SESSION_DAYS``) and returns the bearer token the admin panel
@@ -64,7 +65,7 @@ class MagicLinkService:
         *,
         emails: EmailService,
         municipality_id: str,
-        session_ttl_days: int = 30,
+        session_ttl_days: int = 1,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.session_factory = session_factory

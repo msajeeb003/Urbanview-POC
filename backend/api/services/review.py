@@ -13,10 +13,12 @@ append-only ``audit_log`` row with the state before and after; so does every oth
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from typing import Any
 
+from botocore.exceptions import BotoCoreError, ClientError
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -45,6 +47,8 @@ from api.services.source import signed_page_link
 from core.auth import Principal
 from core.errors import AppError, ConflictError, NotFoundError
 from core.municipality import MunicipalityProfile
+
+log = logging.getLogger("urbanview.review")
 
 STATUS_TO_DB: dict[str, str] = {
     "pending": "pending_review",
@@ -449,17 +453,23 @@ class ReviewService:
         return row
 
     def _link(self, row: Mapping[str, Any], now: datetime) -> PageLinkOut | None:
-        link = signed_page_link(
-            self.storage,
-            self.municipality_id,
-            document_id=row["document_id"],
-            file_key=row["file_key"],
-            page_count=row["page_count"],
-            page_images_rendered=bool(row["page_images_rendered"]),
-            page=row["source_page"],
-            expires_in_seconds=self.link_expires_in_seconds,
-            now=now,
-        )
+        """The item's signed page link; without it (storage or its credentials unavailable) the
+        item still lists, with no link, so the queue never fails over a page image."""
+        try:
+            link = signed_page_link(
+                self.storage,
+                self.municipality_id,
+                document_id=row["document_id"],
+                file_key=row["file_key"],
+                page_count=row["page_count"],
+                page_images_rendered=bool(row["page_images_rendered"]),
+                page=row["source_page"],
+                expires_in_seconds=self.link_expires_in_seconds,
+                now=now,
+            )
+        except (BotoCoreError, ClientError) as exc:
+            log.warning("review page link unavailable (%s: %s)", type(exc).__name__, exc)
+            return None
         return PageLinkOut(**link) if link else None
 
     # --- decisions -------------------------------------------------------------------------------

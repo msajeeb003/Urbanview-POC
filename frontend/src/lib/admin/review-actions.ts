@@ -7,8 +7,8 @@
  * hundreds of items without the page re-rendering; a decision answers the updated item and the
  * document's counters. Refusals come back as `{ok: false, message}` in plain words.
  *
- * Publishing and rolling back are admin actions here (the spec's "Publish (admin only)"), checked
- * again on the server; the API itself also lets reviewers publish.
+ * Publishing and rolling back are for admins and reviewers (the pilot scope's "review and
+ * publish", A4), checked again on the server as the API does.
  */
 import { unstable_rethrow } from "next/navigation";
 
@@ -35,9 +35,9 @@ async function reviewer(): Promise<string | null> {
   return staff && canOpen(staff.role, "review") ? null : "Your role cannot review extracted values.";
 }
 
-async function admin(): Promise<string | null> {
+async function publisher(): Promise<string | null> {
   const staff = await currentStaff();
-  return staff?.role === "admin" ? null : "Only an administrator publishes.";
+  return staff && canOpen(staff.role, "publish") ? null : "Your role cannot publish.";
 }
 
 async function counters(documentId: number): Promise<ReviewCounters | null> {
@@ -172,10 +172,13 @@ export async function publishStatusAction(): Promise<Result<PublishStatus>> {
 }
 
 /** `POST /v1/admin/publish`: one publish job (every document's approved values). */
-export async function publishAction(): Promise<Result<AdminJob>> {
-  const denied = await admin();
+export async function publishAction(label?: string, notes?: string): Promise<Result<AdminJob>> {
+  const denied = await publisher();
   if (denied) return { ok: false, message: denied };
-  const result = await adminSend<AdminJob>("POST", "/v1/admin/publish", {});
+  const body: { label?: string; notes?: string } = {};
+  if (label?.trim()) body.label = label.trim();
+  if (notes?.trim()) body.notes = notes.trim();
+  const result = await adminSend<AdminJob>("POST", "/v1/admin/publish", body);
   if (!result.ok) {
     const details = result.details as { documents?: { document_name: string; pending: number }[] } | undefined;
     if (result.status === 409 && details?.documents?.length) {
@@ -190,7 +193,7 @@ export async function publishAction(): Promise<Result<AdminJob>> {
 /** `POST /v1/admin/publish/rollback`: back to the version before the current one (answers the
  * publish status after the flip). */
 export async function rollbackAction(versionId?: number): Promise<Result<PublishStatus>> {
-  const denied = await admin();
+  const denied = await publisher();
   if (denied) return { ok: false, message: denied };
   const result = await adminSend<PublishStatus>("POST", "/v1/admin/publish/rollback", versionId ? { version_id: versionId } : {});
   if (!result.ok) return { ok: false, message: explainReviewProblem(result) };

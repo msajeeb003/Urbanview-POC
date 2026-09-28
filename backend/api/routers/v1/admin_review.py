@@ -1,4 +1,6 @@
-"""Expert review queue (roles admin, reviewer, expert) and the audit trail (admin, reviewer).
+"""Expert review queue (roles admin and reviewer: the pilot scope's "planning expert approving
+extractions"; experts produce the paid reports and have no review access) and the audit trail
+(admin, reviewer).
 
 - ``GET /v1/admin/review`` — paged queue of staged extracted items with everything needed to open
   the cited page and check the value (with the extraction validator's flags); filters: document,

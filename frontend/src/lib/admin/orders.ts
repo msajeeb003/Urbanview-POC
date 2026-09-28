@@ -8,8 +8,9 @@
  * payment_failed from pending_payment ("Payment not received"; it can still be paid); refunded from
  * paid or in_progress. A paid order moves to in_progress when an expert is assigned
  * (or with "Start"); uploading the report delivers it and e-mails the customer; a delivered
- * report can be replaced (a note says why; the new link is e-mailed again). Admins and reviewers
- * manage orders; an expert sees only the orders assigned to them and only uploads the report.
+ * report can be replaced (a note says why; the new link is e-mailed again). Admins manage orders
+ * (the pilot scope's roles); an expert sees only the orders assigned to them and only uploads the
+ * report.
  */
 import type { ChipTone } from "@/components/admin/parts";
 import type { OrderDetail, OrderEmail, OrderEvent, OrderStatus, OrderSummary } from "@/lib/api/types";
@@ -46,7 +47,8 @@ export interface Allowed {
   reason?: string;
 }
 
-const MANAGERS: readonly StaffRole[] = ["admin", "reviewer"];
+// the pilot scope's roles: admins manage orders; experts deliver the ones assigned to them
+const MANAGERS: readonly StaffRole[] = ["admin"];
 
 export function isManager(role: StaffRole | null | undefined): boolean {
   return !!role && MANAGERS.includes(role);
@@ -65,22 +67,22 @@ export function allowed(
   switch (action) {
     case "receive":
     case "notReceived":
-      if (!manager) return no("Admins and reviewers record payments.", false);
+      if (!manager) return no("Admins record payments.", false);
       return status === "pending_payment" || status === "payment_failed"
         ? { visible: true, enabled: true }
         : no(`Payments are recorded while the order awaits payment; this one is ${is}.`);
     case "refund":
-      if (!manager) return no("Admins and reviewers record refunds.", false);
+      if (!manager) return no("Admins record refunds.", false);
       return status === "paid" || status === "in_progress"
         ? { visible: true, enabled: true }
         : no(`Only a paid order or one in progress can be refunded; this one is ${is}.`);
     case "assign":
-      if (!manager) return no("Admins and reviewers assign experts.", false);
+      if (!manager) return no("Admins assign experts.", false);
       return status === "delivered" || status === "refunded"
         ? no(`A ${is} order is closed.`)
         : { visible: true, enabled: true };
     case "start":
-      if (!manager) return no("Admins and reviewers start the work.", false);
+      if (!manager) return no("Admins start the work.", false);
       if (status !== "paid") return no(`Work starts on a paid order; this one is ${is}.`);
       return order.assignee ? { visible: true, enabled: true } : no("Assign an expert first.");
     case "upload":

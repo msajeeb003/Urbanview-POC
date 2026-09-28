@@ -73,7 +73,7 @@ export function ReviewScreen({
   zones,
   publish,
   me,
-  isAdmin,
+  canPublish,
 }: {
   initial: ReviewPage;
   filters: ReviewFilters;
@@ -81,7 +81,7 @@ export function ReviewScreen({
   zones: { id: number; name: string }[];
   publish: PublishStatus | null;
   me: string;
-  isAdmin: boolean;
+  canPublish: boolean;
 }) {
   const showToast = useShell((s) => s.showToast);
   const [items, setItems] = useState<ReviewItem[]>(initial.items);
@@ -301,7 +301,7 @@ export function ReviewScreen({
           </div>
           <span className={pendingInScope ? "st pend" : "st ok"}>{pendingInScope} pending</span>
         </div>
-        <PublishPanel counters={docCounters} isAdmin={isAdmin} initialStatus={publish} />
+        <PublishPanel counters={docCounters} canPublish={canPublish} initialStatus={publish} />
         <Form action="/admin/review" className="datafilters rvfilters" role="search">
           <select
             name="document"

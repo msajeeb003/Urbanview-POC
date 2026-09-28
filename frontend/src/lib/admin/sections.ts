@@ -2,10 +2,15 @@
  * The admin console's sections and who may open them: one table the proxy (route guard), the
  * tab row and the pages read, so hiding a tab and refusing its route never disagree.
  *
- * Roles (the staff user's `role`, from `GET /v1/admin/users/me`):
+ * Roles (the staff user's `role`, from `GET /v1/admin/users/me`), the pilot technical scope's:
  * - admin: everything, including users, financial assumptions, analytics (A7) and the audit log;
- * - reviewer: Overview, AI review queue, Planning rules (read), Orders, Data sources;
- * - expert: Orders (the API returns only the orders assigned to them).
+ * - reviewer ("planning expert approving extractions"): Overview, AI review queue, Planning rules
+ *   (read), Data sources (read: the documents, files and jobs), Publish;
+ * - expert ("produces paid reports"): Orders (the API returns only the orders assigned to them;
+ *   the report upload is their only action).
+ *
+ * Tabs: the wireframe's seven, then the pilot scope's Publish (A4), Analytics (A7) and Audit log
+ * (A7) screens; Users sits in the account menu.
  *
  * The API enforces the same boundaries on every `/v1/admin/*` route (403, never 404); this table
  * only keeps the console from offering what the API would refuse.
@@ -23,6 +28,7 @@ export type SectionId =
   | "engine"
   | "orders"
   | "data"
+  | "publish"
   | "analytics"
   | "audit"
   | "users";
@@ -51,13 +57,22 @@ export const SECTIONS: readonly Section[] = [
   },
   { id: "assumptions", label: "Financial assumptions", href: "/admin/assumptions", tab: true, roles: ["admin"] },
   { id: "engine", label: "Calculation engine", href: "/admin/engine", tab: true, roles: ["admin"] },
-  // Reviewers record payments and assign experts too (the orders ticket); experts see their own.
-  { id: "orders", label: "Orders", href: "/admin/orders", tab: true, roles: ["admin", "reviewer", "expert"] },
-  // Reviewers register documents and drop in their PDFs too (the data sources ticket).
-  { id: "data", label: "Data sources", href: "/admin/data", tab: true, roles: ["admin", "reviewer"] },
+  // Admins manage orders; experts see and deliver their own (reviewers have no order access).
+  { id: "orders", label: "Orders", href: "/admin/orders", tab: true, roles: ["admin", "expert"] },
+  // Reviewers read the documents, files and jobs; admins register, upload and run the jobs.
+  {
+    id: "data",
+    label: "Data sources",
+    href: "/admin/data",
+    tab: true,
+    roles: ["admin", "reviewer"],
+    readOnly: ["reviewer"],
+  },
+  // the pilot scope's A4 "Publish" (versions, publish, rollback): admins and reviewers
+  { id: "publish", label: "Publish", href: "/admin/publish", tab: true, roles: ["admin", "reviewer"] },
   // the pilot scope's A7 "Analytics and audit" (GET /v1/admin/analytics is admin only)
-  { id: "analytics", label: "Analytics", href: "/admin/analytics", tab: false, roles: ["admin"] },
-  { id: "audit", label: "Audit log", href: "/admin/audit", tab: false, roles: ["admin"] },
+  { id: "analytics", label: "Analytics", href: "/admin/analytics", tab: true, roles: ["admin"] },
+  { id: "audit", label: "Audit log", href: "/admin/audit", tab: true, roles: ["admin"] },
   { id: "users", label: "Users", href: "/admin/users", tab: false, roles: ["admin"] },
 ];
 
@@ -93,7 +108,7 @@ export function visibleTabs(role: StaffRole | null | undefined): Section[] {
   return SECTIONS.filter((s) => s.tab && canOpen(role, s.id));
 }
 
-/** Admin-bar links outside the tab row (audit log, users) the role may open. */
+/** Account-menu links outside the tab row (Users) the role may open. */
 export function barLinks(role: StaffRole | null | undefined): Section[] {
   return SECTIONS.filter((s) => !s.tab && canOpen(role, s.id));
 }

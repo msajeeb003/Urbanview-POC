@@ -1,5 +1,5 @@
-"""Job status API (roles ``admin`` and ``reviewer``): every background job (``jobs/``) is a
-``pipeline_jobs`` row.
+"""Job status API (reads: roles ``admin`` and ``reviewer``; retry: ``admin``): every background
+job (``jobs/``) is a ``pipeline_jobs`` row.
 
 - ``GET /v1/admin/jobs``: newest first; filters ``type``, ``status``, ``target=document:12``
   (also ``file:``, ``publish_run:``, ``email:``), ``document_id``, ``file_id``; paging;
@@ -17,7 +17,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query, Response
 
-from api.deps import JobServiceDep, PipelinePrincipal
+from api.deps import DocumentReaderPrincipal, JobServiceDep, PipelinePrincipal
 from api.schemas.admin import (
     TARGET_PATTERN,
     JobCostSummary,
@@ -48,7 +48,7 @@ RESPONSES = {
 
 @router.get("", response_model=JobList, summary="List jobs", responses=RESPONSES)
 async def list_jobs(
-    principal: PipelinePrincipal,
+    principal: DocumentReaderPrincipal,
     service: JobServiceDep,
     type: Annotated[JobType | None, Query()] = None,
     status: Annotated[JobStatus | None, Query()] = None,
@@ -73,7 +73,7 @@ async def list_jobs(
     "/costs", response_model=JobCostSummary, summary="Job cost per target", responses=RESPONSES
 )
 async def job_costs(
-    principal: PipelinePrincipal,
+    principal: DocumentReaderPrincipal,
     service: JobServiceDep,
     target: Target = None,
     type: Annotated[JobType | None, Query()] = None,
@@ -83,7 +83,7 @@ async def job_costs(
 
 
 @router.get("/{job_id}", response_model=JobOut, summary="Job status", responses=RESPONSES)
-async def get_job(principal: PipelinePrincipal, service: JobServiceDep, job_id: Id) -> JobOut:
+async def get_job(principal: DocumentReaderPrincipal, service: JobServiceDep, job_id: Id) -> JobOut:
     return await service.get_job(job_id)
 
 

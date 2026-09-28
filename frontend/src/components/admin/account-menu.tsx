@@ -3,7 +3,7 @@
 /**
  * The signed-in staff member in the admin bar (not in the mock): one compact button (role chip +
  * name) so the wireframe's bar still fits at 1440 px with every tab, opening a small menu with
- * the full e-mail, the admin-only links (audit log, users) and "Sign out". The menu is fixed-
+ * the full e-mail, the admin-only link (Users) and "Sign out". The menu is fixed-
  * positioned under the button because `.adminbar` scrolls horizontally (it would clip it).
  */
 import { useRouter } from "next/navigation";

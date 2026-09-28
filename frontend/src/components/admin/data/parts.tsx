@@ -11,7 +11,7 @@
  *   running, and stops once everything is finished (or while the tab is hidden).
  */
 import { useRouter } from "next/navigation";
-import { useEffect, useTransition, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useTransition, type ReactNode } from "react";
 
 import { StatusChip } from "@/components/admin/parts";
 import type { Pill } from "@/lib/admin/data";
@@ -31,6 +31,16 @@ export function PillView({ pill }: { pill: Pill }) {
       )}
     </span>
   );
+}
+
+/**
+ * Read-only Data sources (reviewers: the pilot scope's "read-only documents"): every write control
+ * of the screens is left out; the server actions and the API refuse anyway.
+ */
+export const DataReadOnly = createContext(false);
+
+export function useDataReadOnly(): boolean {
+  return useContext(DataReadOnly);
 }
 
 export function ActionButton({
@@ -53,6 +63,8 @@ export function ActionButton({
 }) {
   const showToast = useShell((s) => s.showToast);
   const [pending, start] = useTransition();
+  const readOnly = useDataReadOnly();
+  if (readOnly) return null;
   return (
     <button
       type="button"

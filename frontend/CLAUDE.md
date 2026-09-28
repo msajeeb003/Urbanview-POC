@@ -79,7 +79,7 @@ figures 44 / 700, body 14, secondary 13, mono data 13 / 700, uppercase mono micr
 | Map | fills the middle, `#EDE6D6`; legend top-left 16/16 (max 264 wide); coverage pill top-centre; scale bar left 16 / bottom 52; coordinates chip left 16 / bottom 16; tools right 16 / bottom 88 (zoom label, 42 px `+` `−` reset) |
 | Panel | 392 px (`--white`, hairline left, no shadow); sticky header, scrolling body, CTA stack; hidden (never replaced by anything) when the location is uncovered |
 | AI | not built (pilot scope: "intent button only"): no fab, no chat panel, no quota; "Ask about this site" in the parcel panel's button stack records `ai_interest` |
-| Admin | overlay `inset: 0` over the main row, `--paper`; admin bar 60 px; tabs "Overview", "AI review queue", "Planning rules", "Financial assumptions", "Calculation engine", "Orders", "Data sources"; "← Back to map" |
+| Admin | overlay `inset: 0` over the main row, `--paper`; admin bar 60 px; tabs "Overview", "AI review queue", "Planning rules", "Financial assumptions", "Calculation engine", "Orders", "Data sources" (the wireframe's), then "Publish", "Analytics", "Audit log" (the pilot scope's A4 / A7; the bar scrolls sideways when narrow); "← Back to map" |
 | Modal | overlay `rgba(20,17,14,.55)`, padding 24; modal max 520 (`wide` 860), max-height 90vh, radius 8 (effective), pop-in .2s |
 | Toast | bottom-centre, ink, `✦` + text, 2.6 s |
 | ≤ 1100 px | panel 360, rail 182 (wireframe) |
@@ -597,9 +597,9 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   admin pages arrive as `AppShell`'s children and render inside `AdminOverlay` when the path starts
   with `/admin`; the store's `view` mirrors the route both ways (the topbar's Map / Admin, the
   pill and ⌘K call `setView`, which navigates). Tabs are routes: `/admin/overview`, `/review`,
-  `/rules`, `/assumptions`, `/engine`, `/orders`, `/data`; plus `/admin/audit`, `/admin/users`,
-  `/admin/login` and `/admin/no-access`, and `/admin/analytics` (admins, from the account menu).
-  `/admin` goes to the role's first tab.
+  `/rules`, `/assumptions`, `/engine`, `/orders`, `/data`, `/publish`, `/analytics`, `/audit`;
+  plus `/admin/users` (the account menu), `/admin/login` and `/admin/no-access`. `/admin` goes to
+  the role's first tab.
 - **Sign-in: magic links only (Auth.js v5, `src/auth.ts`).** The backend owns the link: the form's
   server action posts `POST /v1/auth/magic-link` (always 202, same "Check your email" for any
   well-formed address: no enumeration), the backend's `magic_link` e-mail opens
@@ -616,12 +616,12 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   action) clears the cookie and the `signOut` event revokes the backend session
   (`POST /v1/auth/sign-out`). Env: `AUTH_SECRET` (server only), `AUTH_URL` / `AUTH_TRUST_HOST`
   behind Caddy, `API_INTERNAL_BASE_URL`.
-- **Roles** (`lib/admin/sections.ts`, the one table the proxy, the tab row and the pages read):
-  admin = every tab + audit log + users; reviewer = Overview, AI review queue, Planning rules
-  (read), Orders and Data sources (full use: their tickets); expert = Orders only (the API
-  returns only the orders assigned to them; the report upload is their only action). Where the admin spec and the ticket disagreed, the ticket's
-  acceptance won: an expert sees
-  only Orders (no Overview, no unassigned orders). Guards: `src/proxy.ts` (Next 16's renamed
+- **Roles** (`lib/admin/sections.ts`, the one table the proxy, the tab row and the pages read;
+  the pilot technical scope's, auth check 2026-09-29): admin = every tab + users; reviewer
+  ("planning expert approving extractions") = Overview, AI review queue, Planning rules (read),
+  Data sources (read: no upload, register, job or live buttons, `DataReadOnly` context), Publish;
+  expert ("produces paid reports") = Orders only (the API returns only the orders assigned to
+  them; the report upload is their only action). Reviewers have no order access. Guards: `src/proxy.ts` (Next 16's renamed
   middleware; no session → `/admin/login?callbackUrl=`, a section outside the role → a rewrite to
   the plain "You don't have access to this section" card under the same URL), each page's
   `guard(section)`, and the API's own 403 on every `/v1/admin/*` route.
@@ -647,7 +647,7 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   `lib/admin/review.ts`, calls in `lib/admin/review-actions.ts`): the wireframe's card ("AI
   extraction — review queue", "100% of extracted values need expert approval before they
   publish", "N pending"), a progress header (n of N reviewed for the document in view, counters,
-  Publish for admins only once the document has nothing pending — until then a "n pending before
+  Publish for admins and reviewers once the document has nothing pending — until then a "n pending before
   publish" chip with a tooltip — the job's step while it runs, the data version the map serves,
   "Rollback to previous" with an inline confirmation, "Corrected values reach the map only after a
   publish"), filters (document with its pending count, status, zone, target type, page, order:
@@ -667,6 +667,22 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   "Approved", "Amended", "Rejected"; refusals in plain words, never red. The queue keeps its own
   state (200 items a page, "Load more"); decisions answer the item and the document's counters.
   Styles: block 18 of `overrides.css`. Tests: `lib/admin/review.test.ts`.
+- **Publish** (`/admin/publish`, admins and reviewers, the pilot scope's A4;
+  `components/admin/publish/publish-screen.tsx`, rules in `lib/admin/publish.ts`, calls
+  `publishAction` / `rollbackAction` / `publishStatusAction` in `lib/admin/review-actions.ts`):
+  what the map serves (label, when, who), "Publish" with an optional label and notes (disabled
+  while any document has pending items, which are named with a link into the review queue), the
+  running job's steps (preflight … prune, `stepLabel`, read every 2 s until it ends; a failed
+  last run says where it stopped), and the versions (label + Live chip, published when and by
+  whom, what it holds: values, parcel links, heatmap cells, tile size or "cleared") with "Roll
+  back to this" (confirmed inline) on earlier versions whose tiles are kept (`canRollBackTo`,
+  the API's guards). Tests: `lib/admin/publish.test.ts`.
+- **Users** (`/admin/users`, admins; `components/admin/users/users-screen.tsx`, `lib/admin/users.ts`,
+  `lib/admin/user-actions.ts`): "Add staff" (work e-mail, name, role; they sign in by e-mailed
+  link, no password) over `POST /v1/admin/users`, and the staff table with a role select and
+  Activate / Deactivate (confirmed; closes their sessions) per member over `PATCH
+  /v1/admin/users/{id}`; the signed-in admin's own row is not editable (the API refuses too).
+  Every write is audited by the API (`user.create`, `user.update`). Tests: `lib/admin/users.test.ts`.
 - **Data sources** (`/admin/data`, `/admin/data/documents/[id]`; `components/admin/data/*`, rules
   in `lib/admin/data.ts`, writes in `lib/admin/data-actions.ts`): the wireframe's sources card
   (Source / Provides / Format / Status, "+ Upload document") and the planning documents: one row
@@ -704,7 +720,7 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   person and registered address of orders placed before migration 0031; e-mail, telephone, the
   customer id, message); Location ordered with "Open on the map ↗"
   (`/?parcel=<cadastral_parcel_id>`: today's published data, the snapshot below is what was
-  shown); Price and turnaround; **Payment** (admins, reviewers): "Mark payment received"
+  shown); Price and turnaround; **Payment** (admins): "Mark payment received"
   (amount, date, bank reference, all required; also on a failed payment), "Payment not
   received" (a note: the order becomes `Payment not received`, chip `rev`, which the customer's
   order page shows with the instructions; again on a failed order it only records the check),
@@ -771,7 +787,7 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   references), `StatusChip` (`.st.ok | .pend | .rev`), `AdminButton` (`.abtn`, `ghost`, `sm`),
   `StatCard` (`.astat`), `NoAccess`, `AdminUnavailable`; `admin-frame.tsx` (the bar: title, tabs
   the role may open, account button, "← Back to map"), `account-menu.tsx` (not in the mock: role
-  chip + name, menu with the e-mail, audit log / users for admins, sign-out; fixed-positioned
+  chip + name, menu with the e-mail, Users for admins, sign-out; fixed-positioned
   because `.adminbar` scrolls horizontally, and compact so the bar fits at 1440 px), `sign-in.tsx`
   ("Send magic link" → "Check your email"; the link state "Signing you in…" or the invalid-link
   note). Words and chips of the tables: `lib/admin/format.ts`. Styles not in the mock: block 16 of

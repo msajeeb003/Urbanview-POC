@@ -249,7 +249,9 @@ async def test_a_version_with_several_files(admin_app):
     assert "document.file_role" in actions
 
 
-async def test_reviewers_use_the_pipeline_experts_do_not(postgis_url, storage, dispatcher):
+async def test_reviewers_read_documents_admins_change_them(postgis_url, storage, dispatcher):
+    """The pilot scope's roles: admins run the pipeline, reviewers read documents, files and jobs
+    (read-only documents), experts have no pipeline access."""
     settings = make_settings(
         location_resolver="postgis",
         database_url=postgis_url,
@@ -259,21 +261,45 @@ async def test_reviewers_use_the_pipeline_experts_do_not(postgis_url, storage, d
     )
     app = make_app(settings, storage=storage, admin_dispatcher=dispatcher)
     async with app.router.lifespan_context(app), make_client(app) as client:
-        uploaded = await upload(client, PDF_A, "reviewer.pdf", token="reviewer-tok-1234")
+        refused_upload = await upload(client, PDF_A, "reviewer.pdf", token="reviewer-tok-1234")
+        uploaded = await upload(client, PDF_A, "admin.pdf", token="admin-token-1234")
+        file_id = uploaded.json()["file"]["id"]
+        body = {
+            "name": "DUP Reviewer",
+            "type": "PUP",
+            "status": "in_progress",
+            "files": [{"file_id": file_id, "role": "both"}],
+        }
+        refused_register = await client.post(
+            "/v1/admin/documents", json=body, headers=auth("reviewer-tok-1234")
+        )
         registered = await client.post(
-            "/v1/admin/documents",
-            json={
-                "name": "DUP Reviewer",
-                "type": "PUP",
-                "status": "in_progress",
-                "files": [{"file_id": uploaded.json()["file"]["id"], "role": "both"}],
-            },
+            "/v1/admin/documents", json=body, headers=auth("admin-token-1234")
+        )
+        document_id = registered.json()["id"]
+        refused_live = await client.patch(
+            f"/v1/admin/documents/{document_id}/coverage",
+            json={"live": True},
             headers=auth("reviewer-tok-1234"),
         )
+        refused_extract = await client.post(
+            f"/v1/admin/documents/{document_id}/jobs/extract",
+            headers=auth("reviewer-tok-1234"),
+        )
+        documents = await client.get("/v1/admin/documents", headers=auth("reviewer-tok-1234"))
+        document = await client.get(
+            f"/v1/admin/documents/{document_id}", headers=auth("reviewer-tok-1234")
+        )
+        files = await client.get("/v1/admin/files", headers=auth("reviewer-tok-1234"))
         jobs = await client.get("/v1/admin/jobs", headers=auth("reviewer-tok-1234"))
         expert = await client.get("/v1/admin/documents", headers=auth("expert-token-12345"))
+    assert refused_upload.status_code == 403, refused_upload.text
+    assert refused_upload.json()["error"]["details"]["required_roles"] == ["admin"]
+    for refused in (refused_register, refused_live, refused_extract):
+        assert refused.status_code == 403, refused.text
     assert uploaded.status_code == 201, uploaded.text
     assert registered.status_code == 201, registered.text
-    assert registered.json()["registered_by"] == "rev"
-    assert jobs.status_code == 200
+    assert registered.json()["registered_by"] == "ops"
+    assert documents.status_code == 200 and document.status_code == 200
+    assert files.status_code == 200 and jobs.status_code == 200
     assert expert.status_code == 403

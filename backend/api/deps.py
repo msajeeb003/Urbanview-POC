@@ -269,15 +269,17 @@ def get_overview_service(request: Request) -> OverviewService:
 
 
 OverviewServiceDep = Annotated[OverviewService, Depends(get_overview_service)]
-# Expert review: every staff role may decide; the audit trail is for admins and reviewers.
-ReviewerPrincipal = Annotated[
-    Principal, Depends(require_role(Role.admin, Role.reviewer, Role.expert))
-]
+# The pilot technical scope's roles: admin (everything), reviewer ("planning expert approving
+# extractions": the review queue, publish, read-only documents), expert ("produces paid reports":
+# the orders assigned to them and the report upload).
+# Expert review (A2): admins and reviewers decide; the audit trail is theirs to read.
+ReviewerPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
 AuditReaderPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
-# The data pipeline (files, document versions and their files, jobs, the coverage switch): the
-# admin console's "Data sources" screen, used by admins and reviewers.
-PipelinePrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
-# the publish button: admins and (expert) reviewers
+# The data pipeline (A1: files, document versions and their files, jobs, the coverage switch):
+# admins change it; reviewers read documents, files and jobs.
+PipelinePrincipal = Annotated[Principal, Depends(require_role(Role.admin))]
+DocumentReaderPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
+# publish and rollback (A4, "review and publish"): admins and reviewers
 PublisherPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
 
 
@@ -303,11 +305,10 @@ def get_market_service(request: Request) -> MarketService:
 
 
 MarketServiceDep = Annotated[MarketService, Depends(get_market_service)]
-# Orders: admins and reviewers manage; experts see and deliver what is assigned to them.
-OrderStaffPrincipal = Annotated[
-    Principal, Depends(require_role(Role.admin, Role.reviewer, Role.expert))
-]
-OrderManagerPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
+# Orders (A6): admins manage (payments, assignment, status, the e-mail log); experts see and
+# deliver the orders assigned to them.
+OrderStaffPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.expert))]
+OrderManagerPrincipal = Annotated[Principal, Depends(require_role(Role.admin))]
 
 
 def get_order_service(request: Request) -> OrderService:

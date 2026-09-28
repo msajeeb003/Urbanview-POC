@@ -15,7 +15,8 @@ async function orNull<T>(load: () => Promise<T>): Promise<T | null> {
 }
 
 // Data sources (wireframe `adminData`): the public sources the platform reads, and the planning
-// documents registered from them with each file's extraction and geometry (admins and reviewers).
+// documents registered from them with each file's extraction and geometry (admins; reviewers read
+// it without the write controls: the pilot scope's "read-only documents").
 export default async function DataPage({
   searchParams,
 }: {
@@ -43,6 +44,7 @@ export default async function DataPage({
       filters={filters}
       zones={zoneOptions(zones?.zones)}
       types={documentTypeOptions(profile?.terminology.document_types, profile?.terminology.document_types_en)}
+      readOnly={access.readOnly}
     />
   );
 }

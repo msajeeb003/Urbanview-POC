@@ -1,7 +1,8 @@
 """Staff order management: the queue, payment receipt, expert assignment, status changes and the
 report upload that delivers the order.
 
-Admins and reviewers manage every order; an expert sees and delivers only the orders assigned to
+Admins manage every order (the pilot scope's roles: reviewers approve extractions and have no
+order access); an expert sees and delivers only the orders assigned to
 them. Every change is an ``audit_log`` row; the guarded status flow answers 409 for anything
 outside ``pending_payment → paid → in_progress → delivered`` (+ ``payment_failed`` from
 pending_payment, which can still be paid, and ``refunded`` from paid / in_progress). Responses are

@@ -4,6 +4,7 @@ import { AdminAccessDenied, adminGet } from "@/lib/admin/api";
 import { zoneOptions } from "@/lib/admin/data";
 import { guard } from "@/lib/admin/guard";
 import { parseReviewFilters, reviewQuery } from "@/lib/admin/review";
+import { canOpen } from "@/lib/admin/sections";
 import { api } from "@/lib/api/endpoints";
 import type { PublishStatus, ReviewCounters, ReviewPage, ZoneIndex } from "@/lib/api/types";
 
@@ -50,7 +51,7 @@ export default async function ReviewQueuePage({
       zones={zoneOptions(zones?.zones)}
       publish={publish}
       me={access.staff.email ?? access.staff.name ?? access.staff.role}
-      isAdmin={access.staff.role === "admin"}
+      canPublish={canOpen(access.staff.role, "publish")}
     />
   );
 }

@@ -6,7 +6,7 @@ bootstrapping (a server without staff users or without SMTP) the CLI does the sa
     python -m core.staff login-link --email ana@example.com [--create --role admin --name "Ana"] \
         [--minutes 15]                           # prints a one-time sign-in link (no SMTP needed)
     python -m core.staff add --email ana@example.com --role admin --name "Ana"
-    python -m core.staff token --email ana@example.com --days 30     # prints the bearer token once
+    python -m core.staff token --email ana@example.com --days 1      # prints the bearer token once
     python -m core.staff revoke --email ana@example.com
     python -m core.staff list
 
@@ -203,7 +203,7 @@ async def issue_session(
     *,
     municipality_id: str,
     email: str,
-    ttl: timedelta = timedelta(days=30),
+    ttl: timedelta = timedelta(days=1),
     created_via: str = "cli",
 ) -> str:
     """Create a session for an active user and return the bearer token (shown once)."""
@@ -352,7 +352,7 @@ def build_parser() -> argparse.ArgumentParser:
     add.add_argument("--name", default=None)
     token = sub.add_parser("token", help="issue a bearer session token for a user")
     token.add_argument("--email", required=True)
-    token.add_argument("--days", type=int, default=30)
+    token.add_argument("--days", type=int, default=1)
     revoke = sub.add_parser("revoke", help="revoke every open session of a user")
     revoke.add_argument("--email", required=True)
     sub.add_parser("list", help="list staff users")

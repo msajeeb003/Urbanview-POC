@@ -214,7 +214,9 @@ async def test_queue_lists_everything_a_reviewer_needs(review_app):
     assert 1 in [i["id"] for i in zone.json()["items"]]
     assert [i["id"] for i in market.json()["items"]] == [market_id]
     assert [i["id"] for i in page13.json()["items"]] == [1]
-    assert as_reviewer.status_code == 200 and as_expert.status_code == 200
+    # the pilot scope's roles: reviewers approve extractions; experts produce reports only
+    assert as_reviewer.status_code == 200 and as_expert.status_code == 403
+    assert as_expert.json()["error"]["details"]["required_roles"] == ["admin", "reviewer"]
     assert anonymous.status_code == 401
     assert single.status_code == 200 and single.json()["id"] == 1
 

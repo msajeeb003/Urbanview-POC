@@ -153,7 +153,9 @@ class Settings(BaseSettings):
     mail_allowlist: Annotated[list[str], NoDecode] = []
     admin_base_url: str = "http://localhost:3001"  # magic links point here
     magic_link_expires_seconds: int = Field(default=900, ge=60, le=3600)
-    staff_session_days: int = Field(default=30, ge=1, le=365)
+    # the admin console's backend session (magic-link exchange): as long as its sign-in,
+    # AUTH_SESSION_MAX_AGE (24 h)
+    staff_session_days: int = Field(default=1, ge=1, le=365)
 
     # per-IP rate limiting (fixed window)
     rate_limit_enabled: bool = True

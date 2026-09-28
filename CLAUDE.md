@@ -479,8 +479,16 @@ the POC check of Group 2 asked for it).
 
 ## Staff pipeline API (`api/services/admin.py`, `api/routers/v1/admin_pipeline.py`, `core/auth.py`, `core/staff.py`)
 
-- **Principals** (roles `admin` and `reviewer` on every route below, `PipelinePrincipal`: the
-  admin console's Data sources screen is theirs; experts get 403): configured service tokens
+- **Roles (the pilot technical scope's, auth check 2026-09-29; `api/deps.py`, every `/v1/admin/*`
+  route through `require_role`):** `admin` = everything; `reviewer` ("planning expert approving
+  extractions") = the review queue (A2: read, approve, amend, reject, market inputs), publish and
+  rollback (A4), read-only documents / files / jobs, the overview, zone parameters (read) and the
+  audit trail (read); `expert` ("produces paid reports") = the orders assigned to them and the
+  report upload (A6), `users/me`. Reviewers have no order access; experts none to the review
+  queue or the pipeline.
+- **Principals** (writes on the routes below: role `admin`, `PipelinePrincipal`; the listings and
+  reads of documents, files and jobs: `admin` and `reviewer`, `DocumentReaderPrincipal`; experts
+  get 403): configured service tokens
   (`ADMIN_API_TOKENS`) or **staff sessions**, the users / roles model of migration 0006
   (`staff_users`: e-mail, role admin | reviewer | expert, active flag; `staff_sessions`: SHA-256
   token hashes with expiry / revocation). `api.deps.require_role` tries the config tokens, then
@@ -615,7 +623,7 @@ the POC check of Group 2 asked for it).
 ## Expert review and the audit trail (`api/services/review.py`, `api/routers/v1/admin_review.py`)
 
 - 100% of AI-extracted planning information is reviewed before publication; textual accuracy
-  matters as much as numerical. `GET /v1/admin/review` (roles admin, reviewer, expert) pages
+  matters as much as numerical. `GET /v1/admin/review` (roles admin and reviewer) pages
   STAGING (`planning_parameter_extractions`, migration 0008 added `entity_type`
   urban_parcel | zone | block | document | market_data, `zone_id` / `block_id`, `parameter_key`
   (planning field key, or a market rate key with `field_key` null), `raw_text`, `confidence`,
@@ -623,7 +631,8 @@ the POC check of Group 2 asked for it).
   (`pending` = `pending_review`, approved, amended, rejected), entity, urban parcel, page. Each
   item: parameter labels and type, `extracted` (the AI value with unit), `amended`, `effective`
   (what would publish), `target`, `source` (document, page, bbox, note, raw text snippet,
-  confidence, `extraction_method`) and a signed `link` to the cited page (same rule as the source
+  confidence, `extraction_method`) and a signed `link` to the cited page (null when storage or
+  its credentials are unavailable: the queue still lists; same rule as the source
   viewer: `api.services.source.signed_page_link`), plus the extraction validator's `flags` and
   the item's `schema_version` / `prompt_version` (migration 0017); `?flag=low_confidence`
   filters (see "AI extraction contract"). For the admin console: `sort` pending (default: pending
@@ -905,8 +914,9 @@ the POC check of Group 2 asked for it).
   active `expert` user; a paid order moves to in_progress), `PATCH .../status` (delivered needs
   a report), `POST .../report` (PDF → private bucket as `stored_files.kind = expert_report`,
   sets delivered, e-mails a signed download link, `ORDER_REPORT_LINK_EXPIRES_SECONDS`). Every
-  change is an `audit_log` row with before / after. Admins and reviewers manage everything;
-  experts see and deliver only their assigned orders (403 otherwise).
+  change is an `audit_log` row with before / after. Admins manage everything (reviewers have
+  no order access: the pilot scope's roles); experts see and deliver only their assigned orders
+  (403 otherwise).
 - **Replacing a delivered report**: `POST .../report` on a `delivered` order replaces the report
   and needs a `note` (422 without one); the `order.report` audit row carries `version` (n-th
   upload) and `replaces_file_id`, no second status entry is written, and the new download link
@@ -917,8 +927,8 @@ the POC check of Group 2 asked for it).
   `bank_reference`, `received_on`, `order.payment_check`, `order.assign`, `order.report`,
   `order.status`, a refund's with `refund_amount_eur`, `refunded_on`, `bank_reference`),
   `report_versions` and `location.cadastral_parcel_id` (the Parcel ID the map opens with
-  `/?parcel=`, also for urban orders). `GET /v1/admin/orders/experts` (admins, reviewers; 403
-  for experts): the active `expert` users with their `open_orders` (in progress) for the assign
+  `/?parcel=`, also for urban orders). `GET /v1/admin/orders/experts` (admins; 403 for the
+  others): the active `expert` users with their `open_orders` (in progress) for the assign
   picker.
 - **Confirmation data** `GET /v1/orders/{reference}` (the pilot scope's "confirmation page data",
   public, `no-store`, reference case-insensitive): status + labels, location, pricing,
@@ -985,17 +995,22 @@ the POC check of Group 2 asked for it).
   `urbanview-mail`) with `SMTP_USE_TLS=false`. Deliverability check:
   `python -m core.mail.testsend --template payment_instructions --to you@…` sends fixture data
   through the real provider (DKIM / SPF / DMARC are the provider account's job).
-- **Log and bounces**: `GET /v1/admin/email-log` (admin, reviewer; filters `order_id`,
+- **Log and bounces**: `GET /v1/admin/email-log` (admin; filters `order_id`,
   `user_id`, `status`, `template`), `GET /v1/admin/email-log/{id}`,
   `POST /v1/admin/email-log/{id}/bounce {reason}` (sent → bounced, audited `email.bounce`; the
   provider's bounce webhook will call the same method). Orders show `email_alerts` in the queue
   and `emails` in the detail.
 - **Magic-link login** (`api/routers/v1/auth.py`, public): `POST /v1/auth/magic-link {email}`
-  always answers 202 with the same neutral message; an active staff address gets a `magic_link`
+  always answers 202 with the same neutral message, **before** anything is looked up: the lookup,
+  the audit row and the e-mail job run after the response (Starlette background task; a failure
+  there is logged, never shown), so neither the body nor the time taken tells a staff address
+  from any other (auth check 2026-09-29); an active staff address gets a `magic_link`
   e-mail whose token the job mints (`staff_login_tokens`: sha256 hash, `MAGIC_LINK_EXPIRES_SECONDS`
   = 900, `used_at`), link `{ADMIN_BASE_URL}/login?token=…`. `POST /v1/auth/magic-link/exchange
   {token}` consumes it once and returns a staff session bearer token (`staff_sessions`,
-  `STAFF_SESSION_DAYS`) with the user; 401 for unknown / used / expired. Audited
+  `STAFF_SESSION_DAYS`, default 1: as long as the console's sign-in, `AUTH_SESSION_MAX_AGE` 24 h;
+  `core.staff token --days` for scripts, default 1) with the user; 401 for unknown / used /
+  expired. Audited
   `auth.magic_link_requested`, `auth.login`. Without SMTP (a fresh server) `python -m core.staff
   login-link --email … [--create --role admin]` mints the same single-use token from the command
   line (no `email_log` row) and prints the link once; audited `auth.login_link_issued` (actor
@@ -1114,7 +1129,7 @@ the POC check of Group 2 asked for it).
   never a stored address). `process_geometry` is still a stub that fails with a clear "not
   implemented" error until its item lands; `extract_document` runs (see "Extraction job").
   `system.ping` is the broker smoke test.
-- **API** (role `admin`): `GET /v1/admin/jobs` (filters `type`, `status`, `target=document:12`
+- **API** (reads: roles `admin` and `reviewer`; retry: `admin`): `GET /v1/admin/jobs` (filters `type`, `status`, `target=document:12`
   | `file:` | `publish_run:` | `email:`, `document_id`, `file_id`; `total`),
   `GET /v1/admin/jobs/{id}` (the status URL), `GET /v1/admin/jobs/costs` (tokens, estimated
   cost and wall time summed per target), `POST /v1/admin/jobs/{id}/retry` (failed / cancelled →

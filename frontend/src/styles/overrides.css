@@ -2253,3 +2253,34 @@ textarea.rinput {
     grid-column: auto;
   }
 }
+
+/* 21. Publish and Users (`/admin/publish`, `/admin/users`; the pilot scope's A4 and "Staff and
+      roles", no mock screens): the wireframe's cards and tables; the publish line and the
+      add-staff line reuse the audit log's filter row, the role select the data sources' select. */
+.pubnow {
+  padding: 12px 18px 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+.pubform,
+.userform {
+  padding: 12px 18px;
+}
+.pubform input,
+.userform input {
+  min-width: 220px;
+}
+.tbl .rolesel {
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-family: var(--body);
+  background: var(--white);
+  color: var(--ink);
+}
+.rolehint {
+  display: inline-block;
+  margin-right: 10px;
+}

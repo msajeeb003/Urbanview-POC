@@ -119,7 +119,7 @@ PAYMENT_DUE = frozenset({"pending_payment", "payment_failed"})
 # the public map's order page (``frontend/src/app/orders/[reference]``), which reads
 # ``GET /v1/orders/{reference}``
 STATUS_PATH = "/orders/{reference}"
-MANAGER_ROLES = frozenset({Role.admin, Role.reviewer})
+MANAGER_ROLES = frozenset({Role.admin})
 REFERENCE_ATTEMPTS = 25
 
 

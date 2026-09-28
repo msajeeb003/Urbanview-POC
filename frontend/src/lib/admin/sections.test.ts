@@ -14,7 +14,7 @@ import {
 const labels = (role: Parameters<typeof visibleTabs>[0]) => visibleTabs(role).map((s) => s.label);
 
 describe("admin sections", () => {
-  it("shows every tab of the wireframe to an admin, in order", () => {
+  it("shows the wireframe's tabs, then Publish, Analytics and Audit log, to an admin", () => {
     expect(labels("admin")).toEqual([
       "Overview",
       "AI review queue",
@@ -23,17 +23,23 @@ describe("admin sections", () => {
       "Calculation engine",
       "Orders",
       "Data sources",
+      "Publish",
+      "Analytics",
+      "Audit log",
     ]);
-    expect(barLinks("admin").map((s) => s.label)).toEqual(["Analytics", "Audit log", "Users"]);
+    expect(barLinks("admin").map((s) => s.label)).toEqual(["Users"]);
   });
 
-  it("hides users and assumptions from a reviewer", () => {
-    expect(labels("reviewer")).toEqual(["Overview", "AI review queue", "Planning rules", "Orders", "Data sources"]);
+  it("gives a reviewer the review queue, publishing and read-only documents (pilot scope)", () => {
+    expect(labels("reviewer")).toEqual(["Overview", "AI review queue", "Planning rules", "Data sources", "Publish"]);
     expect(barLinks("reviewer")).toEqual([]);
+    expect(canOpen("reviewer", "orders")).toBe(false);
     expect(canOpen("reviewer", "users")).toBe(false);
     expect(canOpen("reviewer", "assumptions")).toBe(false);
+    expect(canOpen("reviewer", "audit")).toBe(false);
     expect(isReadOnly("reviewer", "rules")).toBe(true);
-    expect(isReadOnly("admin", "rules")).toBe(false);
+    expect(isReadOnly("reviewer", "data")).toBe(true);
+    expect(isReadOnly("admin", "rules") || isReadOnly("admin", "data")).toBe(false);
   });
 
   it("gives an expert the order queue only", () => {
@@ -50,6 +56,9 @@ describe("admin sections", () => {
     expect(accessFor("/admin/orders", "expert")).toEqual({ kind: "allow" });
     expect(accessFor("/admin/overview", "expert")).toMatchObject({ kind: "deny", section: { id: "overview" } });
     expect(accessFor("/admin/users", "reviewer")).toMatchObject({ kind: "deny", section: { id: "users" } });
+    expect(accessFor("/admin/orders", "reviewer")).toMatchObject({ kind: "deny", section: { id: "orders" } });
+    expect(accessFor("/admin/publish", "reviewer")).toEqual({ kind: "allow" });
+    expect(accessFor("/admin/review", "expert")).toMatchObject({ kind: "deny", section: { id: "review" } });
     expect(accessFor("/admin/audit", "admin")).toEqual({ kind: "allow" });
     expect(accessFor("/admin/no-access", "expert")).toEqual({ kind: "allow" });
     expect(accessFor("/admin/whatever", "reviewer")).toEqual({ kind: "home", href: "/admin/overview" });

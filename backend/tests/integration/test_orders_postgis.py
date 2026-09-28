@@ -403,10 +403,17 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
             f"/v1/admin/orders/{oid}/payment", json={"status": "not_received"}, headers=auth()
         )
         confirm_failed = await client.get(f"/v1/orders/{reference}")
+        # the pilot scope's roles: a reviewer approves extractions and has no order access
+        reviewer_payment = await client.post(
+            f"/v1/admin/orders/{oid}/payment",
+            json={"status": "received", "amount_eur": 200},
+            headers=auth(reviewer),
+        )
+        reviewer_list = await client.get("/v1/admin/orders", headers=auth(reviewer))
         paid = await client.post(
             f"/v1/admin/orders/{oid}/payment",
             json={"status": "received", "amount_eur": 200, "reference": "BANK-1"},
-            headers=auth(reviewer),
+            headers=auth(),
         )
         paid_again = await client.post(
             f"/v1/admin/orders/{oid}/payment",
@@ -497,6 +504,8 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
     )
     assert [o["id"] for o in expert_list.json()["items"]] == [oid]  # only the assigned order
     assert expert_other.status_code == 403 and expert_payment.status_code == 403
+    assert reviewer_payment.status_code == 403 and reviewer_list.status_code == 403
+    assert reviewer_payment.json()["error"]["details"]["required_roles"] == ["admin"]
     assert not_pdf.status_code == 422
     assert delivered.status_code == 200, delivered.text
     body = delivered.json()
@@ -538,7 +547,7 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
         "status": "delivered"
     }
     assert entries[0]["actor"] == "expert@example.com"
-    assert entries[4]["actor"] == "reviewer@example.com" and entries[4]["after"]["status"] == "paid"
+    assert entries[4]["actor"] == "ops" and entries[4]["after"]["status"] == "paid"
     assert entries[4]["before"] == {"status": "payment_failed"}
     assert entries[6]["before"] == {"status": "pending_payment"}
     assert entries[6]["after"] == {"status": "payment_failed"}

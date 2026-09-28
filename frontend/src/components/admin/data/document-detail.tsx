@@ -43,13 +43,15 @@ import { useShell } from "@/lib/store";
 import { AdminCard, type ChipTone, StatusChip } from "../parts";
 
 import { DocumentActions, FileActions } from "./data-screen";
-import { ActionButton, AutoRefresh, PillView } from "./parts";
+import { ActionButton, AutoRefresh, DataReadOnly, PillView, useDataReadOnly } from "./parts";
 import { RegisterDialog, type TypeOption, type ZoneOption } from "./register-dialog";
 import { DropZone, UploadList, useUploads } from "./uploads";
 
 function RoleSelect({ doc, file }: { doc: AdminDocument; file: AdminDocumentFile }) {
   const showToast = useShell((s) => s.showToast);
   const [pending, start] = useTransition();
+  const readOnly = useDataReadOnly();
+  if (readOnly) return <>{FILE_ROLES.find((r) => r.value === file.role)?.label ?? file.role}</>;
   return (
     <select
       className="rolesel"
@@ -265,7 +267,18 @@ function GeoreferenceCard({ geo }: { geo: AdminGeoreference | null | undefined }
   );
 }
 
-export function DocumentDetail({ doc, zones, types }: { doc: AdminDocument; zones: ZoneOption[]; types: TypeOption[] }) {
+export function DocumentDetail({
+  doc,
+  zones,
+  types,
+  readOnly = false,
+}: {
+  doc: AdminDocument;
+  zones: ZoneOption[];
+  types: TypeOption[];
+  /** Reviewers: the document, its files and jobs without the write controls. */
+  readOnly?: boolean;
+}) {
   const [addAs, setAddAs] = useState<FileRole>("text");
   const [versionKey, setVersionKey] = useState<number | null>(null);
   const uploads = useUploads({
@@ -290,7 +303,7 @@ export function DocumentDetail({ doc, zones, types }: { doc: AdminDocument; zone
   const current = doc.versions?.find((v) => v.is_current_version);
 
   return (
-    <>
+    <DataReadOnly.Provider value={readOnly}>
       <AutoRefresh active={documentActive(doc) || uploads.busy} />
       <div className="crumbs">
         <Link href="/admin/data">← Data sources</Link>
@@ -381,7 +394,7 @@ export function DocumentDetail({ doc, zones, types }: { doc: AdminDocument; zone
         title="Files"
         sub="Each PDF is read on its own: queued → extracting → ready for review"
       >
-        {doc.is_current_version ? (
+        {readOnly ? null : doc.is_current_version ? (
           <div className="filedrop">
             <div className="addas" role="radiogroup" aria-label="Add the dropped PDFs as">
               <span className="fieldlab">Add as</span>
@@ -467,6 +480,7 @@ export function DocumentDetail({ doc, zones, types }: { doc: AdminDocument; zone
           replaces={doc}
         />
       )}
-    </>
+      {readOnly && <div className="finfoot">Read only: administrators add files, run the jobs and register new versions.</div>}
+    </DataReadOnly.Provider>
   );
 }

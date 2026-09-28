@@ -1,4 +1,5 @@
-"""Staff pipeline API (roles ``admin`` and ``reviewer``): files, planning document versions and
+"""Staff pipeline API (writes: role ``admin``; the listings and reads: ``admin`` and ``reviewer``,
+read-only documents per the pilot scope): files, planning document versions and
 their files, jobs, coverage.
 
 - ``POST /v1/admin/files`` (multipart ``file`` + ``kind``): upload to the private bucket,
@@ -28,7 +29,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Path, Query, Response, UploadFile
 
-from api.deps import AdminServiceDep, PipelinePrincipal
+from api.deps import AdminServiceDep, DocumentReaderPrincipal, PipelinePrincipal
 from api.schemas.admin import (
     CoverageIn,
     DocumentFileRoleIn,
@@ -94,7 +95,7 @@ async def upload_file(
 
 @router.get("/files", response_model=FileList, summary="Stored files with their job history")
 async def list_files(
-    principal: PipelinePrincipal,
+    principal: DocumentReaderPrincipal,
     service: AdminServiceDep,
     kind: Annotated[FileKind | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
@@ -105,7 +106,7 @@ async def list_files(
 
 @router.get("/files/{file_id}", response_model=StoredFileOut, responses=RESPONSES)
 async def get_file(
-    principal: PipelinePrincipal, service: AdminServiceDep, file_id: Id
+    principal: DocumentReaderPrincipal, service: AdminServiceDep, file_id: Id
 ) -> StoredFileOut:
     return await service.get_file(file_id)
 
@@ -186,7 +187,7 @@ async def register_document(
     summary="Planning documents (current versions unless include_previous) with job history",
 )
 async def list_documents(
-    principal: PipelinePrincipal,
+    principal: DocumentReaderPrincipal,
     service: AdminServiceDep,
     status: Annotated[DocumentStatus | None, Query()] = None,
     lineage_id: Annotated[int | None, Query(gt=0)] = None,
@@ -218,7 +219,7 @@ async def list_documents(
 
 @router.get("/documents/{document_id}", response_model=DocumentOut, responses=RESPONSES)
 async def get_document(
-    principal: PipelinePrincipal, service: AdminServiceDep, document_id: Id
+    principal: DocumentReaderPrincipal, service: AdminServiceDep, document_id: Id
 ) -> DocumentOut:
     return await service.get_document(document_id)
 
