@@ -1,25 +1,19 @@
 "use client";
 
 /**
- * Group 2, "Market data & feasibility" (paid badge), under the planning parameters of the urban
- * parcel panel; it sits behind the market-data boundary (`useShell().marketUnlocked`).
- *
- * - **Locked** (wireframe `lockedMarketHTML`): the note, the seven parameters with their plain
- *   definitions and units and a LOCKED chip instead of a value, the engine strip, and the intent
- *   card "Unlock the figures" whose "Unlock →" records `market_data_interest` and opens
- *   "Choose your access".
- * - **Unlocked** (wireframe `marketHTML`): the ROI hero, range rows (land value, construction,
- *   market value, profit: expected value, a 6 px bar with the expected marker, low / expected /
- *   high), design & documentation as a plain range row, saleable area (deterministic), the
- *   assumption sandbox (`assumption-sandbox.tsx`), the engine strip, the disclaimer and the "I want
- *   market data updates" intent. Figures are the payload's `feasibility` block (the shared
- *   engine's output) or, once the visitor edits an assumption, the shared engine package's
- *   `recalculate(engine.inputs, edits)` run in the browser on every change (`lib/assumptions.ts`;
- *   no formula here, no round trip). A settled set of edits is checked against
- *   `POST /v1/feasibility` a second later; a difference is a console warning. A figure the engine
- *   cannot calculate says "cannot calculate — <reason>" and the others still show. Never a single
- *   money figure, never a made-up range. `financials_viewed` fires once per open of a parcel
- *   when the unlocked section is on screen, never per slider move.
+ * Group 2, "Market data & feasibility", under the planning parameters of the urban parcel panel
+ * (wireframe `marketHTML`). The POC has no subscription or paywall: the figures are always shown.
+ * The ROI hero, range rows (land value, construction, market value, profit: expected value, a
+ * 6 px bar with the expected marker, low / expected / high), design & documentation as a plain
+ * range row, saleable area (deterministic), the assumption sandbox (`assumption-sandbox.tsx`),
+ * the engine strip, the disclaimer and the "I want market data updates" intent. Figures are the
+ * payload's `feasibility` block (the shared engine's output) or, once the visitor edits an
+ * assumption, the shared engine package's `recalculate(engine.inputs, edits)` run in the browser
+ * on every change (`lib/assumptions.ts`; no formula here, no round trip). A settled set of edits
+ * is checked against `POST /v1/feasibility` a second later; a difference is a console warning. A
+ * figure the engine cannot calculate says "cannot calculate — <reason>" and the others still
+ * show. Never a single money figure, never a made-up range. `financials_viewed` fires once per
+ * open of a parcel when the section is on screen, never per slider move.
  */
 import { useEffect, useMemo, useRef } from "react";
 
@@ -38,28 +32,14 @@ import {
 import { formatEur, formatPct } from "@/lib/format";
 import { useShell } from "@/lib/store";
 
-import { ACCESS_LABEL, AccessModal } from "../shell/access-modal";
 import { ENGINE_LABEL, EngineModal } from "../shell/engine-modal";
-import { Badge } from "../ui/badge";
 import { Cta } from "../ui/cta";
 import { Disclaimer } from "../ui/disclaimer";
-import { IconLockSmall } from "../ui/icons";
 import { AssumptionSandbox } from "./assumption-sandbox";
 import { formatArea } from "./parcel-parts";
 
 type Feasibility = NonNullable<UrbanPanel["feasibility"]>;
 type Figure = Feasibility["fields"][number];
-
-/** The wireframe's locked parameter list (`MARKET_PARAMS`): name, plain definition, unit. */
-export const LOCKED_PARAMS: [string, string, string][] = [
-  ["Estimated land value", "urban parcel area × zone land rate", "€"],
-  ["Construction cost", "gross floor area × build rate", "€"],
-  ["Design & documentation", "gross floor area × design rate", "€"],
-  ["Estimated market value", "saleable area × sale rate", "€"],
-  ["Estimated saleable area", "gross floor area × saleable share", "m²"],
-  ["Potential profit", "market value − total cost", "€"],
-  ["Return on investment", "profit ÷ total cost, as a range", "%"],
-];
 
 /** Provisional copy (ticket wording): the updates feature does not exist yet. */
 const UPDATES_NOTED = "Coming soon — noted.";
@@ -160,60 +140,7 @@ function EngineStrip({ marketSource }: { marketSource?: string | null }) {
   );
 }
 
-function Locked({ ids, marketSource }: { ids: EventProperties; marketSource?: string | null }) {
-  const openModal = useShell((s) => s.openModal);
-  const track = useTrack();
-  return (
-    <>
-      <p style={{ fontSize: "11.5px", color: "var(--ink-2)", margin: "-4px 0 10px", lineHeight: 1.5 }}>
-        These are the parameters UrbanView calculates for this urban parcel. The figures behind them are part of the
-        market-data subscription.
-      </p>
-      <div className="lockedlist">
-        {LOCKED_PARAMS.map(([name, definition, unit]) => (
-          <div key={name} className="lrow">
-            <span className="lk2">
-              {name}
-              <span className="ld">{definition}</span>
-            </span>
-            <span className="lv">
-              <span className="lockval">
-                <IconLockSmall />
-                LOCKED
-              </span>
-              <span className="lu">{unit}</span>
-            </span>
-          </div>
-        ))}
-      </div>
-      <EngineStrip marketSource={marketSource} />
-      <div className="lockcta">
-        <div className="lki">
-          <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden>
-            <rect x="3" y="8" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M6 8V5a3 3 0 016 0v3" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
-        </div>
-        <div className="lct">
-          <b>Unlock the figures</b>
-          <span>Values, ranges and the assumptions sandbox.</span>
-        </div>
-        <button
-          type="button"
-          className="b"
-          onClick={() => {
-            track("market_data_interest", { ...ids, trigger: "unlock" });
-            openModal({ label: ACCESS_LABEL, wide: true, content: <AccessModal focus="market" context={ids} /> });
-          }}
-        >
-          Unlock →
-        </button>
-      </div>
-    </>
-  );
-}
-
-function Unlocked({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
+function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
   const f = data.feasibility;
   const engine = data.engine;
   const track = useTrack();
@@ -258,7 +185,7 @@ function Unlocked({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
     };
   }, [view, engine, valid, edits, ids.urban_parcel_id]);
 
-  // financials_viewed once the unlocked figures are actually on screen
+  // financials_viewed once the figures are actually on screen
   useEffect(() => {
     const node = rootRef.current;
     if (!node || !f) return;
@@ -343,15 +270,12 @@ function Unlocked({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
 }
 
 export function MarketSection({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
-  const unlocked = useShell((s) => s.marketUnlocked);
   return (
     <div className="sect">
       <div className="secthead">
-        <span className="lbl">
-          Market data &amp; feasibility <Badge tone="paid" />
-        </span>
+        <span className="lbl">Market data &amp; feasibility</span>
       </div>
-      {unlocked ? <Unlocked data={data} ids={ids} /> : <Locked ids={ids} marketSource={data.market_inputs?.source} />}
+      <Figures data={data} ids={ids} />
     </div>
   );
 }

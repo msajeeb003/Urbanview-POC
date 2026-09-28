@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { formatEur, formatPct } from "@/lib/format";
 
-import { LOCKED_PARAMS, cannotText, markerPosition } from "./market-section";
+import { cannotText, markerPosition } from "./market-section";
 
 const fixtures = fixtureJson as unknown as FixtureFile;
 
@@ -83,17 +83,5 @@ describe("Group 2 figures", () => {
       "cannot calculate — no market data for zone Centar",
     );
     expect(cannotText({ ...base, reason_en: null })).toBe("cannot calculate");
-  });
-
-  it("lists the seven locked parameters with definitions and units", () => {
-    expect(LOCKED_PARAMS.map(([name, , unit]) => `${name} ${unit}`)).toEqual([
-      "Estimated land value €",
-      "Construction cost €",
-      "Design & documentation €",
-      "Estimated market value €",
-      "Estimated saleable area m²",
-      "Potential profit €",
-      "Return on investment %",
-    ]);
   });
 });

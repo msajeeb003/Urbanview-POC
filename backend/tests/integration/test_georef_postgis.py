@@ -340,8 +340,7 @@ async def test_cli_snaps_stages_and_publishes_a_georeferenced_document(
         "urban_parcels",
         "urban_blocks",
         "land_use",
-        "traffic_network",
-    }
+    }  # the sheet's planned traffic is not staged: an MVP layer, outside the POC
 
     staged = {
         r["feature_key"]: r
@@ -421,7 +420,7 @@ async def test_cli_snaps_stages_and_publishes_a_georeferenced_document(
             )
         }
         assert ("land_use", f"{doc_id}|UP 1") in served
-        assert ("traffic_network", f"{doc_id}|line-0001") in served
+        assert not any(layer == "traffic_network" for layer, _ in served)
 
         # the stored transform again: the same georeferenced features, a new dataset version
         assert await run(*apply_args(tmp_path, doc_id, "geo-test-2")) == 0

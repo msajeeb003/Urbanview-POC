@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import type { Swatch } from "@/lib/layers";
 import { cn } from "@/lib/utils";
 
-import { IconCheckTiny, IconLockSmall } from "./icons";
+import { IconCheckTiny } from "./icons";
 
 /** Inline style of the 24 px swatch tile, per the wireframe's `swatchHTML`. */
 export function swatchStyle(sw: Swatch): CSSProperties {
@@ -32,11 +32,7 @@ export interface LayerCardProps {
   on: boolean;
   /** Core layer: always on, muted check, not toggleable (◆ marker kept in the markup). */
   core?: boolean;
-  /** A required layer is off: dimmed card with a gold ▲. */
-  dependencyMissing?: boolean;
-  /** Paid layer without entitlement: gold padlock and the "Subscription" sub-label. */
-  paidLocked?: boolean;
-  /** Optional mono sub-label under the name (ignored while paid-locked). */
+  /** Optional mono sub-label under the name. */
   sub?: string;
   /**
    * Why the map draws nothing for the layer right now (muted sub-label, under `sub` when both):
@@ -44,8 +40,6 @@ export interface LayerCardProps {
    */
   note?: string;
   noteKind?: "no_data" | "zoom_in";
-  /** "Subscription" on a paid-locked card (the shell's language). */
-  lockedLabel?: string;
   title?: string;
   onClick?: () => void;
 }
@@ -56,72 +50,31 @@ export function LayerCard({
   swatch,
   on,
   core = false,
-  dependencyMissing = false,
-  paidLocked = false,
   sub,
   note,
   noteKind = "no_data",
-  lockedLabel = "Subscription",
   title,
   onClick,
 }: LayerCardProps) {
   return (
     <button
       type="button"
-      className={cn(
-        "lyr",
-        on && !paidLocked && "on",
-        core && "core",
-        dependencyMissing && "dep",
-        paidLocked && "paidlayer",
-      )}
+      className={cn("lyr", on && "on", core && "core")}
       title={title}
-      aria-pressed={core ? undefined : on && !paidLocked}
+      aria-pressed={core ? undefined : on}
       aria-disabled={core || undefined}
       onClick={onClick}
     >
       <div className="swatch" style={swatchStyle(swatch)} />
       <span className="lyrtext">
         <span className="nm">{name}</span>
-        {paidLocked ? (
-          <span className="subnm lockedsub">{lockedLabel}</span>
-        ) : (
-          <>
-            {sub && <span className="subnm">{sub}</span>}
-            {note && <span className={noteKind === "zoom_in" ? "subnm zoomsub" : "subnm nodatasub"}>{note}</span>}
-          </>
-        )}
+        {sub && <span className="subnm">{sub}</span>}
+        {note && <span className={noteKind === "zoom_in" ? "subnm zoomsub" : "subnm nodatasub"}>{note}</span>}
       </span>
       <span className="chk">
         <IconCheckTiny />
       </span>
       {core && <span className="lock">◆</span>}
-      {dependencyMissing && <span className="depwarn">▲</span>}
-      {paidLocked && (
-        <span className="paidlock">
-          <IconLockSmall />
-        </span>
-      )}
-    </button>
-  );
-}
-
-/** The note under a dependent layer that is on while its requirement is off (`.depnote`). */
-export function DependencyNote({
-  requiredName,
-  onClick,
-  words = { needs: "Needs", tap: "tap to turn on", title: `Turn on ${requiredName}` },
-}: {
-  requiredName: string;
-  onClick: () => void;
-  /** The note's words in the shell's language (the mock's English by default). */
-  words?: { needs: string; tap: string; title: string };
-}) {
-  return (
-    <button type="button" className="depnote" title={words.title} onClick={onClick}>
-      {words.needs}
-      <b>{requiredName}</b>
-      {words.tap}
     </button>
   );
 }

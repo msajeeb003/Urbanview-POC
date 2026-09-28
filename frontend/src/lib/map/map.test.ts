@@ -17,10 +17,7 @@ const CATALOGUE = new Set([
   "urban_blocks",
   "urban_parcels",
   "cadastral_parcels",
-  "public_ownership",
-  "legal_burdens",
   "land_use",
-  "traffic_network",
   "heat_coverage",
   "heat_far",
   "heat_height",
@@ -78,16 +75,11 @@ describe("style", () => {
     expect(UV_LAYERS.find((l) => l.id === "uv-zones-label")!["source-layer"]).toBe("zone_labels");
   });
 
-  it("follows the rail: dependencies and the paid layer", () => {
-    const base = visibleLayerIds(DEFAULT_LAYER_STATE, { marketUnlocked: false });
+  it("follows the rail", () => {
+    const base = visibleLayerIds(DEFAULT_LAYER_STATE);
     expect(base.has("uv-zones-fill") && base.has("uv-cad-fill") && base.has("uv-urban-line") && base.has("uv-doc-line")).toBe(true);
     expect(base.has("uv-landuse-fill")).toBe(false);
-    const owner = { ...DEFAULT_LAYER_STATE, owner: true };
-    expect(visibleLayerIds(owner, { marketUnlocked: false }).has("uv-owner-fill")).toBe(true);
-    expect(visibleLayerIds({ ...owner, cadastre: false }, { marketUnlocked: false }).has("uv-owner-fill")).toBe(false);
-    const price = { ...DEFAULT_LAYER_STATE, heatMkt: true };
-    expect(visibleLayerIds(price, { marketUnlocked: false }).has("uv-heatmkt-fill")).toBe(false);
-    expect(visibleLayerIds(price, { marketUnlocked: true }).has("uv-heatmkt-fill")).toBe(true);
+    expect(visibleLayerIds({ ...DEFAULT_LAYER_STATE, heatMkt: true }).has("uv-heatmkt-fill")).toBe(true); // no paywall
   });
 
   it("highlights the selection, its planned parcel, and a hover that is not the selection", () => {

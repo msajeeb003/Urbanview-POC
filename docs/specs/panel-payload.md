@@ -652,7 +652,7 @@ field is `not_stated`.
   `cadastral_parcels` (number, sub-number, KO, address, area, ownership and burden flags,
   `has_urban_parcel`, `no_urban_parcel`, `relation`, `reduction_pct`,
   `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`), `public_ownership`,
-  `legal_burdens`, `land_use`, `traffic_network`, and one layer per heatmap: `heat_coverage`,
+  `legal_burdens` (both only with loaded ownership flags), `land_use`, and one layer per heatmap: `heat_coverage`,
   `heat_far`, `heat_height`, `heat_gfa` (every urban block: `value`, `band`, `unit`, `label` = the
   floor notation for height, `parcel_count`; no `value` = not covered) and `heat_sale_price`
   (every zone: `value`, `low`, `high`, `band`, `band_low`, `band_high`, `unit`,

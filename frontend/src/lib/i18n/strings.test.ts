@@ -29,8 +29,7 @@ describe("the shell's string table", () => {
 describe("shell text in Montenegrin", () => {
   it("names the legend groups and rows from the table", () => {
     const groups = legendGroups({
-      layers: { ...DEFAULT_LAYER_STATE, owner: true },
-      marketUnlocked: false,
+      layers: { ...DEFAULT_LAYER_STATE, landuse: true },
       choropleth: DEFAULT_CHOROPLETH,
       classes: null,
       t: me,
@@ -40,11 +39,11 @@ describe("shell text in Montenegrin", () => {
       "Urbane zone",
       "Katastarske parcele",
       "Urbanističke parcele",
-      "Javno vlasništvo",
+      translate("me", "layer.landuse"),
     ]);
     expect(groups[1].rows.map((r) => r.label)).toContain("Stanovanje");
     // English stays the default without a translator
-    expect(legendGroups({ layers: DEFAULT_LAYER_STATE, marketUnlocked: false, choropleth: DEFAULT_CHOROPLETH, classes: null })[0].title).toBe(
+    expect(legendGroups({ layers: DEFAULT_LAYER_STATE, choropleth: DEFAULT_CHOROPLETH, classes: null })[0].title).toBe(
       "Planning documents",
     );
   });
@@ -71,14 +70,14 @@ describe("the layer card's no-data note", () => {
     ({ status: "published", archive_url: archive, layers }) as unknown as TilesCurrent;
 
   it("says so when the published version has nothing for all of the layer's source-layers", () => {
-    expect(hasNoData(layerById("traffic"), tiles([{ id: "traffic_network", features: 0 }]))).toBe(true);
-    expect(hasNoData(layerById("traffic"), tiles([]))).toBe(true);
+    expect(hasNoData(layerById("landuse"), tiles([{ id: "land_use", features: 0 }]))).toBe(true);
+    expect(hasNoData(layerById("landuse"), tiles([]))).toBe(true);
     expect(hasNoData(layerById("zones"), tiles([{ id: "zones", features: 12 }]))).toBe(false);
   });
 
   it("never for the base map, an unpublished pointer or a version without an archive", () => {
     expect(hasNoData(layerById("base"), tiles([]))).toBe(false);
-    expect(hasNoData(layerById("traffic"), tiles([], ""))).toBe(false);
-    expect(hasNoData(layerById("traffic"), undefined)).toBe(false);
+    expect(hasNoData(layerById("landuse"), tiles([], ""))).toBe(false);
+    expect(hasNoData(layerById("landuse"), undefined)).toBe(false);
   });
 });

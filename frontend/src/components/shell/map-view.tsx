@@ -17,7 +17,7 @@
  *   deploy. Without a published archive only the base map shows: no error, nothing drawn. Every
  *   layer starts at the zoom its data is built from (the pointer's per-layer range, `uvLayers`).
  * - The map follows the rail exactly. Once the style has loaded, every change of the layers, the
- *   choropleth fields, the market entitlement and the selection is applied the moment it happens,
+ *   choropleth fields and the selection is applied the moment it happens,
  *   also while tiles are still loading (Mapbox takes layout, filter and paint changes then; the
  *   state at `load` is applied by the load handler). The zoom goes to the store, so a card and
  *   its legend group say "zoom in to see" for a layer that is on but not drawn at this zoom.
@@ -121,7 +121,7 @@ function installTiles(map: MapboxMap, tiles: TilesCurrent | undefined): number |
 
 function syncVisibility(map: MapboxMap) {
   const s = useShell.getState();
-  const visible = visibleLayerIds(s.layers, { marketUnlocked: s.marketUnlocked });
+  const visible = visibleLayerIds(s.layers);
   for (const l of UV_LAYERS) {
     if (!map.getLayer(l.id)) continue;
     const want = visible.has(l.id) ? "visible" : "none";
@@ -409,7 +409,7 @@ export function MapView({
           // Before `load` there are no layers: the load handler applies the state as it is then.
           // After it, every change is applied at once, whether or not tiles are still loading.
           if (ready) {
-            if (st.layers !== prev.layers || st.marketUnlocked !== prev.marketUnlocked) apply(() => syncVisibility(map));
+            if (st.layers !== prev.layers) apply(() => syncVisibility(map));
             if (st.choropleth !== prev.choropleth) apply(() => syncChoropleth(map, tilesRef.current));
             if (st.selection !== prev.selection) apply(() => syncHighlight(map, hover));
           }

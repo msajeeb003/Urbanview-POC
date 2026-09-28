@@ -2,16 +2,18 @@
  * The layer registry: one entry per rail card, in the wireframe's rail order and groups
  * (`docs/wireframe/wireframe.js` → `LAYERS`). Each entry says which source-layers of the published
  * PMTiles archive it draws (`backend/jobs/publish_layers.py` → `LAYERS`), its minimum zoom, its
- * default, its rules (core, dependency, paid, choropleth) and its legend. The map style for each
- * entry is in `lib/map/style.ts` (`LAYER_GROUPS`), keyed by the same ids.
+ * default, its rules (core, choropleth) and its legend. The map style for each entry is in
+ * `lib/map/style.ts` (`LAYER_GROUPS`), keyed by the same ids.
  *
  * Cadastral and urban (planned) parcels are separate layers and are never merged. Names, group
  * titles and legend text shown on screen come from the string table (`layer.<id>`, `group.<id>`,
  * `legend.*`, `zoneType.*`) through the legend context's translator; `name` is the English one.
+ * Out of the POC and so not in the rail: planned traffic (an MVP layer) and the ownership /
+ * restitution layers (only with confirmed bulk cadastral access).
  *
- * `layerState` is the one answer the rail, the legend and the map share about a card: off, locked,
- * on but waiting for its required layer, on with nothing published, on but zoomed out past the
- * range its data is drawn at, or shown. A card that is on never silently draws nothing.
+ * `layerState` is the one answer the rail, the legend and the map share about a card: off, on with
+ * nothing published, on but zoomed out past the range its data is drawn at, or shown. A card that
+ * is on never silently draws nothing.
  */
 import type { TilesCurrent } from "@/lib/api/types";
 import { translate, type Translate } from "@/lib/i18n/strings";
@@ -41,16 +43,12 @@ export type LayerId =
   | "zones"
   | "cadastre"
   | "planned"
-  | "owner"
-  | "restit"
   | "landuse"
   | "heatFAR"
-  | "traffic"
   | "heatMkt";
 
 export type LegendMark =
   | { kind: "color"; color: string }
-  | { kind: "line"; color: string }
   | { kind: "grad"; stops: string }
   | { kind: "dash" }
   | { kind: "docdash" }
@@ -73,7 +71,6 @@ export interface ChoroplethState {
 
 export interface LegendContext {
   layers: Record<LayerId, boolean>;
-  marketUnlocked: boolean;
   choropleth: ChoroplethState;
   classes: CellClasses | null | undefined;
   /** Each card's `layerState` (the map's zoom and the published version); absent = all shown. */
@@ -89,10 +86,6 @@ export interface LayerDef {
   defaultOn: boolean;
   /** Always visible; the card shows the muted check and only toasts on click. */
   core?: boolean;
-  /** Needs another layer to be visible (it shades that layer's features). */
-  requires?: LayerId;
-  /** Part of the market-data tier: locked card until the market entitlement is on. */
-  paid?: boolean;
   /** Choropleth card: shows a field selector while on; only one choropleth is on at a time. */
   choropleth?: "param" | "price";
   swatch: Swatch;
@@ -127,7 +120,6 @@ const tx = (ctx: LegendContext): Translate => ctx.t ?? english;
 const title = (ctx: LegendContext, id: LayerId) => tx(ctx)(`layer.${id}`);
 const zoneRows = (ctx: LegendContext) =>
   ZONE_TYPES.map((z) => ({ mark: { kind: "color" as const, color: z.hex }, label: tx(ctx)(`zoneType.${z.key}`) }));
-const needsCadastre = (ctx: LegendContext) => (ctx.layers.cadastre ? "" : tx(ctx)("legend.needsCadastre"));
 const noDataRow = (ctx: LegendContext) => ({ mark: { kind: "hatch" as const }, label: tx(ctx)("legend.noData") });
 
 export const LAYERS: readonly LayerDef[] = [
@@ -188,34 +180,6 @@ export const LAYERS: readonly LayerDef[] = [
     legend: (ctx) => ({ title: title(ctx, "planned"), rows: [{ mark: { kind: "dash" }, label: tx(ctx)("legend.parcelOpen") }] }),
   },
   {
-    id: "owner",
-    name: "Public ownership",
-    group: "parcels",
-    defaultOn: false,
-    requires: "cadastre",
-    swatch: { kind: "color", color: "#4F6D82" },
-    published: ["public_ownership"],
-    minZoom: 13,
-    legend: (ctx) => ({
-      title: title(ctx, "owner"),
-      rows: [{ mark: { kind: "color", color: "#4F6D82" }, label: `${tx(ctx)("legend.publicOwned")}${needsCadastre(ctx)}` }],
-    }),
-  },
-  {
-    id: "restit",
-    name: "Restitution / legal",
-    group: "parcels",
-    defaultOn: false,
-    requires: "cadastre",
-    swatch: { kind: "color", color: "#9E5568" },
-    published: ["legal_burdens"],
-    minZoom: 13,
-    legend: (ctx) => ({
-      title: title(ctx, "restit"),
-      rows: [{ mark: { kind: "color", color: "#9E5568" }, label: `${tx(ctx)("legend.legalClaim")}${needsCadastre(ctx)}` }],
-    }),
-  },
-  {
     id: "landuse",
     name: "Land use",
     group: "context",
@@ -247,27 +211,15 @@ export const LAYERS: readonly LayerDef[] = [
     },
   },
   {
-    id: "traffic",
-    name: "Planned traffic",
-    group: "context",
-    defaultOn: false,
-    swatch: { kind: "color", color: "#5b5b5b" },
-    published: ["traffic_network"],
-    minZoom: 10,
-    legend: (ctx) => ({ title: title(ctx, "traffic"), rows: [{ mark: { kind: "line", color: "#5b5b5b" }, label: tx(ctx)("legend.plannedRoute") }] }),
-  },
-  {
     id: "heatMkt",
     name: "Price heatmap",
     group: "feas",
     defaultOn: false,
-    paid: true,
     choropleth: "price",
     swatch: { kind: "heat2" },
     published: ["heat_sale_price"],
     minZoom: 8,
     legend: (ctx) => {
-      if (!ctx.marketUnlocked) return null;
       const served = ctx.classes?.sale_price;
       const t = tx(ctx);
       const words = { notSaleable: t("legend.notSaleable"), under: t("legend.priceUnder"), above: t("legend.priceAbove") };
@@ -288,15 +240,6 @@ export const DEFAULT_CHOROPLETH: ChoroplethState = { param: "max_far", price: "e
 
 /** The value `layer_toggled.layer_id` carries: the published layer key. */
 export const analyticsLayerId = (l: LayerDef): string => l.published[0] ?? l.id;
-
-/** Whether a card's layer is drawn: on, its requirement on, and (paid) the entitlement held. */
-export function isDrawn(id: LayerId, layers: Record<LayerId, boolean>, marketUnlocked: boolean): boolean {
-  const l = layerById(id);
-  if (!layers[id]) return false;
-  if (l.requires && !layers[l.requires]) return false;
-  if (l.paid && !marketUnlocked) return false;
-  return true;
-}
 
 /**
  * Toggle one card. Only one choropleth is on at a time (a readable map): switching one on
@@ -339,7 +282,7 @@ export function hasNoData(layer: LayerDef, tiles: TilesCurrent | null | undefine
  * are what appears closer in) or "no data yet" (no rows: nothing will appear until a publish).
  */
 export function legendGroups(ctx: LegendContext): LegendGroup[] {
-  return LAYERS.filter((l) => ctx.layers[l.id] && (!l.paid || ctx.marketUnlocked))
+  return LAYERS.filter((l) => ctx.layers[l.id])
     .map((l): LegendGroup | null => {
       const group = l.legend(ctx);
       if (!group) return null;
@@ -379,28 +322,23 @@ export function servedMinZoom(sourceLayer: string, tiles: TilesCurrent | null | 
 
 /**
  * What a card's layer does on the map right now:
- * - `locked`: paid, without the market entitlement (the card opens the offer, nothing is drawn);
  * - `off`: switched off;
- * - `requires`: on, but it shades a layer that is off (the rail's dep note, the legend's suffix);
  * - `no_data`: on, but the published version has no feature for it;
  * - `zoom_in`: on, but the map is zoomed out past the range its data is published for;
  * - `shown`: drawn.
  * Without a map (`zoom` null) the zoom never hides a layer.
  */
-export type LayerState = "locked" | "off" | "requires" | "no_data" | "zoom_in" | "shown";
+export type LayerState = "off" | "no_data" | "zoom_in" | "shown";
 
 export interface LayerView {
   layers: Record<LayerId, boolean>;
-  marketUnlocked: boolean;
   /** The map's zoom, or null before the map exists (no token, not loaded yet). */
   zoom: number | null;
 }
 
 export function layerState(id: LayerId, view: LayerView, tiles: TilesCurrent | null | undefined): LayerState {
   const l = layerById(id);
-  if (l.paid && !view.marketUnlocked) return "locked";
   if (!view.layers[id]) return "off";
-  if (l.requires && !view.layers[l.requires]) return "requires";
   if (hasNoData(l, tiles)) return "no_data";
   // the style draws a layer from its minzoom on (Mapbox: zoom >= minzoom); a hair of tolerance for
   // the zoom a fit or an animation ends on

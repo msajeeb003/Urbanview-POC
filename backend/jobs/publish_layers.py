@@ -292,26 +292,6 @@ LAYERS: tuple[LayerSpec, ...] = (
         """,
         "Planned land use",
     ),
-    LayerSpec(
-        "traffic_network",
-        "line",
-        10,
-        16,
-        f"""
-        SELECT {
-            _feature(
-                "f.id",
-                "f.geom",
-                "f.properties || jsonb_build_object('id', f.id, 'feature_key', f.feature_key)",
-            )
-        }
-        FROM layer_features f
-        WHERE f.municipality_id = :m AND f.publish_version_id = :v
-          AND f.layer_id = 'traffic_network'
-        ORDER BY f.id
-        """,
-        "Planned traffic network",
-    ),
     *(
         LayerSpec(
             f"heat_{layer}",
@@ -432,7 +412,6 @@ STAGED_LAYERS: dict[str, StagedLayer] = {
         ),
         StagedLayer("document_coverage", "entity", "document_id", ("document_id",)),
         StagedLayer("land_use", "generic", "any stable id", ("code", "name", "category")),
-        StagedLayer("traffic_network", "generic", "any stable id", ("road_class", "name")),
     )
 }
 GENERIC_LAYER_IDS: tuple[str, ...] = tuple(

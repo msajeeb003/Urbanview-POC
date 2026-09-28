@@ -5,7 +5,6 @@ import {
   DEFAULT_CHOROPLETH,
   DEFAULT_LAYER_STATE,
   LAYERS,
-  isDrawn,
   layerById,
   layerMinZoom,
   layerState,
@@ -67,10 +66,9 @@ const farClasses: MetricClasses = {
 };
 
 describe("registry", () => {
-  it("has the wireframe's eleven cards in rail order, each with map layers or the base style", () => {
-    expect(LAYERS.map((l) => l.id)).toEqual([
-      "docareas", "base", "zones", "cadastre", "planned", "owner", "restit", "landuse", "heatFAR", "traffic", "heatMkt",
-    ]);
+  it("has the wireframe's cards in rail order, minus the out-of-POC ones, each with map layers or the base style", () => {
+    // no planned traffic (MVP layer), no ownership / restitution (bulk cadastral access not confirmed)
+    expect(LAYERS.map((l) => l.id)).toEqual(["docareas", "base", "zones", "cadastre", "planned", "landuse", "heatFAR", "heatMkt"]);
     expect(LAYERS.filter((l) => l.core).map((l) => l.id)).toEqual(["docareas", "base", "zones"]);
     for (const l of LAYERS) if (l.id !== "base") expect(LAYER_GROUPS[l.id].length, l.id).toBeGreaterThan(0);
     // cadastral and planned parcels are separate layers on separate source-layers
@@ -111,15 +109,6 @@ describe("registry", () => {
     expect(toggleLayer(DEFAULT_LAYER_STATE, "zones").layers).toBe(DEFAULT_LAYER_STATE);
     expect(toggleLayer(DEFAULT_LAYER_STATE, "landuse").layers.heatFAR).toBe(false); // others untouched
   });
-
-  it("draws dependent and paid layers only when they can show", () => {
-    const owner = { ...DEFAULT_LAYER_STATE, owner: true };
-    expect(isDrawn("owner", owner, false)).toBe(true);
-    expect(isDrawn("owner", { ...owner, cadastre: false }, false)).toBe(false);
-    const price = { ...DEFAULT_LAYER_STATE, heatMkt: true };
-    expect(isDrawn("heatMkt", price, false)).toBe(false);
-    expect(isDrawn("heatMkt", price, true)).toBe(true);
-  });
 });
 
 /** A published pointer listing `id: [min_zoom, features]` per source-layer. */
@@ -137,7 +126,6 @@ function pointer(layers: Record<string, [number, number]>): TilesCurrent {
 describe("layer state: what the map draws for each card", () => {
   const view = (over: Partial<LayerView> = {}): LayerView => ({
     layers: { ...DEFAULT_LAYER_STATE },
-    marketUnlocked: false,
     zoom: 14,
     ...over,
   });
@@ -146,7 +134,6 @@ describe("layer state: what the map draws for each card", () => {
     document_coverage: [9, 3],
     cadastral_parcels: [13, 7],
     urban_parcels: [13, 6],
-    public_ownership: [13, 1],
     land_use: [10, 0],
     heat_far: [10, 2],
     heat_sale_price: [8, 2],
@@ -164,14 +151,11 @@ describe("layer state: what the map draws for each card", () => {
     expect(layerState("cadastre", view({ zoom: null }), tiles)).toBe("shown"); // no map: no zoom reason
   });
 
-  it("says off, locked, needs its requirement, or no data before it looks at the zoom", () => {
-    expect(layerState("owner", view(), tiles)).toBe("off");
-    expect(layerState("owner", view({ layers: { ...DEFAULT_LAYER_STATE, owner: true, cadastre: false }, zoom: 9.5 }), tiles)).toBe("requires");
-    expect(layerState("owner", view({ layers: { ...DEFAULT_LAYER_STATE, owner: true } }), tiles)).toBe("shown");
+  it("says off or no data before it looks at the zoom", () => {
+    expect(layerState("landuse", view(), tiles)).toBe("off");
     expect(layerState("landuse", view({ layers: { ...DEFAULT_LAYER_STATE, landuse: true }, zoom: 9.5 }), tiles)).toBe("no_data");
     const price = { ...DEFAULT_LAYER_STATE, heatMkt: true };
-    expect(layerState("heatMkt", view({ layers: price }), tiles)).toBe("locked");
-    expect(layerState("heatMkt", view({ layers: price, marketUnlocked: true, zoom: 9 }), tiles)).toBe("shown"); // zone cells from 8
+    expect(layerState("heatMkt", view({ layers: price, zoom: 9 }), tiles)).toBe("shown"); // zone cells from 8, no lock
     const far = { ...DEFAULT_LAYER_STATE, heatFAR: true };
     expect(layerState("heatFAR", view({ layers: far, zoom: 9.5 }), tiles)).toBe("zoom_in");
   });
@@ -180,7 +164,7 @@ describe("layer state: what the map draws for each card", () => {
     const key = layerStatesKey(view({ zoom: 10.64 }), tiles);
     const states = parseLayerStates(key);
     expect(Object.keys(states)).toEqual(LAYERS.map((l) => l.id));
-    expect(states).toMatchObject({ zones: "shown", cadastre: "zoom_in", owner: "off", heatMkt: "locked" });
+    expect(states).toMatchObject({ zones: "shown", cadastre: "zoom_in", landuse: "off", heatMkt: "off" });
     expect(layerStatesKey(view({ zoom: 10.7 }), tiles)).toBe(key); // no change inside a zoom band
   });
 });
@@ -202,7 +186,6 @@ describe("camera fits", () => {
 describe("legend", () => {
   const ctx = (over: Partial<LegendContext> = {}): LegendContext => ({
     layers: { ...DEFAULT_LAYER_STATE },
-    marketUnlocked: false,
     choropleth: { ...DEFAULT_CHOROPLETH },
     classes: null,
     ...over,
@@ -216,11 +199,6 @@ describe("legend", () => {
     ]);
     expect(groups[2].rows[0].label).toBe("Parcel outline");
     expect(groups[3].rows[0].label).toBe("Parcel — click to open");
-  });
-
-  it("says when an ownership layer needs cadastral parcels", () => {
-    const groups = legendGroups(ctx({ layers: { ...DEFAULT_LAYER_STATE, owner: true, cadastre: false } }));
-    expect(groups.find((g) => g.title === "Public ownership")!.rows[0].label).toBe("Publicly owned — needs cadastral parcels");
   });
 
   it("falls back to the wireframe's FAR gradient without served classes", () => {
@@ -251,10 +229,9 @@ describe("legend", () => {
     expect(groups.find((g) => g.title === "Urban parcels")!.note).toBeUndefined();
   });
 
-  it("shows the price bands only with the market entitlement", () => {
+  it("shows the price bands when the price heatmap is on (no paywall)", () => {
     const layers = { ...DEFAULT_LAYER_STATE, heatMkt: true };
-    expect(legendGroups(ctx({ layers })).some((g) => g.title === "Price heatmap")).toBe(false);
-    const g = legendGroups(ctx({ layers, marketUnlocked: true })).find((x) => x.title === "Price heatmap")!;
+    const g = legendGroups(ctx({ layers })).find((x) => x.title === "Price heatmap")!;
     expect(g.unit).toBe("€/m² land");
     expect(g.rows.map((r) => r.label)).toEqual(["not saleable", "under €1,300", "€1,300 – 1,700", "€1,700 – 2,100", "€2,100 and above"]);
   });

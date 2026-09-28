@@ -26,7 +26,6 @@ BRD_LAYERS = {
     "land_use",
     "public_ownership",
     "legal_burdens",
-    "traffic_network",
     "heat_coverage",
     "heat_far",
     "heat_height",
@@ -79,12 +78,14 @@ def test_layer_catalogue_is_consistent():
         assert layer.geometry_type in {"polygon", "line", "point"}
         assert 0 <= layer.min_zoom <= layer.max_zoom <= 22
         assert ":m" in layer.sql and "jsonb_build_object('type', 'Feature'" in layer.sql
-    versioned = {"urban_parcels", "cadastral_parcels", "land_use", "traffic_network"}
+    # planned traffic is an MVP layer: never in the POC's catalogue
+    assert "traffic_network" not in LAYER_IDS
+    versioned = {"urban_parcels", "cadastral_parcels", "land_use"}
     versioned |= {"heat_coverage", "heat_far", "heat_height", "heat_gfa", "heat_sale_price"}
     for layer in LAYERS:
         if layer.id in versioned:
             assert ":v" in layer.sql, layer.id
-    assert set(GENERIC_LAYER_IDS) == {"land_use", "traffic_network"}
+    assert set(GENERIC_LAYER_IDS) == {"land_use"}
     assert {s.id for s in STAGED_LAYERS.values() if s.kind == "entity"} == {
         "cadastral_parcels",
         "cadastral_municipalities",
@@ -105,16 +106,15 @@ def test_next_label_counts_within_the_day():
 
 def test_tippecanoe_and_tile_join_commands():
     polygon = LayerFile("cadastral_parcels", Path("c.geojson"), 7, "polygon", 13, 16)
-    line = LayerFile("traffic_network", Path("t.geojson"), 2, "line", 10, 16)
+    point = LayerFile("zone_labels", Path("z.geojson"), 2, "point", 8, 16)
     command = tippecanoe_command("tippecanoe", polygon, Path("out/c.pmtiles"))
     assert command[:3] == ["tippecanoe", "--output", str(Path("out/c.pmtiles"))]
     assert "--layer" in command and command[command.index("--layer") + 1] == "cadastral_parcels"
     assert "--minimum-zoom=13" in command and "--maximum-zoom=16" in command
     assert "--no-feature-limit" in command and "--detect-shared-borders" in command
     assert command[-1] == "c.geojson"
-    assert "--detect-shared-borders" not in tippecanoe_command("tippecanoe", line, Path("t"))
+    assert "--detect-shared-borders" not in tippecanoe_command("tippecanoe", point, Path("z"))
     assert "--drop-rate=1" not in command
-    point = LayerFile("zone_labels", Path("z.geojson"), 2, "point", 8, 16)
     assert "--drop-rate=1" in tippecanoe_command("tippecanoe", point, Path("z"))
     join = tile_join_command(
         "tile-join", [Path("a.pmtiles"), Path("b.pmtiles")], Path("all.pmtiles")

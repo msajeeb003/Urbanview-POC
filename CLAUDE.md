@@ -50,7 +50,8 @@ calculated max GFA. **Every value carries a source document reference** (documen
 
 **Panel Group 2 (market, paid subscription):** estimated land value, design & documentation
 costs, construction costs, market value, saleable area, potential profit, ROI. **All as
-low / expected / high ranges**, never single figures.
+low / expected / high ranges**, never single figures. The POC sells no subscription: Group 2 is
+shown to everyone (see "POC scope").
 
 **Formulas (client-owned, deterministic):**
 - Max GFA = FAR × plot area
@@ -84,6 +85,26 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
 
 **Performance target:** under 2 seconds from query to populated panel. Requests slower than
 `SLOW_REQUEST_MS` are logged at WARNING with the route template.
+
+## POC scope (audit 2026-09-28, POC estimation v2)
+
+- **Not built as working features:** AI assistant / chat (a UI shell that records
+  `ai_interest`); subscriptions and any paywall (Group 2 and the price heatmap are shown to
+  everyone; "I want market data updates" records `market_data_interest`); hosted card checkout
+  (bank transfer only); a zone editor (zones are drawn in QGIS, `core/zones`); ownership /
+  restitution flags without confirmed bulk cadastral access (no map toggles; the backend layers
+  stay `available: false` until a confirmed eKatastar extract loads flags); the planned-traffic
+  layer (extraction may read the drawing layer, but it is not staged, published or drawn); 3D / AR.
+- **Accepted deviations from the plan's stack:** one `public` schema, staging and serving told
+  apart by table (`planning_parameter_extractions`, `staging_geometry`, `geometry_batches`,
+  `staging_zone_documents` vs `planning_parameter_values`, `parcel_links`, `layer_features`,
+  `choropleth_cells`); serving data is per `publish_versions` row and a rollback is a pointer flip,
+  but entity geometry is upserted in place, the current version's heatmap cells and links can be
+  recomputed in place, and only `audit_log` is append-only at the database level. The server runs
+  the Python copy of the engine, held byte-identical to the TypeScript package's fixtures. PMTiles
+  come from the private MinIO bucket through Caddy with signed links, no CDN. Auth.js signs staff
+  in through a Credentials provider over the backend's magic-link tokens. The tablet / phone layout
+  (≤ 860 px drawer + bottom sheet, setup ticket) stays as built; it gets no further work.
 
 ## Location resolution (`backend/api/services/locate_sql.py`, `resolver.py`)
 
@@ -240,8 +261,8 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   `disclaimer_status = "placeholder"` until the lawyer signs the wording off
   (`client_approved`), `disclaimer_version = "poc-1"`.
 - **Tier markers.** `planning.tier = "free"`; `market_inputs`, `assumptions` and `feasibility`
-  carry `tier = "paid"`. The POC serves the paid blocks without entitlement checks; the marker
-  is the boundary a later gate uses.
+  carry `tier = "paid"`. The POC serves the paid blocks without entitlement checks and the public
+  map shows them to everyone; the marker is the boundary a later gate uses.
 - Numbers are raw JSON numbers, never formatted strings (`_pct` 0–100, `_share` 0–1, areas
   1 decimal, euros whole); the client formats per language. Code: router
   `api/routers/v1/panel.py`, dependency `api/deps.py` (`PanelServiceDep`), models
@@ -1076,8 +1097,9 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   `has_urban_parcel`, `no_urban_parcel`, `relation`, `reduction_pct`,
   `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`, and the
   `zone_id` / `zone_type` of the zone containing the parcel's point on surface),
-  `public_ownership`, `legal_burdens` (cadastral flags as their own layers), `land_use`,
-  `traffic_network` (generic `layer_features`), `heat_coverage`, `heat_far`, `heat_height`,
+  `public_ownership`, `legal_burdens` (cadastral flags as their own layers, available only with
+  loaded flags; not on the POC map), `land_use` (generic `layer_features`), `heat_coverage`,
+  `heat_far`, `heat_height`,
   `heat_gfa` (every urban block), `heat_sale_price` (every zone): the heatmaps. Empty
   layers are left out of the build but listed with 0 features.
 - **Zone type** (migration 0014): `zones.zone_type` res | com | mix | pub | grn (CHECK) or null
@@ -1088,8 +1110,8 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   `feature_key` and JSON `properties`. Entity layers are upserted by natural key so UrbanView
   ids stay stable (cadastral: KO + number + sub-number; urban parcels: document + number, block
   by `block_ref`; blocks: `block_ref`; zones: `name`; `document_coverage`: `document_id` →
-  `coverage_geom`); no deletes. Generic layers (`land_use`, `traffic_network`) are copied into
-  `layer_features` for the version (the newest staged batch wins, older ones `superseded`;
+  `coverage_geom`); no deletes. The generic layer (`land_use`; planned traffic is an MVP layer,
+  never staged) is copied into `layer_features` for the version (the newest staged batch wins, older ones `superseded`;
   layers without a new batch are carried forward). Batches end `published` with
   `published_version_id`.
 - **Versions and rollback.** Values, `layer_features`, `parcel_links`, `choropleth_cells` /
@@ -1290,9 +1312,9 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   tolerance over ≥ 5 vertices), `no_common_vertices`. Batches: `document_coverage` (key = document
   id), `urban_parcels` (`<doc>|UP <n>`, the profile's `urban_parcel.abbreviation`),
   `urban_blocks` (the plan's label; publish matches a block by label AND overlap, since labels
-  recur across plans), `land_use` / `traffic_network` (generic: the batch carries the other
-  documents' features from the newest staged batch or the current version; a re-run replaces the
-  document's own). Every feature has `document_id`, `dataset_version`.
+  recur across plans), `land_use` (generic: the batch carries the other documents' features from
+  the newest staged batch or the current version; a re-run replaces the document's own; the
+  plan's traffic network is not staged). Every feature has `document_id`, `dataset_version`.
 - **Record** `georef_datasets` (`geo-<doc>-<yyyymmdd>-<n>`, staged | invalid | published |
   superseded, source extraction | manual_redraw, CRS, method, transform JSON with residuals,
   `rmse_m`, `max_residual_m`, `points_used`, `sheets` per-sheet RMSE, `snap` (+ overlap),
@@ -1373,11 +1395,11 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   `python docs/wireframe/make_screens.py [state…] [--dump]` regenerates both with headless
   Chrome / Edge.
 - Allowed deviations only (spec §9): Mapbox + PMTiles instead of the SVG city; API data (all 13
-  planning fields, each with its `source` chip); market data locked behind the wireframe's
-  "Choose your access" modal, whose "Subscribe" records `market_data_interest` / `ai_interest`
-  and, for market data, unlocks the figures for the session (no checkout); the AI fab and panel are a UI shell that records
-  `ai_interest`; no card fields; bilingual text; at ≤ 860 px the rail collapses into a drawer and
-  the panel becomes a bottom sheet. The admin view is the wireframe's overlay inside the frontend
+  planning fields, each with its `source` chip); market data shown to everyone (no LOCKED
+  chips, no "Choose your access" modal: the POC has no subscription); no planned-traffic,
+  ownership or restitution cards; the AI fab and panel are a UI shell that records `ai_interest`;
+  no card fields; bilingual text; at ≤ 860 px the rail collapses into a drawer and the panel
+  becomes a bottom sheet. The admin view is the wireframe's overlay inside the frontend
   (the admin console: every tab is built, see `frontend/CLAUDE.md`). Anything else is an open item
   (spec §10), not a redesign.
 - Scope is unsettled: `docs/UrbanView_POC_Exclusions.docx.md` (265 h POC) excludes screens that

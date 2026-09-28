@@ -13,7 +13,7 @@ import { useShell } from "./store";
 /** Provisional copy (not in the wireframe). */
 export const PICK_A_PARCEL = "Pick a parcel on the map to order its analysis.";
 
-export type OrderTrigger = "panel" | "access" | "methodology";
+export type OrderTrigger = "panel" | "methodology";
 
 export function requestOrder(trigger: OrderTrigger): void {
   const { orderTarget, openModal, showToast } = useShell.getState();

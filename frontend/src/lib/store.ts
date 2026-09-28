@@ -13,12 +13,6 @@ import { DEFAULT_CHOROPLETH, DEFAULT_LAYER_STATE, type ChoroplethState, type Lay
 import { EMPTY_DRAFT, type OrderDraft, type OrderTarget } from "./order-form";
 import { readJson, safeSessionStorage, writeJson } from "./storage";
 
-/**
- * Market-data entitlement. The wireframe locks the paid layers; the pilot may show market data
- * free (`NEXT_PUBLIC_MARKET_DATA_FREE=true`). Subscriptions are not built, so nothing else sets it.
- */
-export const MARKET_DATA_FREE = process.env.NEXT_PUBLIC_MARKET_DATA_FREE === "true";
-
 
 export interface LngLat {
   lng: number;
@@ -107,8 +101,6 @@ interface ShellState {
   layers: Record<LayerId, boolean>;
   /** Field shown by each choropleth card (block-cell parameter, zone-cell sale-rate level). */
   choropleth: ChoroplethState;
-  /** Market-data entitlement: unlocks `paid` layers (see `MARKET_DATA_FREE`). */
-  marketUnlocked: boolean;
   /**
    * The visitor's edited assumptions (only the edited keys), kept for the tab's session so moving
    * to another parcel keeps them and an order can carry them.
@@ -161,14 +153,11 @@ interface ShellState {
 
   setRailOpen(open: boolean): void;
   toggleLegend(): void;
-  setLayer(id: LayerId, on: boolean): void;
   /** Replace the whole layer state (a `?layers=` link, or a toggle that switched two cards). */
   setLayers(layers: Record<LayerId, boolean>): void;
   setChoropleth(kind: keyof ChoroplethState, value: string): void;
   setView(view: "map" | "admin"): void;
   setAiOpen(open: boolean): void;
-  /** Market-data entitlement; in the pilot the access modal's "Subscribe" turns it on (intent only, no checkout). */
-  setMarketUnlocked(on: boolean): void;
   /** Set one edited assumption (`undefined` = back to the zone's default). */
   setAssumptionEdit(key: EditKey, value: number | undefined): void;
   resetAssumptions(): void;
@@ -220,7 +209,6 @@ export const useShell = create<ShellState>()((set) => ({
   legendMin: false,
   layers: { ...DEFAULT_LAYER_STATE },
   choropleth: { ...DEFAULT_CHOROPLETH },
-  marketUnlocked: MARKET_DATA_FREE,
   assumptionEdits: readEdits(),
   orderTarget: null,
   orderDraft: EMPTY_DRAFT,
@@ -250,12 +238,10 @@ export const useShell = create<ShellState>()((set) => ({
 
   setRailOpen: (railOpen) => set({ railOpen }),
   toggleLegend: () => set((s) => ({ legendMin: !s.legendMin })),
-  setLayer: (id, on) => set((s) => ({ layers: { ...s.layers, [id]: on } })),
   setLayers: (layers) => set({ layers }),
   setChoropleth: (kind, value) => set((s) => ({ choropleth: { ...s.choropleth, [kind]: value } })),
   setView: (view) => set({ view }),
   setAiOpen: (aiOpen) => set({ aiOpen }),
-  setMarketUnlocked: (marketUnlocked) => set({ marketUnlocked }),
   setAssumptionEdit: (key, value) =>
     set((s) => {
       const next = { ...s.assumptionEdits };

@@ -9,7 +9,7 @@
  * coverage (`covered: false`) are drawn muted with a "no data yet" hatch, never in a type colour.
  */
 import type { TilesCurrent } from "@/lib/api/types";
-import { ZONE_TYPES, isDrawn, layerById, servedMinZoom, type ChoroplethState, type LayerId } from "@/lib/layers";
+import { ZONE_TYPES, layerById, servedMinZoom, type ChoroplethState, type LayerId } from "@/lib/layers";
 
 import {
   PARAM_METRICS,
@@ -105,10 +105,6 @@ const BASE_LAYERS: readonly LayerSpec[] = [
     filter: noValue("value"),
     paint: { "fill-pattern": HATCH_IMAGE, "fill-opacity": 0.8 },
   }),
-  layer("uv-traffic-line", "line", "traffic_network", {
-    layout: { "line-cap": "butt" },
-    paint: { "line-color": "#5b5b5b", "line-width": 6, "line-dasharray": [1.67, 1], "line-opacity": 0.55 },
-  }),
   // planning-document coverage (core, selectable): invisible fill as the click target
   layer("uv-doc-fill", "fill", "document_coverage", { paint: { "fill-color": BRAND, "fill-opacity": 0 } }),
   layer("uv-doc-line", "line", "document_coverage", {
@@ -116,8 +112,6 @@ const BASE_LAYERS: readonly LayerSpec[] = [
   }),
   // cadastral parcels: tinted by their zone's type, hairline outline
   layer("uv-cad-fill", "fill", "cadastral_parcels", { paint: { "fill-color": zoneColour, "fill-opacity": 0.5 } }),
-  layer("uv-owner-fill", "fill", "public_ownership", { paint: { "fill-color": "#4F6D82", "fill-opacity": 0.7 } }),
-  layer("uv-restit-fill", "fill", "legal_burdens", { paint: { "fill-color": "#9E5568", "fill-opacity": 0.75 } }),
   layer("uv-cad-line", "line", "cadastral_parcels", { paint: { "line-color": "rgba(42,33,24,0.2)", "line-width": 0.6 } }),
   // planned (urban) parcels: dashed brand-dark outline, invisible fill as the click target
   layer("uv-urban-fill", "fill", "urban_parcels", { paint: { "fill-color": BRAND, "fill-opacity": 0 } }),
@@ -179,11 +173,8 @@ export const LAYER_GROUPS: Record<LayerId, readonly string[]> = {
   zones: ["uv-zones-fill", "uv-zones-nodata", "uv-zones-nodata-hatch", "uv-zones-line", "uv-blocks-line", "uv-blocks-label", "uv-zones-label"],
   cadastre: ["uv-cad-fill", "uv-cad-line", "uv-cad-hover-line", "uv-cad-sel-glow", "uv-cad-sel-line"],
   planned: ["uv-urban-fill", "uv-urban-line", "uv-urban-hover-fill", "uv-urban-hover-line", "uv-urban-sel-fill", "uv-urban-sel-glow", "uv-urban-sel-line"],
-  owner: ["uv-owner-fill"],
-  restit: ["uv-restit-fill"],
   landuse: ["uv-landuse-fill"],
   heatFAR: PARAM_METRICS.flatMap((m) => [`uv-heat-${m.layer}-fill`, `uv-heat-${m.layer}-nodata`]),
-  traffic: ["uv-traffic-line"],
   heatMkt: ["uv-heatmkt-fill", "uv-heatmkt-nodata"],
 };
 
@@ -210,17 +201,11 @@ export function uvLayers(tiles?: TilesCurrent | null): LayerSpec[] {
 /** The layers with the catalogue's zoom ranges (no pointer). */
 export const UV_LAYERS: readonly LayerSpec[] = uvLayers(null);
 
-/**
- * Which UrbanView layers are visible for the rail state. A dependent layer (ownership,
- * restitution) only shows while its required layer is on; a paid layer only with the entitlement.
- */
-export function visibleLayerIds(
-  layers: Record<LayerId, boolean>,
-  opts: { marketUnlocked: boolean },
-): Set<string> {
+/** Which UrbanView layers are visible for the rail state. */
+export function visibleLayerIds(layers: Record<LayerId, boolean>): Set<string> {
   const on = new Set<string>();
   for (const [id, mapLayers] of Object.entries(LAYER_GROUPS) as [LayerId, readonly string[]][]) {
-    if (isDrawn(id, layers, opts.marketUnlocked)) mapLayers.forEach((l) => on.add(l));
+    if (layers[id]) mapLayers.forEach((l) => on.add(l));
   }
   return on;
 }

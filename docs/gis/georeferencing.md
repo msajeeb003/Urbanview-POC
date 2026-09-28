@@ -153,8 +153,9 @@ The batches follow the staged-geometry contract:
   and the panel.
 - `urban_blocks`: the plan's block label. A staged block updates the block of that label it
   overlaps, else it is new.
-- `land_use` and `traffic_network`: generic layers. The newest batch replaces the layer at publish,
-  so a document's batch carries the other documents' features forward.
+- `land_use`: a generic layer. The newest batch replaces the layer at publish, so a document's
+  batch carries the other documents' features forward. The plan's traffic network is extracted
+  but not staged: planned traffic is an MVP layer, outside the POC.
 
 Every feature carries `document_id` and `dataset_version`. A newer run of the document supersedes
 its staged one. The publish job applies the batches and marks the dataset `published` (the

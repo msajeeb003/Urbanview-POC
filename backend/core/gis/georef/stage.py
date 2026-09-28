@@ -11,10 +11,11 @@
   cadastral parcels under them (none at all while cadastral parcels are there = a bad transform);
   planned parcels of the document overlapping each other by more than 1 m² are reported. Errors
   refuse the dataset (recorded ``invalid``, nothing staged).
-- **Staging**: one batch per layer (document coverage, planned parcels, blocks, land use, traffic),
-  ``document_id`` and ``dataset_version`` on every feature. Land use and traffic are generic
-  layers (the newest staged batch replaces the layer at publish), so their batch carries the other
-  documents' features forward. A newer run of the document supersedes its staged dataset. The
+- **Staging**: one batch per layer (document coverage, planned parcels, blocks, land use),
+  ``document_id`` and ``dataset_version`` on every feature. Land use is a generic layer (the
+  newest staged batch replaces the layer at publish), so its batch carries the other documents'
+  features forward. The planned traffic network is not staged: it is an MVP layer, outside the
+  POC. A newer run of the document supersedes its staged dataset. The
   ``georef_datasets`` row records the CRS, the transform, the RMSE per sheet, the snapping and the
   validation.
 
@@ -38,7 +39,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 SNAPPED = ("urban_parcels", "urban_blocks")
-GENERIC = (("planned_land_use", "land_use"), ("planned_traffic", "traffic_network"))
+GENERIC = (("planned_land_use", "land_use"),)
 OVERLAP_MIN_M2 = 1.0
 NEAR_FACTOR = 3.0
 SAMPLES = 20

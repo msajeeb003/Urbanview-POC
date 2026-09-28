@@ -51,7 +51,7 @@ coordinates and zoom tools were pixel-identical at setup).
 | `--brand` | `#B5613B` | `brand` | terracotta: primary action, selection, eyebrows, free badge, focus |
 | `--brand-dark` | `#8F472A` | `brand-dark` | brand hover, planned-parcel outline, "on" layer name, computed GFA |
 | `--brand-tint` | `rgba(181,97,59,.11)` | `brand-tint` | tinted chips, hovers |
-| `--paid` | `#B08A2E` | `paid` | gold: everything paid (order CTA, subscription badge, locks, urban-parcel card) |
+| `--paid` | `#B08A2E` | `paid` | gold: the order CTA and the urban-parcel card (no subscription badge or locks in the POC) |
 | `--paid-dark` | `#8C6B22` | `paid-dark` | |
 | `--paid-tint` | `rgba(176,138,46,.13)` | `paid-tint` | gold tints |
 | `--danger` | `#A24A32` | `danger` | |
@@ -64,8 +64,8 @@ coordinates and zoom tools were pixel-identical at setup).
 
 Fonts come from Google Fonts through `next/font` (self-hosted at build, `latin` + `latin-ext` for
 č ć đ š ž); `overrides.css` points `--disp` / `--body` / `--mono` at the generated families.
-Other literal colours: topbar `#241B12`, map area `#EDE6D6`, muted outlines `#B3A894`, public
-ownership `#4F6D82`, restitution `#9E5568`, gold-button hover `#6D28D9` (a purple in the delivered
+Other literal colours: topbar `#241B12`, map area `#EDE6D6`, muted outlines `#B3A894`,
+gold-button hover `#6D28D9` (a purple in the delivered
 file, reproduced; open item). Effective type scale: titles 26 / 700, section labels 20 / 700,
 figures 44 / 700, body 14, secondary 13, mono data 13 / 700, uppercase mono micro-labels 11.5 with
 .16em tracking.
@@ -92,7 +92,7 @@ what can be built", 0.9 s after load) is part of the wireframe, not a tour.
 ## Map layers (registry `src/lib/layers.ts` → `LAYERS`, styles `src/lib/map/style.ts`)
 
 One config array drives the rail, the map and the legend: each entry has its id, name, group,
-default, rules (core / `requires` / `paid` / `choropleth`), swatch, source-layers in the PMTiles
+default, rules (core / `choropleth`), swatch, source-layers in the PMTiles
 archive, minimum zoom (the catalogue's; the tile pointer's per-layer `min_zoom` wins,
 `layerMinZoom`) and a `legend(ctx)` function; `style.ts` → `LAYER_GROUPS` lists the map layers of
 each entry. Rail order, groups and names are the wireframe's.
@@ -104,29 +104,28 @@ each entry. Rail order, groups and names are the wireframe's.
 | Base | Urban zones | on | core; also draws urban block boundaries (dotted) with block refs and zone labels | `zones`, `urban_blocks`, `zone_labels` |
 | Parcels | Cadastral parcels | on | never merged with planned parcels | `cadastral_parcels` |
 | Parcels | Urban parcels | on | planned parcels, dashed brand outline | `urban_parcels` |
-| Parcels | Public ownership | off | requires Cadastral parcels (▲ + "Needs … tap to turn on"); shades #4F6D82 | `public_ownership` |
-| Parcels | Restitution / legal | off | requires Cadastral parcels; shades #9E5568 | `legal_burdens` |
 | Context | Land use | off | zone-type tint by `category` | `land_use` |
 | Context | FAR heatmap | off | parameter choropleth; field chips FAR / Coverage / Floors / GFA | `heat_far`, `heat_coverage`, `heat_height`, `heat_gfa` |
-| Context | Planned traffic | off | dashed grey lines | `traffic_network` |
-| Feasibility | Price heatmap | off | sale-price choropleth; paid: locked while `marketUnlocked` is false (click = `market_data_interest` + the market-data intent modal); field chips Low / Expected / High | `heat_sale_price` |
+| Feasibility | Price heatmap | off | sale-price choropleth, free like every card; field chips Low / Expected / High | `heat_sale_price` |
+
+Not in the POC (scope audit 2026-09-28): the wireframe's Public ownership and Restitution / legal
+cards (only with confirmed bulk cadastral access; the API marks those layers unavailable) and
+Planned traffic (an MVP layer; not published).
 
 - **Cards** are toggled by clicking (swatch + name), each independently, with one rule: **only one
   choropleth is on at a time** (`toggleLayer`: turning one on turns the other off, toast "… turned
   off — one heatmap at a time"). States: on / off / core (◆ in the markup, hidden by the
-  wireframe CSS, muted check) / dependency warning (▲, dimmed) / paid-locked (padlock,
-  "Subscription"). The rendered wireframe has no tint on an "on" card and an 8 px card radius (its
+  wireframe CSS, muted check). The rendered wireframe has no tint on an "on" card and an 8 px card radius (its
   late CSS passes override the 10 px and the tint); that is what ships.
 - **A card never claims a layer the map is not drawing.** `layerState` (`lib/layers.ts`) is the one
-  answer the rail, the legend and the map share: `locked` / `off` / `requires` (its required layer
-  is off: ▲, dep note, legend suffix) / `no_data` (the published version lists its source-layers
-  with 0 features: muted "no data yet" on the card, the legend group with that note and no rows,
-  no style layer added) / `zoom_in` (on, but the map is below the zoom its data is built from:
-  parcels, ownership and restitution from 13, heatmap and context layers from 10, plan areas from
-  9, zones and zone cells from 8; muted "zoom in to see" on the card under any field label, the
-  legend group keeps its rows with the note by its title) / `shown`. Turning on a layer that
-  would show nothing toasts why ("… shows when you zoom in closer", "…: nothing is published for
-  this layer yet"), like the wireframe's dependency toast. `useLayerStates` reads it from the store
+  answer the rail, the legend and the map share: `off` / `no_data` (the published version lists
+  its source-layers with 0 features: muted "no data yet" on the card, the legend group with that
+  note and no rows, no style layer added) / `zoom_in` (on, but the map is below the zoom its data
+  is built from: parcels from 13, heatmap and context layers from 10, plan areas from 9, zones and
+  zone cells from 8; muted "zoom in to see" on the card under any field label, the legend group
+  keeps its rows with the note by its title) / `shown`. Turning on a layer that would show
+  nothing toasts why ("… shows when you zoom in closer", "…: nothing is published for this layer
+  yet"). `useLayerStates` reads it from the store
   (`zoom`, set by the map with the zoom label) as one string, so the rail and legend re-render
   when a state changes, not on every camera frame. A rail click reads the store at the click,
   never the last render's snapshot.
@@ -143,7 +142,7 @@ each entry. Rail order, groups and names are the wireframe's.
   `setPaintProperty` / `setFilter`; toggles with `setLayoutProperty`: no source reload.
 - **Legend** (`legendGroups`): one group per layer that is on, in rail order, the wireframe's rows
   (zone types + "Urban block boundary", "Parcel outline", "Parcel — click to open", "Coverage area
-  — click to open", "Publicly owned", "Legal claim" (+ " — needs cadastral parcels"), FAR "Low →
+  — click to open", FAR "Low →
   high" with unit "floor area ratio", price bands with unit "€/m² land"), class rows for served
   classes and "No data" when some cells have none; a `note` by the title for a layer that is on
   but not drawn ("zoom in to see", "no data yet", see `layerState`); "No overlays active" when
@@ -151,13 +150,8 @@ each entry. Rail order, groups and names are the wireframe's.
 - **`?layers=`** (`lib/url-state.ts`): the toggleable layers that are on with the choropleth field
   (`landuse,heatFAR:gfa`, `heatMkt:low`); absent for the default view, `none` for nothing on; a
   link restores it on load, then the parameter follows the rail.
-- **Market entitlement** (`marketUnlocked`): starts from `NEXT_PUBLIC_MARKET_DATA_FREE` (default
-  false = the wireframe's lock); "Subscribe" on the market plan of "Choose your access" turns
-  it on for the session (pilot: intent only). It unlocks the price heatmap and the panel's
-  Group 2 figures.
 - **Events**: `layer_toggled { layer_id: <published key>, on }` on every toggle (a switched-off
-  choropleth too), `market_data_interest { trigger: "layer", layer_id }` on a locked card, which
-  opens "Choose your access" (market data tagged "Unlocks this").
+  choropleth too).
 
 ## Map (S1 "Map — Landing": `src/components/shell/map-view.tsx`, `src/lib/map/*`)
 
@@ -175,7 +169,7 @@ each entry. Rail order, groups and names are the wireframe's.
   opened the map on a corner of its bounds over Skadar Lake), and the padding shrinks to the box
   (`fitPadding`). `clickTolerance: 3` = a drag of more than 3 px never selects.
 - **The map follows the rail exactly.** Once the style has loaded (`load`), every change of the
-  layers, the choropleth fields, the market entitlement and the selection is applied the moment
+  layers, the choropleth fields and the selection is applied the moment
   it happens, also while tiles are still loading (layout, filter and paint changes do not need
   them; gating on `isStyleLoaded()`, false whenever a source is loading, dropped changes and left
   the map out of step until the next toggle). Before `load` the load handler applies the state as
@@ -197,9 +191,8 @@ each entry. Rail order, groups and names are the wireframe's.
   hatch, never a type colour; dashed coverage; cadastral parcels tinted by their zone type; dashed
   planned parcels; block boundaries and refs (z15+); context overlays; hover layers (cursor
   pointer + outline) and selection layers (brand outline + glow; a cadastral selection also
-  highlights its primary planned parcel). Visibility follows the rail (`visibleLayerIds`:
-  ownership / restitution only with cadastral parcels on, price heatmap only with the market
-  entitlement). Each layer starts at the zoom its source-layer is built from (`uvLayers(tiles)`:
+  highlights its primary planned parcel). Visibility follows the rail (`visibleLayerIds`). Each
+  layer starts at the zoom its source-layer is built from (`uvLayers(tiles)`:
   the pointer's range, else the catalogue's); a source-layer the pointer lists with 0 features
   gets no style layer. Text uses the base style's glyphs (`DIN Pro`), not the web fonts.
 - **Base map** (`lib/map/basemap.ts`): with Mapbox's light style (the default) the style's own
@@ -386,25 +379,21 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
 - `panel_viewed`: cadastral `{panel_type, parcel_id, zone_id}`, urban `{panel_type,
   urban_parcel_id, parcel_id, zone_id}`.
 - **Group 2, "Market data & feasibility"** (`market-section.tsx`, under the urban panel's
-  planning parameters, paid badge), behind the market-data boundary (`marketUnlocked`):
-  - *Locked* (default, wireframe `lockedMarketHTML`): the note, the seven parameters with their
-    plain definitions and units and a gold `LOCKED` chip each (`LOCKED_PARAMS`), the engine
-    strip, and the intent card "Unlock the figures — Values, ranges and the assumptions
-    sandbox." whose "Unlock →" records `market_data_interest {trigger: unlock, …ids}` and opens
-    "Choose your access".
-  - *Unlocked* (wireframe `marketHTML`): ROI hero (ink, radius 16: expected %, "range low% —
-    high% · expected n%", spark), range rows (land value, construction, market value, profit:
-    expected value, the 6 px `.rangebar` with the marker at the expected position, low /
-    "expected" / high), design & documentation as a plain row with its range underneath (no
-    single money figure), saleable area (deterministic), the assumption sandbox (below), the
-    engine strip, the
-    disclaimer (the wireframe's text until the API's `disclaimer_status` is `client_approved`,
-    then the API's) and the intent "I want market data updates" (`market_data_interest
-    {trigger: updates}`, "Coming soon — noted."). Figures are the payload's `feasibility` block
-    (the shared engine's output), or the engine's recalculation for the visitor's edits; a figure the engine cannot calculate reads "cannot calculate —
-    <reason>" (e.g. no market data for the zone) and the others still show; never a made-up
-    range. `financials_viewed {urban_parcel_id, parcel_id, zone_id}` once the unlocked section
-    is on screen (IntersectionObserver, once per open; slider moves never re-send it).
+  planning parameters; wireframe `marketHTML`), shown to everyone: the POC has no subscription
+  or paywall, so the wireframe's locked state (`LOCKED` chips, "Unlock →", the paid badge) is not
+  built (scope audit 2026-09-28). ROI hero (ink, radius 16: expected %, "range low% — high% ·
+  expected n%", spark), range rows (land value, construction, market value, profit: expected
+  value, the 6 px `.rangebar` with the marker at the expected position, low / "expected" / high),
+  design & documentation as a plain row with its range underneath (no single money figure),
+  saleable area (deterministic), the assumption sandbox (below), the engine strip, the
+  disclaimer (the wireframe's text until the API's `disclaimer_status` is `client_approved`,
+  then the API's) and the intent "I want market data updates" (`market_data_interest
+  {trigger: updates}`, "Coming soon — noted."). Figures are the payload's `feasibility` block
+  (the shared engine's output), or the engine's recalculation for the visitor's edits; a figure
+  the engine cannot calculate reads "cannot calculate — <reason>" (e.g. no market data for the
+  zone) and the others still show; never a made-up range. `financials_viewed {urban_parcel_id,
+  parcel_id, zone_id}` once the section is on screen (IntersectionObserver, once per open; slider
+  moves never re-send it).
 - **Assumption sandbox** ("◐ Test your own assumptions", `assumption-sandbox.tsx`,
   `lib/assumptions.ts`): three range inputs as in the wireframe — construction €/m² (500–1200),
   sale price €/m² (1200–3600), saleable % (55–85): bounds are configuration (`SLIDERS`), widened
@@ -423,16 +412,8 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   them (the other keys take that zone's defaults), and an order carries them. An edit
   that returns to the default value stops being an edit. No market data for the zone: the
   sliders are disabled.
-- **"Choose your access"** (`shell/access-modal.tsx`, wireframe `openUpgrade`, wide): Per-report
-  €100–200/site (gold "Order a report" → the order flow), Market data €29/mo (gold "Subscribe"),
-  AI unlimited €19/mo (primary "Subscribe"); the plan that unlocks what was clicked is tagged
-  "Unlocks this"; the footer note on free accounts and the pilot. Pilot behaviour: intent only,
-  no checkout. Market "Subscribe" → `market_data_interest {trigger: subscribe, plan: market, …}`,
-  `setMarketUnlocked(true)` for the session (panel figures and the price heatmap), toast "Market
-  data unlocked"; AI "Subscribe" → `ai_interest {trigger: subscribe, plan: ai}` and "Noted —
-  unlimited AI access is coming soon." Opened by "Unlock →" and by the locked price heatmap.
 - **"How the figures are calculated"** (`shell/engine-modal.tsx`, wireframe `openEngine`, from
-  the engine strip in both states): the poc-1 formulas table (name, expression, source), input
+  the engine strip): the poc-1 formulas table (name, expression, source), input
   data (planning documents, cadastre, the zone's market source, the visitor's assumptions), the
   mock's growth note, "Indicative ranges, not investment advice. Deterministic calculation — the
   AI assistant reads these figures but never generates them.", footer with engine and formula
@@ -441,8 +422,7 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   `lib/order.ts`, `lib/order-form.ts`), modals over the map as in `screens/order.png`,
   `order-legal.png`, `success.png`. No account, no password, no verification, no card.
   - *Where they start:* every order button calls `requestOrder(trigger)` (gold "Order expert
-    analysis" = `panel`, "Order a report" in "Choose your access" = `access`, the methodology's
-    "Order this analysis →" = `methodology`). The parcel panel on screen registers its parcel as
+    analysis" = `panel`, the methodology's "Order this analysis →" = `methodology`). The parcel panel on screen registers its parcel as
     `orderTarget` (`ParcelCtas`: parcel type + id, `Parcel #1042/3` (the cadastral parcel, on the
     urban panel too, as in the mock), KO, `basis_area_m2`, `calculation_basis`, event ids), so
     the location is carried through, never re-entered; without a parcel panel the button toasts
@@ -525,8 +505,8 @@ Wireframe row labels for the same values (use the API's `label_en` / `label_me`;
 mock's): Land use designation, Max building height, Max site coverage (IZ), Floor Area Ratio (II),
 Planned parcel area, Max Gross Floor Area, Max coverage area.
 
-**Group 2: market data & feasibility (paid tier, locked by default behind the market-data boundary)**, badge
-`Subscription`, **always low / expected / high ranges, never single figures**: estimated land
+**Group 2: market data & feasibility** (shown to everyone: no subscription, badge or lock in the
+POC), **always low / expected / high ranges, never single figures**: estimated land
 value (€), construction cost (€), design & documentation (€), estimated market value (€),
 estimated saleable area (m²), potential profit (€), return on investment (%); plus the cost rows
 land value, design & documentation, construction, total cost. ROI hero (44 px figure + "range
@@ -537,8 +517,7 @@ Deterministic calculation; AI does not generate financial values." Formulas are 
 deterministic (shared engine `@urbanview/feasibility-engine`, `formula_version poc-1`,
 `client_validated: false`): GFA = FAR × plot area; coverage area = coverage % × plot area;
 profit = GFA × saleable share × sale price − (land + design + construction); ROI = profit / cost
-× 100. Locked by default behind the market-data boundary (LOCKED chips, "Unlock →" → "Choose
-your access"); the pilot records intent and unlocks for the session (see "Information panel").
+× 100.
 
 **CTA stack**: gold "Order expert analysis" + price (€100 ≤ 500 m², €200 above, from the API's
 pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
@@ -777,8 +756,8 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 |---|---|
 | `src/app/layout.tsx` | fonts, CSS order (globals → wireframe → overrides), providers |
 | `src/app/page.tsx` | server-reads `/v1/municipality` (1.5 s timeout, never blocks) → `AppShell` |
-| `src/components/shell/*` | `app-shell` (frame, ⌘K, intro toast, `?parcel=` sync), `topbar`, `search-box`, `layer-rail`, `legend`, `map-view` (Mapbox + PMTiles, click / hover / highlight, `map_loaded`), `map-chrome`, `info-panel` (selection → panel variant, empty state, bottom sheet), `ai-assistant` (shell, `openAiWith` drafts), `methodology-modal`, `access-modal` ("Choose your access"), `engine-modal` ("How the figures are calculated"), `admin-overlay` (the `/admin` routes' container), `hosts` (modal + toast) |
-| `src/components/panel/*` | S3 panel variants: `zone-panel`, `document-panel`, `cadastral-panel`, `urban-panel`, `panel-parts` (header, loading / unavailable, status chip, `panel_viewed`, meta and height text), `parcel-parts` (comparison card, row source icon, parcel CTA stack, zone type), `market-section` (Group 2 locked / unlocked), `assumption-sandbox` ("◐ Test your own assumptions") |
+| `src/components/shell/*` | `app-shell` (frame, ⌘K, intro toast, `?parcel=` sync), `topbar`, `search-box`, `layer-rail`, `legend`, `map-view` (Mapbox + PMTiles, click / hover / highlight, `map_loaded`), `map-chrome`, `info-panel` (selection → panel variant, empty state, bottom sheet), `ai-assistant` (shell, `openAiWith` drafts), `methodology-modal`, `engine-modal` ("How the figures are calculated"), `admin-overlay` (the `/admin` routes' container), `hosts` (modal + toast) |
+| `src/components/panel/*` | S3 panel variants: `zone-panel`, `document-panel`, `cadastral-panel`, `urban-panel`, `panel-parts` (header, loading / unavailable, status chip, `panel_viewed`, meta and height text), `parcel-parts` (comparison card, row source icon, parcel CTA stack, zone type), `market-section` (Group 2 figures), `assumption-sandbox` ("◐ Test your own assumptions") |
 | `src/lib/assumptions.ts` | the sandbox's sliders, bounds and validation, and the live recalculation through the shared engine package (`recalculateFeasibility`) |
 | `src/lib/order.ts` | `requestOrder`: every order button → the S4 modal for the parcel on screen, `order_started` |
 | `src/lib/order-form.ts` | the order form's rules: draft, validation (the API's), request body, failure sentences |
@@ -786,9 +765,9 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 | `src/app/orders/[reference]/page.tsx` | the public order page route |
 | `src/lib/pricing.ts` | the order price of a parcel from the configured tiers (`GET /v1/orders/pricing`), the server's `price_for` rule |
 | `src/lib/map/*` | `style` (UrbanView layers per registry entry, visibility, choropleth paint, highlight filters), `classes` (choropleth colours, legend rows, expressions from served classes), `pick` (click priority, centroid), `tiles` (pointer → source, provider registration), `camera` (fit options, padding for the box), `use-layer-states` (every card's `layerState` for the rail and legend), `pmtiles-provider` (worker module), `provider-name` |
-| `src/components/ui/*` | shared: `LayerCard`, `DependencyNote`, `Badge`, `PanelRow`, `IdGrid`, `Cta` (primary / gold / ghost / line), `SourceRef`, `Modal` + `ModalHead` (Radix Dialog with wireframe classes), `Disclaimer`, `icons` |
+| `src/components/ui/*` | shared: `LayerCard`, `Badge`, `PanelRow`, `IdGrid`, `Cta` (primary / gold / ghost / line), `SourceRef`, `Modal` + `ModalHead` (Radix Dialog with wireframe classes), `Disclaimer`, `icons` |
 | `src/lib/api/*` | `client.ts` (fetch wrapper: base URL, `X-Request-ID`, `X-Session-ID`, error envelope → `ApiError`, timeouts, 429 retries), `endpoints.ts` (one function per route), `hooks.ts` (React Query: `useMunicipality`, `useLocate`, `useLocateParcel`, `useGeocode`, `useZones`, `usePanel`, `useFeasibility`, `useSourceValue` / `useSourcePage`, `useTilesCurrent`, `useCreateOrder`, `useOrderStatus`, `useTrack`), `types.ts` (aliases), `schema.d.ts` (generated) |
-| `src/lib/store.ts` | shell state (zustand): rail, layers, entitlement, view, AI, sheet, selection (point / parcel / feature / zone), pin, toast, modal, map controller |
+| `src/lib/store.ts` | shell state (zustand): rail, layers, view, AI, sheet, selection (point / parcel / feature / zone), pin, toast, modal, map controller |
 | `src/components/source/source-viewer.tsx` | the source viewer: signed link → PDF.js page (lazy), bbox highlight, pages, zoom, Open PDF, retry, `source_reference_opened` |
 | `src/lib/source.tsx` | `useOpenSource`: opens the source viewer for a value or a document page |
 | `src/lib/search.ts` | S2 rules: parcel + KO parsing, zone matching, zone of an address hit, suggestion rows, recent searches |

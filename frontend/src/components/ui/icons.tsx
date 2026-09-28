@@ -58,22 +58,6 @@ export const IconCheckTiny = (p: P) => (
   </svg>
 );
 
-/** Padlock used on paid layers and the Subscription badge (9×9 in a 12 box). */
-export const IconLockSmall = ({ width = 9, height = 9, ...p }: P) => (
-  <svg width={width} height={height} viewBox="0 0 12 12" fill="none" aria-hidden {...p}>
-    <rect x="2" y="5.4" width="8" height="5.4" rx="1.2" fill="currentColor" />
-    <path d="M4 5.4V4a2 2 0 014 0v1.4" stroke="currentColor" strokeWidth="1.3" />
-  </svg>
-);
-
-/** Larger padlock for the unlock card (16×16 in an 18 box). */
-export const IconLock = (p: P) => (
-  <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden {...p}>
-    <rect x="3" y="8" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M6 8V5a3 3 0 016 0v3" stroke="currentColor" strokeWidth="1.5" />
-  </svg>
-);
-
 /** Document glyph of the "source" chip (10×11). */
 export const IconDocSmall = ({ width = 10, height = 11, ...p }: P) => (
   <svg width={width} height={height} viewBox="0 0 10 11" fill="none" aria-hidden {...p}>

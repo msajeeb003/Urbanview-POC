@@ -6,9 +6,6 @@
  * each independently:
  *
  * - core layers only toast "Core layer — always visible";
- * - a dependent layer warns (▲ + "Needs … tap to turn on") while its required layer is off;
- * - a paid layer without the market entitlement stays locked: the click records
- *   `market_data_interest` and opens "Choose your access" (market data tagged "Unlocks this");
  * - choropleth cards show their field selector while on, and only one choropleth is on at a time
  *   (turning one on turns the other off, with a toast).
  *
@@ -32,9 +29,7 @@ import { useLayerStates } from "@/lib/map/use-layer-states";
 import { useShell } from "@/lib/store";
 
 import { IconChevronLeft, IconMenu } from "../ui/icons";
-import { DependencyNote, LayerCard } from "../ui/layer-card";
-
-import { ACCESS_LABEL, AccessModal } from "./access-modal";
+import { LayerCard } from "../ui/layer-card";
 
 function MetricChips<T extends string>({
   label,
@@ -71,13 +66,10 @@ export function LayerRail() {
   const railOpen = useShell((s) => s.railOpen);
   const layers = useShell((s) => s.layers);
   const choropleth = useShell((s) => s.choropleth);
-  const marketUnlocked = useShell((s) => s.marketUnlocked);
   const setRailOpen = useShell((s) => s.setRailOpen);
   const setLayers = useShell((s) => s.setLayers);
-  const setLayer = useShell((s) => s.setLayer);
   const setChoropleth = useShell((s) => s.setChoropleth);
   const showToast = useShell((s) => s.showToast);
-  const openModal = useShell((s) => s.openModal);
   const track = useTrack();
   const t = useT();
   const { data: tiles } = useTilesCurrent();
@@ -97,18 +89,9 @@ export function LayerRail() {
   const toggle = (l: LayerDef) => {
     // the store as it is at the click, not as it was at the last render: two clicks within one
     // frame must not toggle from the same snapshot
-    const { layers, marketUnlocked, zoom } = useShell.getState();
+    const { layers, zoom } = useShell.getState();
     if (l.core) {
       showToast(t("toast.core"));
-      return;
-    }
-    if (l.paid && !marketUnlocked) {
-      track("market_data_interest", { trigger: "layer", layer_id: analyticsLayerId(l) });
-      openModal({
-        label: ACCESS_LABEL,
-        wide: true,
-        content: <AccessModal focus="market" context={{ layer_id: analyticsLayerId(l) }} />,
-      });
       return;
     }
     const result = toggleLayer(layers, l.id);
@@ -120,14 +103,9 @@ export function LayerRail() {
       showToast(t("toast.oneHeatmap", { name: nameOf(other) }));
       return;
     }
-    const req = l.requires ? layerById(l.requires) : null;
-    if (result.on && req && !result.layers[req.id]) {
-      showToast(t("toast.needsCadastre", { name: nameOf(l), req: nameOf(req) }));
-      return;
-    }
     if (!result.on) return;
-    // turned on but nothing appears: say why, as for a missing requirement
-    const now = layerState(l.id, { layers: result.layers, marketUnlocked, zoom }, tiles);
+    // turned on but nothing appears: say why
+    const now = layerState(l.id, { layers: result.layers, zoom }, tiles);
     if (now === "no_data") showToast(t("toast.noData", { name: nameOf(l) }));
     else if (now === "zoom_in") showToast(t("toast.zoomIn", { name: nameOf(l) }));
   };
@@ -142,11 +120,8 @@ export function LayerRail() {
       </div>
       {LAYERS.map((l, i) => {
         const on = layers[l.id];
-        const req = l.requires ? layerById(l.requires) : null;
-        const dep = !!(req && !layers[req.id]);
-        const locked = !!(l.paid && !marketUnlocked);
         const heading = i === 0 || LAYERS[i - 1].group !== l.group ? t(`group.${l.group}`) : null;
-        const showFields = !!l.choropleth && on && !locked;
+        const showFields = !!l.choropleth && on;
         const sub = !showFields
           ? undefined
           : l.choropleth === "param"
@@ -157,15 +132,11 @@ export function LayerRail() {
         const zoomIn = states[l.id] === "zoom_in";
         const title = l.core
           ? t("rail.titleCore", { name })
-          : locked
-            ? t("rail.titleLocked", { name })
-            : noData
-              ? t("rail.titleNoData", { name })
-              : zoomIn
-                ? t("rail.titleZoom", { name })
-                : req
-                  ? t("rail.titleDep", { name, req: nameOf(req) })
-                  : t("rail.titleToggle", { name });
+          : noData
+            ? t("rail.titleNoData", { name })
+            : zoomIn
+              ? t("rail.titleZoom", { name })
+              : t("rail.titleToggle", { name });
         return (
           <Fragment key={l.id}>
             {heading && <div className="rlabel">{heading}</div>}
@@ -174,27 +145,12 @@ export function LayerRail() {
               swatch={l.swatch}
               on={on}
               core={l.core}
-              dependencyMissing={dep}
-              paidLocked={locked}
               sub={sub}
               note={noData ? t("rail.noData") : zoomIn ? t("rail.zoomIn") : undefined}
               noteKind={noData ? "no_data" : "zoom_in"}
-              lockedLabel={t("rail.subscription")}
               title={title}
               onClick={() => toggle(l)}
             />
-            {on && dep && req && (
-              <DependencyNote
-                requiredName={nameOf(req)}
-                words={{ needs: t("rail.needs"), tap: t("rail.tapToTurnOn"), title: t("rail.turnOn", { name: nameOf(req) }) }}
-                onClick={() => {
-                  if (useShell.getState().layers[req.id]) return; // already turned on by a click this frame
-                  setLayer(req.id, true);
-                  track("layer_toggled", { layer_id: analyticsLayerId(req), on: true });
-                  showToast(t("toast.turnedOn", { name: nameOf(req) }));
-                }}
-              />
-            )}
             {showFields && l.choropleth === "param" && (
               <MetricChips
                 label={t("rail.field", { name })}
