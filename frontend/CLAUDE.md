@@ -468,29 +468,34 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   - *Where they start:* every order button calls `requestOrder(trigger)` (gold "Order expert
     analysis" = `panel`, the methodology's "Order this analysis →" = `methodology`). The parcel panel on screen registers its parcel as
     `orderTarget` (`ParcelCtas`: parcel type + id, `Parcel #1042/3` (the cadastral parcel, on the
-    urban panel too, as in the mock), KO, `basis_area_m2`, `calculation_basis`, event ids), so
+    urban panel too, as in the mock), KO, the planned urban parcel (`UP 12`), the panel's
+    `data_version`, `basis_area_m2`, `calculation_basis`, event ids), so
     the location is carried through, never re-entered; without a parcel panel the button toasts
     "Pick a parcel on the map to order its analysis." `order_started {…ids, panel_type, product:
     expert_report, trigger}` on every start.
   - *S4:* the mock's markup: gold-tinted header, context strip `Analysing Parcel #1042 ·
-    Podgorica I — carried through automatically…`, order summary (parcel size with `urban
+    Podgorica I (urban parcel UP 12) — carried through automatically…` with `Planning data
+    version <label>` on its own line (`.ctxver`), order summary (parcel size with `urban
     parcel` / `cadastral parcel`, analysis fee with its band `up to 500 m²` / `over 500 m²`,
     expected delivery `5 working days`: `GET /v1/orders/pricing` through `lib/pricing.ts`, the
     server's rule), the pricing note written from the tiers, "Ordering as" Individual | Legal
-    entity (the mock's fields and placeholders; switching keeps what was typed), the methodology
-    card (opens the wizard; its last step returns to the form), the guest note; footer `€200 · 5
-    working days`, Cancel, gold "Place order →" (the mock's "Continue to payment →": there is no
-    payment step).
-  - *Validation* (`validateDraft`, the API's rules): individual = first name, telephone, email
-    (last name optional); legal entity = company, PIB / VAT, contact person, telephone, email,
-    registered address; the server's email and telephone patterns and lengths. Inline messages
-    under the fields, focus on the first. One request at a time (disabled button + guard).
+    entity (the pilot scope's guest form, not the mock's: first / last name, telephone, email;
+    "Legal entity" adds company name and `PIB` above them, both `optional`; switching keeps what
+    was typed), the methodology card (opens the wizard; its last step returns to the form), the
+    guest note, the line with the terms of service / refund policy / privacy notice links
+    (`lib/legal.ts`, new tab, `.orderlegal`); footer `€200 · 5 working days`, Cancel, gold "Place
+    order →" (the mock's "Continue to payment →": there is no payment step).
+  - *Validation* (`validateDraft`, the API's rules): first name, telephone and email for both
+    types (last name, company name and PIB optional); the server's email and telephone patterns
+    and lengths. Inline messages under the fields, focus on the first. One request at a time
+    (disabled button + guard).
   - *Failure:* the form stays with everything typed and one sentence under it
     (`explainFailure`: connection / server trouble, the per-email daily cap, the rate limiter, a
     parcel that is gone, field errors mapped back onto the fields). What was typed lives in the
     store (`orderDraft`, memory only, never storage) and is cleared once an order is placed.
-  - *Request:* `POST /v1/orders` with the location, the purchaser's fields and the visitor's
-    edited assumptions (the server snapshots the panel with them). 30 s timeout.
+  - *Request:* `POST /v1/orders` with the location, the name, telephone and email, a legal
+    entity's company name and PIB when given (else null), and the visitor's edited assumptions
+    (the server snapshots the panel with them). 30 s timeout.
   - *S5:* the mock's `.success` block (check, "Order confirmed", "…email it within **5 working
     days**. A confirmation is on its way now.", the mono chip `UV-PODI-UP-12-260924-01 · Parcel
     #1042`), then "Pay by bank transfer": the API's instructions as `.paysummary` lines (payee,
@@ -499,16 +504,28 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
     "The same instructions were emailed to <address>" and "Track your order ↗" (the order page).
     An email the API could not queue is said instead. `checkout_completed {…ids, panel_type,
     product, order_id: <reference>, amount_eur, currency}` when the order is created; "Done"
-    closes with the toast "Order placed — check your email".
+    closes with the toast "Order placed — check your email". Reload-safe: while it is open the
+    URL carries `?order=<reference>` (`lib/url-state.ts`); the shell reopens it on load from
+    `GET /v1/orders/{reference}` (`reopenConfirmation`; "emailed to you" instead of the address,
+    "Your payment has been received" and no instructions once paid; an unknown reference drops
+    the parameter). Closing it removes the parameter.
 - **Order page** (`app/orders/[reference]`, `components/order/order-status.tsx`): the link of the
   confirmation and of every order email (`ORDER_PUBLIC_BASE_URL/orders/<reference>`). `GET
-  /v1/orders/{reference}/status` only (status, location, turnaround; no personal data, no login),
-  read again on tab focus and with "Check again". No mock screen: the topbar with the logo and a
-  card in the modal's style: status as the title (`Awaiting payment`, `Paid`, …) with a line on
-  what happens next, the reference chip, the steps (order placed → payment received → expert at
-  work → report delivered, dot + word labels, dates of the first and latest step), the order
-  rows (location, placed, last update, expected delivery), "← Back to the map". Unknown
+  /v1/orders/{reference}` (`useOrder`: status, location, price, turnaround, data version, the
+  payment instructions while the payment is due; no personal data, no login), read again on tab
+  focus and with "Check again". No mock screen: the topbar with the logo and a card in the
+  modal's style: status as the title (`Awaiting payment`, `Payment not received`, `Paid`, …) with a
+  line on what happens next, the reference chip, the steps (order placed → payment received →
+  expert at work → report delivered, dot + word labels, dates of the first and latest step; a
+  failed payment still waits for step 2), "Pay by bank transfer" (the confirmation's
+  `PayInstructions`) while the payment is due, the order rows (location, analysis fee, placed,
+  last update, planning data version, expected delivery), "← Back to the map". Unknown
   reference: "Order not found". `noindex`.
+- **Legal pages** (`app/legal/[page]`, `components/legal/legal-page.tsx`, text in `lib/legal.ts`):
+  `/legal/terms`, `/legal/privacy`, `/legal/refund`, `/legal/disclaimer` (static, any other slug
+  404), the order page's layout with a draft notice first, links to the other three and "← Back
+  to the map". Draft wording until the client's lawyer supplies it (`LEGAL_STATUS =
+  "placeholder"`); it describes what the build does.
 - **Bottom sheet (≤ 860 px):** peek (148 px) → half (`min(50vh, 440px)`, where a selection opens)
   → full (`min(78vh, 680px)`) → peek, by tapping the handle (`nextSheet`); the chrome sits above
   peek and half and hides when full.
@@ -667,12 +684,15 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   search (reference, e-mail, name, parcel) in the URL (`next/form`), the table (Ref, Parcel
   `#1042/3 · Podgorica I`, customer · company + e-mail, Placed (relative), Days, Status chip +
   "⚠ e-mail" when an e-mail bounced or failed, Expert, Open). The drawer (fixed right, 600 px,
-  a scrim closes it): Customer (an individual's name, or company, PIB / VAT, contact person,
-  registered address; e-mail, telephone, message); Location ordered with "Open on the map ↗"
+  a scrim closes it): Customer (an individual's name, or company, PIB and the name; the contact
+  person and registered address of orders placed before migration 0031; e-mail, telephone, the
+  customer id, message); Location ordered with "Open on the map ↗"
   (`/?parcel=<cadastral_parcel_id>`: today's published data, the snapshot below is what was
   shown); Price and turnaround; **Payment** (admins, reviewers): "Mark payment received"
-  (amount, date, bank reference, all required), "Payment not received" (a note: the check is
-  recorded, the order stays pending), "Refund" (amount, date, reference), each confirmed in a
+  (amount, date, bank reference, all required; also on a failed payment), "Payment not
+  received" (a note: the order becomes `Payment not received`, chip `rev`, which the customer's
+  order page shows with the instructions; again on a failed order it only records the check),
+  "Refund" (amount, date, reference), each confirmed in a
   line before `POST …/payment` is sent; **Fulfilment**: the expert picker (active experts with
   their orders in progress, `GET /v1/admin/orders/experts`) + Assign / Reassign (a paid order
   starts), Start, the report (download, `vN`) and its upload (`report-upload.tsx`: drop zone,

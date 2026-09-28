@@ -3,10 +3,14 @@
 /**
  * S4 "Order expert analysis" (wireframe `openOrder`, the 520 px modal of `screens/order.png` /
  * `order-legal.png`): paid-tinted header, the context strip with the parcel carried through from
- * the panel (never re-entered), the order summary (parcel size and its basis, the fee and its
- * band, the turnaround: all from `GET /v1/orders/pricing`, the server's rule), the pricing note,
- * "Ordering as" Individual | Legal entity with the mock's fields, the methodology card and the
- * guest-checkout note; footer `€100 · 5 working days`, Cancel, gold "Place order →".
+ * the panel (never re-entered: the cadastral parcel, the planned urban parcel the figures use and
+ * the data version the panel was served from), the order summary (parcel size and its basis, the
+ * fee and its band, the turnaround: all from `GET /v1/orders/pricing`, the server's rule), the
+ * pricing note, "Ordering as" Individual | Legal entity, the methodology card, the guest-checkout
+ * note and the links to the terms, refund policy and privacy notice (`/legal/*`, new tab); footer
+ * `€100 · 5 working days`, Cancel, gold "Place order →". The fields are the pilot scope's guest
+ * form, not the mock's: name, telephone and e-mail for everyone; a legal entity adds its company
+ * name and PIB, both optional.
  *
  * No account, no password, no card: "Place order →" validates inline (the API's rules,
  * `lib/order-form.ts`), then `POST /v1/orders` with the location and the visitor's edited
@@ -18,6 +22,7 @@ import { useId, useRef, useState, type FormEvent, type KeyboardEvent } from "rea
 
 import { getTracker } from "@/lib/analytics/react";
 import { formatArea } from "@/lib/format";
+import { legalPath } from "@/lib/legal";
 import { useCreateOrder, useOrderPricing } from "@/lib/api/hooks";
 import {
   FIELDS,
@@ -58,36 +63,36 @@ interface FieldSpec {
   mono?: boolean;
 }
 
-// labels and placeholders are the mock's
+// labels and placeholders are the mock's where it has the field
+const PERSON: Partial<Record<DraftField, FieldSpec>> = {
+  firstName: { label: "First name", placeholder: "Marko", autoComplete: "given-name" },
+  lastName: { label: "Last name", note: "optional", placeholder: "Petrović", autoComplete: "family-name" },
+  telephone: { label: "Telephone", placeholder: "+382 …", type: "tel", autoComplete: "tel" },
+};
 const SPECS: Record<PurchaserType, Partial<Record<DraftField, FieldSpec>>> = {
   individual: {
-    firstName: { label: "First name", placeholder: "Marko", autoComplete: "given-name" },
-    lastName: { label: "Last name", placeholder: "Petrović", autoComplete: "family-name" },
-    telephone: { label: "Telephone", placeholder: "+382 …", type: "tel", autoComplete: "tel" },
+    ...PERSON,
     email: { label: "Email address", placeholder: "you@email.me", type: "email", autoComplete: "email" },
   },
   legal_entity: {
-    companyName: { label: "Company name", placeholder: "Company d.o.o.", autoComplete: "organization" },
-    taxNumber: { label: "PIB / VAT number", placeholder: "02345678", autoComplete: "off", mono: true },
-    contactPerson: { label: "Contact person", placeholder: "Marko Petrović", autoComplete: "name" },
-    telephone: { label: "Telephone", placeholder: "+382 …", type: "tel", autoComplete: "tel" },
+    companyName: { label: "Company name", note: "optional", placeholder: "Company d.o.o.", autoComplete: "organization" },
+    taxNumber: { label: "PIB", note: "company ID, optional", placeholder: "02345678", autoComplete: "off", mono: true },
+    ...PERSON,
     email: { label: "Email address", placeholder: "office@company.me", type: "email", autoComplete: "email" },
-    registeredAddress: {
-      label: "Registered address",
-      note: "for the invoice",
-      placeholder: "Bulevar Svetog Petra Cetinjskog 1, Podgorica",
-      autoComplete: "street-address",
-    },
   },
 };
 
-// the mock's grid: pairs in `.frow`, the legal entity's e-mail and address full width
+// the mock's grid: pairs in `.frow`
 const ROWS: Record<PurchaserType, DraftField[][]> = {
   individual: [
     ["firstName", "lastName"],
     ["telephone", "email"],
   ],
-  legal_entity: [["companyName", "taxNumber"], ["contactPerson", "telephone"], ["email"], ["registeredAddress"]],
+  legal_entity: [
+    ["companyName", "taxNumber"],
+    ["firstName", "lastName"],
+    ["telephone", "email"],
+  ],
 };
 
 const IconCard = () => (
@@ -161,7 +166,7 @@ function OrderModal({ target }: { target: OrderTarget }) {
           currency: order.pricing.currency,
         });
         clearDraft();
-        openModal(confirmationSpec(order, target, email));
+        openModal(confirmationSpec(order, target.parcel, email));
       },
       onError: (error) => {
         const f = explainFailure(error);
@@ -239,7 +244,15 @@ function OrderModal({ target }: { target: OrderTarget }) {
               </svg>
             </span>
             <div className="cd">
-              Analysing <b>{targetLabel(target)}</b> — carried through automatically, no need to re-enter.
+              Analysing <b>{targetLabel(target)}</b>
+              {target.plannedParcel && target.plannedParcel !== target.parcel && (
+                <>
+                  {" "}
+                  (urban parcel <b>{target.plannedParcel}</b>)
+                </>
+              )}{" "}
+              — carried through automatically, no need to re-enter.
+              {target.dataVersion && <span className="ctxver">Planning data version {target.dataVersion}</span>}
             </div>
           </div>
 
@@ -335,6 +348,21 @@ function OrderModal({ target }: { target: OrderTarget }) {
 
           <p style={{ fontSize: 11, color: "var(--ink-2)", lineHeight: 1.5, marginTop: 12 }}>
             No account needed — guest checkout. You&apos;ll get the report and an order reference by email.
+          </p>
+          <p className="orderlegal">
+            By placing the order you accept the{" "}
+            <a href={legalPath("terms")} target="_blank" rel="noopener">
+              terms of service
+            </a>{" "}
+            and the{" "}
+            <a href={legalPath("refund")} target="_blank" rel="noopener">
+              refund policy
+            </a>
+            . How we use your details:{" "}
+            <a href={legalPath("privacy")} target="_blank" rel="noopener">
+              privacy notice
+            </a>
+            .
           </p>
           {failure && (
             <p className="orderfail" role="alert" ref={failureRef}>

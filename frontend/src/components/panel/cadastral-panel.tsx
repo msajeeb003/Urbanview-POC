@@ -200,6 +200,8 @@ export function CadastralPanel({ parcelId }: { parcelId: number }) {
           parcelId,
           parcel: `Parcel #${no}`,
           ko: cad.ko_name,
+          plannedParcel: data.urban_parcel?.urban_parcel_number ?? null,
+          dataVersion: data.data_version ?? null,
           basisAreaM2: data.basis_area_m2 ?? null,
           calculationBasis: data.calculation_basis ?? null,
           ids: { parcel_id: parcelId, zone_id: zoneId ?? undefined },

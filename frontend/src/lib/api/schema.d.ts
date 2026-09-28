@@ -1174,6 +1174,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orders/{reference}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Confirmation data of an order: status, location, price, turnaround, payment due */
+        get: operations["order_confirmation_v1_orders__reference__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/orders/{reference}/status": {
         parameters: {
             query?: never;
@@ -1268,7 +1285,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Record a bank transfer: received (→ paid), not received, or refunded */
+        /** Record a bank transfer: received (→ paid), not received (→ payment_failed), refunded */
         post: operations["record_payment_v1_admin_orders__order_id__payment_post"];
         delete?: never;
         options?: never;
@@ -4749,7 +4766,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_payment" | "paid" | "in_progress" | "delivered" | "refunded";
+            status: "pending_payment" | "paid" | "payment_failed" | "in_progress" | "delivered" | "refunded";
             /** Status Label En */
             status_label_en: string;
             /** Status Label Me */
@@ -4768,6 +4785,11 @@ export interface components {
              * @description Public status page of this order (no personal data)
              */
             status_url: string;
+            /**
+             * Data Version
+             * @description Label of the published version the panel was served from
+             */
+            data_version?: string | null;
             /**
              * Email Status
              * @description queued: the send_email job will deliver it; final states when it already ran
@@ -4809,7 +4831,11 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** OrderIn */
+        /**
+         * OrderIn
+         * @description The pilot scope's guest form: name, e-mail and telephone for everyone; a legal entity may
+         *     add its company name and PIB (company id). No account, no verification.
+         */
         OrderIn: {
             location: components["schemas"]["OrderLocation"];
             /**
@@ -4819,9 +4845,9 @@ export interface components {
             purchaser_type: "individual" | "legal_entity";
             /**
              * First Name
-             * @description Required for an individual; a legal entity is addressed by its contact person
+             * @description Required: who the order e-mails address
              */
-            first_name?: string | null;
+            first_name: string;
             /**
              * Last Name
              * @description Optional
@@ -4831,20 +4857,16 @@ export interface components {
             email: string;
             /** Telephone */
             telephone: string;
-            /** Company Name */
+            /**
+             * Company Name
+             * @description Legal entity only, optional
+             */
             company_name?: string | null;
             /**
              * Tax Number
-             * @description PIB / VAT number
+             * @description PIB (company id); legal entity only, optional
              */
             tax_number?: string | null;
-            /** Contact Person */
-            contact_person?: string | null;
-            /**
-             * Registered Address
-             * @description Invoice address of the legal entity
-             */
-            registered_address?: string | null;
             /** @description The assumptions the visitor edited on the panel, if any */
             assumptions?: components["schemas"]["EditedAssumptions"] | null;
             /** Message */
@@ -4906,7 +4928,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_payment" | "paid" | "in_progress" | "delivered" | "refunded";
+            status: "pending_payment" | "paid" | "payment_failed" | "in_progress" | "delivered" | "refunded";
             /**
              * Purchaser Type
              * @enum {string}
@@ -4960,10 +4982,21 @@ export interface components {
             telephone: string;
             /** Tax Number */
             tax_number?: string | null;
-            /** Contact Person */
+            /**
+             * Contact Person
+             * @description Orders placed before 0031 only (no longer collected)
+             */
             contact_person?: string | null;
-            /** Registered Address */
+            /**
+             * Registered Address
+             * @description Orders placed before 0031 only (no longer collected)
+             */
             registered_address?: string | null;
+            /**
+             * Customer Id
+             * @description customers.id (the guest purchaser)
+             */
+            customer_id?: number | null;
             /** Message */
             message?: string | null;
             /** Assumption Edits */
@@ -4974,6 +5007,11 @@ export interface components {
             turnaround: components["schemas"]["TurnaroundOut"];
             /** Data Version */
             data_version?: string | null;
+            /**
+             * Publish Version Id
+             * @description publish_versions.id of the data the visitor saw
+             */
+            publish_version_id?: number | null;
             /** Market Version Id */
             market_version_id?: number | null;
             /** Market Version */
@@ -5031,6 +5069,51 @@ export interface components {
             /** Turnaround Business Days */
             turnaround_business_days: number;
         };
+        /**
+         * OrderPublic
+         * @description The confirmation page data (``GET /v1/orders/{reference}``): what the S5 confirmation and
+         *     the public order page show, from the reference alone. Never personal data.
+         */
+        OrderPublic: {
+            /** Reference */
+            reference: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending_payment" | "paid" | "payment_failed" | "in_progress" | "delivered" | "refunded";
+            /** Status Label En */
+            status_label_en: string;
+            /** Status Label Me */
+            status_label_me: string;
+            /**
+             * Placed At
+             * Format: date-time
+             */
+            placed_at: string;
+            /**
+             * Status Changed At
+             * Format: date-time
+             */
+            status_changed_at: string;
+            location: components["schemas"]["OrderLocationOut"];
+            pricing: components["schemas"]["PricingOut"];
+            turnaround: components["schemas"]["TurnaroundOut"];
+            /**
+             * Payment Due
+             * @description pending_payment or payment_failed: the transfer is due
+             */
+            payment_due: boolean;
+            /** @description The bank-transfer instructions while the payment is due, else null */
+            payment_instructions: components["schemas"]["PaymentInstructionsOut"] | null;
+            /**
+             * Data Version
+             * @description Label of the published version the order was placed on
+             */
+            data_version?: string | null;
+            /** Status Url */
+            status_url: string;
+        };
         /** OrderStatusPublic */
         OrderStatusPublic: {
             /** Reference */
@@ -5039,7 +5122,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_payment" | "paid" | "in_progress" | "delivered" | "refunded";
+            status: "pending_payment" | "paid" | "payment_failed" | "in_progress" | "delivered" | "refunded";
             /** Status Label En */
             status_label_en: string;
             /** Status Label Me */
@@ -5067,7 +5150,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_payment" | "paid" | "in_progress" | "delivered" | "refunded";
+            status: "pending_payment" | "paid" | "payment_failed" | "in_progress" | "delivered" | "refunded";
             /**
              * Purchaser Type
              * @enum {string}
@@ -5447,7 +5530,11 @@ export interface components {
              */
             bbox: number[];
         };
-        /** PaymentIn */
+        /**
+         * PaymentIn
+         * @description ``received`` pays the order (also after a failed payment), ``not_received`` records that the
+         *     transfer did not arrive (pending_payment -> payment_failed), ``refunded`` refunds it.
+         */
         PaymentIn: {
             /**
              * Status
@@ -6506,7 +6593,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "pending_payment" | "paid" | "in_progress" | "delivered" | "refunded";
+            status: "pending_payment" | "paid" | "payment_failed" | "in_progress" | "delivered" | "refunded";
             /** Note */
             note?: string | null;
         };
@@ -11734,6 +11821,44 @@ export interface operations {
             };
         };
     };
+    order_confirmation_v1_orders__reference__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderPublic"];
+                };
+            };
+            /** @description No order with that reference (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     order_status_v1_orders__reference__status_get: {
         parameters: {
             query?: never;
@@ -11775,7 +11900,7 @@ export interface operations {
     list_orders_v1_admin_orders_get: {
         parameters: {
             query?: {
-                status?: ("pending_payment" | "paid" | "in_progress" | "delivered" | "refunded") | null;
+                status?: ("pending_payment" | "paid" | "payment_failed" | "in_progress" | "delivered" | "refunded") | null;
                 assignee_user_id?: number | null;
                 /** @description Reference, e-mail, name, company, parcel */
                 search?: string | null;

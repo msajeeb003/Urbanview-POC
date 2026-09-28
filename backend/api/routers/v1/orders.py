@@ -4,9 +4,12 @@
 price before the order. ``POST /v1/orders`` takes the form the panel showed (no account, no
 password, no verification step before purchase), prices the order server-side, stores a snapshot
 of what the visitor saw, and e-mails the bank-transfer instructions.
-``GET /v1/orders/{reference}/status`` returns status, location and turnaround only: no personal
-data. All are behind the global per-IP rate limit; creation is additionally capped per e-mail
-address and day.
+``GET /v1/orders/{reference}`` answers the confirmation data again (the pilot scope's
+"confirmation page data": status, location, price, turnaround, the payment instructions while the
+transfer is due), so the S5 confirmation and the order page survive a reload.
+``GET /v1/orders/{reference}/status`` returns status, location and turnaround only. Neither returns
+personal data. All are behind the global per-IP rate limit; creation is additionally capped per
+e-mail address and day.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from api.schemas.orders import (
     OrderCreated,
     OrderIn,
     OrderPricing,
+    OrderPublic,
     OrderStatusPublic,
     PriceTierOut,
 )
@@ -64,6 +68,22 @@ async def order_pricing(
     )
 
 
+Reference = Annotated[str, Path(min_length=8, max_length=40, pattern=r"^[A-Za-z0-9-]+$")]
+
+
+@router.get(
+    "/{reference}",
+    response_model=OrderPublic,
+    summary="Confirmation data of an order: status, location, price, turnaround, payment due",
+    responses={404: {"description": "No order with that reference (`not_found`)"}},
+)
+async def order_confirmation(
+    reference: Reference, service: OrderServiceDep, response: Response
+) -> OrderPublic:
+    response.headers["Cache-Control"] = "no-store"
+    return await service.public_order(reference)
+
+
 @router.get(
     "/{reference}/status",
     response_model=OrderStatusPublic,
@@ -71,9 +91,7 @@ async def order_pricing(
     responses={404: {"description": "No order with that reference (`not_found`)"}},
 )
 async def order_status(
-    reference: Annotated[str, Path(min_length=8, max_length=40, pattern=r"^[A-Za-z0-9-]+$")],
-    service: OrderServiceDep,
-    response: Response,
+    reference: Reference, service: OrderServiceDep, response: Response
 ) -> OrderStatusPublic:
     response.headers["Cache-Control"] = "no-store"
     return await service.public_status(reference)

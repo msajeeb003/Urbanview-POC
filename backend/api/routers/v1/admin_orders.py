@@ -3,8 +3,9 @@ report upload that delivers the order.
 
 Admins and reviewers manage every order; an expert sees and delivers only the orders assigned to
 them. Every change is an ``audit_log`` row; the guarded status flow answers 409 for anything
-outside ``pending_payment → paid → in_progress → delivered`` (+ ``refunded`` from paid /
-in_progress). Responses are ``Cache-Control: no-store``.
+outside ``pending_payment → paid → in_progress → delivered`` (+ ``payment_failed`` from
+pending_payment, which can still be paid, and ``refunded`` from paid / in_progress). Responses are
+``Cache-Control: no-store``.
 """
 
 from __future__ import annotations
@@ -95,7 +96,7 @@ async def set_status(
 @router.post(
     "/{order_id}/payment",
     response_model=OrderOut,
-    summary="Record a bank transfer: received (→ paid), not received, or refunded",
+    summary="Record a bank transfer: received (→ paid), not received (→ payment_failed), refunded",
     responses=RESPONSES,
 )
 async def record_payment(

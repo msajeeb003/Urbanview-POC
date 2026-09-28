@@ -1,12 +1,18 @@
 """Expert-analysis orders: guest checkout by bank transfer, a snapshot of what the visitor saw,
 a guarded status flow, expert assignment and report delivery.
 
-- ``POST /v1/orders`` (public): the form is validated, the price comes from the configured tiers
-  and the parcel's area basis, the reference is ``UV-{KO}-{parcel}-{yymmdd}-{seq}``, the panel
-  the visitor saw (with their edited assumptions) is stored as the snapshot together with its
-  ``data_version`` and market assumptions version, and the payment-instructions e-mail goes out.
-- Status flow ``pending_payment → paid → in_progress → delivered``, ``refunded`` from paid or
-  in_progress; anything else is 409. Payment receipt, assignment and the report upload drive
+- ``POST /v1/orders`` (public): the form is validated (the pilot's name, e-mail and telephone;
+  a legal entity's company name and PIB optional), the guest customer is created or refreshed
+  (``customers``, one per e-mail address), the price comes from the configured tiers and the
+  parcel's area basis, the reference is ``UV-{KO}-{parcel}-{yymmdd}-{seq}``, the panel the visitor
+  saw (with their edited assumptions) is stored as the snapshot together with its
+  ``data_version`` (label and ``publish_version_id``) and market assumptions version, and the
+  payment-instructions e-mail goes out. ``GET /v1/orders/{reference}`` answers the confirmation
+  data again (price, turnaround, the payment instructions while the payment is due), so the
+  confirmation survives a reload.
+- Status flow ``pending_payment → paid → in_progress → delivered``, ``payment_failed`` from
+  pending_payment when the transfer did not arrive (it can still be paid), ``refunded`` from paid
+  or in_progress; anything else is 409. Payment receipt, assignment and the report upload drive
   it; every change is an ``audit_log`` row with before / after.
 - Staff: admins and reviewers see and manage everything; an expert sees and delivers only the
   orders assigned to them. The public status page never returns personal data.
@@ -43,6 +49,7 @@ from api.schemas.orders import (
     OrderList,
     OrderLocationOut,
     OrderOut,
+    OrderPublic,
     OrderStatusPublic,
     OrderSummary,
     PaymentIn,
@@ -78,9 +85,18 @@ from core.storage import ObjectStorage
 
 log = logging.getLogger("urbanview.orders")
 
-STATUSES: tuple[str, ...] = ("pending_payment", "paid", "in_progress", "delivered", "refunded")
+STATUSES: tuple[str, ...] = (
+    "pending_payment",
+    "paid",
+    "payment_failed",
+    "in_progress",
+    "delivered",
+    "refunded",
+)
 TRANSITIONS: dict[str, frozenset[str]] = {
-    "pending_payment": frozenset({"paid"}),
+    "pending_payment": frozenset({"paid", "payment_failed"}),
+    # the transfer did not arrive; it may still come
+    "payment_failed": frozenset({"paid"}),
     "paid": frozenset({"in_progress", "refunded"}),
     "in_progress": frozenset({"delivered", "refunded"}),
     "delivered": frozenset(),
@@ -89,6 +105,7 @@ TRANSITIONS: dict[str, frozenset[str]] = {
 STATUS_LABELS: dict[str, tuple[str, str]] = {
     "pending_payment": ("awaiting payment", "čeka uplatu"),
     "paid": ("paid", "plaćeno"),
+    "payment_failed": ("payment not received", "uplata nije primljena"),
     "in_progress": ("in progress", "u izradi"),
     "delivered": ("delivered", "isporučeno"),
     "refunded": ("refunded", "refundirano"),
@@ -97,8 +114,10 @@ TURNAROUND_NOTE = (
     "Delivery within {n} business days after the payment is received.",
     "Isporuka u roku od {n} radnih dana od prijema uplate.",
 )
+# the statuses in which the bank transfer is due (the confirmation shows the instructions)
+PAYMENT_DUE = frozenset({"pending_payment", "payment_failed"})
 # the public map's order page (``frontend/src/app/orders/[reference]``), which reads
-# ``GET /v1/orders/{reference}/status``
+# ``GET /v1/orders/{reference}``
 STATUS_PATH = "/orders/{reference}"
 MANAGER_ROLES = frozenset({Role.admin, Role.reviewer})
 REFERENCE_ATTEMPTS = 25
@@ -205,22 +224,43 @@ def location_from_panel(panel: Any) -> OrderedLocation:
 
 # --- SQL ------------------------------------------------------------------------------------------
 
+# One customer per e-mail address: the latest name and telephone win, a company is kept until
+# another one is given (an individual's order does not erase it).
+UPSERT_CUSTOMER_SQL = text(
+    """
+    INSERT INTO customers (municipality_id, email, first_name, last_name, phone, company_name,
+                           company_id)
+    VALUES (:m, :email, :first_name, :last_name, :telephone, :company_name, :tax_number)
+    ON CONFLICT (municipality_id, email) DO UPDATE SET
+        first_name = EXCLUDED.first_name,
+        last_name = EXCLUDED.last_name,
+        phone = EXCLUDED.phone,
+        company_name = COALESCE(EXCLUDED.company_name, customers.company_name),
+        company_id = COALESCE(EXCLUDED.company_id, customers.company_id),
+        updated_at = now()
+    RETURNING id
+    """
+)
+# ``publish_version_id``: the version whose label the panel carried (the current one first).
 INSERT_ORDER_SQL = text(
     """
     INSERT INTO orders (
-        municipality_id, reference, status, purchaser_type, first_name, last_name, email,
-        telephone, company_name, tax_number, contact_person, registered_address, message,
-        parcel_type, parcel_id, cadastral_parcel_id, urban_parcel_id, parcel_label, document_name,
-        zone_id, zone_name, basis_area_m2, calculation_basis, price_eur, currency, pricing_tier,
+        municipality_id, reference, status, customer_id, purchaser_type, first_name, last_name,
+        email, telephone, company_name, tax_number, message, parcel_type, parcel_id,
+        cadastral_parcel_id, urban_parcel_id, parcel_label, document_name, zone_id, zone_name,
+        basis_area_m2, calculation_basis, price_eur, currency, pricing_tier,
         turnaround_business_days, expected_by, assumption_edits, snapshot, data_version,
-        market_version_id, market_version, formula_version)
+        publish_version_id, market_version_id, market_version, formula_version)
     VALUES (
-        :m, :reference, 'pending_payment', :purchaser_type, :first_name, :last_name, :email,
-        :telephone, :company_name, :tax_number, :contact_person, :registered_address, :message,
-        :parcel_type, :parcel_id, :cadastral_parcel_id, :urban_parcel_id, :parcel_label,
-        :document_name, :zone_id, :zone_name, :basis_area_m2, :calculation_basis, :price_eur,
-        'EUR', CAST(:pricing_tier AS jsonb), :turnaround_business_days, :expected_by,
-        CAST(:assumption_edits AS jsonb), CAST(:snapshot AS jsonb), :data_version,
+        :m, :reference, 'pending_payment', :customer_id, :purchaser_type, :first_name,
+        :last_name, :email, :telephone, :company_name, :tax_number, :message, :parcel_type,
+        :parcel_id, :cadastral_parcel_id, :urban_parcel_id, :parcel_label, :document_name,
+        :zone_id, :zone_name, :basis_area_m2, :calculation_basis, :price_eur, 'EUR',
+        CAST(:pricing_tier AS jsonb), :turnaround_business_days, :expected_by,
+        CAST(:assumption_edits AS jsonb), CAST(:snapshot AS jsonb), CAST(:data_version AS text),
+        (SELECT v.id FROM publish_versions v
+         WHERE v.municipality_id = :m AND v.label = CAST(:data_version AS text)
+         ORDER BY v.is_current DESC, v.id DESC LIMIT 1),
         :market_version_id, :market_version, :formula_version)
     RETURNING id, placed_at, status_changed_at
     """
@@ -232,10 +272,13 @@ EMAIL_SINCE_SQL = text(
     "SELECT count(*) FROM orders WHERE municipality_id = :m AND email = :email "
     "AND placed_at >= :since"
 )
-PUBLIC_STATUS_SQL = text(
+# the public views (status page, confirmation): no personal data is selected
+PUBLIC_ORDER_SQL = text(
     """
-    SELECT reference, status, placed_at, status_changed_at, parcel_type, parcel_id, parcel_label,
-           document_name, zone_name, turnaround_business_days, expected_by
+    SELECT reference, status, placed_at, status_changed_at, parcel_type, parcel_id,
+           cadastral_parcel_id, parcel_label, document_name, zone_name, turnaround_business_days,
+           expected_by, basis_area_m2, calculation_basis, price_eur, currency, pricing_tier,
+           data_version
     FROM orders WHERE municipality_id = :m AND reference = :reference
     """
 )
@@ -246,7 +289,8 @@ _ORDER_COLUMNS = """
            o.parcel_label, o.document_name, o.zone_id, o.zone_name, o.basis_area_m2,
            o.calculation_basis, o.price_eur, o.currency, o.pricing_tier,
            o.turnaround_business_days, o.expected_by, o.assumption_edits, o.data_version,
-           o.market_version_id, o.market_version, o.formula_version, o.assignee_user_id,
+           o.publish_version_id, o.customer_id, o.market_version_id, o.market_version,
+           o.formula_version, o.assignee_user_id,
            u.email AS assignee_email, u.display_name AS assignee_name, o.paid_at,
            o.payment_amount_eur, o.payment_reference, o.payment_received_on, o.delivered_at,
            o.refunded_at, o.report_file_id, f.original_filename AS report_filename,
@@ -488,8 +532,6 @@ class OrderService:
             "telephone": payload.telephone,
             "company_name": payload.company_name,
             "tax_number": payload.tax_number,
-            "contact_person": payload.contact_person,
-            "registered_address": payload.registered_address,
             "message": payload.message,
             "parcel_type": location.parcel_type,
             "parcel_id": location.parcel_id,
@@ -535,11 +577,13 @@ class OrderService:
                 ko_short(location.ko_name), location.parcel_token, today, base_seq + 1 + attempt
             )
             async with self.session_factory() as session:
+                customer_id = int((await session.execute(UPSERT_CUSTOMER_SQL, params)).scalar_one())
                 try:
                     row = (
                         (
                             await session.execute(
-                                INSERT_ORDER_SQL, {**params, "reference": reference}
+                                INSERT_ORDER_SQL,
+                                {**params, "reference": reference, "customer_id": customer_id},
                             )
                         )
                         .mappings()
@@ -562,6 +606,8 @@ class OrderService:
                         "parcel_id": location.parcel_id,
                         "price_eur": tier.price_eur,
                         "purchaser_type": payload.purchaser_type,
+                        "customer_id": customer_id,
+                        "data_version": panel.data_version,
                     },
                     after={"status": "pending_payment"},
                 )
@@ -591,6 +637,7 @@ class OrderService:
             location=OrderLocationOut(
                 parcel_type=location.parcel_type,
                 parcel_id=location.parcel_id,
+                cadastral_parcel_id=location.cadastral_parcel_id,
                 parcel_label=location.parcel_label,
                 document_name=location.document_name,
                 zone_name=location.zone_name,
@@ -605,15 +652,16 @@ class OrderService:
             turnaround=_turnaround(self.turnaround_business_days, expected_by),
             payment_instructions=_instructions_out(instructions),
             status_url=self.status_url(reference),
+            data_version=panel.data_version,
             email_status=email_status,  # type: ignore[arg-type]
         )
 
-    async def public_status(self, reference: str) -> OrderStatusPublic:
+    async def _public_row(self, reference: str) -> Mapping[str, Any]:
         async with self.session_factory() as session:
             row = (
                 (
                     await session.execute(
-                        PUBLIC_STATUS_SQL,
+                        PUBLIC_ORDER_SQL,
                         {"m": self.municipality_id, "reference": reference.strip().upper()},
                     )
                 )
@@ -622,6 +670,41 @@ class OrderService:
             )
         if row is None:
             raise NotFoundError(f"No order {reference}", details={"reference": reference})
+        return row
+
+    async def public_order(self, reference: str) -> OrderPublic:
+        """The confirmation data again, from the reference alone: price, turnaround and, while the
+        transfer is due, the payment instructions. No personal data."""
+        row = await self._public_row(reference)
+        labels = _labels(row["status"])
+        due = row["status"] in PAYMENT_DUE
+        instructions = (
+            _instructions_out(
+                self.provider.instructions(
+                    reference=row["reference"], amount_eur=float(row["price_eur"])
+                )
+            )
+            if due
+            else None
+        )
+        return OrderPublic(
+            reference=row["reference"],
+            status=row["status"],
+            status_label_en=labels[0],
+            status_label_me=labels[1],
+            placed_at=_utc(row["placed_at"]),
+            status_changed_at=_utc(row["status_changed_at"]),
+            location=_location_out(row),
+            pricing=_pricing_out(row),
+            turnaround=_turnaround(row["turnaround_business_days"], row["expected_by"]),
+            payment_due=due,
+            payment_instructions=instructions,
+            data_version=row["data_version"],
+            status_url=self.status_url(row["reference"]),
+        )
+
+    async def public_status(self, reference: str) -> OrderStatusPublic:
+        row = await self._public_row(reference)
         labels = _labels(row["status"])
         return OrderStatusPublic(
             reference=row["reference"],
@@ -745,11 +828,13 @@ class OrderService:
             tax_number=row["tax_number"],
             contact_person=row["contact_person"],
             registered_address=row["registered_address"],
+            customer_id=row["customer_id"],
             message=row["message"],
             assumption_edits=row["assumption_edits"] or {},
             pricing=_pricing_out(row),
             turnaround=_turnaround(row["turnaround_business_days"], row["expected_by"]),
             data_version=row["data_version"],
+            publish_version_id=row["publish_version_id"],
             market_version_id=row["market_version_id"],
             market_version=row["market_version"],
             formula_version=row["formula_version"],
@@ -867,7 +952,14 @@ class OrderService:
                         "bank_reference": payload.reference,
                     },
                 )
-            else:  # not_received: nothing changes but the check is on record
+            else:  # not_received: the transfer did not arrive (it may still come: -> paid)
+                failed = "payment_failed"
+                if row["status"] != failed:
+                    self._guard(row, failed)
+                    await session.execute(
+                        SET_STATUS_SQL,
+                        {"id": order_id, "m": self.municipality_id, "status": failed, "at": now},
+                    )
                 if payload.note:
                     await session.execute(
                         APPEND_NOTE_SQL,
@@ -887,7 +979,7 @@ class OrderService:
                     entity_id=order_id,
                     details={"reference": row["reference"], "result": "not_received"},
                     before={"status": row["status"]},
-                    after={"status": row["status"]},
+                    after={"status": failed},
                     note=payload.note,
                 )
             await session.commit()

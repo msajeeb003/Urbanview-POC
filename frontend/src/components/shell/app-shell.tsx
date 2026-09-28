@@ -29,8 +29,9 @@ import type { MunicipalityProfile, TilesCurrent } from "@/lib/api/types";
 import { tNow } from "@/lib/i18n";
 import { useSelection } from "@/lib/selection";
 import { useShell } from "@/lib/store";
-import { parseLayersParam, readParcelParam, syncLayersParam, syncParcelParam } from "@/lib/url-state";
+import { parseLayersParam, readOrderParam, readParcelParam, syncLayersParam, syncParcelParam } from "@/lib/url-state";
 
+import { reopenConfirmation } from "../order/order-confirmation";
 import { AdminOverlay } from "./admin-overlay";
 import { ModalHost, ToastHost } from "./hosts";
 import { InfoPanel } from "./info-panel";
@@ -41,12 +42,14 @@ import { Topbar } from "./topbar";
 
 const INTRO_TOAST_MS = 900;
 let linkOpened = false;
+let orderOpened = false;
 
 /**
  * The view in the address bar. `?layers=`: opening a link restores the layers (and choropleth
  * fields) it lists, then the parameter follows the rail. `?parcel=<Parcel ID>`: opening the page
  * with it lands on that parcel, selected and centred; the parameter then follows the selected
- * cadastral parcel (cleared for anything else).
+ * cadastral parcel (cleared for anything else). `?order=<reference>`: the S5 order confirmation,
+ * shown again after a reload (read back from the API).
  */
 function useUrlSync() {
   const { selectParcelById } = useSelection();
@@ -67,6 +70,11 @@ function useUrlSync() {
       void selectParcelById(id).then((outcome) => {
         if (outcome === "not_found") syncParcelParam(null);
       });
+    }
+    const reference = readOrderParam(window.location.search);
+    if (reference && !orderOpened) {
+      orderOpened = true;
+      void reopenConfirmation(reference);
     }
     const unsubscribeParcel = useShell.subscribe((st, prev) => {
       if (st.selection === prev.selection) return;

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { OrderStatusPage } from "@/components/order/order-status";
 
 // The public order page: the link of the order confirmation and e-mails (the API's
-// `ORDER_PUBLIC_BASE_URL` + `/orders/<reference>`). Status, location and turnaround only.
+// `ORDER_PUBLIC_BASE_URL` + `/orders/<reference>`). No personal data.
 
 type Props = { params: Promise<{ reference: string }> };
 

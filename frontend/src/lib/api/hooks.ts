@@ -33,7 +33,7 @@ export const queryKeys = {
   tilesCurrent: ["tiles-current"] as const,
   zones: ["zones"] as const,
   orderPricing: ["order-pricing"] as const,
-  orderStatus: (reference: string) => ["order-status", reference] as const,
+  order: (reference: string) => ["order", reference] as const,
 };
 
 function round6(n: number): number {
@@ -188,10 +188,10 @@ export function useOrderPricing() {
   });
 }
 
-export function useOrderStatus(reference: string | null) {
+export function useOrder(reference: string | null) {
   return useQuery({
-    queryKey: reference ? queryKeys.orderStatus(reference) : ["order-status", "idle"],
-    queryFn: ({ signal }) => api.orderStatus(reference!, { signal }),
+    queryKey: reference ? queryKeys.order(reference) : ["order", "idle"],
+    queryFn: ({ signal }) => api.order(reference!, { signal }),
     enabled: !!reference,
     staleTime: 30_000,
     // the public order page: a payment staff recorded shows when the visitor comes back to the tab

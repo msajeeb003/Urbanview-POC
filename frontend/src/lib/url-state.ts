@@ -4,7 +4,9 @@
  * - `?parcel=<Parcel ID>`: the selected cadastral parcel (UrbanView's cadastral parcel id);
  * - `?layers=<id>[:<field>],…`: the toggleable layers that are on, in rail ids, with the field a
  *   choropleth shows (`heatFAR:far|coverage|height|gfa`, `heatMkt:low|expected|high`). Core
- *   layers are always on and never listed. The default view has no `layers` parameter at all.
+ *   layers are always on and never listed. The default view has no `layers` parameter at all;
+ * - `?order=<reference>`: the S5 order confirmation on screen, so a reload shows it again (read
+ *   back from `GET /v1/orders/{reference}`); removed when the confirmation closes.
  *
  * Written with `history.replaceState` (no navigation, no history entry per click); read once when
  * the page loads.
@@ -20,6 +22,7 @@ import type { ParamMetric, PriceMetric } from "@/lib/map/classes";
 
 export const PARCEL_PARAM = "parcel";
 export const LAYERS_PARAM = "layers";
+export const ORDER_PARAM = "order";
 
 const PARAM_CODES: Record<ParamMetric, string> = {
   max_far: "far",
@@ -58,6 +61,17 @@ function replaceUrl(next: string): void {
 export function syncParcelParam(id: number | null): void {
   if (typeof window === "undefined") return;
   replaceUrl(withParcelParam(window.location.href, id));
+}
+
+/** The order reference in a query string (upper-cased), or null when absent or malformed. */
+export function readOrderParam(search: string): string | null {
+  const raw = new URLSearchParams(search).get(ORDER_PARAM)?.trim();
+  return raw && /^[A-Za-z0-9-]{8,40}$/.test(raw) ? raw.toUpperCase() : null;
+}
+
+export function syncOrderParam(reference: string | null): void {
+  if (typeof window === "undefined") return;
+  replaceUrl(withParam(window.location.href, ORDER_PARAM, reference));
 }
 
 /** `layers` value for a view, or null for the default view (no parameter). */

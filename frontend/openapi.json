@@ -6148,6 +6148,54 @@
         }
       }
     },
+    "/v1/orders/{reference}": {
+      "get": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Confirmation data of an order: status, location, price, turnaround, payment due",
+        "operationId": "order_confirmation_v1_orders__reference__get",
+        "parameters": [
+          {
+            "name": "reference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 40,
+              "pattern": "^[A-Za-z0-9-]+$",
+              "title": "Reference"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPublic"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No order with that reference (`not_found`)"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/orders/{reference}/status": {
       "get": {
         "tags": [
@@ -6214,6 +6262,7 @@
                   "enum": [
                     "pending_payment",
                     "paid",
+                    "payment_failed",
                     "in_progress",
                     "delivered",
                     "refunded"
@@ -6549,7 +6598,7 @@
         "tags": [
           "orders"
         ],
-        "summary": "Record a bank transfer: received (→ paid), not received, or refunded",
+        "summary": "Record a bank transfer: received (→ paid), not received (→ payment_failed), refunded",
         "operationId": "record_payment_v1_admin_orders__order_id__payment_post",
         "parameters": [
           {
@@ -16102,6 +16151,7 @@
             "enum": [
               "pending_payment",
               "paid",
+              "payment_failed",
               "in_progress",
               "delivered",
               "refunded"
@@ -16137,6 +16187,18 @@
             "type": "string",
             "title": "Status Url",
             "description": "Public status page of this order (no personal data)"
+          },
+          "data_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Version",
+            "description": "Label of the published version the panel was served from"
           },
           "email_status": {
             "type": "string",
@@ -16251,17 +16313,10 @@
             "title": "Purchaser Type"
           },
           "first_name": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 100
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "maxLength": 100,
             "title": "First Name",
-            "description": "Required for an individual; a legal entity is addressed by its contact person"
+            "description": "Required: who the order e-mails address"
           },
           "last_name": {
             "anyOf": [
@@ -16296,7 +16351,8 @@
                 "type": "null"
               }
             ],
-            "title": "Company Name"
+            "title": "Company Name",
+            "description": "Legal entity only, optional"
           },
           "tax_number": {
             "anyOf": [
@@ -16309,32 +16365,7 @@
               }
             ],
             "title": "Tax Number",
-            "description": "PIB / VAT number"
-          },
-          "contact_person": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 200
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Person"
-          },
-          "registered_address": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 500
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Registered Address",
-            "description": "Invoice address of the legal entity"
+            "description": "PIB (company id); legal entity only, optional"
           },
           "assumptions": {
             "anyOf": [
@@ -16365,10 +16396,12 @@
         "required": [
           "location",
           "purchaser_type",
+          "first_name",
           "email",
           "telephone"
         ],
-        "title": "OrderIn"
+        "title": "OrderIn",
+        "description": "The pilot scope's guest form: name, e-mail and telephone for everyone; a legal entity may\nadd its company name and PIB (company id). No account, no verification."
       },
       "OrderList": {
         "properties": {
@@ -16503,6 +16536,7 @@
             "enum": [
               "pending_payment",
               "paid",
+              "payment_failed",
               "in_progress",
               "delivered",
               "refunded"
@@ -16622,7 +16656,8 @@
                 "type": "null"
               }
             ],
-            "title": "Contact Person"
+            "title": "Contact Person",
+            "description": "Orders placed before 0031 only (no longer collected)"
           },
           "registered_address": {
             "anyOf": [
@@ -16633,7 +16668,20 @@
                 "type": "null"
               }
             ],
-            "title": "Registered Address"
+            "title": "Registered Address",
+            "description": "Orders placed before 0031 only (no longer collected)"
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Id",
+            "description": "customers.id (the guest purchaser)"
           },
           "message": {
             "anyOf": [
@@ -16667,6 +16715,18 @@
               }
             ],
             "title": "Data Version"
+          },
+          "publish_version_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publish Version Id",
+            "description": "publish_versions.id of the data the visitor saw"
           },
           "market_version_id": {
             "anyOf": [
@@ -16865,6 +16925,102 @@
         "title": "OrderPricing",
         "description": "The configured order prices (``ORDER_PRICE_TIERS``): the panel shows the price of a parcel\nby picking the first tier whose bound covers its ``basis_area_m2`` (bounds inclusive), exactly\nas ``POST /v1/orders`` prices it."
       },
+      "OrderPublic": {
+        "properties": {
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_payment",
+              "paid",
+              "payment_failed",
+              "in_progress",
+              "delivered",
+              "refunded"
+            ],
+            "title": "Status"
+          },
+          "status_label_en": {
+            "type": "string",
+            "title": "Status Label En"
+          },
+          "status_label_me": {
+            "type": "string",
+            "title": "Status Label Me"
+          },
+          "placed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Placed At"
+          },
+          "status_changed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Status Changed At"
+          },
+          "location": {
+            "$ref": "#/components/schemas/OrderLocationOut"
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/PricingOut"
+          },
+          "turnaround": {
+            "$ref": "#/components/schemas/TurnaroundOut"
+          },
+          "payment_due": {
+            "type": "boolean",
+            "title": "Payment Due",
+            "description": "pending_payment or payment_failed: the transfer is due"
+          },
+          "payment_instructions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentInstructionsOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The bank-transfer instructions while the payment is due, else null"
+          },
+          "data_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Version",
+            "description": "Label of the published version the order was placed on"
+          },
+          "status_url": {
+            "type": "string",
+            "title": "Status Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reference",
+          "status",
+          "status_label_en",
+          "status_label_me",
+          "placed_at",
+          "status_changed_at",
+          "location",
+          "pricing",
+          "turnaround",
+          "payment_due",
+          "payment_instructions",
+          "status_url"
+        ],
+        "title": "OrderPublic",
+        "description": "The confirmation page data (``GET /v1/orders/{reference}``): what the S5 confirmation and\nthe public order page show, from the reference alone. Never personal data."
+      },
       "OrderStatusPublic": {
         "properties": {
           "reference": {
@@ -16876,6 +17032,7 @@
             "enum": [
               "pending_payment",
               "paid",
+              "payment_failed",
               "in_progress",
               "delivered",
               "refunded"
@@ -16935,6 +17092,7 @@
             "enum": [
               "pending_payment",
               "paid",
+              "payment_failed",
               "in_progress",
               "delivered",
               "refunded"
@@ -17861,7 +18019,8 @@
         "required": [
           "status"
         ],
-        "title": "PaymentIn"
+        "title": "PaymentIn",
+        "description": "``received`` pays the order (also after a failed payment), ``not_received`` records that the\ntransfer did not arrive (pending_payment -> payment_failed), ``refunded`` refunds it."
       },
       "PaymentInstructionsOut": {
         "properties": {
@@ -20722,6 +20881,7 @@
             "enum": [
               "pending_payment",
               "paid",
+              "payment_failed",
               "in_progress",
               "delivered",
               "refunded"

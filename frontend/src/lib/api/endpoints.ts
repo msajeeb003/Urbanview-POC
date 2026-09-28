@@ -15,7 +15,7 @@ import type {
   OrderCreated,
   OrderIn,
   OrderPricing,
-  OrderStatusPublic,
+  OrderPublic,
   Panel,
   PanelQuery,
   ParcelPanel,
@@ -70,8 +70,9 @@ export const api = {
   /** The configured price tiers (the panel shows a parcel's price from its `basis_area_m2`). */
   orderPricing: (init?: Init) => apiGet<OrderPricing>("/v1/orders/pricing", undefined, init),
 
-  orderStatus: (reference: string, init?: Init) =>
-    apiGet<OrderStatusPublic>(`/v1/orders/${encodeURIComponent(reference)}/status`, undefined, init),
+  /** The confirmation data of an order (no personal data): the S5 confirmation after a reload, the order page. */
+  order: (reference: string, init?: Init) =>
+    apiGet<OrderPublic>(`/v1/orders/${encodeURIComponent(reference)}`, undefined, init),
 };
 
 export type Api = typeof api;

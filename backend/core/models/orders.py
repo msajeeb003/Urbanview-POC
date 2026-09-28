@@ -1,8 +1,10 @@
-"""Expert-analysis orders and the e-mail log (migration 0009).
+"""Expert-analysis orders, their guest customers and the e-mail log (migrations 0009, 0031).
 
-``orders`` is the one table holding personal data (the purchaser's form). The ordered location,
-price, turnaround and the panel snapshot are copied in at order time so the expert works from
-what the visitor saw. No foreign keys to parcels: the order outlives re-seeds and republishes.
+``customers`` and ``orders`` are the tables holding personal data (the purchaser's form): one
+customer per e-mail address (the pilot scope's ``public.customer``), and on each order the details
+typed on it. The ordered location, price, turnaround and the panel snapshot are copied in at order
+time so the expert works from what the visitor saw, with the published version it came from. No
+foreign keys to parcels: the order outlives re-seeds and republishes.
 """
 
 from __future__ import annotations
@@ -33,14 +35,38 @@ from core.db import Base
 ORDER_STATUSES: tuple[str, ...] = (
     "pending_payment",
     "paid",
+    "payment_failed",
     "in_progress",
     "delivered",
     "refunded",
 )
+# the legal entity's contact person and invoice address of the first order form
+LEGACY = "no longer collected (0031); kept for older orders"
 
 
 def _ts(**kwargs: Any) -> Mapped[Any]:
     return mapped_column(DateTime(timezone=True), **kwargs)
+
+
+class Customer(Base):
+    """A guest purchaser (no account, no password): created or refreshed by ``POST /v1/orders``."""
+
+    __tablename__ = "customers"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    municipality_id: Mapped[str] = mapped_column(Text, nullable=False)
+    email: Mapped[str] = mapped_column(
+        Text, nullable=False, comment="lower-case; one customer per address and municipality"
+    )
+    first_name: Mapped[str] = mapped_column(Text, nullable=False)
+    last_name: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("''"))
+    phone: Mapped[str] = mapped_column(Text, nullable=False)
+    company_name: Mapped[str | None] = mapped_column(Text)
+    company_id: Mapped[str | None] = mapped_column(Text, comment="PIB (company id), optional")
+    created_at: Mapped[datetime] = _ts(nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = _ts(nullable=False, server_default=func.now())
+
+    __table_args__ = (Index("uq_customers_email", "municipality_id", "email", unique=True),)
 
 
 class Order(Base):
@@ -53,7 +79,7 @@ class Order(Base):
         Text,
         nullable=False,
         server_default=text("'pending_payment'"),
-        comment="pending_payment | paid | in_progress | delivered | refunded",
+        comment="pending_payment | paid | payment_failed | in_progress | delivered | refunded",
     )
     purchaser_type: Mapped[str] = mapped_column(
         Text, nullable=False, comment="individual | legal_entity"
@@ -64,8 +90,8 @@ class Order(Base):
     telephone: Mapped[str] = mapped_column(Text, nullable=False)
     company_name: Mapped[str | None] = mapped_column(Text)
     tax_number: Mapped[str | None] = mapped_column(Text, comment="PIB / VAT number")
-    contact_person: Mapped[str | None] = mapped_column(Text)
-    registered_address: Mapped[str | None] = mapped_column(Text, comment="invoice address")
+    contact_person: Mapped[str | None] = mapped_column(Text, comment=LEGACY)
+    registered_address: Mapped[str | None] = mapped_column(Text, comment=LEGACY)
     message: Mapped[str | None] = mapped_column(Text)
     parcel_type: Mapped[str] = mapped_column(Text, nullable=False, comment="cadastral | urban")
     parcel_id: Mapped[int] = mapped_column(BigInteger, nullable=False, comment="id of that type")
@@ -99,6 +125,14 @@ class Order(Base):
     market_version_id: Mapped[int | None] = mapped_column(BigInteger)
     market_version: Mapped[int | None] = mapped_column(Integer)
     formula_version: Mapped[str | None] = mapped_column(Text)
+    customer_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("customers.id", ondelete="SET NULL"), comment="the guest purchaser"
+    )
+    publish_version_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("publish_versions.id", ondelete="SET NULL"),
+        comment="the published data version the visitor saw",
+    )
     assignee_user_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("staff_users.id", ondelete="SET NULL")
     )
@@ -118,7 +152,8 @@ class Order(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending_payment', 'paid', 'in_progress', 'delivered', 'refunded')",
+            "status IN ('pending_payment', 'paid', 'payment_failed', 'in_progress', 'delivered', "
+            "'refunded')",
             name="ck_orders_status",
         ),
         CheckConstraint(
@@ -130,6 +165,7 @@ class Order(Base):
         Index("ix_orders_status", "municipality_id", "status", "placed_at"),
         Index("ix_orders_assignee", "municipality_id", "assignee_user_id"),
         Index("ix_orders_email", "municipality_id", "email", "placed_at"),
+        Index("ix_orders_customer", "customer_id"),
     )
 
 

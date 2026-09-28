@@ -2,21 +2,24 @@
 
 /**
  * The public order page (`/orders/<reference>`, the link of the confirmation and of the order
- * e-mails): `GET /v1/orders/{reference}/status` only — status, location and turnaround, never
- * personal data, no login. The wireframe has no such screen; it is built from its parts: the
+ * e-mails): `GET /v1/orders/{reference}` — status, location, price, turnaround, the data version,
+ * and the bank-transfer instructions while the payment is due (also after "payment not received");
+ * never personal data, no login. The wireframe has no such screen; it is built from its parts: the
  * topbar with the logo, a card in the modal's style (`.mhead` with the paid icon, `.mbody`,
- * `.mfoot`), the `.orderref` chip, the steps as `.payline`s with the dot + word status labels, and
- * the `.ordersum` rows. The status is read again on focus and with "Check again", so a payment
- * staff record shows up when the visitor comes back.
+ * `.mfoot`), the `.orderref` chip, the steps as `.payline`s with the dot + word status labels, the
+ * confirmation's `.paysummary` lines and the `.ordersum` rows. The order is read again on focus
+ * and with "Check again", so a payment staff record shows up when the visitor comes back.
  */
 import { ApiError } from "@/lib/api/client";
-import { useOrderStatus } from "@/lib/api/hooks";
-import type { OrderStatusPublic } from "@/lib/api/types";
+import { useOrder } from "@/lib/api/hooks";
+import type { OrderPublic } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
-import { turnaroundText } from "@/lib/pricing";
+import { formatPrice, turnaroundText } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
-type Status = OrderStatusPublic["status"];
+import { PayInstructions } from "./order-confirmation";
+
+type Status = OrderPublic["status"];
 
 const STEPS: { status: Status; label: string }[] = [
   { status: "pending_payment", label: "Order placed" },
@@ -27,8 +30,9 @@ const STEPS: { status: Status; label: string }[] = [
 
 // provisional copy (not in the wireframe)
 const LEAD: Record<Status, string> = {
-  pending_payment:
-    "We are waiting for your bank transfer. Work starts once it arrives; the payment instructions are in your confirmation email.",
+  pending_payment: "We are waiting for your bank transfer. Work starts once it arrives; the payment instructions are below.",
+  payment_failed:
+    "Your bank transfer has not reached us yet. Please check the payment with your bank, or make it with the instructions below; work starts once it arrives.",
   paid: "Your payment has arrived. An expert will start on your site & feasibility analysis shortly.",
   in_progress: "An expert is preparing your site & feasibility analysis.",
   delivered: "Your analysis has been delivered — check your email for the download link.",
@@ -77,8 +81,9 @@ const BackToMap = () => (
  * Each step is an event the status reaches: reached steps in brand (the first and the latest with
  * their dates), the one the order waits for in gold ("next"), later ones muted.
  */
-function Steps({ order }: { order: OrderStatusPublic }) {
-  const at = STEPS.findIndex((s) => s.status === order.status);
+function Steps({ order }: { order: OrderPublic }) {
+  // a failed payment still waits for the transfer: the second step is next
+  const at = STEPS.findIndex((s) => s.status === (order.status === "payment_failed" ? "pending_payment" : order.status));
   return (
     <div className="paysummary">
       <ol className="ordersteps">
@@ -98,7 +103,7 @@ function Steps({ order }: { order: OrderStatusPublic }) {
 }
 
 export function OrderStatusPage({ reference }: { reference: string }) {
-  const query = useOrderStatus(reference);
+  const query = useOrder(reference);
   const order = query.data;
 
   let card: React.ReactNode;
@@ -133,11 +138,18 @@ export function OrderStatusPage({ reference }: { reference: string }) {
             <Steps order={order} />
           </>
         )}
+        {order.payment_instructions && <PayInstructions pay={order.payment_instructions} />}
         <div className="fieldlab paylab">Order</div>
         <div className="ordersum">
           <div className="osrow">
             <span className="osl">Location{where && <em>{where}</em>}</span>
             <span className="mono">{order.location.parcel_label}</span>
+          </div>
+          <div className="osrow">
+            <span className="osl">
+              Analysis fee<em>{order.pricing.calculation_basis === "cadastral" ? "cadastral parcel" : "urban parcel"}</em>
+            </span>
+            <span className="mono">{formatPrice(order.pricing.price_eur, order.pricing.currency)}</span>
           </div>
           <div className="osrow">
             <span className="osl">Placed</span>
@@ -147,6 +159,12 @@ export function OrderStatusPage({ reference }: { reference: string }) {
             <span className="osl">Last update</span>
             <span className="mono">{formatDate(order.status_changed_at)}</span>
           </div>
+          {order.data_version && (
+            <div className="osrow">
+              <span className="osl">Planning data version</span>
+              <span className="mono">{order.data_version}</span>
+            </div>
+          )}
           <div className="osrow deliv">
             <span className="osl">
               Expected delivery<em>{order.turnaround.note_en}</em>

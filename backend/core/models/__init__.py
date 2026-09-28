@@ -27,7 +27,7 @@ from core.models.choropleth import ChoroplethCell, ChoroplethClass
 from core.models.extraction import ExtractionRun, ExtractionRunChunk
 from core.models.georef import GeorefDataset
 from core.models.market import MarketDataItem, MarketImport
-from core.models.orders import EmailLogEntry, Order
+from core.models.orders import Customer, EmailLogEntry, Order
 from core.models.panel import (
     FinancialAssumption,
     PlanningField,
@@ -64,6 +64,7 @@ __all__ = [
     "ChoroplethClass",
     "CadastralMunicipality",
     "CadastralParcel",
+    "Customer",
     "EmailLogEntry",
     "EngineProposal",
     "ExtractionRun",

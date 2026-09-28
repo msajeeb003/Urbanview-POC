@@ -12,12 +12,12 @@ const individual: OrderDraft = {
 const company: OrderDraft = {
   ...EMPTY_DRAFT,
   purchaserType: "legal_entity",
-  companyName: "Gradnja d.o.o.",
+  companyName: " Gradnja d.o.o. ",
   taxNumber: "02345678",
-  contactPerson: "Marko Petrović",
+  firstName: "Marko",
+  lastName: "Petrović",
   telephone: "067/123-456",
   email: "office@company.me",
-  registeredAddress: "Bulevar Svetog Petra Cetinjskog 1, Podgorica",
 };
 const location = { parcelType: "urban" as const, parcelId: 12 };
 
@@ -27,14 +27,12 @@ describe("order form validation (the API's rules)", () => {
     expect(Object.keys(validateDraft(EMPTY_DRAFT)).sort()).toEqual(["email", "firstName", "telephone"]);
   });
 
-  it("needs company, PIB / VAT, contact person, telephone, email and address from a legal entity", () => {
+  it("needs the same three fields from a legal entity; company name and PIB are optional", () => {
     expect(validateDraft(company)).toEqual({});
     const missing = validateDraft({ ...EMPTY_DRAFT, purchaserType: "legal_entity" });
-    expect(Object.keys(missing).sort()).toEqual(
-      ["companyName", "contactPerson", "email", "registeredAddress", "taxNumber", "telephone"].sort(),
-    );
-    // an individual's fields are not asked of a company, and the other way round
-    expect(validateDraft({ ...company, firstName: "" })).toEqual({});
+    expect(Object.keys(missing).sort()).toEqual(["email", "firstName", "telephone"]);
+    expect(validateDraft({ ...company, companyName: "", taxNumber: "" })).toEqual({});
+    expect(validateDraft({ ...company, taxNumber: "x".repeat(41) }).taxNumber).toMatch(/at most 40/);
   });
 
   it("checks email and telephone as the server does", () => {
@@ -62,17 +60,23 @@ describe("the order request", () => {
     });
   });
 
-  it("sends a company's fields (the server addresses its contact person) and the visitor's edits", () => {
+  it("sends a company's name and PIB with the person's name, and the visitor's edits", () => {
     const body = toOrderIn(company, location, { sale_price_eur_m2: 2600 });
     expect(body).toMatchObject({
       purchaser_type: "legal_entity",
+      first_name: "Marko",
+      last_name: "Petrović",
       company_name: "Gradnja d.o.o.",
       tax_number: "02345678",
-      contact_person: "Marko Petrović",
-      registered_address: "Bulevar Svetog Petra Cetinjskog 1, Podgorica",
       assumptions: { construction_cost_per_m2: null, selling_price_per_m2: 2600, saleable_share: null },
     });
-    expect(body).not.toHaveProperty("first_name");
+    expect(body).not.toHaveProperty("contact_person");
+    expect(body).not.toHaveProperty("registered_address");
+    // left empty, the optional company fields go as null
+    expect(toOrderIn({ ...company, companyName: " ", taxNumber: "" }, location, {})).toMatchObject({
+      company_name: null,
+      tax_number: null,
+    });
   });
 });
 

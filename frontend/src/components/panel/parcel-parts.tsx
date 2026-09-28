@@ -218,12 +218,22 @@ export function ParcelCtas({
   const { parcelType, ids } = target;
 
   // registered by value (the panels build the target on every render)
-  const { parcelId, parcel, ko, basisAreaM2, calculationBasis } = target;
+  const { parcelId, parcel, ko, plannedParcel, dataVersion, basisAreaM2, calculationBasis } = target;
   const idsKey = JSON.stringify(ids);
   useEffect(() => {
-    setOrderTarget({ parcelType, parcelId, parcel, ko, basisAreaM2, calculationBasis, ids: JSON.parse(idsKey) });
+    setOrderTarget({
+      parcelType,
+      parcelId,
+      parcel,
+      ko,
+      plannedParcel,
+      dataVersion,
+      basisAreaM2,
+      calculationBasis,
+      ids: JSON.parse(idsKey),
+    });
     return () => setOrderTarget(null);
-  }, [parcelType, parcelId, parcel, ko, basisAreaM2, calculationBasis, idsKey, setOrderTarget]);
+  }, [parcelType, parcelId, parcel, ko, plannedParcel, dataVersion, basisAreaM2, calculationBasis, idsKey, setOrderTarget]);
 
   return (
     <div className="ctastack">

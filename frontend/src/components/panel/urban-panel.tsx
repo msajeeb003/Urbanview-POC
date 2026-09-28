@@ -313,6 +313,8 @@ export function UrbanPanel({ urbanParcelId }: { urbanParcelId: number }) {
           // the mock names the cadastral parcel here too ("Parcel #2001/2 · Podgorica III")
           parcel: cadNo ? `Parcel #${cadNo}` : idn.urban_parcel_number,
           ko: cad?.ko_name ?? null,
+          plannedParcel: idn.urban_parcel_number,
+          dataVersion: data.data_version ?? null,
           basisAreaM2: data.basis_area_m2 ?? null,
           calculationBasis: data.calculation_basis ?? null,
           ids: eventIds,

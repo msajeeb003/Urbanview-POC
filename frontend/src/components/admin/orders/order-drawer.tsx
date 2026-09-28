@@ -7,8 +7,9 @@
  * from the audit log.
  *
  * Payment (admins and reviewers): "Mark payment received" (amount, date, bank reference — all
- * required), "Payment not received" (a note: the check is recorded, the order stays pending) and
- * "Refund" (amount, date, reference); each asks for confirmation first. Fulfilment: assign an
+ * required; also after a failed payment), "Payment not received" (a note: the check is recorded and
+ * the order becomes "Payment not received", which the customer's order page shows with the payment
+ * instructions) and "Refund" (amount, date, reference); each asks for confirmation first. Fulfilment: assign an
  * expert (a paid order starts), "Start", and the report upload (also the assigned expert's only
  * action). Every action follows the API's status flow; a disabled one says why.
  */
@@ -122,7 +123,7 @@ function Payment({ order }: { order: OrderDetail }) {
       ? `Mark ${order.reference} as paid: €${input.amount} received on ${input.date}, ref ${input.reference}?`
       : input?.kind === "refunded"
         ? `Refund ${order.reference}: €${input.amount} on ${input.date}, ref ${input.reference}? The order closes as refunded.`
-        : `Record that the payment for ${order.reference} has not arrived? The order stays pending.`;
+        : `Record that the payment for ${order.reference} has not arrived? The order shows “Payment not received” until it is paid.`;
 
   const submit = () =>
     start(async () => {
@@ -334,16 +335,20 @@ export function OrderDrawer({
                 legal
                   ? [
                       ["Company", order.company_name ?? ""],
-                      ["PIB / VAT", <span className="mono" key="t">{order.tax_number}</span>],
+                      ["PIB", order.tax_number ? <span className="mono" key="t">{order.tax_number}</span> : ""],
+                      ["Name", order.customer_name],
+                      // asked by the first order form only (orders before migration 0031)
                       ["Contact person", order.contact_person ?? ""],
                       ["Registered address", order.registered_address ?? ""],
                       ["E-mail", order.email],
                       ["Telephone", <span className="mono" key="p">{order.telephone}</span>],
+                      ["Customer", order.customer_id != null ? <span className="mono" key="c">#{order.customer_id}</span> : ""],
                     ]
                   : [
                       ["Name", customerLine(order)],
                       ["E-mail", order.email],
                       ["Telephone", <span className="mono" key="p">{order.telephone}</span>],
+                      ["Customer", order.customer_id != null ? <span className="mono" key="c">#{order.customer_id}</span> : ""],
                     ]
               }
             />
@@ -408,7 +413,9 @@ export function OrderDrawer({
             title="What the customer saw"
             aside={
               <span className="osub mono">
-                data {order.data_version ?? "—"} · market v{order.market_version ?? "—"} · formula {order.formula_version ?? "—"}
+                data {order.data_version ?? "—"}
+                {order.publish_version_id != null && ` (#${order.publish_version_id})`} · market v{order.market_version ?? "—"} · formula{" "}
+                {order.formula_version ?? "—"}
               </span>
             }
           >

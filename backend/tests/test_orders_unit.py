@@ -102,6 +102,11 @@ def test_ko_short_and_references():
 def test_transition_table():
     assert set(TRANSITIONS) == set(STATUSES)
     assert can_transition("pending_payment", "paid")
+    # the transfer did not arrive; it can still be paid, nothing else
+    assert can_transition("pending_payment", "payment_failed")
+    assert can_transition("payment_failed", "paid")
+    assert TRANSITIONS["payment_failed"] == frozenset({"paid"})
+    assert not can_transition("paid", "payment_failed")
     assert not can_transition("pending_payment", "in_progress")
     assert not can_transition("pending_payment", "refunded")
     assert can_transition("paid", "in_progress") and can_transition("paid", "refunded")
@@ -120,6 +125,7 @@ def test_order_form_validation():
         {"telephone": "12"},
         {"telephone": "call me"},
         {"first_name": ""},
+        {"first_name": "   "},
         {"first_name": None},
         {"location": {"parcel_type": "zone", "parcel_id": 1}},
         {"location": {"parcel_type": "cadastral", "parcel_id": 0}},
@@ -128,39 +134,37 @@ def test_order_form_validation():
     ):
         with pytest.raises(ValidationError):
             OrderIn(**{**FORM, **bad})
-    with pytest.raises(ValidationError) as info:
-        OrderIn(**{**FORM, "purchaser_type": "legal_entity", "company_name": "Gradnja d.o.o."})
-    assert "tax_number" in str(info.value) and "registered_address" in str(info.value)
+    # the pilot scope's form: name, e-mail and telephone for everyone; the company name and PIB
+    # of a legal entity are optional; contact person and invoice address are not asked any more
     legal = OrderIn(
         **{
             **FORM,
             "purchaser_type": "legal_entity",
-            "company_name": "Gradnja d.o.o.",
+            "company_name": " Gradnja d.o.o. ",
             "tax_number": "02123456",
-            "contact_person": "Marko M.",
-            "registered_address": "Bulevar 1, Podgorica",
         }
     )
-    assert legal.company_name == "Gradnja d.o.o."
-    # the wireframe's forms: an individual may leave the last name out; a legal entity gives a
-    # contact person instead of a name, who the e-mails then address
+    assert legal.company_name == "Gradnja d.o.o." and legal.tax_number == "02123456"
+    bare = OrderIn(**{**FORM, "purchaser_type": "legal_entity", "company_name": "  "})
+    assert bare.company_name is None and bare.tax_number is None
+    with pytest.raises(ValidationError):  # a legal entity is still named
+        OrderIn(
+            **{
+                k: v
+                for k, v in {**FORM, "purchaser_type": "legal_entity"}.items()
+                if k != "first_name"
+            }
+        )
+    for gone in ({"contact_person": "Marko M."}, {"registered_address": "Bulevar 1, Podgorica"}):
+        with pytest.raises(ValidationError):
+            OrderIn(**{**FORM, "purchaser_type": "legal_entity", **gone})
+    # an individual's order carries no company
+    individual = OrderIn(**{**FORM, "company_name": "Gradnja d.o.o.", "tax_number": "02123456"})
+    assert individual.company_name is None and individual.tax_number is None
+    # the last name is optional
     assert OrderIn(**{**FORM, "last_name": None}).last_name == ""
     assert OrderIn(**{k: v for k, v in FORM.items() if k != "last_name"}).last_name == ""
-    company = OrderIn(
-        **{
-            k: v
-            for k, v in {
-                **FORM,
-                "purchaser_type": "legal_entity",
-                "company_name": "Gradnja d.o.o.",
-                "tax_number": "02123456",
-                "contact_person": " Marko Petrović ",
-                "registered_address": "Bulevar 1, Podgorica",
-            }.items()
-            if k not in ("first_name", "last_name")
-        }
-    )
-    assert company.first_name == "Marko Petrović" and company.last_name == ""
+    assert OrderIn(**{**FORM, "first_name": " Ana "}).first_name == "Ana"
 
 
 def test_payment_payload():

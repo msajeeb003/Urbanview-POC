@@ -1,8 +1,9 @@
 /**
  * The S4 order form's rules, kept pure (unit-tested): the draft the visitor types, client-side
- * validation mirroring `POST /v1/orders` (`api/schemas/orders.py`: required fields per purchaser
- * type, the same e-mail and telephone patterns, the same lengths), the request body, and what a
- * rejected request means for the form (one sentence, plus the fields the server pointed at).
+ * validation mirroring `POST /v1/orders` (`api/schemas/orders.py`: the pilot scope's guest form,
+ * name, telephone and e-mail for everyone, a legal entity's company name and PIB optional; the
+ * same e-mail and telephone patterns, the same lengths), the request body, and what a rejected
+ * request means for the form (one sentence, plus the fields the server pointed at).
  *
  * Personal data stays here and in the order request: never in analytics, never in storage.
  */
@@ -24,8 +25,6 @@ export interface OrderDraft {
   email: string;
   companyName: string;
   taxNumber: string;
-  contactPerson: string;
-  registeredAddress: string;
 }
 
 export type DraftField = Exclude<keyof OrderDraft, "purchaserType">;
@@ -39,8 +38,6 @@ export const EMPTY_DRAFT: OrderDraft = {
   email: "",
   companyName: "",
   taxNumber: "",
-  contactPerson: "",
-  registeredAddress: "",
 };
 
 /** Maximum lengths of the API (`OrderIn`). */
@@ -51,20 +48,16 @@ export const MAX_LENGTH: Record<DraftField, number> = {
   email: 254,
   companyName: 200,
   taxNumber: 40,
-  contactPerson: 200,
-  registeredAddress: 500,
 };
 
-/** The fields each purchaser type shows, in the wireframe's order. */
+/** The fields each purchaser type shows, in form order (a legal entity adds its company first). */
 export const FIELDS: Record<PurchaserType, DraftField[]> = {
   individual: ["firstName", "lastName", "telephone", "email"],
-  legal_entity: ["companyName", "taxNumber", "contactPerson", "telephone", "email", "registeredAddress"],
+  legal_entity: ["companyName", "taxNumber", "firstName", "lastName", "telephone", "email"],
 };
 
-const REQUIRED: Record<PurchaserType, DraftField[]> = {
-  individual: ["firstName", "telephone", "email"],
-  legal_entity: ["companyName", "taxNumber", "contactPerson", "telephone", "email", "registeredAddress"],
-};
+/** The pilot's three required fields, the same for both purchaser types. */
+export const REQUIRED: readonly DraftField[] = ["firstName", "telephone", "email"];
 
 const MISSING: Record<DraftField, string> = {
   firstName: "Enter your first name.",
@@ -72,9 +65,7 @@ const MISSING: Record<DraftField, string> = {
   telephone: "Enter a telephone number, e.g. +382 67 123 456.",
   email: "Enter your email address.",
   companyName: "Enter the company name.",
-  taxNumber: "Enter the PIB / VAT number.",
-  contactPerson: "Enter a contact person.",
-  registeredAddress: "Enter the registered address for the invoice.",
+  taxNumber: "Enter the PIB (company ID).",
 };
 
 // the server's patterns (`EMAIL_RE`, `PHONE_RE` + at least six digits)
@@ -93,7 +84,7 @@ export function validateDraft(draft: OrderDraft): FieldErrors {
   for (const field of FIELDS[draft.purchaserType]) {
     const value = draft[field].trim();
     if (!value) {
-      if (REQUIRED[draft.purchaserType].includes(field)) errors[field] = MISSING[field];
+      if (REQUIRED.includes(field)) errors[field] = MISSING[field];
       continue;
     }
     if (value.length > MAX_LENGTH[field]) errors[field] = `Use at most ${MAX_LENGTH[field]} characters.`;
@@ -114,6 +105,10 @@ export interface OrderTarget extends OrderLocation {
   /** `Parcel #1042/3` (the cadastral parcel, on the urban panel too, as in the mock), else `UP 12`. */
   parcel: string;
   ko: string | null;
+  /** The planned urban parcel the figures use (`UP 12`), when there is one. */
+  plannedParcel: string | null;
+  /** The panel's `data_version`: the published data the visitor saw (stored on the order). */
+  dataVersion: string | null;
   /** The panel's `basis_area_m2`: what the server prices from. */
   basisAreaM2: number | null;
   calculationBasis: "urban" | "cadastral" | null;
@@ -122,29 +117,25 @@ export interface OrderTarget extends OrderLocation {
 }
 
 /**
- * The request body: the location the panel showed, the purchaser's fields for their type (a legal
- * entity's contact person is who the e-mails address; the server fills the name from it) and the
- * visitor's edited assumptions, if any.
+ * The request body: the location the panel showed, the name, telephone and e-mail, a legal
+ * entity's company name and PIB when given, and the visitor's edited assumptions, if any.
  */
 export function toOrderIn(draft: OrderDraft, location: OrderLocation, edits: AssumptionEdits): OrderIn {
   const t = (v: string) => v.trim();
-  const common = {
+  const body: OrderIn = {
     location: { parcel_type: location.parcelType, parcel_id: location.parcelId },
     purchaser_type: draft.purchaserType,
+    first_name: t(draft.firstName),
+    last_name: t(draft.lastName) || null,
     email: t(draft.email),
     telephone: t(draft.telephone),
     assumptions: hasEdits(edits) ? toRequestAssumptions(edits) : null,
   };
   if (draft.purchaserType === "legal_entity") {
-    return {
-      ...common,
-      company_name: t(draft.companyName),
-      tax_number: t(draft.taxNumber),
-      contact_person: t(draft.contactPerson),
-      registered_address: t(draft.registeredAddress),
-    };
+    body.company_name = t(draft.companyName) || null;
+    body.tax_number = t(draft.taxNumber) || null;
   }
-  return { ...common, first_name: t(draft.firstName), last_name: t(draft.lastName) || null };
+  return body;
 }
 
 const SERVER_FIELDS: Record<string, DraftField> = {
@@ -154,8 +145,6 @@ const SERVER_FIELDS: Record<string, DraftField> = {
   email: "email",
   company_name: "companyName",
   tax_number: "taxNumber",
-  contact_person: "contactPerson",
-  registered_address: "registeredAddress",
 };
 
 export interface OrderFailure {

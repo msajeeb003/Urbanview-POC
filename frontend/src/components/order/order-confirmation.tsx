@@ -4,24 +4,78 @@
  * S5 "Order confirmed" (wireframe `orderSuccess`, `screens/success.png`): the check, the title, the
  * delivery sentence with the turnaround, the reference and parcel in the mono chip, "Done" (toast
  * "Order placed — check your email"). No online checkout in this build, so the bank-transfer
- * instructions of `POST /v1/orders` follow in the mock's `.paysummary` lines (payee, IBAN, bank,
- * SWIFT, the reference to quote, the amount due as the total line), with the API's note (work
- * starts when the payment is received), where they were e-mailed, and the public order page.
+ * instructions follow in the mock's `.paysummary` lines (payee, IBAN, bank, SWIFT, the reference to
+ * quote, the amount due as the total line), with the API's note (work starts when the payment is
+ * received), where they were e-mailed, and the public order page.
+ *
+ * Reload-safe: while it is on screen the address bar carries `?order=<reference>`; opening the map
+ * with it reads `GET /v1/orders/{reference}` (no personal data: the e-mail address is only known
+ * right after the order) and shows the confirmation again (`reopenConfirmation`). Closing it
+ * removes the parameter.
  */
 import { useEffect, useState } from "react";
 
-import type { OrderCreated } from "@/lib/api/types";
-import type { OrderTarget } from "@/lib/order-form";
+import { api } from "@/lib/api/endpoints";
+import type { OrderCreated, OrderPublic } from "@/lib/api/types";
 import { turnaroundText } from "@/lib/pricing";
 import { useShell, type ModalSpec } from "@/lib/store";
+import { syncOrderParam } from "@/lib/url-state";
 
 import { Cta } from "../ui/cta";
 
 export const CONFIRMED_LABEL = "Order confirmed";
 export const PLACED_TOAST = "Order placed — check your email";
 
-export function confirmationSpec(order: OrderCreated, target: OrderTarget, email: string): ModalSpec {
-  return { label: CONFIRMED_LABEL, content: <OrderConfirmation order={order} parcel={target.parcel} email={email} /> };
+type Instructions = OrderCreated["payment_instructions"];
+
+/** What the confirmation shows: from the order just placed, or read back after a reload. */
+interface Confirmation {
+  reference: string;
+  parcel: string;
+  businessDays: number;
+  instructions: Instructions | null;
+  /** Payment received already (after a reload). */
+  paid: boolean;
+  /** The address the instructions went to (only right after the order). */
+  email: string | null;
+  emailed: boolean;
+}
+
+export function confirmationSpec(order: OrderCreated, parcel: string, email: string): ModalSpec {
+  return spec({
+    reference: order.reference,
+    parcel,
+    businessDays: order.turnaround.business_days,
+    instructions: order.payment_instructions,
+    paid: false,
+    email,
+    emailed: order.email_status === "queued" || order.email_status === "sent",
+  });
+}
+
+/** The confirmation read back from `GET /v1/orders/{reference}` (a reload of the S5 link). */
+export function publicConfirmationSpec(order: OrderPublic): ModalSpec {
+  return spec({
+    reference: order.reference,
+    parcel: order.location.parcel_label,
+    businessDays: order.turnaround.business_days,
+    instructions: order.payment_instructions ?? null,
+    paid: !order.payment_due,
+    email: null,
+    emailed: true,
+  });
+}
+
+const spec = (c: Confirmation): ModalSpec => ({ label: CONFIRMED_LABEL, content: <OrderConfirmation c={c} /> });
+
+/** Opens the confirmation of `?order=` again; a reference that matches nothing drops the parameter. */
+export async function reopenConfirmation(reference: string): Promise<void> {
+  try {
+    const order = await api.order(reference);
+    useShell.getState().openModal(publicConfirmationSpec(order));
+  } catch {
+    syncOrderParam(null);
+  }
 }
 
 /** The public order page (`app/orders/[reference]`), the link the e-mail carries too. */
@@ -51,13 +105,61 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-function OrderConfirmation({ order, parcel, email }: { order: OrderCreated; parcel: string; email: string }) {
+/** The bank-transfer lines (the confirmation and the order page). */
+export function PayInstructions({ pay }: { pay: Instructions }) {
+  const amount = `${pay.currency === "EUR" ? "€" : `${pay.currency} `}${pay.amount_eur.toFixed(2)}`;
+  return (
+    <>
+      <div className="fieldlab paylab">Pay by bank transfer</div>
+      <div className="paysummary payinstr">
+        <div className="payline">
+          <span>Payee</span>
+          <span>{pay.beneficiary}</span>
+        </div>
+        <div className="payline">
+          <span>IBAN</span>
+          <span className="mono">
+            {pay.iban} <CopyButton text={pay.iban} label="IBAN" />
+          </span>
+        </div>
+        {pay.bank_name && (
+          <div className="payline">
+            <span>Bank</span>
+            <span>{pay.bank_name}</span>
+          </div>
+        )}
+        {pay.swift && (
+          <div className="payline">
+            <span>SWIFT / BIC</span>
+            <span className="mono">{pay.swift}</span>
+          </div>
+        )}
+        <div className="payline">
+          <span>Payment reference</span>
+          <span className="mono">
+            {pay.reference_to_quote} <CopyButton text={pay.reference_to_quote} label="payment reference" />
+          </span>
+        </div>
+        <div className="payline total">
+          <span>Amount due</span>
+          <span className="mono">{amount}</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function OrderConfirmation({ c }: { c: Confirmation }) {
   const closeModal = useShell((s) => s.closeModal);
   const showToast = useShell((s) => s.showToast);
-  const pay = order.payment_instructions;
-  const turnaround = turnaroundText(order.turnaround.business_days);
-  const emailed = order.email_status === "queued" || order.email_status === "sent";
-  const amount = `${pay.currency === "EUR" ? "€" : `${pay.currency} `}${pay.amount_eur.toFixed(2)}`;
+  const turnaround = turnaroundText(c.businessDays);
+  const pay = c.instructions;
+
+  // the address bar names the order while the confirmation is open (a reload shows it again)
+  useEffect(() => {
+    syncOrderParam(c.reference);
+    return () => syncOrderParam(null);
+  }, [c.reference]);
 
   return (
     <>
@@ -71,54 +173,26 @@ function OrderConfirmation({ order, parcel, email }: { order: OrderCreated; parc
           <h2>Order confirmed</h2>
           <p>
             An expert will prepare your site &amp; feasibility analysis and email it within <b>{turnaround}</b>.{" "}
-            {emailed
-              ? "A confirmation is on its way now."
-              : "The confirmation email could not be sent, so please keep the details below."}
+            {c.paid
+              ? "Your payment has been received."
+              : c.emailed
+                ? "A confirmation is on its way now."
+                : "The confirmation email could not be sent, so please keep the details below."}
           </p>
           <div className="orderref">
-            {order.reference} · {parcel}
+            {c.reference} · {c.parcel}
           </div>
         </div>
 
-        <div className="fieldlab paylab">Pay by bank transfer</div>
-        <div className="paysummary payinstr">
-          <div className="payline">
-            <span>Payee</span>
-            <span>{pay.beneficiary}</span>
-          </div>
-          <div className="payline">
-            <span>IBAN</span>
-            <span className="mono">
-              {pay.iban} <CopyButton text={pay.iban} label="IBAN" />
-            </span>
-          </div>
-          {pay.bank_name && (
-            <div className="payline">
-              <span>Bank</span>
-              <span>{pay.bank_name}</span>
-            </div>
-          )}
-          {pay.swift && (
-            <div className="payline">
-              <span>SWIFT / BIC</span>
-              <span className="mono">{pay.swift}</span>
-            </div>
-          )}
-          <div className="payline">
-            <span>Payment reference</span>
-            <span className="mono">
-              {pay.reference_to_quote} <CopyButton text={pay.reference_to_quote} label="payment reference" />
-            </span>
-          </div>
-          <div className="payline total">
-            <span>Amount due</span>
-            <span className="mono">{amount}</span>
-          </div>
-        </div>
+        {pay && <PayInstructions pay={pay} />}
         <p className="paynote">
-          {pay.note_en}
-          {emailed && <> The same instructions were emailed to {email}.</>}{" "}
-          <a href={orderPagePath(order.reference)} target="_blank" rel="noopener">
+          {pay && (
+            <>
+              {pay.note_en}
+              {c.emailed && (c.email ? <> The same instructions were emailed to {c.email}.</> : <> The same instructions were emailed to you.</>)}{" "}
+            </>
+          )}
+          <a href={orderPagePath(c.reference)} target="_blank" rel="noopener">
             Track your order ↗
           </a>
         </p>

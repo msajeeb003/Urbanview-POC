@@ -865,25 +865,37 @@ the POC check of Group 2 asked for it).
 ## Orders (`api/services/orders.py`, `core/pricing.py`, `core/payments.py`, `api/services/order_mail.py`)
 
 - **Guest checkout, no account, no password, no verification before purchase.** `POST /v1/orders`
-  takes the location the panel showed (`{parcel_type, parcel_id}`), the purchaser type
-  (`individual`: first name required, last name optional; `legal_entity`: company name, PIB /
-  VAT number, contact person and invoice address required, and the contact person is the name
-  the e-mails address when no first name is given), e-mail and telephone (validated), the
-  assumptions the visitor edited, and an optional message. It answers 201 with the reference,
-  the price, the turnaround, the bank-transfer instructions and the public status URL
+  takes the location the panel showed (`{parcel_type, parcel_id}`), the pilot scope's guest form
+  (first name, e-mail and telephone required for everyone, validated; last name optional; the
+  purchaser type `individual` | `legal_entity`, whose company name and PIB `tax_number` are both
+  optional and dropped for an individual; `contact_person` / `registered_address` of the first
+  form are refused since 0031), the assumptions the visitor edited, and an optional message. It
+  answers 201 with the reference, the price, the turnaround, the bank-transfer instructions,
+  `data_version`, `location.cadastral_parcel_id` and the public status URL
   (`ORDER_PUBLIC_BASE_URL` + `/orders/{reference}`, the public map's order page). Capped per e-mail
   address and day (`ORDER_MAX_PER_EMAIL_PER_DAY`, 429) on top of the per-IP limiter.
+- **Customers** (migration 0031, the pilot's `public.customer`): `customers` holds one guest
+  purchaser per e-mail address and municipality (`email`, `first_name`, `last_name`, `phone`,
+  `company_name`, `company_id` = PIB), upserted by `POST /v1/orders` in the order's transaction
+  (the latest name and telephone win; a company is kept until another is given); `orders.customer_id`
+  points at it and the order keeps the details typed on it. The migration backfilled customers
+  from the existing orders the same way.
 - **Price is configuration, never logic:** `ORDER_PRICE_TIERS` (`"<max m²>:<EUR>,…,inf:<EUR>"`,
   BRD band EUR 50–200, tiers to be confirmed by the client; default = the mockup's 100 up to
   500 m² and 200 above) applied to the parcel's area basis (planned urban parcel area, else
   cadastral). `ORDER_TURNAROUND_BUSINESS_DAYS` gives `expected_by` (Mon–Fri, no holidays).
 - **Reference** `UV-{KO}-{parcel}-{yymmdd}-{seq}` (`ko_short("Podgorica I") = "PODI"`), unique,
   retried on collision. **Snapshot**: the full panel payload the visitor saw (with their edits),
-  its `data_version`, market assumptions version and formula version, stored on the order so
-  the expert works from what was shown even after a later publish; the staff detail returns it.
-- **Status flow** `pending_payment → paid → in_progress → delivered`, `refunded` from paid /
+  its `data_version` (label, and `orders.publish_version_id`: the `publish_versions` row with that
+  label, the current one first; FK, SET NULL), market assumptions version and formula version,
+  stored on the order so the expert works from what was shown even after a later publish; the
+  staff detail returns it.
+- **Status flow** `pending_payment → paid → in_progress → delivered`, `payment_failed` from
+  pending_payment (it can still be paid: `payment_failed → paid`), `refunded` from paid /
   in_progress; anything else 409. `POST /v1/admin/orders/{id}/payment` (`received` → paid with
-  amount / date / bank reference, `not_received` → note only, `refunded`), `.../assign` (an
+  amount / date / bank reference, also from payment_failed; `not_received` → payment_failed with
+  the note, again on a failed order only records the check, 409 once paid; `refunded`),
+  `.../assign` (an
   active `expert` user; a paid order moves to in_progress), `PATCH .../status` (delivered needs
   a report), `POST .../report` (PDF → private bucket as `stored_files.kind = expert_report`,
   sets delivered, e-mails a signed download link, `ORDER_REPORT_LINK_EXPIRES_SECONDS`). Every
@@ -902,14 +914,22 @@ the POC check of Group 2 asked for it).
   `/?parcel=`, also for urban orders). `GET /v1/admin/orders/experts` (admins, reviewers; 403
   for experts): the active `expert` users with their `open_orders` (in progress) for the assign
   picker.
-- **Public status** `GET /v1/orders/{reference}/status`: status, location and turnaround only;
-  the public map's order page `/orders/{reference}` (`frontend/src/app/orders/`) reads it, and
-  the confirmation and every order e-mail link there.
+- **Confirmation data** `GET /v1/orders/{reference}` (the pilot scope's "confirmation page data",
+  public, `no-store`, reference case-insensitive): status + labels, location, pricing,
+  turnaround, `payment_due` (pending_payment | payment_failed), `payment_instructions` while it is
+  due (else null), `data_version`, `status_url`; never personal data. The public map's order page
+  `/orders/{reference}` (`frontend/src/app/orders/`) and the reloaded S5 confirmation read it; the
+  confirmation and every order e-mail link to the page. `GET /v1/orders/{reference}/status` stays
+  the compact variant (status, location and turnaround only).
 - **The public map's flow** (`frontend/src/components/order/`): S4 order modal from the parcel
-  panel (location carried through, fee and turnaround from `GET /v1/orders/pricing`, inline
-  validation with the API's rules), `POST /v1/orders`, S5 confirmation with the bank-transfer
-  instructions on screen; `order_started` / `checkout_completed {order_id: <reference>,
-  amount_eur}`.
+  panel (location carried through with the planned parcel and the data version, fee and
+  turnaround from `GET /v1/orders/pricing`, inline validation with the API's rules, links to
+  `/legal/terms`, `/legal/refund`, `/legal/privacy`), `POST /v1/orders`, S5 confirmation with the
+  bank-transfer instructions on screen and `?order=<reference>` in the address bar (a reload
+  shows it again from `GET /v1/orders/{reference}`); `order_started` / `checkout_completed
+  {order_id: <reference>, amount_eur}`. The legal pages (`/legal/terms | privacy | refund |
+  disclaimer`, `frontend/src/lib/legal.ts`) carry draft wording until the client's lawyer
+  supplies it (pilot scope: legal copy is the client's, "launch, not build").
 - **Pricing for the panel** `GET /v1/orders/pricing` (public, configuration only, `Cache-Control:
   public, max-age=300`): `{currency, tiers: [{up_to_m2, price_eur}], turnaround_business_days}`;
   the public map shows a parcel's price by applying `core.pricing.price_for`'s rule to the panel's
@@ -922,7 +942,7 @@ the POC check of Group 2 asked for it).
 - **Payments**: `core/payments.py` is the provider seam. The POC ships `BankTransferProvider`
   (instructions from `ORDER_BANK_*`, no online step); a card provider (Stripe vs Paddle is
   unverified in the BRD) implements `PaymentProvider` (checkout URL + webhook → `PaymentEvent`).
-  No card data anywhere. `orders` is the only table with personal data.
+  No card data anywhere. `customers` and `orders` are the only tables with personal data.
 - Tests: `tests/test_orders_unit.py` (tiers, turnaround, references, transitions, form
   validation, e-mail templates) and `tests/integration/test_orders_postgis.py` (creation with
   snapshot and e-mail, pricing from config, the status flow with guards, expert scope, report

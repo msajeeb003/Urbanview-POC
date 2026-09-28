@@ -5,7 +5,8 @@
  * snapshot the customer saw.
  *
  * Status flow (the API's `TRANSITIONS`): pending_payment → paid → in_progress → delivered;
- * refunded from paid or in_progress. A paid order moves to in_progress when an expert is assigned
+ * payment_failed from pending_payment ("Payment not received"; it can still be paid); refunded from
+ * paid or in_progress. A paid order moves to in_progress when an expert is assigned
  * (or with "Start"); uploading the report delivers it and e-mails the customer; a delivered
  * report can be replaced (a note says why; the new link is e-mailed again). Admins and reviewers
  * manage orders; an expert sees only the orders assigned to them and only uploads the report.
@@ -17,6 +18,7 @@ import type { StaffRole } from "./sections";
 
 export const ORDER_STATUSES: readonly { value: OrderStatus; label: string; tone: ChipTone }[] = [
   { value: "pending_payment", label: "Pending payment", tone: "pend" },
+  { value: "payment_failed", label: "Payment not received", tone: "rev" },
   { value: "paid", label: "Paid", tone: "pend" },
   { value: "in_progress", label: "In progress", tone: "rev" },
   { value: "delivered", label: "Delivered", tone: "ok" },
@@ -64,7 +66,7 @@ export function allowed(
     case "receive":
     case "notReceived":
       if (!manager) return no("Admins and reviewers record payments.", false);
-      return status === "pending_payment"
+      return status === "pending_payment" || status === "payment_failed"
         ? { visible: true, enabled: true }
         : no(`Payments are recorded while the order awaits payment; this one is ${is}.`);
     case "refund":
@@ -215,7 +217,7 @@ export function eventLine(event: Pick<OrderEvent, "action" | "details" | "before
       parts.push("Order placed by the customer");
       break;
     case "order.payment_check":
-      parts.push("Payment not received yet");
+      parts.push("Payment not received");
       break;
     case "order.assign":
       parts.push(`Assigned to ${after.assignee_email ?? "an expert"}`);

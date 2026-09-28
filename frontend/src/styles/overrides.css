@@ -680,7 +680,62 @@
       - the confirmation's bank-transfer block (the mock's `.paysummary` lines under a
         `.fieldlab`): long IBANs wrap, "Copy" buttons, the note under it;
       - the order page (no mock screen): the topbar alone, then a card in the modal's style that
-        scrolls with the page (the body itself never scrolls). */
+        scrolls with the page (the body itself never scrolls);
+      - the form's context strip names the data version on a line of its own, and the line with
+        the terms / refund / privacy links sits under the guest-checkout note (not in the mock);
+      - the legal pages (`/legal/*`, no mock screen) are the order page's card with plain text. */
+.ctx .cd .ctxver {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.orderlegal {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.orderlegal a,
+.legaltext a {
+  color: var(--brand);
+  font-weight: 600;
+}
+.legalnote {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.legaltext h3 {
+  margin: 16px 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.legaltext p,
+.legaltext li {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.legaltext ul {
+  margin: 4px 0 8px 18px;
+  list-style: disc;
+}
+.legaltext p + p {
+  margin-top: 8px;
+}
+.legalnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+}
 .field.err input {
   border-color: var(--danger);
 }

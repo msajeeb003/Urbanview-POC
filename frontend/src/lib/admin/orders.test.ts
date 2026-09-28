@@ -25,6 +25,7 @@ describe("status flow", () => {
     expect(statusChip("pending_payment")).toEqual({ tone: "pend", label: "Pending payment" });
     expect(statusChip("delivered").tone).toBe("ok");
     expect(statusChip("refunded").tone).toBe("rev");
+    expect(statusChip("payment_failed")).toEqual({ tone: "rev", label: "Payment not received" });
   });
 
   it("mirrors the API's guards and says why an action is not available", () => {
@@ -34,6 +35,10 @@ describe("status flow", () => {
     expect(allowed(order("in_progress"), "refund", "admin").enabled).toBe(true);
     expect(allowed(order("delivered"), "refund", "admin").enabled).toBe(false);
     expect(allowed(order("pending_payment"), "refund", "admin").enabled).toBe(false);
+    // a failed payment can still be received (or checked again), never refunded
+    expect(allowed(order("payment_failed"), "receive", "admin").enabled).toBe(true);
+    expect(allowed(order("payment_failed"), "notReceived", "reviewer").enabled).toBe(true);
+    expect(allowed(order("payment_failed"), "refund", "admin").enabled).toBe(false);
     expect(allowed(order("paid"), "start", "admin")).toMatchObject({ enabled: false, reason: "Assign an expert first." });
     expect(allowed(order("paid", true), "start", "admin").enabled).toBe(true);
     expect(allowed(order("delivered"), "assign", "admin").enabled).toBe(false);

@@ -29,6 +29,7 @@ CLEANUP = (
     "DELETE FROM email_log WHERE municipality_id = 'podgorica'",
     "DELETE FROM pipeline_jobs WHERE municipality_id = 'podgorica'",
     "DELETE FROM orders WHERE municipality_id = 'podgorica'",
+    "DELETE FROM customers WHERE municipality_id = 'podgorica'",
     "DELETE FROM stored_files WHERE kind = 'expert_report'",
     "DELETE FROM financial_assumptions WHERE created_by <> 'seed'",
     "UPDATE financial_assumptions SET is_current = true, retired_at = NULL, retired_by = NULL "
@@ -50,8 +51,6 @@ LEGAL = {
     "email": "office@gradnja.me",
     "company_name": "Gradnja d.o.o.",
     "tax_number": "02123456",
-    "contact_person": "Marko M.",
-    "registered_address": "Bulevar 1, Podgorica",
 }
 PDF = placeholder_pdf("Expert analysis", 2)
 
@@ -181,9 +180,19 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
         reference = body["reference"]
         public = await client.get(f"/v1/orders/{reference}/status")
         unknown = await client.get("/v1/orders/UV-NOPE-0-000000-00/status")
+        confirmation = await client.get(f"/v1/orders/{reference.lower()}")
+        unknown_confirmation = await client.get("/v1/orders/UV-NOPE-0-000000-00")
         legal = await client.post("/v1/orders", json=LEGAL)
+        # the pilot's form: the company details are optional, the old legal-entity fields gone
         no_company = await client.post(
-            "/v1/orders", json={**LEGAL, "company_name": None, "email": "x@gradnja.me"}
+            "/v1/orders",
+            json={**LEGAL, "company_name": None, "tax_number": None, "email": "x@gradnja.me"},
+        )
+        old_fields = await client.post(
+            "/v1/orders", json={**LEGAL, "contact_person": "Marko M.", "email": "y@gradnja.me"}
+        )
+        nameless = await client.post(
+            "/v1/orders", json={**LEGAL, "first_name": " ", "email": "z@gradnja.me"}
         )
         bad_phone = await client.post("/v1/orders", json={**FORM, "telephone": "12"})
         no_parcel = await client.post(
@@ -214,6 +223,8 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
     }
     assert body["turnaround"]["business_days"] == 5
     assert body["location"]["parcel_type"] == "cadastral" and body["location"]["parcel_id"] == 1001
+    assert body["location"]["cadastral_parcel_id"] == 1001
+    assert body["data_version"] == "sample-2026-09-22"
     assert body["location"]["parcel_label"].startswith("KO ")
     assert body["location"]["document_name"] == "DUP Centar – Zona C2"
     instructions = body["payment_instructions"]
@@ -255,8 +266,37 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
     assert public.json()["location"]["parcel_label"] == body["location"]["parcel_label"]
     assert unknown.status_code == 404
 
+    # the confirmation again from the reference alone (reload-safe S5), no personal data
+    assert confirmation.status_code == 200, confirmation.text
+    assert confirmation.headers["Cache-Control"] == "no-store"
+    again = confirmation.json()
+    assert set(again) == {
+        "reference",
+        "status",
+        "status_label_en",
+        "status_label_me",
+        "placed_at",
+        "status_changed_at",
+        "location",
+        "pricing",
+        "turnaround",
+        "payment_due",
+        "payment_instructions",
+        "data_version",
+        "status_url",
+    }
+    assert again["reference"] == reference and again["payment_due"] is True
+    for key in ("location", "pricing", "turnaround", "payment_instructions", "status_url"):
+        assert again[key] == body[key], key
+    assert again["data_version"] == "sample-2026-09-22"
+    for personal in ("novak", "+382", "first_name", "email"):
+        assert personal not in confirmation.text.lower(), personal
+    assert unknown_confirmation.status_code == 404
+
     assert legal.status_code == 201, legal.text
-    assert no_company.status_code == 422 and bad_phone.status_code == 422
+    assert no_company.status_code == 201, no_company.text
+    assert old_fields.status_code == 422 and nameless.status_code == 422
+    assert bad_phone.status_code == 422
     assert no_parcel.status_code == 404
     assert urban.status_code == 201 and urban.json()["location"]["parcel_type"] == "urban"
 
@@ -267,8 +307,34 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
     assert order["snapshot"]["assumptions"]["saleable_share"] == 0.75
     assert order["snapshot"]["data_version"] == "sample-2026-09-22"
     assert order["data_version"] == "sample-2026-09-22" and order["formula_version"] == "poc-1"
+    (version,) = await rows(
+        app, "SELECT id FROM publish_versions WHERE label = 'sample-2026-09-22' AND is_current"
+    )
+    assert order["publish_version_id"] == version["id"]
     assert (order["market_version_id"], order["market_version"]) == (1, 1)
     assert order["assignee"] is None and order["has_report"] is False
+    assert order["contact_person"] is None and order["registered_address"] is None
+
+    # one customer per e-mail address (the pilot's public.customer)
+    customers = await rows(
+        app,
+        "SELECT c.id, c.email, c.first_name, c.phone, c.company_name, c.company_id, "
+        "array_agg(o.reference ORDER BY o.id) AS refs "
+        "FROM customers c JOIN orders o ON o.customer_id = c.id "
+        "GROUP BY c.id ORDER BY c.id",
+    )
+    by_email = {c["email"]: c for c in customers}
+    assert order["customer_id"] == by_email["ana.novak@example.com"]["id"]
+    ana = by_email["ana.novak@example.com"]
+    assert (ana["first_name"], ana["phone"], ana["company_name"]) == (
+        "Ana",
+        "+382 67 123 456",
+        None,
+    )
+    assert ana["refs"] == [reference]
+    office = by_email["office@gradnja.me"]
+    assert (office["company_name"], office["company_id"]) == ("Gradnja d.o.o.", "02123456")
+    assert by_email["x@gradnja.me"]["company_name"] is None
 
 
 async def test_price_comes_from_configuration(postgis_url):
@@ -285,9 +351,15 @@ async def test_orders_are_capped_per_email_address_and_day(postgis_url):
     app = build(postgis_url, order_max_per_email_per_day=2)
     async with app.router.lifespan_context(app), make_client(app) as client:
         first = await client.post("/v1/orders", json=FORM)
-        second = await client.post("/v1/orders", json=FORM)
+        second = await client.post("/v1/orders", json={**FORM, "telephone": "+382 69 000 111"})
         third = await client.post("/v1/orders", json=FORM)
     assert first.status_code == 201 and second.status_code == 201
+    # the same address is one customer; the latest telephone wins, each order keeps its own
+    customers = await rows(app, "SELECT id, phone FROM customers")
+    assert [c["phone"] for c in customers] == ["+382 69 000 111"]
+    linked = await rows(app, "SELECT customer_id, telephone FROM orders ORDER BY id")
+    assert [o["customer_id"] for o in linked] == [customers[0]["id"]] * 2
+    assert [o["telephone"] for o in linked] == ["+382 67 123 456", "+382 69 000 111"]
     assert third.status_code == 429
     assert third.json()["error"]["code"] == "rate_limited"
     assert third.headers["Retry-After"] == "3600"
@@ -327,6 +399,10 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
             json={"status": "not_received", "note": "nothing on the statement yet"},
             headers=auth(),
         )
+        checked_again = await client.post(
+            f"/v1/admin/orders/{oid}/payment", json={"status": "not_received"}, headers=auth()
+        )
+        confirm_failed = await client.get(f"/v1/orders/{reference}")
         paid = await client.post(
             f"/v1/admin/orders/{oid}/payment",
             json={"status": "received", "amount_eur": 200, "reference": "BANK-1"},
@@ -336,6 +412,9 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
             f"/v1/admin/orders/{oid}/payment",
             json={"status": "received", "amount_eur": 200},
             headers=auth(),
+        )
+        late_check = await client.post(
+            f"/v1/admin/orders/{oid}/payment", json={"status": "not_received"}, headers=auth()
         )
         not_an_expert = await client.post(
             f"/v1/admin/orders/{oid}/assign", json={"expert_user_id": reviewer_id}, headers=auth()
@@ -385,6 +464,7 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
         queue = await client.get("/v1/admin/orders", params={"status": "delivered"}, headers=auth())
         found = await client.get("/v1/admin/orders", params={"search": "novak"}, headers=auth())
         public = await client.get(f"/v1/orders/{reference}/status")
+        confirm_done = await client.get(f"/v1/orders/{reference}")
         trail = await client.get(
             "/v1/admin/audit",
             params={"entity_type": "order", "entity_id": oid, "limit": 50},
@@ -392,15 +472,21 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
         )
 
     assert too_early.status_code == 409
-    assert too_early.json()["error"]["details"]["allowed"] == ["paid"]
-    assert checked.status_code == 200 and checked.json()["status"] == "pending_payment"
+    assert too_early.json()["error"]["details"]["allowed"] == ["paid", "payment_failed"]
+    # the transfer did not arrive: payment_failed, still payable, the instructions still shown
+    assert checked.status_code == 200 and checked.json()["status"] == "payment_failed"
     assert "nothing on the statement yet" in checked.json()["notes"]
+    assert checked_again.status_code == 200 and checked_again.json()["status"] == "payment_failed"
+    failed = confirm_failed.json()
+    assert failed["status"] == "payment_failed" and failed["payment_due"] is True
+    assert failed["status_label_me"] == "uplata nije primljena"
+    assert failed["payment_instructions"]["reference_to_quote"] == reference
     assert paid.status_code == 200, paid.text
     assert paid.json()["status"] == "paid" and paid.json()["paid_at"]
     assert (
         paid.json()["payment_amount_eur"] == 200.0 and paid.json()["payment_reference"] == "BANK-1"
     )
-    assert paid_again.status_code == 409
+    assert paid_again.status_code == 409 and late_check.status_code == 409
     assert not_an_expert.status_code == 422
     assert assigned.status_code == 200
     assert assigned.json()["status"] == "in_progress"
@@ -429,6 +515,8 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
     assert [o["id"] for o in queue.json()["items"]] == [oid]
     assert {o["id"] for o in found.json()["items"]} == {oid, other}
     assert public.json()["status"] == "delivered" and "email" not in public.json()
+    done = confirm_done.json()
+    assert done["payment_due"] is False and done["payment_instructions"] is None
 
     log = await rows(
         app, "SELECT template, status FROM email_log WHERE order_id = :o ORDER BY id", o=oid
@@ -442,6 +530,7 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
         "order.assign",
         "order.payment",
         "order.payment_check",
+        "order.payment_check",
         "order.create",
     ]
     entries = trail.json()["items"]
@@ -450,6 +539,9 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
     }
     assert entries[0]["actor"] == "expert@example.com"
     assert entries[4]["actor"] == "reviewer@example.com" and entries[4]["after"]["status"] == "paid"
+    assert entries[4]["before"] == {"status": "payment_failed"}
+    assert entries[6]["before"] == {"status": "pending_payment"}
+    assert entries[6]["after"] == {"status": "payment_failed"}
 
 
 async def test_snapshot_keeps_the_numbers_the_visitor_saw(order_app):

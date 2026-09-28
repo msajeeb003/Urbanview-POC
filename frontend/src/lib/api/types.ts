@@ -46,7 +46,7 @@ export type ZoneIndexEntry = S["ZoneIndexEntry"];
 
 export type OrderIn = S["OrderIn"];
 export type OrderCreated = S["OrderCreated"];
-export type OrderStatusPublic = S["OrderStatusPublic"];
+export type OrderPublic = S["OrderPublic"];
 export type OrderPricing = S["OrderPricing"];
 
 export type PlanningField = S["PlanningField"];

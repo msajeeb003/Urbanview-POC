@@ -1,5 +1,6 @@
-"""Schemas for expert-analysis orders: the public order form and status page (no personal data
-returned), and the staff views (queue, detail with the snapshot, status / payment / assignment)."""
+"""Schemas for expert-analysis orders: the public order form, confirmation and status page (no
+personal data returned), and the staff views (queue, detail with the snapshot, status / payment /
+assignment)."""
 
 from __future__ import annotations
 
@@ -12,13 +13,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from api.schemas.email import EmailLogOut
 from api.schemas.feasibility import EditedAssumptions
 
-OrderStatus = Literal["pending_payment", "paid", "in_progress", "delivered", "refunded"]
+OrderStatus = Literal[
+    "pending_payment", "paid", "payment_failed", "in_progress", "delivered", "refunded"
+]
 PurchaserType = Literal["individual", "legal_entity"]
 ParcelType = Literal["cadastral", "urban"]
 
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 PHONE_RE = re.compile(r"^\+?[0-9][0-9 ()./-]{5,24}$")
-LEGAL_ENTITY_FIELDS = ("company_name", "tax_number", "contact_person", "registered_address")
 
 
 # --- public ---------------------------------------------------------------------------------------
@@ -32,35 +34,40 @@ class OrderLocation(BaseModel):
 
 
 class OrderIn(BaseModel):
+    """The pilot scope's guest form: name, e-mail and telephone for everyone; a legal entity may
+    add its company name and PIB (company id). No account, no verification."""
+
     model_config = ConfigDict(extra="forbid")
 
     location: OrderLocation
     purchaser_type: PurchaserType
-    first_name: str | None = Field(
-        default=None,
-        max_length=100,
-        description="Required for an individual; a legal entity is addressed by its contact person",
-    )
+    first_name: str = Field(max_length=100, description="Required: who the order e-mails address")
     last_name: str | None = Field(default=None, max_length=100, description="Optional")
     email: str = Field(max_length=254)
     telephone: str = Field(max_length=30)
-    company_name: str | None = Field(default=None, max_length=200)
-    tax_number: str | None = Field(default=None, max_length=40, description="PIB / VAT number")
-    contact_person: str | None = Field(default=None, max_length=200)
-    registered_address: str | None = Field(
-        default=None, max_length=500, description="Invoice address of the legal entity"
+    company_name: str | None = Field(
+        default=None, max_length=200, description="Legal entity only, optional"
+    )
+    tax_number: str | None = Field(
+        default=None, max_length=40, description="PIB (company id); legal entity only, optional"
     )
     assumptions: EditedAssumptions | None = Field(
         default=None, description="The assumptions the visitor edited on the panel, if any"
     )
     message: str | None = Field(default=None, max_length=1000)
 
-    @field_validator(
-        "first_name", "last_name", "company_name", "contact_person", "registered_address"
-    )
+    @field_validator("first_name")
+    @classmethod
+    def _named(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("enter a name")
+        return value
+
+    @field_validator("last_name", "company_name", "tax_number")
     @classmethod
     def _trimmed(cls, value: str | None) -> str | None:
-        return value.strip() if isinstance(value, str) else value
+        return (value.strip() or None) if isinstance(value, str) else value
 
     @field_validator("email")
     @classmethod
@@ -79,18 +86,11 @@ class OrderIn(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def _purchaser_needs_its_fields(self) -> OrderIn:
-        """An individual gives a first name (last name optional); a legal entity gives company,
-        PIB / VAT, contact person and invoice address, and the contact person is who the order
-        e-mails address when no first name is given."""
-        if self.purchaser_type == "legal_entity":
-            missing = [name for name in LEGAL_ENTITY_FIELDS if not getattr(self, name)]
-            if missing:
-                raise ValueError(f"a legal entity needs {', '.join(missing)}")
-            if not self.first_name:
-                self.first_name = self.contact_person
-        elif not self.first_name:
-            raise ValueError("an individual needs first_name")
+    def _company_only_for_a_legal_entity(self) -> OrderIn:
+        """An individual's order carries no company; the last name is optional for everyone."""
+        if self.purchaser_type == "individual":
+            self.company_name = None
+            self.tax_number = None
         self.last_name = self.last_name or ""
         return self
 
@@ -162,9 +162,35 @@ class OrderCreated(BaseModel):
     turnaround: TurnaroundOut
     payment_instructions: PaymentInstructionsOut
     status_url: str = Field(description="Public status page of this order (no personal data)")
+    data_version: str | None = Field(
+        default=None, description="Label of the published version the panel was served from"
+    )
     email_status: Literal["queued", "sent", "suppressed", "failed"] = Field(
         description="queued: the send_email job will deliver it; final states when it already ran"
     )
+
+
+class OrderPublic(BaseModel):
+    """The confirmation page data (``GET /v1/orders/{reference}``): what the S5 confirmation and
+    the public order page show, from the reference alone. Never personal data."""
+
+    reference: str
+    status: OrderStatus
+    status_label_en: str
+    status_label_me: str
+    placed_at: datetime
+    status_changed_at: datetime
+    location: OrderLocationOut
+    pricing: PricingOut
+    turnaround: TurnaroundOut
+    payment_due: bool = Field(description="pending_payment or payment_failed: the transfer is due")
+    payment_instructions: PaymentInstructionsOut | None = Field(
+        description="The bank-transfer instructions while the payment is due, else null"
+    )
+    data_version: str | None = Field(
+        default=None, description="Label of the published version the order was placed on"
+    )
+    status_url: str
 
 
 class OrderStatusPublic(BaseModel):
@@ -244,13 +270,21 @@ class OrderOut(OrderSummary):
     last_name: str
     telephone: str
     tax_number: str | None = None
-    contact_person: str | None = None
-    registered_address: str | None = None
+    contact_person: str | None = Field(
+        default=None, description="Orders placed before 0031 only (no longer collected)"
+    )
+    registered_address: str | None = Field(
+        default=None, description="Orders placed before 0031 only (no longer collected)"
+    )
+    customer_id: int | None = Field(default=None, description="customers.id (the guest purchaser)")
     message: str | None = None
     assumption_edits: dict[str, Any]
     pricing: PricingOut
     turnaround: TurnaroundOut
     data_version: str | None = None
+    publish_version_id: int | None = Field(
+        default=None, description="publish_versions.id of the data the visitor saw"
+    )
     market_version_id: int | None = None
     market_version: int | None = None
     formula_version: str | None = None
@@ -286,6 +320,9 @@ class StatusIn(BaseModel):
 
 
 class PaymentIn(BaseModel):
+    """``received`` pays the order (also after a failed payment), ``not_received`` records that the
+    transfer did not arrive (pending_payment -> payment_failed), ``refunded`` refunds it."""
+
     model_config = ConfigDict(extra="forbid")
 
     status: Literal["received", "not_received", "refunded"]
