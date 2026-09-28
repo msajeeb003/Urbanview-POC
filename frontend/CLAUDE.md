@@ -291,9 +291,10 @@ coverage), title, mono sub-label.
   the query text. The second ticket's `search_address`,
   `search_parcel` and `search_no_result` are not in the API's enum: they map onto
   `search_performed` (open item in `docs/specs/frontend-design.md` §10).
-- **Latency:** the public Photon instance answers in about 2 s from the dev machine; the < 2 s
-  query-to-panel target needs a self-hosted geocoder (`GEOCODER_BASE_URL`) or the Redis cache.
-  Parcel and zone searches do not touch the geocoder.
+- **Latency:** the public Photon instance answers in 1–3 s (production waits up to 3 s,
+  `GEOCODER_TIMEOUT_MS=3000`; at the 1.5 s default most answers were dropped and every address
+  said "No match"); the < 2 s query-to-panel target needs a self-hosted geocoder
+  (`GEOCODER_BASE_URL`) or the Redis cache. Parcel and zone searches do not touch the geocoder.
 
 ## Information panel (S3): zone, planning document, cadastral and urban parcel (`src/components/panel/*`)
 

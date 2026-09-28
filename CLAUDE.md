@@ -448,6 +448,14 @@ the POC check of Group 2 asked for it).
   is down; a request waits at most `GEOCODER_THROTTLE_WAIT_MS` for a slot); a failure backoff
   (`GEOCODER_FAILURE_BACKOFF_SECONDS`) so a down provider is not hit once per keystroke; and the
   global per-IP rate limit.
+- **Provider timeout** `GEOCODER_TIMEOUT_MS` (per request phase, `httpx.Timeout`; default 1500,
+  production **3000**). The public Photon instance answers in 1–3 s (1.0–2.3 s measured from the
+  server, 2026-09-29): at 1500 every slower answer was a `ReadTimeout`, so search answered
+  `provider_unavailable` and the map said "No match". The timeout only decides whether a slow
+  answer is kept; it adds no wait when Photon is fast, repeats come from the Redis cache, and an
+  answer slower than 3 s is still dropped (then the 5 s backoff). The < 2 s target for a typed
+  address needs a self-hosted geocoder (`GEOCODER_BASE_URL`); parcel and zone searches never call
+  one.
 - **Search never dead-ends.** Provider failure, throttling and Redis outages all answer 200
   with `results: []`; the CORS-exposed `X-Geocode-Status` header (hit | miss | too_short |
   throttled | provider_unavailable) says why. Queries shorter than `GEOCODER_MIN_QUERY_LENGTH`
