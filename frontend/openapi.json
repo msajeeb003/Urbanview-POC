@@ -10140,7 +10140,7 @@
               }
             ],
             "title": "Zone Id",
-            "description": "null = events that carried no zone_id"
+            "description": "null = events with no zone_id and no point inside any zone"
           },
           "zone_name": {
             "anyOf": [
@@ -10153,6 +10153,18 @@
             ],
             "title": "Zone Name"
           },
+          "covered": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Covered",
+            "description": "The zone has an adopted, live plan (null without a zone)"
+          },
           "events": {
             "type": "integer",
             "title": "Events",
@@ -10161,6 +10173,12 @@
           "searches": {
             "type": "integer",
             "title": "Searches"
+          },
+          "uncovered_searches": {
+            "type": "integer",
+            "title": "Uncovered Searches",
+            "description": "search_performed with coverage 'uncovered' (S6: no adopted plan there)",
+            "default": 0
           },
           "selections": {
             "type": "integer",
@@ -10185,7 +10203,8 @@
           "sessions",
           "share_pct"
         ],
-        "title": "District"
+        "title": "District",
+        "description": "A zone (UrbanView's district) by the events made in it: the event's ``zone_id``, else the\nzone containing its ``lat`` / ``lng``, so searches outside coverage count too."
       },
       "DistrictStatus": {
         "properties": {

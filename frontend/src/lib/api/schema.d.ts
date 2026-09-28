@@ -2458,15 +2458,24 @@ export interface components {
             /** Version */
             version: string;
         };
-        /** District */
+        /**
+         * District
+         * @description A zone (UrbanView's district) by the events made in it: the event's ``zone_id``, else the
+         *     zone containing its ``lat`` / ``lng``, so searches outside coverage count too.
+         */
         District: {
             /**
              * Zone Id
-             * @description null = events that carried no zone_id
+             * @description null = events with no zone_id and no point inside any zone
              */
             zone_id: number | null;
             /** Zone Name */
             zone_name: string | null;
+            /**
+             * Covered
+             * @description The zone has an adopted, live plan (null without a zone)
+             */
+            covered?: boolean | null;
             /**
              * Events
              * @description search_performed + parcel_selected
@@ -2474,6 +2483,12 @@ export interface components {
             events: number;
             /** Searches */
             searches: number;
+            /**
+             * Uncovered Searches
+             * @description search_performed with coverage 'uncovered' (S6: no adopted plan there)
+             * @default 0
+             */
+            uncovered_searches: number;
             /** Selections */
             selections: number;
             /** Sessions */

@@ -3,7 +3,7 @@
  * tab row and the pages read, so hiding a tab and refusing its route never disagree.
  *
  * Roles (the staff user's `role`, from `GET /v1/admin/users/me`):
- * - admin: everything, including users, financial assumptions and the audit log;
+ * - admin: everything, including users, financial assumptions, analytics (A7) and the audit log;
  * - reviewer: Overview, AI review queue, Planning rules (read), Orders, Data sources;
  * - expert: Orders (the API returns only the orders assigned to them).
  *
@@ -23,6 +23,7 @@ export type SectionId =
   | "engine"
   | "orders"
   | "data"
+  | "analytics"
   | "audit"
   | "users";
 
@@ -54,6 +55,8 @@ export const SECTIONS: readonly Section[] = [
   { id: "orders", label: "Orders", href: "/admin/orders", tab: true, roles: ["admin", "reviewer", "expert"] },
   // Reviewers register documents and drop in their PDFs too (the data sources ticket).
   { id: "data", label: "Data sources", href: "/admin/data", tab: true, roles: ["admin", "reviewer"] },
+  // the pilot scope's A7 "Analytics and audit" (GET /v1/admin/analytics is admin only)
+  { id: "analytics", label: "Analytics", href: "/admin/analytics", tab: false, roles: ["admin"] },
   { id: "audit", label: "Audit log", href: "/admin/audit", tab: false, roles: ["admin"] },
   { id: "users", label: "Users", href: "/admin/users", tab: false, roles: ["admin"] },
 ];

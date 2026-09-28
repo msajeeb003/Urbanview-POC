@@ -5,8 +5,10 @@ Every entry is data: a source-layer name, the geometry type, the zoom range and 
 yields one GeoJSON feature per row for a given ``publish_version_id`` (``:v``) and
 ``municipality_id`` (``:m``). The public map toggles each layer independently (BRD §2.1); the
 heatmaps are one source-layer each (``heat_coverage``, ``heat_far``, ``heat_height``,
-``heat_gfa`` per urban block, ``heat_sale_price`` per zone) from ``choropleth_cells``: every block
-/ zone, with ``value`` and ``band`` where it has a cell (none: drawn as not covered).
+``heat_gfa`` per urban block, ``heat_sale_price`` per zone) from ``choropleth_cells``: every
+covered block / zone, with ``value`` and ``band`` where it has a cell (none: drawn as "no data").
+Outside coverage (``core.coverage``) the archive carries no heatmap cell and no block, and
+cadastral parcels say ``covered: false``: the map there is the base map alone (BRD S6).
 
 Staged layers (``STAGED_LAYERS``): the ``properties`` keys the GIS ingestion job must write for
 each ``layer_id`` in ``staging_geometry``; the publish job upserts entity layers by natural key so
@@ -16,6 +18,8 @@ UrbanView ids stay stable, and copies generic layers into ``layer_features`` per
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+from core.coverage import ZONE_COVERED, point_covered
 
 # --- exported layers -----------------------------------------------------------------------------
 
@@ -54,12 +58,9 @@ _PRICE_BAND = """CASE WHEN {col} IS NULL THEN NULL WHEN {col} <= 0 THEN 0 ELSE 1
         WHERE CAST(b AS double precision) <= {col}) END"""
 
 # A zone is covered when at least one of its planning documents is adopted, live and current
-# with a coverage geometry (the same documents location resolution uses). The map colours covered
-# zones by type and draws the others muted ("no data yet"), never as if they had values.
-ZONE_COVERED = """EXISTS (
-    SELECT 1 FROM planning_documents d
-    WHERE d.zone_id = z.id AND d.municipality_id = z.municipality_id AND d.status = 'adopted'
-      AND d.coverage_live AND d.is_current_version AND d.coverage_geom IS NOT NULL)"""
+# with a coverage geometry (``core.coverage``: the documents location resolution uses). The map
+# colours covered zones by type and draws no other zone. Re-exported for the zone index.
+__all__ = ["ZONE_COVERED"]
 
 # Planned parcels of adopted, live, current document versions with their effective parameters.
 # `zone_id` is the urban panel's rule: the plan's zone, else the block's (blocks staged from a
@@ -167,9 +168,10 @@ LAYERS: tuple[LayerSpec, ...] = (
                 "jsonb_build_object('id', b.id, 'block_ref', b.block_ref, 'zone_id', b.zone_id)",
             )
         }
-        FROM urban_blocks b WHERE b.municipality_id = :m ORDER BY b.id
+        FROM urban_blocks b WHERE b.municipality_id = :m AND {point_covered("b.geom")}
+        ORDER BY b.id
         """,
-        "Urban blocks",
+        "Urban blocks inside coverage",
     ),
     LayerSpec(
         "urban_parcels",
@@ -218,7 +220,8 @@ LAYERS: tuple[LayerSpec, ...] = (
                 " 'relation', l.relation, 'reduction_pct', l.reduction_pct,"
                 " 'overlap_fraction', l.overlap_ratio_of_cadastral,"
                 " 'area_delta_m2', l.area_delta_m2,"
-                " 'zone_id', zc.id, 'zone_type', zc.zone_type)",
+                " 'zone_id', zc.id, 'zone_type', zc.zone_type,"
+                f" 'covered', {point_covered('c.geom')})",
             )
         }
         FROM cadastral_parcels c
@@ -232,7 +235,7 @@ LAYERS: tuple[LayerSpec, ...] = (
         ) zc ON true
         WHERE c.municipality_id = :m AND c.retired_at IS NULL ORDER BY c.id
         """,
-        "Cadastral parcels with their primary planned-parcel link",
+        "Cadastral parcels with their primary planned-parcel link and coverage",
     ),
     LayerSpec(
         "public_ownership",
@@ -314,7 +317,7 @@ LAYERS: tuple[LayerSpec, ...] = (
             FROM urban_blocks b
             LEFT JOIN choropleth_cells c ON c.publish_version_id = :v AND c.layer = '{layer}'
                  AND c.cell_id = b.id
-            WHERE b.municipality_id = :m ORDER BY b.id
+            WHERE b.municipality_id = :m AND {point_covered("b.geom")} ORDER BY b.id
             """,
             f"Heatmap per urban block: {description}",
         )
@@ -348,9 +351,10 @@ LAYERS: tuple[LayerSpec, ...] = (
         LEFT JOIN choropleth_cells c ON c.publish_version_id = :v AND c.layer = 'sale_price'
              AND c.cell_id = z.id
         LEFT JOIN choropleth_classes k ON k.publish_version_id = :v AND k.layer = 'sale_price'
-        WHERE z.municipality_id = :m ORDER BY z.id
+        WHERE z.municipality_id = :m AND {ZONE_COVERED} ORDER BY z.id
         """,
-        "Heatmap per zone: sale price €/m² (expected, low, high) of the assumptions that apply",
+        "Heatmap per covered zone: sale price €/m² (expected, low, high) of the assumptions that "
+        "apply",
     ),
 )
 

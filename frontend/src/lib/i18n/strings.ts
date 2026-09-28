@@ -141,6 +141,8 @@ const en = {
   "empty.title": "Pick a parcel to begin",
   "empty.pinDropped": "Pin dropped at",
   "empty.noParcel": "— no parcel at this point.",
+  "empty.noPlan": "— no adopted plan published here yet.",
+  "empty.outside": "— outside {name}.",
   "empty.body":
     "Click a cadastral parcel, an urban parcel, or a plan coverage area. UrbanView reads the adopted plan and tells you what can be built — and whether it's worth building.",
   "empty.hint.parcel": "◆ click a parcel",
@@ -280,6 +282,8 @@ const me: Record<StringKey, string> = {
   "empty.title": "Izaberite parcelu za početak",
   "empty.pinDropped": "Oznaka postavljena na",
   "empty.noParcel": "— na ovoj tački nema parcele.",
+  "empty.noPlan": "— ovdje još nije objavljen usvojeni plan.",
+  "empty.outside": "— izvan obuhvata: {name}.",
   "empty.body":
     "Kliknite na katastarsku parcelu, urbanističku parcelu ili obuhvat plana. UrbanView čita usvojeni plan i kaže vam šta se može graditi — i da li se isplati graditi.",
   "empty.hint.parcel": "◆ kliknite parcelu",

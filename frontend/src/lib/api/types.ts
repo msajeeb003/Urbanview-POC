@@ -59,6 +59,7 @@ export type StaffSession = S["SessionOut"];
 export type AdminOverview = S["OverviewOut"];
 export type DistrictStatus = S["DistrictStatus"];
 export type AuditPage = S["AuditPage"];
+export type AnalyticsDashboard = S["AnalyticsDashboard"];
 export type AuditEntry = S["AuditEntry"];
 export type OrderList = S["OrderList"];
 export type StaffUserList = S["StaffUserList"];

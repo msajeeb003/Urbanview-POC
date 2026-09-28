@@ -295,10 +295,22 @@ class Orders(BaseModel):
 
 
 class District(BaseModel):
-    zone_id: int | None = Field(description="null = events that carried no zone_id")
+    """A zone (UrbanView's district) by the events made in it: the event's ``zone_id``, else the
+    zone containing its ``lat`` / ``lng``, so searches outside coverage count too."""
+
+    zone_id: int | None = Field(
+        description="null = events with no zone_id and no point inside any zone"
+    )
     zone_name: str | None
+    covered: bool | None = Field(
+        default=None, description="The zone has an adopted, live plan (null without a zone)"
+    )
     events: int = Field(description="search_performed + parcel_selected")
     searches: int
+    uncovered_searches: int = Field(
+        default=0,
+        description="search_performed with coverage 'uncovered' (S6: no adopted plan there)",
+    )
     selections: int
     sessions: int
     share_pct: float

@@ -11,7 +11,7 @@
  * parcel → the urban panel; nothing, a pending parcel search or a point without a parcel → the
  * empty state. The variant is keyed by the entity so each open starts fresh.
  */
-import { useLocate } from "@/lib/api/hooks";
+import { useLocate, useMunicipality } from "@/lib/api/hooks";
 import { formatCoords } from "@/lib/format";
 import { useT, type StringKey } from "@/lib/i18n";
 import { nextSheet, useShell, type SheetState } from "@/lib/store";
@@ -65,14 +65,27 @@ function PanelContent() {
 
 const HINTS: StringKey[] = ["empty.hint.parcel", "empty.hint.plan", "empty.hint.zoom", "empty.hint.pan", "empty.hint.search"];
 
-/** "Pick a parcel to begin" (wireframe `renderPanelEmpty`), with the pin note when a click landed on no parcel. */
+/**
+ * "Pick a parcel to begin" (wireframe `renderPanelEmpty`), with the pin note when a click landed on
+ * no parcel, or (once the S6 pill has faded) on a place no adopted plan covers: "— no adopted plan
+ * published here yet." / "— outside Podgorica.", neutral, never an error.
+ */
 export function PanelEmpty() {
   const selection = useShell((s) => s.selection);
   const pin = useShell((s) => s.pin);
   const point = selection?.kind === "point" ? selection.point : null;
   const { data: res } = useLocate(point);
-  const noParcelHere = !!point && !!res && res.covered && !res.cadastral_parcel;
+  const { data: profile } = useMunicipality();
   const t = useT();
+  const note = !point || !res
+    ? null
+    : !res.covered
+      ? res.coverage.reason === "outside_municipality" && profile
+        ? t("empty.outside", { name: profile.name })
+        : t("empty.noPlan")
+      : !res.cadastral_parcel && !res.urban_parcel
+        ? t("empty.noParcel")
+        : null;
 
   return (
     <div className="pempty">
@@ -81,11 +94,11 @@ export function PanelEmpty() {
         <img src="/brand/UrbanView_mark.svg" alt="UrbanView" />
       </div>
       <h3>{t("empty.title")}</h3>
-      {noParcelHere && pin && (
+      {note && pin && (
         <div className="pinnote">
           <IconPinSmall />
           <span>
-            {t("empty.pinDropped")} <b>{formatCoords(pin)}</b> {t("empty.noParcel")}
+            {t("empty.pinDropped")} <b>{formatCoords(pin)}</b> {note}
           </span>
         </div>
       )}

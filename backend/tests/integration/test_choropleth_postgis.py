@@ -1,15 +1,18 @@
 """The heatmap surfaces on PostGIS (``core.choropleth``) through the publish job.
 
-Fixture: two zones (north, south) under one adopted, live document, one urban block in each:
-block N holds two planned parcels (1000 m²: FAR 1.0, coverage 40 %, P+2; 3000 m²: FAR 2.0,
-coverage 20 %, P+4), block S one parcel that states nothing. Zone north has a market set
-(1500 €/m²), zone south none until the test saves one (1250 €/m²).
+Fixture: two covered zones (north, south: each with an adopted, live document, the north one's
+coverage spanning both), one urban block in each: block N holds two planned parcels (1000 m²: FAR
+1.0, coverage 40 %, P+2; 3000 m²: FAR 2.0, coverage 20 %, P+4), block S one parcel that states
+nothing. Zone north has a market set (1500 €/m²), zone south none until the test saves one (1250
+€/m²). Zone east has no plan (outside coverage) but a block, a market set and a cadastral parcel.
 
 Checked: the block values by their rules (area-weighted means, the tallest notation, the GFA sum),
-no cell for block S and zone south (the tiles carry them without a value: not covered), the sale
+no cell for block S and zone south (the tiles carry them without a value: "no data"), the sale
 price exactly as the assumptions state it in the profile's bands, the pointer's classes are the
-stored ones and every tile band follows from them, a market set saved for today rebuilds the
-sale-price heatmap and the tiles (``refresh_heatmaps``), the QA command's min / max / mean.
+stored ones and every tile band follows from them, nothing of zone east in the heatmaps or the
+blocks and its cadastral parcel ``covered: false`` (S6: the base map alone), a market set saved
+for today rebuilds the sale-price heatmap and the tiles (``refresh_heatmaps``), the QA command's
+min / max / mean.
 """
 
 from __future__ import annotations
@@ -41,10 +44,19 @@ pytestmark = pytest.mark.integration
 
 PREFIX = "GT heat"
 BOX = "ST_Multi(ST_MakeEnvelope(:x0, :y0, :x1, :y1, 4326))"
-ZONES = {"north": (19.140, 42.500, 19.160, 42.520), "south": (19.140, 42.480, 19.160, 42.500)}
+ZONES = {
+    "north": (19.140, 42.500, 19.160, 42.520),
+    "south": (19.140, 42.480, 19.160, 42.500),
+    "east": (19.170, 42.500, 19.190, 42.520),  # no plan: outside coverage
+}
 BLOCKS = {
     "N": ("north", (19.145, 42.505, 19.155, 42.515)),
     "S": ("south", (19.145, 42.485, 19.155, 42.495)),
+    "E": ("east", (19.175, 42.505, 19.185, 42.515)),
+}
+CADASTRAL = {
+    "GT heat CN": (19.146, 42.511, 19.148, 42.513),
+    "GT heat CE": (19.176, 42.506, 19.178, 42.508),
 }
 PARCELS = {
     "GT P1": (
@@ -62,6 +74,9 @@ PARCELS = {
     "GT P3": ("S", (19.146, 42.486, 19.148, 42.488), 800, {}),
 }
 CLEANUP = (
+    "DELETE FROM parcel_links WHERE cadastral_parcel_id IN "
+    "(SELECT id FROM cadastral_parcels WHERE parcel_number LIKE 'GT heat %')",
+    "DELETE FROM cadastral_parcels WHERE parcel_number LIKE 'GT heat %'",
     "DELETE FROM planning_parameter_values WHERE urban_parcel_id IN "
     "(SELECT id FROM urban_parcels WHERE urban_parcel_number LIKE 'GT P%')",
     "DELETE FROM urban_parcels WHERE urban_parcel_number LIKE 'GT P%'",
@@ -122,6 +137,26 @@ async def fixture(postgis_url):
                 )
             ).scalar_one()
             ids["document"] = doc
+            # zone south's own plan (its area is inside the north plan's coverage too)
+            await session.execute(
+                text(
+                    "INSERT INTO planning_documents (municipality_id, name, type, status, "
+                    f"coverage_geom, coverage_live, zone_id) VALUES ('podgorica', :n, 'DUP', "
+                    f"'adopted', {BOX}, true, :z)"
+                ),
+                {"n": f"{PREFIX} DUP south", "z": ids["south"], **_box(ZONES["south"])},
+            )
+            for number, rect in CADASTRAL.items():
+                ids[number] = (
+                    await session.execute(
+                        text(
+                            "INSERT INTO cadastral_parcels (municipality_id, parcel_number, "
+                            "ko_name, geom, area_m2) VALUES ('podgorica', :n, 'Podgorica I', "
+                            f"{BOX}, 400) RETURNING id"
+                        ),
+                        {"n": number, **_box(rect)},
+                    )
+                ).scalar_one()
             for ref, (zone, rect) in BLOCKS.items():
                 ids[ref] = (
                     await session.execute(
@@ -207,6 +242,10 @@ async def test_heatmaps_are_computed_banded_and_follow_the_assumptions(
         )
         assert r.status_code == 201, r.text
         north_set = r.json()["id"]
+        r = await client.post(
+            "/v1/admin/assumptions", json=market(ids["east"], 1900), headers=auth(ADMIN)
+        )
+        assert r.status_code == 201, r.text
         await reject_seeded_pending_item(app)
         job = await publish(client, "heat-1")
         version = job["result"]["version_id"]
@@ -233,6 +272,8 @@ async def test_heatmaps_are_computed_banded_and_follow_the_assumptions(
         )
         assert north["value"] == stated["sale_rate_eur_m2"]  # exactly the market table's figure
         assert ("sale_price", ids["south"]) not in cells
+        # outside coverage: no cell, whatever the market table says
+        assert ("sale_price", ids["east"]) not in cells
 
         # the pointer serves the stored classes; every band in the tiles follows from them
         pointer = (await client.get("/v1/tiles/current")).json()
@@ -264,6 +305,14 @@ async def test_heatmaps_are_computed_banded_and_follow_the_assumptions(
         assert "value" not in heat_far[ids["S"]]  # drawn as not covered, never as zero
         sale = {f["id"]: f["properties"] for f in tiles.layers["heat_sale_price"]}
         assert "value" not in sale[ids["south"]] and sale[ids["north"]]["band"] == 2
+        # S6: the base map alone outside coverage (no hatched cell, no block, no parcel drawn)
+        assert ids["east"] not in sale and ids["E"] not in heat_far
+        assert ids["E"] not in {f["id"] for f in tiles.layers["urban_blocks"]}
+        assert {ids["N"], ids["S"]} <= {f["id"] for f in tiles.layers["urban_blocks"]}
+        cadastral = {f["id"]: f["properties"] for f in tiles.layers["cadastral_parcels"]}
+        assert cadastral[ids["GT heat CN"]]["covered"] is True
+        assert cadastral[ids["GT heat CE"]]["covered"] is False
+        assert cadastral[1001]["covered"] is True  # the sample's covered parcel
 
         # a market set saved for today: the sale-price heatmap and the tiles follow at once
         runs = len(tiles.runs)

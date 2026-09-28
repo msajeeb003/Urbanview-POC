@@ -77,6 +77,12 @@ any endpoint that resolves a location outside coverage returns **200** with `cov
 `zone: null`, `planning_document: null`, the base coordinates echoed in `query`, and a neutral
 message. Never 404/500, never an error envelope. A parcel reference that matches nothing is also a
 200 (`coverage.reason = parcel_not_found`). Malformed input (lat 95, missing KO) is still a 422.
+Outside coverage the public map is the base map alone (BRD S6 "zone geometry absent", the POC
+plan; S6 check 2026-09-29): the tiles carry no heatmap cell or block there and cadastral parcels
+say `covered: false` (`backend/core/coverage.py`: the covered rules in SQL for the publish
+catalogue, the heatmap job and the zone index); the map shows a neutral pill for 2.6 s and then
+the pin's note "no adopted plan published here yet". Uncovered searches still count as location
+demand: the analytics districts place them by their point.
 
 **Analytics events:** `map_loaded`, `search_performed`, `parcel_selected`, `layer_toggled`,
 `panel_viewed`, `financials_viewed`, `source_reference_opened`, `order_started`,
@@ -1047,12 +1053,17 @@ the POC check of Group 2 asked for it).
   step when it emitted one of its events in the range, conversions are session ratios), orders
   and revenue (from `order_started` / `checkout_completed` events: distinct `order_id`,
   `amount_eur` summed once per order, by product; an orders table replaces this later), most
-  searched districts (`search_performed` + `parcel_selected` by `zone_id`, joined to zone
-  names), repeat usage (`return_visit` sessions / sessions; sessions per `client_id` against the
+  searched districts (`search_performed` + `parcel_selected` by zone: the event's `zone_id`, else
+  the smallest zone containing its `properties.lat` / `lng`, so a search outside coverage, which
+  locate answers with `zone: null`, counts for the district it was made in (BRD §2.10 location
+  demand, §6.2; S6 check 2026-09-29); each district row carries `covered` (the zone has a live
+  plan, `core.coverage.ZONE_COVERED`) and `uncovered_searches` (`coverage: uncovered`); a hit in
+  no zone is the `zone_id: null` row), repeat usage (`return_visit` sessions / sessions; sessions per `client_id` against the
   prototype target of 3+, plus what `sessions_per_user` events report), `market_data_interest`
   / `ai_interest` counts, and panel views reaching financials (distinct (session, parcel) pairs
   with `panel_viewed` that also have `financials_viewed` for the same parcel, plus the session
-  view). One SQL statement per aggregate; assembly (percentages, 1 decimal) in Python.
+  view). One SQL statement per aggregate; assembly (percentages, 1 decimal) in Python. The admin
+  console shows it on `/admin/analytics` (the pilot scope's A7, admins; see `frontend/CLAUDE.md`).
   Responses are `Cache-Control: no-store`.
 - **Role gate** (`core/auth.py`, `api.deps.require_role`): `ADMIN_API_TOKENS` =
   `token:role[:subject],...` (roles admin | reviewer | expert; validated at startup). The admin
@@ -1152,16 +1163,18 @@ the POC check of Group 2 asked for it).
   and `covered` = the zone has an adopted, live, current document with coverage; the map colours
   covered zones by type and draws no other zone), `zone_labels` (one `ST_PointOnSurface` point per
   zone, same properties; point layers are built with `--drop-rate=1` so no label is thinned out),
-  `document_coverage`, `urban_blocks`, `urban_parcels` (with the effective parameters:
+  `document_coverage`, `urban_blocks` (inside coverage only), `urban_parcels` (with the effective parameters:
   parcel → block → zone → document scope, plus `max_gfa_m2`, and `zone_id` = the plan's zone,
   else the block's: the urban panel's rule, so a click names its zone), `cadastral_parcels` (with
   `has_urban_parcel`, `no_urban_parcel`, `relation`, `reduction_pct`,
-  `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`, and the
-  `zone_id` / `zone_type` of the zone containing the parcel's point on surface),
+  `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`, the
+  `zone_id` / `zone_type` of the zone containing the parcel's point on surface, and `covered` =
+  that point lies in a live coverage, locate's rule: the map draws covered parcels only),
   `public_ownership`, `legal_burdens` (cadastral flags as their own layers, available only with
   loaded flags; not on the POC map), `land_use` (generic `layer_features`), `heat_coverage`,
   `heat_far`, `heat_height`,
-  `heat_gfa` (every urban block), `heat_sale_price` (every zone): the heatmaps. Empty
+  `heat_gfa` (every covered urban block), `heat_sale_price` (every covered zone): the heatmaps;
+  outside coverage the archive carries no cell (S6: the base map alone). Empty
   layers are left out of the build but listed with 0 features.
 - **Zone type** (migration 0014): `zones.zone_type` res | com | mix | pub | grn (CHECK) or null
   (not classified: drawn neutral, never a guessed colour); from the seed or the staged `zones`
@@ -1214,9 +1227,12 @@ the POC check of Group 2 asked for it).
   factors).
 - **`choropleth_cells`** (per version, layer and cell): `value`, `value_low` / `value_high`,
   `value_band`, `unit`, `label`, `parcel_count`, `source_kind` planning | assumptions,
-  `dataset_version`, `assumptions_id` / `assumptions_version`. A block or zone without a value has
-  no row (absence is data); the tiles still carry it, without `value`, so the map draws it as not
-  covered, never as zero.
+  `dataset_version`, `assumptions_id` / `assumptions_version`. Only covered land has cells
+  (`core.coverage`: blocks whose point on surface lies in a live coverage, zones with a live
+  document; a market set for an uncovered zone gives no cell, and the staleness check that queues
+  `refresh_heatmaps` looks at covered zones only). A covered block or zone without a value has no
+  row (absence is data); the tiles still carry it, without `value`, so the map draws it with the
+  "no data" hatch, never as zero; an uncovered one is not in the tiles at all.
 - **`choropleth_classes`** (per version and layer), stored with the cells so the legend and the
   tiles agree: quintile breaks of the version's values for the planning layers (rounded,
   de-duplicated), the profile's fixed bands `price_band_breaks_eur_m2` (1300 / 1700 / 2100) for the

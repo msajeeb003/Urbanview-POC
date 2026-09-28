@@ -74,6 +74,30 @@ EVENTS = [
     ev("parcel_selected", S2, 61, C1, parcel_id=1007, zone_id=2),
     ev("panel_viewed", S2, 62, C1, parcel_id=1007, zone_id=2, panel_type="cadastral"),
     ev("ai_interest", S2, 63, C1, trigger="ai_quota"),
+    # two clicks outside coverage (S6): no zone_id, a point; one inside zone 2's outline, one in
+    # no zone at all
+    ev(
+        "search_performed",
+        S2,
+        64,
+        C1,
+        search_kind="click",
+        matched=False,
+        lat=42.435,
+        lng=19.295,
+        coverage="uncovered",
+    ),
+    ev(
+        "search_performed",
+        S2,
+        65,
+        C1,
+        search_kind="click",
+        matched=False,
+        lat=42.3,
+        lng=19.05,
+        coverage="uncovered",
+    ),
     # session 3 (client 2): two panels, financials for one of them
     ev("map_loaded", S3, 120, C2),
     ev("search_performed", S3, 121, C2, search_kind="parcel_number", zone_id=1),
@@ -185,7 +209,7 @@ async def test_every_dashboard_aggregate(analytics_app):
     assert (totals["events"], totals["sessions"], totals["clients"]) == (len(EVENTS), 4, 2)
     assert totals["by_name"] == {
         "map_loaded": 4,
-        "search_performed": 2,
+        "search_performed": 4,
         "parcel_selected": 2,
         "layer_toggled": 1,
         "panel_viewed": 4,
@@ -223,24 +247,40 @@ async def test_every_dashboard_aggregate(analytics_app):
         "by_product": [{"product": "expert_report", "orders": 1, "revenue_eur": 49.0}],
     }
 
+    # an uncovered search counts for the district its point lies in, else for no district
     assert body["districts"] == [
         {
             "zone_id": 1,
             "zone_name": "Centar",
+            "covered": True,
             "events": 3,
             "searches": 2,
+            "uncovered_searches": 0,
             "selections": 1,
             "sessions": 2,
-            "share_pct": 75.0,
+            "share_pct": 50.0,
         },
         {
             "zone_id": 2,
             "zone_name": "Stari Aerodrom",
-            "events": 1,
-            "searches": 0,
+            "covered": True,
+            "events": 2,
+            "searches": 1,
+            "uncovered_searches": 1,
             "selections": 1,
             "sessions": 1,
-            "share_pct": 25.0,
+            "share_pct": 33.3,
+        },
+        {
+            "zone_id": None,
+            "zone_name": None,
+            "covered": None,
+            "events": 1,
+            "searches": 1,
+            "uncovered_searches": 1,
+            "selections": 0,
+            "sessions": 1,
+            "share_pct": 16.7,
         },
     ]
 

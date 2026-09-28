@@ -17,7 +17,9 @@ One row per layer and cell in ``choropleth_cells``, one set of classes per layer
 A parcel's value is its effective published value of the version: parcel -> block -> zone ->
 document (the panel's precedence), so a block-level figure the plan states applies to every parcel
 of the block. A block or zone without a value gets no cell: absence of data is a fact, and the
-tiles draw it as not covered, never as zero.
+tiles draw it as "no data", never as zero. Only covered land has cells (``core.coverage``: blocks
+whose point on surface lies in a live coverage, zones with a live document): outside coverage the
+map is the base map alone (BRD S6), so the classes count covered blocks / zones only.
 
 Classes, stored with the cells so the legend and the tiles agree: quintiles of the version's
 values for the planning layers (rounded, de-duplicated), the profile's fixed €/m² bands for the
@@ -45,6 +47,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.assumptions import live_versions_sql
+from core.coverage import ZONE_COVERED, point_covered
 from core.extraction.normalise import FloorTokens, parse_floors
 
 log = logging.getLogger("urbanview.choropleth")
@@ -240,19 +243,24 @@ PARCELS_SQL = """
       AND d.is_current_version
     ORDER BY u.id
 """
-# the zones' assumptions versions that apply today (a zone without its own has no sale price)
+# the covered zones' assumptions versions that apply today (a zone without its own has no sale
+# price; outside coverage the map draws no heatmap, so an uncovered zone gets no cell)
 MARKET_SQL = text(
     f"""
     SELECT live.id, live.zone_id, live.version, live.sale_rate_eur_m2, live.sale_rate_low_eur_m2,
            live.sale_rate_high_eur_m2, live.range_low_factor, live.range_high_factor
     FROM ({live_versions_sql()}) live
-    JOIN zones z ON z.id = live.zone_id AND z.municipality_id = :m
+    JOIN zones z ON z.id = live.zone_id AND z.municipality_id = :m AND {ZONE_COVERED}
     ORDER BY live.zone_id
     """
 )
+# the cells a layer could have: covered blocks / zones (``null_count`` = those without a value)
 COUNT_SQL = {
-    "block": text("SELECT count(*) FROM urban_blocks WHERE municipality_id = :m"),
-    "zone": text("SELECT count(*) FROM zones WHERE municipality_id = :m"),
+    "block": text(
+        f"SELECT count(*) FROM urban_blocks b WHERE b.municipality_id = :m "
+        f"AND {point_covered('b.geom')}"
+    ),
+    "zone": text(f"SELECT count(*) FROM zones z WHERE z.municipality_id = :m AND {ZONE_COVERED}"),
 }
 DELETE_CELLS_SQL = text(
     "DELETE FROM choropleth_cells WHERE publish_version_id = :v AND layer = ANY(:layers)"
@@ -305,7 +313,8 @@ STALE_SQL = text(
                   WHERE publish_version_id = :v AND layer = 'sale_price'), '{{}}') AS cells,
         COALESCE((SELECT array_agg(id ORDER BY id)
                   FROM ({live_versions_sql()}) live WHERE live.zone_id IS NOT NULL
-                    AND EXISTS (SELECT 1 FROM zones z WHERE z.id = live.zone_id)),
+                    AND EXISTS (SELECT 1 FROM zones z WHERE z.id = live.zone_id
+                                AND {ZONE_COVERED})),
                  '{{}}') AS live
     """
 )

@@ -5,8 +5,10 @@
  * tinted by zone type, dashed planned parcels, block boundaries, the context overlays, and one
  * hover and one selection layer per clickable source-layer (filters set by `highlightFilters`).
  *
- * Source-layers are the publish catalogue's (`backend/jobs/publish_layers.py`). Zones outside
- * coverage (`covered: false`) are drawn muted with a "no data yet" hatch, never in a type colour.
+ * Source-layers are the publish catalogue's (`backend/jobs/publish_layers.py`). Outside coverage the
+ * map is the base map alone (BRD S6): zones and cadastral parcels with `covered: false` are neither
+ * filled, outlined, labelled, hovered nor selected, and the archive carries no heatmap cell or
+ * block there. Inside coverage a heatmap cell without a value gets the "no data yet" hatch.
  */
 import type { TilesCurrent } from "@/lib/api/types";
 import { ZONE_TYPES, layerById, servedMinZoom, type ChoroplethState, type LayerId } from "@/lib/layers";
@@ -52,14 +54,16 @@ export const zoneColour: Expr = [
 ];
 
 /**
- * Only covered zones are drawn: outside coverage the map shows the base map alone (POC plan). Zones
- * published before the `covered` flag existed count as covered.
+ * Only covered zones and cadastral parcels are drawn: outside coverage the map shows the base map
+ * alone (POC plan). Features published before the `covered` flag existed count as covered.
  */
 const COVERED: Expr = ["!=", ["get", "covered"], false];
 
 /** Nothing matches: the initial filter of hover / selection layers. */
 export const NONE: Expr = ["==", ["get", "id"], -1];
 const byId = (id: number | null): Expr => (id == null ? NONE : ["==", ["get", "id"], id]);
+/** A covered feature by id: an uncovered cadastral parcel is never outlined (S6). */
+const coveredById = (id: number | null): Expr => (id == null ? NONE : ["all", byId(id), COVERED]);
 
 
 function layer(id: string, type: LayerSpec["type"], sourceLayer: string, rest: Partial<LayerSpec>): LayerSpec {
@@ -108,8 +112,14 @@ const BASE_LAYERS: readonly LayerSpec[] = [
     paint: { "line-color": NEUTRAL, "line-width": 2.8, "line-dasharray": [3.57, 1.79], "line-opacity": 0.5 },
   }),
   // cadastral parcels: tinted by their zone's type, hairline outline
-  layer("uv-cad-fill", "fill", "cadastral_parcels", { paint: { "fill-color": zoneColour, "fill-opacity": 0.5 } }),
-  layer("uv-cad-line", "line", "cadastral_parcels", { paint: { "line-color": "rgba(42,33,24,0.2)", "line-width": 0.6 } }),
+  layer("uv-cad-fill", "fill", "cadastral_parcels", {
+    filter: COVERED,
+    paint: { "fill-color": zoneColour, "fill-opacity": 0.5 },
+  }),
+  layer("uv-cad-line", "line", "cadastral_parcels", {
+    filter: COVERED,
+    paint: { "line-color": "rgba(42,33,24,0.2)", "line-width": 0.6 },
+  }),
   // planned (urban) parcels: dashed brand-dark outline, invisible fill as the click target
   layer("uv-urban-fill", "fill", "urban_parcels", { paint: { "fill-color": BRAND, "fill-opacity": 0 } }),
   layer("uv-urban-line", "line", "urban_parcels", {
@@ -250,14 +260,14 @@ export function highlightFilters(selected: Highlight, hover: Highlight): Record<
     "uv-zones-sel-line": byId(selected.zone),
     "uv-doc-sel-fill": byId(selected.document),
     "uv-doc-sel-line": byId(selected.document),
-    "uv-cad-sel-glow": byId(selected.cadastral),
-    "uv-cad-sel-line": byId(selected.cadastral),
+    "uv-cad-sel-glow": coveredById(selected.cadastral),
+    "uv-cad-sel-line": coveredById(selected.cadastral),
     "uv-urban-sel-fill": byId(selected.urban),
     "uv-urban-sel-glow": byId(selected.urban),
     "uv-urban-sel-line": byId(selected.urban),
     "uv-doc-hover-fill": byId(hover.document === selected.document ? null : hover.document),
     "uv-doc-hover-line": byId(hover.document === selected.document ? null : hover.document),
-    "uv-cad-hover-line": byId(hover.cadastral === selected.cadastral ? null : hover.cadastral),
+    "uv-cad-hover-line": coveredById(hover.cadastral === selected.cadastral ? null : hover.cadastral),
     "uv-urban-hover-fill": byId(hover.urban === selected.urban ? null : hover.urban),
     "uv-urban-hover-line": byId(hover.urban === selected.urban ? null : hover.urban),
   };

@@ -75,6 +75,8 @@ describe("style", () => {
     const covered = ["!=", ["get", "covered"], false];
     // outside coverage: the base map only (no fill, outline or label of an uncovered zone)
     for (const id of ["uv-zones-fill", "uv-zones-line", "uv-zones-label"]) expect(UV_LAYERS.find((l) => l.id === id)!.filter, id).toEqual(covered);
+    // nor of a cadastral parcel no adopted plan covers (S6: the base map alone)
+    for (const id of ["uv-cad-fill", "uv-cad-line"]) expect(UV_LAYERS.find((l) => l.id === id)!.filter, id).toEqual(covered);
     expect(UV_LAYERS.some((l) => l.id.startsWith("uv-zones-nodata"))).toBe(false);
     expect(UV_LAYERS.find((l) => l.id === "uv-zones-label")!["source-layer"]).toBe("zone_labels");
   });
@@ -90,7 +92,8 @@ describe("style", () => {
     const sel = highlightOf({ kind: "feature", type: "cadastral", id: 7, zoneId: 2, linkedUrbanId: 31, via: "click" });
     expect(sel).toEqual({ cadastral: 7, urban: 31, document: null, zone: null });
     const f = highlightFilters(sel, { cadastral: 7, urban: null, document: 4, zone: null });
-    expect(f["uv-cad-sel-line"]).toEqual(["==", ["get", "id"], 7]);
+    // an uncovered cadastral parcel is never outlined, selected or hovered
+    expect(f["uv-cad-sel-line"]).toEqual(["all", ["==", ["get", "id"], 7], ["!=", ["get", "covered"], false]]);
     expect(f["uv-urban-sel-line"]).toEqual(["==", ["get", "id"], 31]);
     expect(f["uv-cad-hover-line"]).toEqual(NONE);
     expect(f["uv-doc-hover-line"]).toEqual(["==", ["get", "id"], 4]);

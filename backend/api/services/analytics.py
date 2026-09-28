@@ -9,7 +9,11 @@ the assembly is unit-tested on canned rows and the SQL on PostGIS. Definitions:
   (presence, not strict ordering); conversions are session ratios;
 - orders and revenue come from ``order_started`` / ``checkout_completed`` events (distinct
   ``order_id``; ``amount_eur`` summed once per order) until an orders table exists;
-- districts: ``search_performed`` + ``parcel_selected`` grouped by the ``zone_id`` property;
+- districts: ``search_performed`` + ``parcel_selected`` grouped by zone: the event's ``zone_id``,
+  else the zone containing its ``lat`` / ``lng`` (the smallest one), so a search outside coverage
+  (``coverage: uncovered``, which locate answers with ``zone: null``) still counts for the district
+  it was made in (BRD §2.10 location demand, §6.2 most-searched districts); each district says
+  whether it is covered and how many of its searches were uncovered;
 - repeat usage: ``return_visit`` sessions over all sessions, plus sessions per anonymous
   ``client_id`` against the prototype target (3+), and what ``sessions_per_user`` events report;
 - panel views reaching financials: distinct (session, parcel) pairs with ``panel_viewed`` that
@@ -46,6 +50,7 @@ from api.schemas.analytics import (
     ReportedSessions,
     Totals,
 )
+from core.coverage import ZONE_COVERED
 from core.errors import AppError
 from core.models.analytics import AnalyticsEventRecord
 
@@ -144,17 +149,39 @@ ORDERS_SQL = text(f"""
        FROM by_product) AS by_product
 """)
 
+# the zone an event is counted for: its own zone_id, else the smallest zone containing the point
+# it carries (a search outside coverage has lat / lng but no zone_id)
+_EVENT_ZONE = """COALESCE(e.zone_id, (
+        SELECT z.id FROM zones z
+        WHERE z.municipality_id = e.municipality_id
+          AND jsonb_typeof(e.properties -> 'lat') = 'number'
+          AND jsonb_typeof(e.properties -> 'lng') = 'number'
+          AND ST_Intersects(z.geom, ST_SetSRID(ST_MakePoint(
+                CAST(e.properties ->> 'lng' AS double precision),
+                CAST(e.properties ->> 'lat' AS double precision)), 4326))
+        ORDER BY ST_Area(z.geom), z.id
+        LIMIT 1))"""
+
 DISTRICTS_SQL = text(f"""
-    SELECT e.zone_id, z.name AS zone_name, count(*) AS events,
-           count(*) FILTER (WHERE e.name = 'search_performed') AS searches,
-           count(*) FILTER (WHERE e.name = 'parcel_selected') AS selections,
-           count(DISTINCT e.session_id) AS sessions
-    FROM analytics_events e
-    LEFT JOIN zones z ON z.id = e.zone_id
-    WHERE {RANGE_E}
-      AND e.name IN ('search_performed', 'parcel_selected')
-    GROUP BY e.zone_id, z.name
-    ORDER BY events DESC, e.zone_id ASC NULLS LAST
+    WITH hits AS (
+        SELECT e.name, e.session_id, e.properties ->> 'coverage' AS coverage,
+               {_EVENT_ZONE} AS zone_id
+        FROM analytics_events e
+        WHERE {RANGE_E}
+          AND e.name IN ('search_performed', 'parcel_selected')
+    )
+    SELECT h.zone_id, z.name AS zone_name,
+           CASE WHEN z.id IS NULL THEN NULL ELSE {ZONE_COVERED} END AS covered,
+           count(*) AS events,
+           count(*) FILTER (WHERE h.name = 'search_performed') AS searches,
+           count(*) FILTER (WHERE h.name = 'parcel_selected') AS selections,
+           count(*) FILTER (WHERE h.name = 'search_performed' AND h.coverage = 'uncovered')
+               AS uncovered_searches,
+           count(DISTINCT h.session_id) AS sessions
+    FROM hits h
+    LEFT JOIN zones z ON z.id = h.zone_id
+    GROUP BY h.zone_id, z.id, z.name, z.municipality_id
+    ORDER BY events DESC, h.zone_id ASC NULLS LAST
     LIMIT :limit
 """)
 
@@ -444,8 +471,10 @@ def _districts(rows: list[Mapping[str, Any]]) -> list[District]:
         District(
             zone_id=r.get("zone_id"),
             zone_name=r.get("zone_name"),
+            covered=r.get("covered"),
             events=_int(r.get("events")),
             searches=_int(r.get("searches")),
+            uncovered_searches=_int(r.get("uncovered_searches")),
             selections=_int(r.get("selections")),
             sessions=_int(r.get("sessions")),
             share_pct=pct(r.get("events"), total) or 0.0,

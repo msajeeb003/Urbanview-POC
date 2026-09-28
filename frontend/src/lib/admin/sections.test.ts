@@ -24,7 +24,7 @@ describe("admin sections", () => {
       "Orders",
       "Data sources",
     ]);
-    expect(barLinks("admin").map((s) => s.label)).toEqual(["Audit log", "Users"]);
+    expect(barLinks("admin").map((s) => s.label)).toEqual(["Analytics", "Audit log", "Users"]);
   });
 
   it("hides users and assumptions from a reviewer", () => {

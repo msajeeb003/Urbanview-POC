@@ -192,7 +192,10 @@ Planned traffic (an MVP layer; not published).
   our labels on top): zones filled by `zone_type` at 24 % + boundary at 40 %, a label from the
   `zone_labels` point layer, for covered zones only: outside coverage the map shows the base map
   alone, no zone geometry (POC plan; `covered: false` zones are neither filled, outlined nor
-  labelled); a selected zone gets a brand outline; dashed coverage; cadastral parcels tinted by their zone type; dashed
+  labelled); a selected zone gets a brand outline; dashed coverage; cadastral parcels tinted by their zone type,
+  covered ones only (`covered: false` parcels are neither drawn, hovered nor outlined when
+  selected; the archive carries no heatmap cell or block outside coverage either: S6 check
+  2026-09-29); dashed
   planned parcels; block boundaries and refs (z15+); context overlays; hover layers (cursor
   pointer + outline) and selection layers (brand outline + glow; a cadastral selection also
   highlights its primary planned parcel). Visibility follows the rail (`visibleLayerIds`). Each
@@ -217,7 +220,10 @@ Planned traffic (an MVP layer; not published).
   panel's pin note.
 - **S6** (`flashUncovered`): "Outside current coverage" pill (sub-text `no adopted plan`, or
   `outside <municipality>` for points outside the profile bounds) for 2.6 s with the panel closed,
-  then the panel returns. Never an error, never a red state.
+  then the panel returns with the empty state and the pin's note "Pin dropped at 42.4180° N ·
+  19.2851° E — no adopted plan published here yet." (`— outside Podgorica.` beyond the profile
+  bounds; `empty.noPlan` / `empty.outside`, bilingual), so the pin never stands unexplained. Never
+  an error, never a red state.
 - **`?parcel=<Parcel ID>`** (`lib/url-state.ts`, `app-shell.tsx`): follows the selected cadastral
   parcel (`history.replaceState`); opening a link reads `/v1/parcels/{id}/panel` (centroid +
   bbox), selects and centres the parcel (the camera focus waits for the map). An unknown id drops
@@ -592,7 +598,8 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   with `/admin`; the store's `view` mirrors the route both ways (the topbar's Map / Admin, the
   pill and ⌘K call `setView`, which navigates). Tabs are routes: `/admin/overview`, `/review`,
   `/rules`, `/assumptions`, `/engine`, `/orders`, `/data`; plus `/admin/audit`, `/admin/users`,
-  `/admin/login` and `/admin/no-access`. `/admin` goes to the role's first tab.
+  `/admin/login` and `/admin/no-access`, and `/admin/analytics` (admins, from the account menu).
+  `/admin` goes to the role's first tab.
 - **Sign-in: magic links only (Auth.js v5, `src/auth.ts`).** The backend owns the link: the form's
   server action posts `POST /v1/auth/magic-link` (always 202, same "Check your email" for any
   well-formed address: no enumeration), the backend's `magic_link` e-mail opens
@@ -624,7 +631,16 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   pending AI review, paid orders + revenue, and per district = zone: documents, extraction
   Queued / In progress / Done, expert review %, Live Yes / Partial / No); Orders (below);
   Audit log `GET /v1/admin/audit` (filters entity type and actor as a GET
-  form, 50 per page, before → after as the changed keys); Users `GET /v1/admin/users`; Planning
+  form, 50 per page, before → after as the changed keys); **Analytics** (`/admin/analytics`,
+  admins, the pilot scope's A7 "Analytics and audit"; `lib/admin/analytics.ts`, no mock screen:
+  the console's cards, tables and stat cards) `GET /v1/admin/analytics` with a from / to GET form
+  (default the API's last 30 days; `to` inclusive on the form, sent as the exclusive next day):
+  stat cards (sessions, searches with how many were outside coverage, orders placed + revenue,
+  repeat usage), the funnel (step, events, sessions, from previous, from start), most-searched
+  districts (district, Covered / No adopted plan chip, searches, outside coverage, parcel picks,
+  sessions, share; searches outside coverage count for the district of their point, a point in
+  no zone is "Outside every district"), orders and revenue by product, and repeat usage /
+  intent counts / panels reaching the financials; Users `GET /v1/admin/users`; Planning
   rules, Financial assumptions and Calculation engine (below). Action buttons are hidden for
   read-only roles.
 - **AI review queue** (`/admin/review`; `components/admin/review/*`, rules in
