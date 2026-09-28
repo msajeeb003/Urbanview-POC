@@ -3,7 +3,7 @@
  * tab row and the pages read, so hiding a tab and refusing its route never disagree.
  *
  * Roles (the staff user's `role`, from `GET /v1/admin/users/me`):
- * - admin: everything, including users, financial assumptions, the audit log and AI extraction;
+ * - admin: everything, including users, financial assumptions and the audit log;
  * - reviewer: Overview, AI review queue, Planning rules (read), Orders, Data sources;
  * - expert: Orders (the API returns only the orders assigned to them).
  *
@@ -24,8 +24,7 @@ export type SectionId =
   | "orders"
   | "data"
   | "audit"
-  | "users"
-  | "ai";
+  | "users";
 
 export interface Section {
   id: SectionId;
@@ -57,8 +56,6 @@ export const SECTIONS: readonly Section[] = [
   { id: "data", label: "Data sources", href: "/admin/data", tab: true, roles: ["admin", "reviewer"] },
   { id: "audit", label: "Audit log", href: "/admin/audit", tab: false, roles: ["admin"] },
   { id: "users", label: "Users", href: "/admin/users", tab: false, roles: ["admin"] },
-  // Not in the mock: the Anthropic API key, connection test and readiness (AI extraction settings).
-  { id: "ai", label: "AI extraction", href: "/admin/ai", tab: false, roles: ["admin"] },
 ];
 
 /** Routes under /admin that need a session but no particular role. */
@@ -93,7 +90,7 @@ export function visibleTabs(role: StaffRole | null | undefined): Section[] {
   return SECTIONS.filter((s) => s.tab && canOpen(role, s.id));
 }
 
-/** Admin-bar links outside the tab row (audit log, users, AI extraction) the role may open. */
+/** Admin-bar links outside the tab row (audit log, users) the role may open. */
 export function barLinks(role: StaffRole | null | undefined): Section[] {
   return SECTIONS.filter((s) => !s.tab && canOpen(role, s.id));
 }

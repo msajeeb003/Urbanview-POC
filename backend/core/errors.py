@@ -17,7 +17,6 @@ uncovered result (see ``api.schemas.locations.LocationResolution``), never 404/5
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -147,20 +146,6 @@ def error_response(
     return JSONResponse(status_code=status_code, content={"error": body}, headers=headers)
 
 
-# a route whose ``openapi_extra`` sets this takes a secret: its validation errors never echo
-# the submitted input (``input``, ``ctx``, ``url`` are dropped), e.g. PUT /v1/admin/ai/key
-REDACT_INPUT_EXTRA = "x-redact-input"
-
-
-def _validation_details(request: Request, errors: Sequence[Any]) -> list[Any]:
-    route = request.scope.get("route")
-    if (getattr(route, "openapi_extra", None) or {}).get(REDACT_INPUT_EXTRA):
-        return [
-            {k: v for k, v in error.items() if k not in ("input", "ctx", "url")} for error in errors
-        ]
-    return list(errors)
-
-
 def _request_id_for(request: Request) -> str | None:
     state = request.scope.get("state") or {}
     return state.get("request_id") or get_request_id()
@@ -185,7 +170,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             "validation_error",
             "Request validation failed",
             request_id=_request_id_for(request),
-            details=_validation_details(request, exc.errors()),
+            details=exc.errors(),
         )
 
     @app.exception_handler(StarletteHTTPException)

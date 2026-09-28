@@ -1,8 +1,7 @@
 """Application factory.
 
 ``create_app`` wires settings, infrastructure clients, middleware, error handlers and routers.
-Tests inject fakes (Redis, clock, geocoder, storage, repositories, job dispatcher, staff auth,
-worker probe).
+Tests inject fakes (Redis, clock, geocoder, storage, repositories, job dispatcher, staff auth).
 
 Middleware order (outermost first): RequestContext -> CORS -> RateLimit -> routes.
 Rate-limit responses therefore still carry request ids, timing and CORS headers.
@@ -23,7 +22,6 @@ from api.routers import health
 from api.routers.v1 import router as v1_router
 from api.services.admin import AdminService
 from api.services.admin_config import AdminConfigService
-from api.services.ai_settings import AiSettingsService
 from api.services.analytics import AnalyticsRepository, AnalyticsService, SqlAnalyticsRepository
 from api.services.auth import MagicLinkService
 from api.services.cadastral_municipalities import CadastralMunicipalityService
@@ -41,7 +39,6 @@ from api.services.publish import PublishService
 from api.services.resolver import NoDataResolver, PostgisResolver
 from api.services.review import ReviewService
 from api.services.source import SourceRepository, SourceService, SqlSourceRepository
-from api.services.worker_probe import CeleryWorkerProbe
 from api.services.zone_index import ZoneIndexService
 from core.auth import StaffSessionAuthenticator, TokenAuthenticator, parse_api_tokens
 from core.config import Settings, get_settings
@@ -86,7 +83,6 @@ def create_app(
     admin_dispatcher: JobDispatcher | None = None,
     staff_authenticator: Any | None = None,
     payment_provider: PaymentProvider | None = None,
-    worker_probe: Any | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings)
@@ -210,13 +206,6 @@ def create_app(
             app.state.engine_proposal_service = EngineProposalService(
                 app.state.session_factory, municipality_id=municipality.id
             )
-            app.state.ai_settings_service = AiSettingsService(
-                app.state.session_factory,
-                settings=settings,
-                dispatcher=app.state.admin_service.dispatcher,
-                municipality_id=municipality.id,
-                worker_probe=worker_probe if worker_probe is not None else CeleryWorkerProbe(),
-            )
             app.state.overview_service = OverviewService(
                 app.state.session_factory, municipality=municipality
             )
@@ -296,7 +285,6 @@ def create_app(
     app.state.email_service = None
     app.state.magic_link_service = None
     app.state.admin_config_service = None
-    app.state.ai_settings_service = None
     app.state.review_service = None
     app.state.order_service = None
     # Orders: the payment seam (bank transfer in the POC; a card provider plugs in here).

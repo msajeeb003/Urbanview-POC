@@ -50,7 +50,6 @@ JOB_TYPES: dict[str, JobType] = {
         JobType(
             "import_market_data", "jobs.tasks.market.import_market_data", "extraction", "extract"
         ),
-        JobType("ai_check", "jobs.tasks.ai.ai_check", "extraction", "extract"),
     )
 }
 QUEUES: tuple[str, ...] = ("default", "extraction", "geo", "publish", "email")
@@ -85,7 +84,6 @@ class CeleryDispatcher:
 
 def import_tasks() -> None:
     """Register the task modules in this process (a worker does it through ``include``)."""
-    import jobs.tasks.ai  # noqa: F401
     import jobs.tasks.email  # noqa: F401
     import jobs.tasks.extraction  # noqa: F401
     import jobs.tasks.ingestion  # noqa: F401

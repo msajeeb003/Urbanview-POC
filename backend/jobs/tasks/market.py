@@ -46,24 +46,12 @@ def configure_market(
             _config[key] = value
 
 
-def _no_model() -> None:
-    return None
-
-
-def _model_factory(settings: Any, api_key: str) -> Any:
-    """The importer's model factory for a resolved key (the model is built when needed)."""
-    from core.market.pipeline import model_from_settings
-
-    return lambda: model_from_settings(settings, api_key=api_key)
-
-
 async def _import_market_data(job: JobContext) -> JobResult:
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
     from sqlalchemy.pool import NullPool
 
-    from core.extraction.credentials import missing_key_message, resolve_anthropic_key
     from core.extraction.llm import ModelRateLimited, ModelUnavailable
-    from core.market.pipeline import MarketImporter
+    from core.market.pipeline import MarketImporter, model_from_settings
     from core.municipality import load_profile
     from jobs.cost import cost_for
 
@@ -73,32 +61,19 @@ async def _import_market_data(job: JobContext) -> JobResult:
 
         settings = get_settings()
     import_id = int(job.payload.get("import_id") or job.target_id or 0)
+    model_factory = _config.get("model_factory") or (lambda: model_from_settings(settings))
     engine = create_async_engine(
         _config.get("database_url") or settings.database_url, poolclass=NullPool
     )
-    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    municipality = load_profile(job.municipality_id)
+    importer = MarketImporter(
+        async_sessionmaker(engine, expire_on_commit=False),
+        municipality_id=job.municipality_id,
+        municipality_name=municipality.name,
+        settings=settings,
+        model_factory=model_factory,
+    )
     try:
-        model_factory = _config.get("model_factory")
-        if model_factory is None:
-            # the server environment's key, else the admin console's; none = the rules alone
-            resolved = await resolve_anthropic_key(
-                sessions, settings, municipality_id=job.municipality_id
-            )
-            if resolved.api_key is None:
-                log.warning(
-                    "market normalisation runs without an LLM: %s", missing_key_message(resolved)
-                )
-                model_factory = _no_model
-            else:
-                model_factory = _model_factory(settings, resolved.api_key)
-        municipality = load_profile(job.municipality_id)
-        importer = MarketImporter(
-            sessions,
-            municipality_id=job.municipality_id,
-            municipality_name=municipality.name,
-            settings=settings,
-            model_factory=model_factory,
-        )
         try:
             result = await importer.normalise(import_id, job_id=job.id)
         except ModelRateLimited as exc:

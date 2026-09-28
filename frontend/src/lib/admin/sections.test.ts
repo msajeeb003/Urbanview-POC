@@ -24,7 +24,7 @@ describe("admin sections", () => {
       "Orders",
       "Data sources",
     ]);
-    expect(barLinks("admin").map((s) => s.label)).toEqual(["Audit log", "Users", "AI extraction"]);
+    expect(barLinks("admin").map((s) => s.label)).toEqual(["Audit log", "Users"]);
   });
 
   it("hides users and assumptions from a reviewer", () => {
@@ -32,8 +32,6 @@ describe("admin sections", () => {
     expect(barLinks("reviewer")).toEqual([]);
     expect(canOpen("reviewer", "users")).toBe(false);
     expect(canOpen("reviewer", "assumptions")).toBe(false);
-    expect(canOpen("reviewer", "ai")).toBe(false);
-    expect(canOpen("admin", "ai")).toBe(true);
     expect(isReadOnly("reviewer", "rules")).toBe(true);
     expect(isReadOnly("admin", "rules")).toBe(false);
   });

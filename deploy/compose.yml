@@ -102,7 +102,7 @@ services:
       redis:
         condition: service_healthy
 
-  # Celery on every queue: e-mails, extraction, market imports, connection tests, publish (tippecanoe).
+  # Celery on every queue: e-mails, publish job (tippecanoe), extraction / geometry when they land.
   worker:
     build:
       context: ..

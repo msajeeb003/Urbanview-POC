@@ -148,53 +148,47 @@ async def _extract_document(job: JobContext) -> JobResult:
         from core.storage import ObjectStorage
 
         storage = ObjectStorage(settings)
+    model = _config.get("x_model")
+    if model is None:
+        from core.extraction.evaluate import model_from_settings
+
+        model = model_from_settings()
     database_url = (
         _config.get("x_database_url") or _config.get("database_url") or settings.database_url
     )
     engine = create_async_engine(database_url, poolclass=NullPool)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
+    options = PreprocessOptions.from_settings(settings)
+    preprocess = PreprocessRunner(
+        sessions,
+        storage,
+        municipality_id=job.municipality_id,
+        options=options,
+        image_dpi=settings.preprocess_page_image_dpi,
+        image_max_pixels=settings.preprocess_page_image_max_pixels,
+        serve_images=settings.preprocess_serve_page_images,
+        ocr=_config.get("ocr") or ocr_from_settings(settings),
+        rules=SectionRules.from_profile(job.municipality_id),
+    )
+    runner_kwargs: dict[str, Any] = {}
+    if _config.get("x_sleep") is not None:
+        runner_kwargs["sleep"] = _config["x_sleep"]
+    runner = ExtractionRunner(
+        sessions,
+        storage,
+        municipality_id=job.municipality_id,
+        model=model,
+        model_name=settings.extraction_model,
+        options=options,
+        preprocess=preprocess.run,
+        low_confidence=settings.extraction_low_confidence,
+        call_retries=settings.extraction_call_retries,
+        retry_base_seconds=settings.extraction_retry_base_seconds,
+        retry_max_seconds=settings.extraction_retry_max_seconds,
+        max_steps=settings.extraction_max_chunks,
+        **runner_kwargs,
+    )
     try:
-        model = _config.get("x_model")
-        if model is None:
-            # the server environment's key, else the one saved in the admin console; none =
-            # ModelNotConfigured (not retried: a manual retry works once a key is configured)
-            from core.extraction.credentials import require_key, resolve_anthropic_key
-            from core.extraction.evaluate import model_from_settings
-
-            resolved = await resolve_anthropic_key(
-                sessions, settings, municipality_id=job.municipality_id
-            )
-            model = model_from_settings(settings, api_key=require_key(resolved))
-        options = PreprocessOptions.from_settings(settings)
-        preprocess = PreprocessRunner(
-            sessions,
-            storage,
-            municipality_id=job.municipality_id,
-            options=options,
-            image_dpi=settings.preprocess_page_image_dpi,
-            image_max_pixels=settings.preprocess_page_image_max_pixels,
-            serve_images=settings.preprocess_serve_page_images,
-            ocr=_config.get("ocr") or ocr_from_settings(settings),
-            rules=SectionRules.from_profile(job.municipality_id),
-        )
-        runner_kwargs: dict[str, Any] = {}
-        if _config.get("x_sleep") is not None:
-            runner_kwargs["sleep"] = _config["x_sleep"]
-        runner = ExtractionRunner(
-            sessions,
-            storage,
-            municipality_id=job.municipality_id,
-            model=model,
-            model_name=settings.extraction_model,
-            options=options,
-            preprocess=preprocess.run,
-            low_confidence=settings.extraction_low_confidence,
-            call_retries=settings.extraction_call_retries,
-            retry_base_seconds=settings.extraction_retry_base_seconds,
-            retry_max_seconds=settings.extraction_retry_max_seconds,
-            max_steps=settings.extraction_max_chunks,
-            **runner_kwargs,
-        )
         summary, usage, model_version = await runner.run(job)
     finally:
         await engine.dispose()

@@ -537,7 +537,7 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
   with `/admin`; the store's `view` mirrors the route both ways (the topbar's Map / Admin, the
   pill and ⌘K call `setView`, which navigates). Tabs are routes: `/admin/overview`, `/review`,
   `/rules`, `/assumptions`, `/engine`, `/orders`, `/data`; plus `/admin/audit`, `/admin/users`,
-  `/admin/ai`, `/admin/login` and `/admin/no-access`. `/admin` goes to the role's first tab.
+  `/admin/login` and `/admin/no-access`. `/admin` goes to the role's first tab.
 - **Sign-in: magic links only (Auth.js v5, `src/auth.ts`).** The backend owns the link: the form's
   server action posts `POST /v1/auth/magic-link` (always 202, same "Check your email" for any
   well-formed address: no enumeration), the backend's `magic_link` e-mail opens
@@ -555,8 +555,8 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
   (`POST /v1/auth/sign-out`). Env: `AUTH_SECRET` (server only), `AUTH_URL` / `AUTH_TRUST_HOST`
   behind Caddy, `API_INTERNAL_BASE_URL`.
 - **Roles** (`lib/admin/sections.ts`, the one table the proxy, the tab row and the pages read):
-  admin = every tab + audit log + users + AI extraction; reviewer = Overview, AI review queue,
-  Planning rules (read), Orders and Data sources (full use: their tickets); expert = Orders only (the API
+  admin = every tab + audit log + users; reviewer = Overview, AI review queue, Planning rules
+  (read), Orders and Data sources (full use: their tickets); expert = Orders only (the API
   returns only the orders assigned to them; the report upload is their only action). Where the admin spec and the ticket disagreed, the ticket's
   acceptance won: an expert sees
   only Orders (no Overview, no unassigned orders). Guards: `src/proxy.ts` (Next 16's renamed
@@ -692,37 +692,13 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
   unverified (`staleVerification`: an old date never vouches for new values). Reviewers get the
   table only.
 - Styles of the three: block 20 of `overrides.css`.
-- **AI extraction** (`/admin/ai`, admins; `components/admin/ai/ai-screen.tsx`, `key-form.tsx`,
-  rules in `lib/admin/ai.ts`, writes in `lib/admin/ai-actions.ts`), opened from the account menu
-  (not a tab) and read from `GET /v1/admin/ai`. Not in the mock (the wireframe has no settings
-  page): built from its `.card`, `.tbl`, `.st`, `.abtn`, `.field` and the data screen's
-  `.docfacts`. Cards: the status head ("Ready for AI extraction" with the key's source and
-  `sk-ant-…1234`, or "Not ready" with the required steps left; "Test connection" → `POST
-  /v1/admin/ai/check`, "Testing…" and disabled while a test is queued / running; the last test's
-  model, latency, tokens, cost and time; a hint when a test waits over 30 s for the worker);
-  Readiness (the API's checklist in its order, Ready / Missing / Unknown chips, "· optional" for
-  e-mail, the API's detail under each item); API key (write-only: active key and its source, the
-  key saved in the console, by / on, encryption; a note when the server's `ANTHROPIC_API_KEY`
-  overrides the saved key or `SECRETS_ENCRYPTION_KEY` is missing; `key-form.tsx`: a password
-  input checked with the API's format rules and exact messages (`keyProblem`) before `PUT
-  /v1/admin/ai/key`, cleared after a save, never stored or put in a URL, disabled without the
-  encryption key; "Remove saved key" with a confirmation → `DELETE`); Model (read-only: model,
-  effort, adaptive thinking, max output tokens, market model, API host, price per M tokens:
-  changed in `deploy/.env`, then api and worker recreated); Spend so far (document extraction,
-  market-data imports, connection tests, all AI jobs: jobs with failures, tokens, estimated cost,
-  last finished); Anthropic Console links (API keys, Billing & credit). `AutoRefresh` re-reads
-  the page every 2 s while a test runs; when it finishes a toast gives the outcome ("Connection
-  test: Connected." / "Connection test: No credit. …"). The key travels only in the server
-  action's and the API's request bodies, never in a URL, a log or the browser's storage; the
-  actions answer `{ok, message}` like the other screens. Styles: block 21 of `overrides.css`.
 - **Components** (`components/admin/parts.tsx`, the wireframe's markup): `AdminCard` (`.card >
   .cardhd` h3 + `.sub` + right-side action), `DataTable` (`.tbl`, `.mono` cells for numbers and
   references), `StatusChip` (`.st.ok | .pend | .rev`), `AdminButton` (`.abtn`, `ghost`, `sm`),
   `StatCard` (`.astat`), `NoAccess`, `AdminUnavailable`; `admin-frame.tsx` (the bar: title, tabs
   the role may open, account button, "← Back to map"), `account-menu.tsx` (not in the mock: role
-  chip + name, menu with the e-mail, audit log / users / AI extraction for admins, sign-out;
-  fixed-positioned because `.adminbar` scrolls horizontally, and compact so the bar fits at 1440
-  px), `sign-in.tsx`
+  chip + name, menu with the e-mail, audit log / users for admins, sign-out; fixed-positioned
+  because `.adminbar` scrolls horizontally, and compact so the bar fits at 1440 px), `sign-in.tsx`
   ("Send magic link" → "Check your email"; the link state "Signing you in…" or the invalid-link
   note). Words and chips of the tables: `lib/admin/format.ts`. Styles not in the mock: block 16 of
   `overrides.css`.
@@ -731,10 +707,9 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
   Tests: `lib/admin/sections.test.ts` (tabs per role, guard decisions, callback URLs),
   `lib/admin/format.test.ts`, `lib/admin/data.test.ts`, `lib/admin/review.test.ts`,
   `lib/admin/orders.test.ts`, `lib/admin/assumptions.test.ts`, `lib/admin/engine.test.ts`,
-  `lib/admin/rules.test.ts`, `lib/admin/ai.test.ts`; backend
-  `tests/integration/test_admin_console_postgis.py`, `test_document_files_postgis.py`,
-  `test_review_queue_postgis.py`, `test_orders_console_postgis.py`,
-  `test_assumptions_schedule_postgis.py`, `test_ai_settings_postgis.py`.
+  `lib/admin/rules.test.ts`; backend `tests/integration/test_admin_console_postgis.py`,
+  `test_document_files_postgis.py`, `test_review_queue_postgis.py`,
+  `test_orders_console_postgis.py`, `test_assumptions_schedule_postgis.py`.
 
 ## Rules the frontend must keep
 

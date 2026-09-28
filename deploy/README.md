@@ -8,7 +8,7 @@ Everything runs on one server with Docker Compose (`deploy/compose.yml`):
 | `web` | the public map (Next.js, `frontend/Dockerfile`) | `https://SITE_DOMAIN` |
 | `api` | the API (FastAPI, `backend/Dockerfile`) | `https://API_DOMAIN` |
 | `minio` | private file bucket (planning PDFs, map tiles, expert reports) | signed links on `https://FILES_DOMAIN` |
-| `worker` | background jobs: e-mails, AI extraction and market imports (Anthropic API), connection tests, the publish job (tippecanoe) | internal |
+| `worker` | background jobs: e-mails, the publish job (tippecanoe) | internal |
 | `postgres` | PostgreSQL 16 + PostGIS | internal |
 | `redis` | job queue, caches, rate limiting | internal |
 | `migrate`, `storage-init` | one-shot: database migrations, bucket creation (every `up`) | — |
@@ -49,8 +49,7 @@ bash /opt/urbanview/deploy/server-setup.sh
 ```
 
 `server-setup.sh` installs Docker and the compose plugin, adds 4 GB swap, opens only SSH / HTTP /
-HTTPS in the firewall, turns on automatic security updates and creates `/opt/urbanview-backups`
-(run again once `deploy/.env` exists, it also generates the secrets missing from it).
+HTTPS in the firewall, turns on automatic security updates and creates `/opt/urbanview-backups`.
 
 **Private repository:** create a deploy key on the server (`ssh-keygen -t ed25519 -f
 ~/.ssh/github_deploy -N ""`), add `~/.ssh/github_deploy.pub` to GitHub → repository → Settings →
@@ -74,17 +73,10 @@ public token (`pk.…`; in the Mapbox account restrict it to `https://SITE_DOMAI
 `APP_ENV=staging` keeps `/docs` on and only e-mails the addresses in `MAIL_ALLOWLIST`. Switch to
 `APP_ENV=prod` (and clear the allow-list) when the site is announced.
 
-Leave `SECRETS_ENCRYPTION_KEY` empty: `deploy/ensure-secrets.sh` (step 5, and `deploy.sh` on
-every update) generates it once and never replaces it. It encrypts what the admin console saves
-(the Anthropic API key). Keep a copy off the server (a password manager) and never change it once
-a key is saved: the saved key would become unreadable. `ANTHROPIC_API_KEY` is optional: the key
-can be pasted in the admin console instead (step 9).
-
 ## 5. Start
 
 ```bash
 cd /opt/urbanview
-bash deploy/ensure-secrets.sh    # generates SECRETS_ENCRYPTION_KEY in deploy/.env (once)
 docker compose -f deploy/compose.yml --env-file deploy/.env up -d --build
 ```
 
@@ -106,8 +98,7 @@ A fresh server has no staff users and, until an SMTP account is set, e-mails no 
 This prints a one-time link instead:
 
 ```bash
-docker compose -f deploy/compose.yml --env-file deploy/.env exec api \
-  python -m core.staff login-link --email you@example.com --create --role admin --name "You"
+docker compose -f deploy/compose.yml --env-file deploy/.env exec api   python -m core.staff login-link --email you@example.com --create --role admin --name "You"
 ```
 
 It prints `https://SITE_DOMAIN/admin/login?token=…`: open it in a browser to sign in to the admin
@@ -130,8 +121,7 @@ placeholder PDFs, so search, map clicks, the panels, the source viewer and order
 ## 8. Publish the map layers (parcel outlines on the map)
 
 The sample's version 1 has no tile archive, so the map shows the base map only. One publish run
-builds it (the worker runs tippecanoe). In the admin console: AI review queue → **Publish**
-(admins, once nothing is pending review). Or with a service token of `ADMIN_API_TOKENS`:
+builds it (the worker runs tippecanoe):
 
 ```bash
 curl -s -X POST https://API_DOMAIN/v1/admin/publish \
@@ -144,58 +134,17 @@ curl -s https://API_DOMAIN/v1/tiles/current
 `/v1/tiles/current` then answers `published` with an `archive_url` on `FILES_DOMAIN`, and the map
 draws zones, coverage areas and parcels.
 
-## 9. Activate AI extraction
-
-The worker reads planning PDFs with the Anthropic API (Claude). It needs an API key with credit.
-
-**a. In the admin console (recommended)**
-
-1. In the Anthropic Console create an API key (https://console.anthropic.com/settings/keys) and
-   add credit (https://console.anthropic.com/settings/billing).
-2. Sign in to the admin console (step 6), then account menu → **AI extraction** (`/admin/ai`,
-   admins only).
-3. Paste the key and **Save key**. It is stored encrypted with `SECRETS_ENCRYPTION_KEY` and never
-   shown again (only its last 4 characters); a connection test runs on the worker.
-4. The readiness checklist must be all green: API key configured, key verified by the last
-   connection test, worker listening on the extraction queue, an admin or reviewer account (e-mail
-   for sign-in links is optional). A failed test says why (invalid key, no credit with the Billing
-   link, model unavailable, network …); **Test connection** runs it again.
-
-Extraction jobs pick up a saved key at once, with no restart. The page also shows the model
-settings (read-only: `EXTRACTION_MODEL`, `EXTRACTION_EFFORT` … in `deploy/.env`) and the estimated
-spend so far.
-
-**b. In the server environment:** set `ANTHROPIC_API_KEY=sk-ant-…` in `deploy/.env`, then recreate
-both services (`restart` keeps the old environment):
-
-```bash
-docker compose -f deploy/compose.yml --env-file deploy/.env up -d api worker
-```
-
-A key there wins over the console's; the AI extraction page shows "Server environment
-(ANTHROPIC_API_KEY)" as the source. Run **Test connection** on that page to verify it.
-
-**First rollout of this feature on a running server:** the `deploy.sh` that pulls it is still the
-old one, so generate the key once by hand (or run `deploy.sh` a second time):
-
-```bash
-cd /opt/urbanview
-bash deploy/ensure-secrets.sh && \
-  docker compose -f deploy/compose.yml --env-file deploy/.env up -d api worker
-```
-
-## 10. Updating (after every push to GitHub)
+## 9. Updating (after every push to GitHub)
 
 ```bash
 bash /opt/urbanview/deploy/deploy.sh
 ```
 
-Pulls, generates missing secrets (`ensure-secrets.sh`; an existing value is never replaced),
-rebuilds what changed, applies new migrations, restarts the changed services, removes old images.
-A change to a `NEXT_PUBLIC_*` value in `deploy/.env` also needs this (they are baked into the map
-at build time).
+Pulls, rebuilds what changed, applies new migrations, restarts the changed services, removes old
+images. A change to a `NEXT_PUBLIC_*` value in `deploy/.env` also needs this (they are baked into
+the map at build time).
 
-## 11. Backups
+## 9. Backups
 
 ```bash
 crontab -e
@@ -213,10 +162,6 @@ docker compose -f deploy/compose.yml --env-file deploy/.env exec -T postgres \
 The bucket (PDFs, tiles, reports) lives in the `minio` volume; Hetzner's server backups or
 snapshots cover it. Copy the dumps off the server now and then (or enable Hetzner backups).
 
-Keep a copy of `deploy/.env` (at least `SECRETS_ENCRYPTION_KEY`) off the server: a restored
-database cannot decrypt the API key saved in the admin console without it (paste the key again
-otherwise).
-
 ## Everyday commands
 
 ```bash
@@ -224,10 +169,9 @@ cd /opt/urbanview
 dc="docker compose -f deploy/compose.yml --env-file deploy/.env"
 $dc ps                                  # what runs, health
 $dc logs -f --tail=100 api worker       # logs
-$dc up -d api worker                    # after editing deploy/.env (restart does not re-read it)
+$dc restart api                         # restart one service
 $dc exec postgres psql -U urbanview     # database shell
 $dc run --rm api python -m core.staff list   # staff users
-$dc exec api python -m core.staff login-link --email you@example.com   # one-time sign-in link
 ```
 
 ## Notes
@@ -242,5 +186,4 @@ $dc exec api python -m core.staff login-link --email you@example.com   # one-tim
   `Content-Range`, `Content-Length`).
 - **Memory:** the Next.js and tippecanoe builds peak above 4 GB; the swap from `server-setup.sh`
   covers it on a 4 GB server.
-- **Not deployed here:** Flower (the staff tool is the admin console, served by `web` under
-  `/admin`).
+- **Not deployed here:** the staff tool (`admin/`, not built yet) and Flower.

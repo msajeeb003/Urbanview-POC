@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from core.extraction.cases import ABSENT_CASES, find_leaf
 from core.extraction.llm import ClaudeModel, ModelUsage, StructuredModel
@@ -26,23 +25,15 @@ from core.extraction.run import run_task
 from core.extraction.sample import Score, compare, load_labels, pages_for, result_from_labels
 from core.extraction.schema import Leaf, MissingValue, StatedValue
 
-if TYPE_CHECKING:
-    from core.config import Settings
 
-
-def model_from_settings(
-    settings: Settings | None = None, *, api_key: str | None = None
-) -> ClaudeModel:
-    """The configured Claude model; ``api_key`` (a resolved key, ``core.extraction.credentials``)
-    else the server environment's ``ANTHROPIC_API_KEY`` (the CLIs)."""
+def model_from_settings() -> ClaudeModel:
     from core.config import get_settings
-    from core.extraction.credentials import env_key
 
-    settings = settings or get_settings()
-    key = api_key if api_key is not None else env_key(settings)
+    settings = get_settings()
+    key = settings.anthropic_api_key
     return ClaudeModel(
         settings.extraction_model,
-        api_key=key,
+        api_key=key.get_secret_value() if key else None,
         effort=settings.extraction_effort,
         adaptive_thinking=settings.extraction_adaptive_thinking,
         max_tokens=settings.extraction_max_tokens,

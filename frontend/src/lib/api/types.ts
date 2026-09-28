@@ -124,16 +124,3 @@ export type ZoneParameterSet = S["ZoneParametersOut"];
 export type ZoneParameterList = S["ZoneParametersList"];
 export type ZoneParametersIn = S["ZoneParametersIn"];
 export type ZoneParametersUpdate = S["ZoneParametersUpdate"];
-
-// Admin console: AI extraction settings (/admin/ai)
-export type AiStatus = S["AiStatusOut"];
-export type AiKeyState = S["AiKeyStateOut"];
-export type AiKeySource = S["AiKeyStateOut"]["source"];
-export type AiCheck = S["AiCheckOut"];
-export type AiCheckStatus = NonNullable<S["AiCheckOut"]["status"]>;
-export type AiChecklistItem = S["AiChecklistItemOut"];
-export type AiModelSettings = S["AiModelSettingsOut"];
-export type AiWorker = S["AiWorkerOut"];
-export type AiUsage = S["AiUsageOut"];
-export type AiUsageRow = S["AiUsageRowOut"];
-export type AiKeyIn = S["AiKeyIn"];
