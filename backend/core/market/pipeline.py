@@ -386,15 +386,17 @@ def summary(import_id: int, result: NormaliseResult) -> dict[str, Any]:
     }
 
 
-def model_from_settings(settings: Any) -> StructuredModel | None:
-    """The Claude adapter for the LLM step, or None when the ``ai`` extra is not installed."""
+def model_from_settings(settings: Any, *, api_key: str | None = None) -> StructuredModel | None:
+    """The Claude adapter for the LLM step, or None when the ``ai`` extra is not installed.
+    ``api_key``: a resolved key (``core.extraction.credentials``), else ANTHROPIC_API_KEY."""
     try:
+        from core.extraction.credentials import env_key
         from core.extraction.llm import ClaudeModel
 
-        key = settings.anthropic_api_key
+        key = api_key or env_key(settings)
         return ClaudeModel(
             settings.market_model or settings.extraction_model,
-            api_key=key.get_secret_value() if key else None,
+            api_key=key,
             effort=settings.market_effort,
             adaptive_thinking=settings.extraction_adaptive_thinking,
             max_tokens=settings.market_max_tokens,

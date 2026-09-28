@@ -8,6 +8,7 @@ from fastapi import Depends, Header, Request
 
 from api.services.admin import AdminService
 from api.services.admin_config import AdminConfigService
+from api.services.ai_settings import AiSettingsService
 from api.services.analytics import AnalyticsService
 from api.services.auth import MagicLinkService
 from api.services.cadastral_municipalities import CadastralMunicipalityService
@@ -255,6 +256,18 @@ def get_engine_proposal_service(request: Request) -> EngineProposalService:
 
 
 EngineProposalServiceDep = Annotated[EngineProposalService, Depends(get_engine_proposal_service)]
+
+
+def get_ai_settings_service(request: Request) -> AiSettingsService:
+    service = getattr(request.app.state, "ai_settings_service", None)
+    if service is None:
+        raise ServiceUnavailableError(
+            "The staff API needs the planning database (LOCATION_RESOLVER=postgis)"
+        )
+    return service
+
+
+AiSettingsServiceDep = Annotated[AiSettingsService, Depends(get_ai_settings_service)]
 # any signed-in staff member (the admin console's own account routes)
 StaffPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer, Role.expert))]
 

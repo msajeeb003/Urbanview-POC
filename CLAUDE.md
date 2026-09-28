@@ -458,7 +458,9 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   (`staff_users`: e-mail, role admin | reviewer | expert, active flag; `staff_sessions`: SHA-256
   token hashes with expiry / revocation). `api.deps.require_role` tries the config tokens, then
   `core.auth.StaffSessionAuthenticator`. The magic-link login item creates sessions with
-  `core.staff.issue_session`; until then `python -m core.staff add|token|revoke|list`.
+  `core.staff.issue_session`; until then `python -m core.staff add|token|revoke|list`. `python -m
+  core.staff login-link --email … [--create --role admin]` prints a one-time console sign-in link
+  without SMTP (audited `auth.login_link_issued`, see "AI extraction settings").
 - **Files.** `POST /v1/admin/files` (multipart `file` + `kind` planning_document | gis |
   cadastral_extract) validates extension, declared type and file signature per kind, caps the
   size (`ADMIN_UPLOAD_MAX_MB`), hashes while reading and stores the object at
@@ -794,9 +796,10 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   chunks, items written / low_confidence / unmatched / superseded, tokens, cost, summary), the
   job's progress and `result` (the summary) and cost block, `audit_log` `extraction.start` /
   `extraction.finish` (entity `extraction_run`, actor `worker:extract_document`). Nothing touches
-  the serving tables. Live model runs need `ANTHROPIC_API_KEY` (`backend/.env`, git-ignored) and
-  `ANTHROPIC_BASE_URL` (`anthropic_base_url`, default `https://api.anthropic.com`: the key never
-  goes to a proxy the shell environment may name).
+  the serving tables. Live model runs need a key: `ANTHROPIC_API_KEY` (`backend/.env`, git-ignored;
+  on the server `deploy/.env`) or the key saved in the admin console (AI extraction, see "AI
+  extraction settings"), and `ANTHROPIC_BASE_URL` (`anthropic_base_url`, default
+  `https://api.anthropic.com`: the key never goes to a proxy the shell environment may name).
 - Tests: `tests/test_extraction_job_unit.py` and `tests/integration/test_extraction_job_postgis.py`
   with `tests/extraction_script.Transcriber` (a scripted model that copies parameter tables).
 
@@ -838,6 +841,91 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   Stara Varoš were not read (the API account ran out of credit); no baseline yet.
 - Tests: `tests/test_extraction_eval.py` (outcomes, merged cells in the table view, cost, the
   regression check, manifest vs gold sets).
+
+## AI extraction settings (`api/services/ai_settings.py`, `api/routers/v1/admin_ai.py`, `core/app_secrets.py`, `core/extraction/credentials.py`, `core/extraction/connection.py`, `jobs/tasks/ai.py`, migration 0028)
+
+- **An admin activates AI extraction without SSH** (the console's `/admin/ai`, see
+  `frontend/CLAUDE.md`): readiness, a write-only API key, a connection test the worker runs, the
+  model settings and the spend so far. Nothing copies a developer's `backend/.env` key anywhere.
+- **Which key** (`core.extraction.credentials`): the server's `ANTHROPIC_API_KEY` first (read
+  without touching the database), else the key saved in the console.
+  `resolve_anthropic_key(session_factory, settings, municipality_id=)` → `ResolvedKey` (`source`
+  server_env | console | none, `last4`, `set_at` of a console key, `problem`
+  encryption_key_missing | unreadable, `api_key` kept out of its repr; `fingerprint` = `{source,
+  last4, set_at}`); `missing_key_message` says what is missing, `require_key` raises
+  `ModelNotConfigured` (a `ModelError`: final, never retried). A blank `ANTHROPIC_API_KEY=` is
+  unset. The developer CLIs (`python -m core.extraction eval`, `python -m core.market`) stay
+  env-only.
+- **Saved secrets** (`core/app_secrets.py`, table `app_secrets`, migration 0028): one row per
+  municipality and name (`anthropic_api_key`, unique `uq_app_secrets_name`): `ciphertext` = a
+  Fernet token under `SECRETS_ENCRYPTION_KEY` (`cryptography` is a base dependency: the API
+  encrypts, the worker decrypts), `last4`, `set_by` / `set_by_user_id`, `set_at`. **Only `last4`
+  ever leaves the process**: no key in responses, logs, audit rows, exceptions or job payloads (the
+  test job's result strings are scrubbed; `PUT /key` carries `openapi_extra` `x-redact-input`, so
+  `core.errors` drops `input` / `ctx` / `url` from its validation details). Format rules, in order,
+  with the messages the console shows verbatim (`normalise_anthropic_key`): trimmed, not empty; no
+  inner whitespace; starts with `sk-ant-`; not an Admin key (`sk-ant-admin`); 40–256 characters;
+  only `[A-Za-z0-9_-]`. Without `SECRETS_ENCRYPTION_KEY` nothing can be saved (the server's key
+  still works); a key saved under another encryption key is `unreadable` ("paste it again"). No
+  rotation of the encryption key (no MultiFernet).
+- **Routes** (`/v1/admin/ai`, role `admin`, `Cache-Control: no-store`; 401 / 403 like every staff
+  route, 503 without PostGIS): `GET` (`AiStatusOut`: the key state (active source and last4, server
+  key, console key stored / active / readable with its note, who and when), `encryption_ready`,
+  the model settings read-only (model, effort, adaptive thinking, max tokens, refusal fallback,
+  timeout, market model / effort, API host and whether it is the default, prices from
+  `LLM_PRICE_*`), the last connection test, the worker, usage, the checklist, `ready`, Anthropic
+  Console links); `PUT /key {api_key}` (write-only `SecretStr`; 409 `encryption_key_missing`, 422
+  `validation_error` with the format message; saves, audited `ai.key_set` with last4 only, then
+  queues a test with `trigger: key_saved`: a broker outage leaves the key saved and the test
+  failed); `DELETE /key` (404 `not_found` `{secret}` when nothing is saved; audited
+  `ai.key_removed`); `POST /check` (202 `JobOut`, 200 with the active test of the same key, 503
+  `{job_id, status_url}` when the broker is down; audited `ai.check`).
+- **Connection test** (job `ai_check`, `jobs/tasks/ai.py`, extraction queue, `max_attempts = 1`,
+  target `ai_settings`; dedupe key `ai_check:ai_settings:-:{source}:{last4}:{set_at}`, so a new key
+  never gets the old key's active test). The worker resolves the key itself and sends one minimal
+  non-streaming Messages call (`core.extraction.connection.check_connection`: "Reply with the
+  single word OK.", `max_tokens` 16, no thinking / output_config / system / betas, no SDK retries,
+  30 s timeout); any HTTP 200 is `ok` whatever the stop reason. SDK errors map to `status`
+  invalid_key (401) | permission_denied (403) | model_unavailable (404) | rate_limited (429) |
+  overloaded (529, 503) | no_credit (`billing_error` or "credit balance") | error (other HTTP) |
+  network_error (timeout, connection) | no_key, each with a `detail_en` saying what to do. The job
+  **succeeds whenever a check ran**: `result` = trigger, the key's fingerprint (`key_source`,
+  `key_last4`, `key_set_at`), model requested / answered, latency, tokens, stop reason, HTTP status,
+  request id, `checked_at`; its tokens are priced (`cost_for`). Only internal errors fail it (shown
+  as `error` with the job's error); a worker without the SDK answers `error`.
+- **Readiness checklist** (always this order; `ready` = every required item ok): `api_key` (a
+  usable key: its source and last4, or what is missing), `key_verified` (the latest `ai_check`
+  succeeded with `ok` and its fingerprint equals the API's current key; running → null; another
+  key → "test again", with a hint when only the worker sees `ANTHROPIC_API_KEY`), `worker`
+  (`api/services/worker_probe.py` `CeleryWorkerProbe`: `inspect().active_queues()` with a 1 s
+  timeout, cached 15 s, one probe in flight; ready / eager → ok, no_worker → false, unreachable →
+  null), `reviewer_account` (an active admin or reviewer), `smtp` (optional: the mail policy's
+  rules). Usage: per job type `extract_document`, `import_market_data`, `ai_check` (always the
+  three, zeros when absent) and a total (jobs, succeeded, failed, tokens, estimated EUR, last
+  finished), plus the latest extraction job. One statement (`STATUS_SQL`) next to the worker
+  probe.
+- **Workers resolve the key per job**: `extract_document` builds its model with `require_key` (no
+  key → the job fails with `ModelNotConfigured: No Anthropic API key: …`; a manual retry works once
+  a key is set), `import_market_data` runs without an LLM (a warning in the log). A key saved in
+  the console is used by the next job, no restart.
+- **Bootstrap** (`core.staff.issue_login_link`): `python -m core.staff login-link --email …
+  [--create --role admin --name …] [--minutes 15]` mints a single-use `staff_login_tokens` row (no
+  e-mail) for an active staff user (`--create` adds one, audited `user.create`), audited
+  `auth.login_link_issued` (actor `cli`), and prints `{ADMIN_BASE_URL}/login?token=…` once (never
+  logged). A fresh server has no staff users and no SMTP: this signs the first admin in
+  (`deploy/README.md` step 6).
+- **Deployment**: `deploy/ensure-secrets.sh` (run by `deploy.sh` after the pull and by
+  `server-setup.sh` when `deploy/.env` exists) writes `SECRETS_ENCRYPTION_KEY` once (`openssl rand
+  -base64 32`, url-safe) and never replaces a value; `deploy/README.md` step 9 activates extraction
+  (console, or `ANTHROPIC_API_KEY` in `deploy/.env` + `up -d api worker`).
+- Tests: `tests/test_app_secrets_unit.py` (Fernet, the format rules and messages, scrub,
+  settings), `tests/test_ai_connection_unit.py` (a real SDK client on a mock transport: request
+  shape, every status mapping, no key in the result), `tests/test_ai_settings_unit.py` (role
+  gate, redacted 422, the builders, the worker probe), `tests/test_ai_check_job_unit.py` (the job
+  on the memory store), `tests/integration/test_ai_settings_postgis.py` (save / remove / test
+  through the API, ciphertext and audit without the key, fingerprints, server vs console key,
+  another encryption key, usage, workers using the resolved key, end to end on a mock transport)
+  and `tests/integration/test_staff_login_link_postgis.py`.
 
 ## Orders (`api/services/orders.py`, `core/pricing.py`, `core/payments.py`, `api/services/order_mail.py`)
 
@@ -947,7 +1035,10 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   = 900, `used_at`), link `{ADMIN_BASE_URL}/login?token=…`. `POST /v1/auth/magic-link/exchange
   {token}` consumes it once and returns a staff session bearer token (`staff_sessions`,
   `STAFF_SESSION_DAYS`) with the user; 401 for unknown / used / expired. Audited
-  `auth.magic_link_requested`, `auth.login`.
+  `auth.magic_link_requested`, `auth.login`. Without SMTP (a fresh server) `python -m core.staff
+  login-link --email … [--create --role admin]` mints the same single-use token from the command
+  line (no `email_log` row) and prints the link once; audited `auth.login_link_issued` (actor
+  `cli`).
 - **The admin console** (`frontend/`, `/admin/*`, see `frontend/CLAUDE.md`) signs staff in with
   these links through Auth.js (`ADMIN_BASE_URL` = site + `/admin`, so links open
   `/admin/login?token=…`): `GET /v1/admin/users/me` (every staff role) answers the principal
@@ -1007,9 +1098,10 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
 ## Background jobs (`jobs/`, `api/services/jobs.py`, `api/routers/v1/admin_jobs.py`)
 
 - **One job system.** Every long-running task is a `pipeline_jobs` row (migration 0010: `type`
-  extract_document | preprocess_file (0018) | process_geometry | publish_approved | send_email,
-  `kind` family, `queue`,
-  `target_type` document | file | publish_run | email + `target_id`, `payload`, `status` queued |
+  extract_document | preprocess_file (0018) | process_geometry | publish_approved | send_email |
+  ai_check (0028), `kind` family, `queue`,
+  `target_type` document | file | publish_run | email | ai_settings (0028) + `target_id`,
+  `payload`, `status` queued |
   running | retrying | succeeded | failed | cancelled, `attempts` / `max_attempts`,
   `manual_retries`, `next_retry_at`, `dedupe_key`, `wall_time_ms`, `llm_model`,
   `llm_tokens_in/out`, `estimated_cost_eur`) delivered to a worker as `(job_id, municipality_id)`.
@@ -1040,8 +1132,10 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
 - **Tasks** (`jobs/tasks/`): `extract_document` and `preprocess_file` (extraction queue),
   `process_geometry` (geo), `publish_approved` (publish; one active run per municipality),
   `send_email` (email; payload `{template, to, context}`, `to` a reference resolved at send time,
-  never a stored address). `process_geometry` is still a stub that fails with a clear "not
-  implemented" error until its item lands; `extract_document` runs (see "Extraction job").
+  never a stored address), `ai_check` (`jobs.tasks.ai`, extraction queue, one attempt: the
+  connection test of "AI extraction settings"). `process_geometry` is still a stub that fails with
+  a clear "not implemented" error until its item lands; `extract_document` runs (see "Extraction
+  job").
   `system.ping` is the broker smoke test.
 - **API** (role `admin`): `GET /v1/admin/jobs` (filters `type`, `status`, `target=document:12`
   | `file:` | `publish_run:` | `email:`, `document_id`, `file_id`; `total`),
@@ -1434,10 +1528,15 @@ and migrations must agree.
 S3 credentials and `ADMIN_API_TOKENS` shorter than 24 characters. Secrets are `SecretStr`. No
 secrets in code. `S3_PUBLIC_ENDPOINT_URL` (optional) is the address signed links are made for
 (browsers), while `S3_ENDPOINT_URL` is where the API and worker read and write (on the server:
-`https://files.<domain>` vs `http://minio:9000`).
+`https://files.<domain>` vs `http://minio:9000`). `SECRETS_ENCRYPTION_KEY` (optional; blank =
+unset) is the Fernet key of the secrets saved in the admin console (`core.app_secrets`): a
+malformed one fails at startup, without it the console cannot save a key, and it is never changed
+once used (saved secrets would become unreadable); on the server `deploy/ensure-secrets.sh`
+generates it once.
 
 **Deployment.** `deploy/README.md`: one Hetzner server, `docker compose -f deploy/compose.yml
---env-file deploy/.env up -d --build`, updates with `deploy/deploy.sh`. The frontend image
+--env-file deploy/.env up -d --build`, updates with `deploy/deploy.sh` (pull, then
+`deploy/ensure-secrets.sh`: missing secrets generated once, never replaced). The frontend image
 (`frontend/Dockerfile`, context = repo root, its own `Dockerfile.dockerignore`) builds Next.js with
 `NEXT_OUTPUT=standalone`; `NEXT_PUBLIC_*` are build args. Caddy terminates HTTPS and sets
 `X-Forwarded-For` (`TRUST_PROXY_HEADERS=true`).

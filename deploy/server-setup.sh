@@ -3,7 +3,8 @@
 #   bash deploy/server-setup.sh
 # Installs Docker Engine + the compose plugin (Docker's own apt repository), adds swap (the image
 # builds need more than 4 GB at peak), opens only SSH / HTTP / HTTPS, turns on automatic security
-# updates and creates the backup folder. Safe to run again.
+# updates and creates the backup folder; once deploy/.env exists it also generates the secrets it
+# lacks (ensure-secrets.sh). Safe to run again.
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then
@@ -50,4 +51,11 @@ dpkg-reconfigure -f noninteractive unattended-upgrades
 mkdir -p /opt/urbanview-backups
 docker --version
 docker compose version
+
+# the admin console's encryption key (generated once, never replaced)
+if [[ -f /opt/urbanview/deploy/.env ]]; then
+  bash /opt/urbanview/deploy/ensure-secrets.sh
+else
+  echo "(deploy.sh generates SECRETS_ENCRYPTION_KEY)"
+fi
 echo "server ready: clone the repository to /opt/urbanview next (deploy/README.md, step 4)"

@@ -213,7 +213,7 @@ class PipelineJob(Base):
         nullable=False,
         comment=(
             "extract_document | preprocess_file | process_geometry | publish_approved | send_email"
-            " | import_market_data | refresh_heatmaps"
+            " | import_market_data | refresh_heatmaps | ai_check"
         ),
     )
     queue: Mapped[str] = mapped_column(
@@ -232,7 +232,7 @@ class PipelineJob(Base):
         BigInteger, ForeignKey("stored_files.id", ondelete="SET NULL")
     )
     target_type: Mapped[str | None] = mapped_column(
-        Text, comment="document | file | publish_run | email | market_import"
+        Text, comment="document | file | publish_run | email | market_import | ai_settings"
     )
     target_id: Mapped[int | None] = mapped_column(BigInteger)
     payload: Mapped[dict[str, Any]] = mapped_column(
@@ -276,7 +276,8 @@ class PipelineJob(Base):
         ),
         CheckConstraint(
             "type IN ('extract_document', 'preprocess_file', 'process_geometry', "
-            "'publish_approved', 'send_email', 'import_market_data', 'refresh_heatmaps')",
+            "'publish_approved', 'send_email', 'import_market_data', 'refresh_heatmaps', "
+            "'ai_check')",
             name="ck_pipeline_jobs_type",
         ),
         CheckConstraint("attempts >= 0 AND max_attempts >= 1", name="ck_pipeline_jobs_attempts"),
@@ -376,4 +377,37 @@ class EngineProposal(Base):
             name="ck_engine_proposals_content",
         ),
         Index("ix_engine_proposals_kind", "municipality_id", "kind", "created_at"),
+    )
+
+
+SECRET_CIPHERTEXT_COMMENT = (
+    "Fernet token under SECRETS_ENCRYPTION_KEY; never returned, logged or audited"
+)
+SECRET_LAST4_COMMENT = "the last 4 characters: the only part ever shown"
+SECRET_SET_AT_COMMENT = "when the value was saved; a connection test names the value it used by it"
+
+
+class AppSecret(Base):
+    """A secret saved from the admin console (migration 0028), encrypted with Fernet under
+    SECRETS_ENCRYPTION_KEY (core.app_secrets); only last4 is ever shown."""
+
+    __tablename__ = "app_secrets"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    municipality_id: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False, comment="anthropic_api_key")
+    ciphertext: Mapped[str] = mapped_column(Text, nullable=False, comment=SECRET_CIPHERTEXT_COMMENT)
+    last4: Mapped[str] = mapped_column(Text, nullable=False, comment=SECRET_LAST4_COMMENT)
+    set_by: Mapped[str] = mapped_column(Text, nullable=False, comment="principal subject")
+    set_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("staff_users.id", ondelete="SET NULL")
+    )
+    set_at: Mapped[datetime] = _timestamp(
+        nullable=False, server_default=func.now(), comment=SECRET_SET_AT_COMMENT
+    )
+
+    __table_args__ = (
+        CheckConstraint("name IN ('anthropic_api_key')", name="ck_app_secrets_name"),
+        CheckConstraint("char_length(last4) = 4", name="ck_app_secrets_last4"),
+        Index("uq_app_secrets_name", "municipality_id", "name", unique=True),
     )

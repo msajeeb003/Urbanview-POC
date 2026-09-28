@@ -26,6 +26,7 @@ dependencies = [
   "pypdf>=4.0",
   "jinja2>=3.1",
   "openpyxl>=3.1",  # market-data imports: the client's range sheets (core.market)
+  "cryptography>=43",  # Fernet: secrets saved from the admin console (core.app_secrets)
 ]
 
 [project.optional-dependencies]

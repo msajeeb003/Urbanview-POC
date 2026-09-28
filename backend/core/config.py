@@ -38,8 +38,14 @@ def _parse_list(value: Any) -> Any:
 
 
 class Settings(BaseSettings):
+    # hide_input_in_errors: a malformed secret (SECRETS_ENCRYPTION_KEY, tokens, passwords) must
+    # never be echoed by the startup error
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+        hide_input_in_errors=True,
     )
 
     # application
@@ -70,10 +76,16 @@ class Settings(BaseSettings):
     llm_price_table: str | None = None  # per-model override: 'model=in:out,...' (EUR / MTok)
 
     # AI document extraction (core.extraction): the model that transcribes planning PDFs
-    anthropic_api_key: SecretStr | None = None  # None = the SDK's own lookup (env, profile)
+    # None = the key saved in the admin console (core.extraction.credentials); CLI tools: the
+    # SDK's own lookup
+    anthropic_api_key: SecretStr | None = None
     # passed to the SDK explicitly: a stray ANTHROPIC_BASE_URL in the environment (a local
     # proxy, a desktop app) must never receive the key
     anthropic_base_url: str = "https://api.anthropic.com"
+    # Secrets saved from the admin console (core.app_secrets, table app_secrets): a Fernet key, 32
+    # random bytes url-safe base64 (44 characters). Unset = the console cannot store a key (the
+    # server's ANTHROPIC_API_KEY still works). Changing it makes stored secrets unreadable.
+    secrets_encryption_key: SecretStr | None = None
     extraction_model: str = "claude-sonnet-5"
     extraction_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "high"
     extraction_adaptive_thinking: bool = True
@@ -237,6 +249,8 @@ class Settings(BaseSettings):
         "geocoder_min_interval_ms",
         "publish_tmp_dir",
         "mail_reply_to",
+        "anthropic_api_key",
+        "secrets_encryption_key",
         mode="before",
     )
     @classmethod
@@ -262,6 +276,16 @@ class Settings(BaseSettings):
             from core.auth import parse_api_tokens
 
             parse_api_tokens(value.get_secret_value())
+        return value
+
+    @field_validator("secrets_encryption_key")
+    @classmethod
+    def _fernet_key_well_formed(cls, value: SecretStr | None) -> SecretStr | None:
+        """A malformed SECRETS_ENCRYPTION_KEY fails at startup, not on the first save."""
+        if value is not None:
+            from core.app_secrets import check_fernet_key
+
+            check_fernet_key(value.get_secret_value())
         return value
 
     @field_validator("cors_origins", "rate_limit_exempt_paths", "mail_allowlist", mode="before")

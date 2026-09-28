@@ -13,7 +13,10 @@ it reads the tables well, supports adaptive thinking and effort, and caches the 
 Errors are classified for the job layer: :class:`ModelUnavailable` (timeouts, connection
 errors, 5xx / 529 overloaded) and :class:`ModelRateLimited` (429) are worth retrying with
 backoff; :class:`ModelRefused`, :class:`ModelOutputInvalid` (truncated or not the schema) and
-:class:`ModelError` (bad request, authentication) are not.
+:class:`ModelError` (bad request, authentication) are not, nor is :class:`ModelNotConfigured`
+(no API key could be resolved: the SDK's "Could not resolve authentication method" TypeError is
+mapped to it). :func:`anthropic_client` builds the SDK client (``ClaudeModel`` and the admin
+console's connection test, ``core.extraction.connection``, share it).
 """
 
 from __future__ import annotations
@@ -30,6 +33,10 @@ FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 class ModelError(Exception):
     """The call cannot succeed as sent (bad request, authentication, permission)."""
+
+
+class ModelNotConfigured(ModelError):
+    """No API key could be resolved (not retryable)."""
 
 
 class ModelRefused(ModelError):
@@ -92,6 +99,17 @@ class StructuredModel(Protocol):
     ) -> ModelReply: ...
 
 
+def anthropic_client(
+    *, api_key: str | None, base_url: str | None, timeout_seconds: float, max_retries: int = 2
+) -> Any:
+    """The Anthropic SDK client (the ``ai`` extra, imported here: ImportError without it)."""
+    import anthropic
+
+    return anthropic.Anthropic(
+        api_key=api_key, base_url=base_url, timeout=timeout_seconds, max_retries=max_retries
+    )
+
+
 class ClaudeModel:
     """Claude through the Anthropic SDK. ``client`` is injectable (tests use a mock transport)."""
 
@@ -114,10 +132,8 @@ class ClaudeModel:
         self.max_tokens = max_tokens
         self.refusal_fallback = refusal_fallback
         if client is None:
-            import anthropic
-
-            client = anthropic.Anthropic(
-                api_key=api_key, base_url=base_url, timeout=timeout_seconds, max_retries=2
+            client = anthropic_client(
+                api_key=api_key, base_url=base_url, timeout_seconds=timeout_seconds, max_retries=2
             )
         self._client = client
 
@@ -163,6 +179,11 @@ class ClaudeModel:
             if exc.status_code in (408, 409) or exc.status_code >= 500:
                 raise ModelUnavailable(f"HTTP {exc.status_code}: {exc.message}") from exc
             raise ModelError(f"HTTP {exc.status_code}: {exc.message}") from exc
+        except TypeError as exc:
+            # the SDK raises a bare TypeError when neither a key nor a credential is found
+            if "authentication method" in str(exc):
+                raise ModelNotConfigured("No Anthropic API key could be resolved") from exc
+            raise
         request_id = getattr(message, "_request_id", None)
         raw = message.usage
         usage = ModelUsage(

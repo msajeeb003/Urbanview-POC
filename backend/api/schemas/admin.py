@@ -37,6 +37,8 @@ JobType = Literal[
     "publish_approved",
     "send_email",
     "import_market_data",
+    "refresh_heatmaps",
+    "ai_check",
 ]
 JobStatus = Literal["queued", "running", "retrying", "succeeded", "failed", "cancelled"]
 TARGET_PATTERN = r"^(document|file|publish_run|email):[0-9]+$"
@@ -124,7 +126,8 @@ class JobOut(BaseModel):
     document_id: int | None = None
     file_id: int | None = None
     target_type: str | None = Field(
-        default=None, description="document | file | publish_run | email"
+        default=None,
+        description="document | file | publish_run | email | market_import | ai_settings",
     )
     target_id: int | None = None
     payload: dict[str, Any] = Field(default_factory=dict)

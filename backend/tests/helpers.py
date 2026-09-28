@@ -42,6 +42,7 @@ def make_app(
     analytics_repository: Any | None = None,
     admin_dispatcher: Any | None = None,
     staff_authenticator: Any | None = None,
+    worker_probe: Any | None = None,
 ) -> FastAPI:
     return create_app(
         settings or make_settings(),
@@ -53,6 +54,7 @@ def make_app(
         analytics_repository=analytics_repository,
         admin_dispatcher=admin_dispatcher,
         staff_authenticator=staff_authenticator,
+        worker_probe=worker_probe,
     )
 
 

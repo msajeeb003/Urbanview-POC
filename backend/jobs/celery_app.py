@@ -1,7 +1,8 @@
 """Celery application.
 
-Queues: ``extraction`` (LLM document extraction), ``geo`` (geometry processing), ``publish``,
-``email`` and ``default`` (misc), so a big GIS job never blocks a small extraction. Every task is
+Queues: ``extraction`` (LLM document extraction, market imports, the AI connection test),
+``geo`` (geometry processing), ``publish``, ``email`` and ``default`` (misc), so a big GIS job
+never blocks a small extraction. Every task is
 a :class:`jobs.base.JobTask` fed with ``(job_id, municipality_id)``; nothing in ``jobs`` knows
 Podgorica specifically. ``CELERY_TASK_ALWAYS_EAGER=true`` runs tasks inline (tests).
 
@@ -31,6 +32,7 @@ celery_app = Celery(
         "jobs.tasks.market",
         "jobs.tasks.publish",
         "jobs.tasks.email",
+        "jobs.tasks.ai",
     ],
 )
 
@@ -54,6 +56,7 @@ celery_app.conf.update(
     task_routes={
         "jobs.tasks.extraction.*": {"queue": "extraction"},
         "jobs.tasks.market.*": {"queue": "extraction"},
+        "jobs.tasks.ai.*": {"queue": "extraction"},
         "jobs.tasks.ingestion.*": {"queue": "geo"},
         "jobs.tasks.publish.*": {"queue": "publish"},
         "jobs.tasks.email.*": {"queue": "email"},

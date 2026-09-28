@@ -11,6 +11,7 @@ Conventions (see CLAUDE.md):
 
 from core.db import Base
 from core.models.admin import (
+    AppSecret,
     AuditLogEntry,
     EngineProposal,
     PipelineJob,
@@ -55,6 +56,7 @@ from core.models.zones import StagingZoneDocument, ZoneDataset
 
 __all__ = [
     "AnalyticsEventRecord",
+    "AppSecret",
     "AuditLogEntry",
     "Base",
     "CadastralDataset",

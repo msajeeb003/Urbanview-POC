@@ -2176,3 +2176,80 @@ textarea.rinput {
     grid-column: auto;
   }
 }
+
+/* 21. AI extraction settings (`/admin/ai`; not in the mock: built from its `.card`, `.tbl`, `.st`,
+   `.abtn`, `.field` and the data screen's `.docfacts`): the "still needed" steps under the head,
+   the key form's row (input, Show, Save), hints and the Anthropic Console links, the spend table's
+   total row and the footer line. */
+.aisteps ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.aikeyform {
+  padding: 4px 18px 14px;
+  border-top: 1px solid var(--paper-2);
+}
+.aikeyform .field {
+  margin-top: 12px;
+}
+.aikeyrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.aikeyrow input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+}
+.aikeyrow .abtn {
+  flex: none;
+}
+.aihint {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  margin: 8px 18px 14px;
+}
+.aikeyform .aihint {
+  margin: 8px 0 0;
+}
+.ailinks {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.ailinks a {
+  color: var(--brand-dark);
+  text-decoration: none;
+}
+.aiwarn {
+  color: var(--warn, #9a6b00);
+}
+.admin-note.aiwarn {
+  color: var(--ink);
+}
+.aichecks td:last-child {
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+.aitotal td {
+  border-top: 2px solid var(--line);
+  font-weight: 600;
+}
+.aifoot {
+  margin: 4px 4px 18px;
+}
+@media (max-width: 760px) {
+  .aikeyrow {
+    flex-wrap: wrap;
+  }
+  .aikeyrow input {
+    flex-basis: 100%;
+  }
+}

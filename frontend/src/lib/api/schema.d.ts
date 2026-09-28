@@ -484,6 +484,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** AI extraction status: key, model, last connection test, worker, spend, readiness */
+        get: operations["get_status_v1_admin_ai_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/ai/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save the Anthropic API key (encrypted, write-only; queues a connection test) */
+        put: operations["set_key_v1_admin_ai_key_put"];
+        post?: never;
+        /** Remove the saved key */
+        delete: operations["remove_key_v1_admin_ai_key_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/ai/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test the connection (the worker calls the Messages API with the resolved key) */
+        post: operations["check_v1_admin_ai_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/jobs": {
         parameters: {
             query?: never;
@@ -1365,6 +1417,318 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AiCheckOut
+         * @description The latest connection test (an ``ai_check`` job) and what it found.
+         */
+        AiCheckOut: {
+            job: components["schemas"]["JobOut"];
+            /**
+             * Status
+             * @description Null while queued / running / retrying; error for a failed job
+             */
+            status?: ("ok" | "no_key" | "invalid_key" | "permission_denied" | "no_credit" | "model_unavailable" | "rate_limited" | "overloaded" | "network_error" | "error") | null;
+            /** Detail En */
+            detail_en?: string | null;
+            /** Model Requested */
+            model_requested?: string | null;
+            /** Model Answered */
+            model_answered?: string | null;
+            /** Latency Ms */
+            latency_ms?: number | null;
+            /**
+             * Input Tokens
+             * @default 0
+             */
+            input_tokens: number;
+            /**
+             * Output Tokens
+             * @default 0
+             */
+            output_tokens: number;
+            /** Estimated Cost Eur */
+            estimated_cost_eur?: number | null;
+            /**
+             * Key Source
+             * @description The key the test used
+             */
+            key_source?: ("server_env" | "console" | "none") | null;
+            /** Key Last4 */
+            key_last4?: string | null;
+            /** Checked At */
+            checked_at?: string | null;
+            /**
+             * Matches Current Key
+             * @description The test used the key the API sees now (source, last 4, when saved)
+             */
+            matches_current_key: boolean;
+        };
+        /** AiChecklistItemOut */
+        AiChecklistItemOut: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "api_key" | "key_verified" | "worker" | "reviewer_account" | "smtp";
+            /**
+             * Ok
+             * @description Null: could not be determined, or in progress
+             */
+            ok: boolean | null;
+            /** Required */
+            required: boolean;
+            /** Label En */
+            label_en: string;
+            /** Detail En */
+            detail_en: string;
+        };
+        /** AiKeyIn */
+        AiKeyIn: {
+            /**
+             * Api Key
+             * Format: password
+             * @description Write-only: an Anthropic API key (sk-ant-…); never returned
+             */
+            api_key: string;
+        };
+        /**
+         * AiKeyStateOut
+         * @description Which key the API sees (the worker resolves the same way): never the value.
+         */
+        AiKeyStateOut: {
+            /**
+             * Configured
+             * @description A usable key from the API's view
+             */
+            configured: boolean;
+            /**
+             * Source
+             * @description Where the active key comes from
+             * @enum {string}
+             */
+            source: "server_env" | "console" | "none";
+            /**
+             * Last4
+             * @description The active key's last 4 characters
+             */
+            last4?: string | null;
+            /**
+             * Server Env Key
+             * @description ANTHROPIC_API_KEY is set in the API process
+             */
+            server_env_key: boolean;
+            /** Server Env Last4 */
+            server_env_last4?: string | null;
+            /**
+             * Console Key Stored
+             * @description A key is saved in this console
+             */
+            console_key_stored: boolean;
+            /** Console Key Last4 */
+            console_key_last4?: string | null;
+            /**
+             * Console Key Active
+             * @description The saved key is in use: stored, readable and no server environment key
+             */
+            console_key_active: boolean;
+            /**
+             * Console Key Readable
+             * @description The saved key decrypts with this server's SECRETS_ENCRYPTION_KEY (null: nothing saved or no encryption key)
+             */
+            console_key_readable?: boolean | null;
+            /**
+             * Console Note En
+             * @description Why the saved key is inactive or unusable
+             */
+            console_note_en?: string | null;
+            /**
+             * Set By
+             * @description Who saved the console key
+             */
+            set_by?: string | null;
+            /**
+             * Set At
+             * @description When the console key was saved
+             */
+            set_at?: string | null;
+        };
+        /** AiLastRunOut */
+        AiLastRunOut: {
+            /** Job Id */
+            job_id: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "retrying" | "succeeded" | "failed" | "cancelled";
+            /** Document Id */
+            document_id?: number | null;
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+            /** Finished At */
+            finished_at?: string | null;
+        };
+        /** AiLinksOut */
+        AiLinksOut: {
+            /**
+             * Api Keys Url
+             * @default https://console.anthropic.com/settings/keys
+             */
+            api_keys_url: string;
+            /**
+             * Billing Url
+             * @default https://console.anthropic.com/settings/billing
+             */
+            billing_url: string;
+        };
+        /**
+         * AiModelSettingsOut
+         * @description The model settings of the server (read-only: deploy/.env).
+         */
+        AiModelSettingsOut: {
+            /**
+             * Model
+             * @description EXTRACTION_MODEL
+             */
+            model: string;
+            /**
+             * Effort
+             * @description EXTRACTION_EFFORT (null: default)
+             */
+            effort?: string | null;
+            /** Adaptive Thinking */
+            adaptive_thinking: boolean;
+            /** Max Tokens */
+            max_tokens: number;
+            /** Refusal Fallback */
+            refusal_fallback: boolean;
+            /** Timeout Seconds */
+            timeout_seconds: number;
+            /**
+             * Market Model
+             * @description MARKET_MODEL, else EXTRACTION_MODEL
+             */
+            market_model: string;
+            /** Market Effort */
+            market_effort?: string | null;
+            /**
+             * Base Url Host
+             * @description The host of ANTHROPIC_BASE_URL
+             */
+            base_url_host: string;
+            /**
+             * Base Url Is Default
+             * @description The host is api.anthropic.com
+             */
+            base_url_is_default: boolean;
+            /**
+             * Price Input Eur Per Mtok
+             * @description LLM_PRICE_TABLE's entry for the model, else LLM_PRICE_EUR_PER_MTOK_INPUT
+             */
+            price_input_eur_per_mtok: number;
+            /** Price Output Eur Per Mtok */
+            price_output_eur_per_mtok: number;
+        };
+        /** AiStatusOut */
+        AiStatusOut: {
+            key: components["schemas"]["AiKeyStateOut"];
+            /**
+             * Encryption Ready
+             * @description SECRETS_ENCRYPTION_KEY is set on the server
+             */
+            encryption_ready: boolean;
+            /** Encryption Note En */
+            encryption_note_en?: string | null;
+            model: components["schemas"]["AiModelSettingsOut"];
+            /** @description The latest connection test */
+            check?: components["schemas"]["AiCheckOut"] | null;
+            worker: components["schemas"]["AiWorkerOut"];
+            usage: components["schemas"]["AiUsageOut"];
+            /**
+             * Checklist
+             * @description api_key, key_verified, worker, reviewer_account, smtp (in that order)
+             */
+            checklist: components["schemas"]["AiChecklistItemOut"][];
+            /**
+             * Ready
+             * @description Every required checklist item is ok
+             */
+            ready: boolean;
+            links?: components["schemas"]["AiLinksOut"];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /** AiUsageOut */
+        AiUsageOut: {
+            /**
+             * Rows
+             * @description extract_document, import_market_data, ai_check (zeros when absent)
+             */
+            rows: components["schemas"]["AiUsageRowOut"][];
+            total: components["schemas"]["AiUsageRowOut"];
+            /**
+             * Since
+             * @description The first AI job's request time
+             */
+            since?: string | null;
+            last_extraction?: components["schemas"]["AiLastRunOut"] | null;
+            /**
+             * Currency
+             * @default EUR
+             * @constant
+             */
+            currency: "EUR";
+            /** Note En */
+            note_en: string;
+        };
+        /** AiUsageRowOut */
+        AiUsageRowOut: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "extract_document" | "import_market_data" | "ai_check" | "total";
+            /** Jobs */
+            jobs: number;
+            /** Succeeded */
+            succeeded: number;
+            /** Failed */
+            failed: number;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+            /** Estimated Cost Eur */
+            estimated_cost_eur: number;
+            /** Last Finished At */
+            last_finished_at?: string | null;
+        };
+        /** AiWorkerOut */
+        AiWorkerOut: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "no_worker" | "unreachable" | "eager";
+            /**
+             * Workers
+             * @description Workers consuming the extraction queue
+             */
+            workers: number;
+            /** Detail En */
+            detail_en?: string | null;
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+        };
         /** AmendIn */
         AmendIn: {
             /**
@@ -3995,7 +4359,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data";
+            type: "extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "ai_check";
             /** Queue */
             queue: string;
             /**
@@ -4009,7 +4373,7 @@ export interface components {
             file_id?: number | null;
             /**
              * Target Type
-             * @description document | file | publish_run | email
+             * @description document | file | publish_run | email | market_import | ai_settings
              */
             target_type?: string | null;
             /** Target Id */
@@ -9135,10 +9499,241 @@ export interface operations {
             };
         };
     };
+    get_status_v1_admin_ai_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiStatusOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description No planning database (`service_unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_key_v1_admin_ai_key_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiKeyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiStatusOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SECRETS_ENCRYPTION_KEY is not set on the server (`encryption_key_missing`); nothing was stored */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not an Anthropic API key (`validation_error`; never echoes it) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No planning database (`service_unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    remove_key_v1_admin_ai_key_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiStatusOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No key is saved in this console (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description No planning database (`service_unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    check_v1_admin_ai_check_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A test for this key is already queued or running */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description The job queue is unavailable (`service_unavailable`, details `job_id`, `status_url`): the test was recorded as failed; or no planning database */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list_jobs_v1_admin_jobs_get: {
         parameters: {
             query?: {
-                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data") | null;
+                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "ai_check") | null;
                 status?: ("queued" | "running" | "retrying" | "succeeded" | "failed" | "cancelled") | null;
                 /** @description `<target_type>:<id>`, e.g. `document:12` */
                 target?: string | null;
@@ -9201,7 +9796,7 @@ export interface operations {
             query?: {
                 /** @description `<target_type>:<id>`, e.g. `document:12` */
                 target?: string | null;
-                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data") | null;
+                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "ai_check") | null;
                 limit?: number;
             };
             header?: {
