@@ -374,8 +374,7 @@ async def test_the_server_environment_key_wins(postgis_url):
     )
     (audit,) = await query(
         app,
-        "SELECT after, details FROM audit_log WHERE action = 'ai.key_set' "
-        "ORDER BY id DESC LIMIT 1",
+        "SELECT after, details FROM audit_log WHERE action = 'ai.key_set' ORDER BY id DESC LIMIT 1",
     )
     assert audit["after"]["active"] is False and audit["details"]["server_env_key"] is True
 
