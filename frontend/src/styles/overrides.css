@@ -169,19 +169,7 @@
   .coords {
     bottom: calc(var(--sheet-offset) + 16px);
   }
-  .aifab {
-    bottom: calc(var(--sheet-offset) + 16px);
-  }
-  .aipanel {
-    right: 8px;
-    left: 8px;
-    width: auto;
-    bottom: 8px;
-    height: min(544px, calc(100% - 16px));
-    z-index: 70;
-  }
   .main:has(.panel.sheet-full:not(.hidden)) .maptools,
-  .main:has(.panel.sheet-full:not(.hidden)) .aifab,
   .main:has(.panel.sheet-full:not(.hidden)) .scalebar,
   .main:has(.panel.sheet-full:not(.hidden)) .coords {
     display: none;

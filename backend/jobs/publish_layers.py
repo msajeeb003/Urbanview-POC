@@ -62,8 +62,11 @@ ZONE_COVERED = """EXISTS (
       AND d.coverage_live AND d.is_current_version AND d.coverage_geom IS NOT NULL)"""
 
 # Planned parcels of adopted, live, current document versions with their effective parameters.
+# `zone_id` is the urban panel's rule: the plan's zone, else the block's (blocks staged from a
+# plan's drawing carry none), so a click on a planned parcel names its zone in the analytics.
 URBAN_PARCEL_INPUTS_SQL = f"""
-    SELECT u.id, u.urban_parcel_number, u.area_m2, u.block_id, b.block_ref, b.zone_id,
+    SELECT u.id, u.urban_parcel_number, u.area_m2, u.block_id, b.block_ref,
+           COALESCE(d.zone_id, b.zone_id) AS zone_id,
            u.document_id, d.name AS document_name,
            {effective("max_far")} AS max_far,
            {effective("max_site_coverage_pct")} AS max_site_coverage_pct,

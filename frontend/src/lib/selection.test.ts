@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { LocationResolution } from "@/lib/api/types";
-import { pointSelection, searchProps } from "@/lib/selection";
+import { pointCoverage, pointSelection, searchProps } from "@/lib/selection";
 
 const urban = { id: 7, urban_parcel_number: "12", area_m2: 959.6, match: "point" } as const;
 
@@ -74,5 +74,26 @@ describe("searchProps", () => {
       matched: false,
       result: "parcel",
     });
+  });
+});
+
+describe("pointCoverage", () => {
+  it("tells an outside-coverage hit from covered land without a parcel and from a failed lookup", () => {
+    expect(pointCoverage(resolution({}), true)).toBe("covered");
+    expect(pointCoverage(resolution({}), false)).toBe("no_parcel");
+    expect(pointCoverage(resolution({ covered: false, zone: null }), false)).toBe("uncovered");
+    expect(pointCoverage(null, false)).toBe("failed");
+  });
+
+  it("travels in search_performed only when a lookup ran", () => {
+    const point = { lat: 42.4415, lng: 19.2479 };
+    expect(searchProps("click", false, null, undefined, { point, coverage: "uncovered" })).toEqual({
+      search_kind: "click",
+      matched: false,
+      lat: 42.4415,
+      lng: 19.2479,
+      coverage: "uncovered",
+    });
+    expect(searchProps("parcel_number", false, "parcel", undefined, {})).not.toHaveProperty("coverage");
   });
 });

@@ -195,7 +195,6 @@ export function CadastralPanel({ parcelId }: { parcelId: number }) {
         <DataVersionLine version={data.data_version} date={data.data_version_date} />
       </div>
       <ParcelCtas
-        question={`Tell me about cadastral parcel #${no}`}
         target={{
           parcelType: "cadastral",
           parcelId,

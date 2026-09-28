@@ -123,9 +123,6 @@ interface ShellState {
   orderDraft: OrderDraft;
 
   view: "map" | "admin";
-  aiOpen: boolean;
-  /** A question a panel CTA put into the assistant's input (`id` changes per request). */
-  aiDraft: { id: number; text: string } | null;
 
   /** Panel removed from the layout (outside-coverage state). */
   panelHidden: boolean;
@@ -160,15 +157,12 @@ interface ShellState {
   setLayers(layers: Record<LayerId, boolean>): void;
   setChoropleth(kind: keyof ChoroplethState, value: string): void;
   setView(view: "map" | "admin"): void;
-  setAiOpen(open: boolean): void;
   /** Set one edited assumption (`undefined` = back to the zone's default). */
   setAssumptionEdit(key: EditKey, value: number | undefined): void;
   resetAssumptions(): void;
   setOrderTarget(target: OrderTarget | null): void;
   setOrderDraft(patch: Partial<OrderDraft>): void;
   clearOrderDraft(): void;
-  /** Open the assistant with a question typed in for the visitor (not sent). */
-  openAiWith(text: string): void;
   setPanelHidden(hidden: boolean): void;
   setSheet(sheet: SheetState): void;
   setSelection(selection: Selection | null): void;
@@ -202,8 +196,6 @@ export const useShell = create<ShellState>()((set) => ({
   orderDraft: EMPTY_DRAFT,
 
   view: "map",
-  aiOpen: false,
-  aiDraft: null,
 
   panelHidden: false,
   sheet: "peek",
@@ -229,7 +221,6 @@ export const useShell = create<ShellState>()((set) => ({
   setLayers: (layers) => set({ layers }),
   setChoropleth: (kind, value) => set((s) => ({ choropleth: { ...s.choropleth, [kind]: value } })),
   setView: (view) => set({ view }),
-  setAiOpen: (aiOpen) => set({ aiOpen }),
   setAssumptionEdit: (key, value) =>
     set((s) => {
       const next = { ...s.assumptionEdits };
@@ -241,7 +232,6 @@ export const useShell = create<ShellState>()((set) => ({
   setOrderTarget: (orderTarget) => set({ orderTarget }),
   setOrderDraft: (patch) => set((s) => ({ orderDraft: { ...s.orderDraft, ...patch } })),
   clearOrderDraft: () => set({ orderDraft: EMPTY_DRAFT }),
-  openAiWith: (text) => set((s) => ({ aiOpen: true, aiDraft: { id: (s.aiDraft?.id ?? 0) + 1, text } })),
   setPanelHidden: (panelHidden) => set({ panelHidden }),
   setSheet: (sheet) => set({ sheet }),
   setSelection: (selection) => set({ selection }),

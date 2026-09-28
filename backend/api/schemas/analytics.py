@@ -90,6 +90,10 @@ SEARCH_KINDS = ("address", "click", "parcel_number")
 # The three assumptions a visitor may edit in Group 2 (the panel's keys).
 EDITABLE_ASSUMPTIONS = ("construction_cost_eur_m2", "sale_price_eur_m2", "saleable_share")
 PANEL_TYPES = ("zone", "document", "cadastral", "urban")
+# What a point search, map click, parcel lookup or zone pick found (`search_performed.coverage`):
+# a parcel / plan feature inside coverage, covered land without a parcel, a place no adopted plan
+# covers (the S6 "outside current coverage" hit), or a lookup that failed.
+SEARCH_COVERAGE = ("covered", "no_parcel", "uncovered", "failed")
 
 # Typed properties (validated when present). Ids are positive integers.
 INT_PROPERTIES: dict[str, int] = {  # key -> minimum
@@ -119,6 +123,7 @@ ENUM_PROPERTIES: dict[str, tuple[str, ...]] = {
     "panel_type": PANEL_TYPES,
     "currency": ("EUR",),
     "assumption": EDITABLE_ASSUMPTIONS,
+    "coverage": SEARCH_COVERAGE,
 }
 REQUIRED_PROPERTIES: dict[AnalyticsEvent, tuple[str, ...]] = {
     AnalyticsEvent.search_performed: ("search_kind",),

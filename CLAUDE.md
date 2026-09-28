@@ -89,9 +89,11 @@ the POC check of Group 2 asked for it).
 
 ## POC scope (audit 2026-09-28, POC estimation v2)
 
-- **Not built as working features:** AI assistant / chat (a UI shell that records
-  `ai_interest`); subscriptions and any paywall (Group 2 and the price heatmap are shown to
-  everyone; "I want market data updates" records `market_data_interest`); hosted card checkout
+- **Not built as working features:** AI assistant / chat (no fab, chat panel or quota: the
+  parcel panel's intent button "Ask about this site" records `ai_interest` and says so in a
+  toast); subscriptions and any paywall (Group 2 and the price heatmap are shown to everyone; the
+  intent button "Unlock full market data" records `market_data_interest` and unlocks nothing: the
+  pilot scope's two intent buttons, intent check 2026-09-28); hosted card checkout
   (bank transfer only); a zone editor (zones are drawn in QGIS, `core/zones`); ownership /
   restitution flags without confirmed bulk cadastral access (no map toggles; the backend layers
   stay `available: false` until a confirmed eKatastar extract loads flags); the planned-traffic
@@ -101,7 +103,8 @@ the POC check of Group 2 asked for it).
   `staging_zone_documents` vs `planning_parameter_values`, `parcel_links`, `layer_features`,
   `choropleth_cells`); serving data is per `publish_versions` row and a rollback is a pointer flip,
   but entity geometry is upserted in place, the current version's heatmap cells and links can be
-  recomputed in place, and only `audit_log` is append-only at the database level. The server runs
+  recomputed in place, and only `audit_log` and `analytics_events` (0030) are append-only at the
+  database level. The server runs
   the Python copy of the engine, held byte-identical to the TypeScript package's fixtures. PMTiles
   come from the private MinIO bucket through Caddy with signed links, no CDN. Auth.js signs staff
   in through a Credentials provider over the backend's magic-link tokens. The tablet / phone layout
@@ -988,6 +991,14 @@ the POC check of Group 2 asked for it).
   `name`, anonymous client-generated `session_id`, optional anonymous persistent `client_id`
   (repeat usage), optional `event_id` (retried batches are de-duplicated, never errors),
   tz-aware `occurred_at` (not in the future), and a small flat `properties` object.
+- **Append-only** at the database level (migration 0030, as `audit_log`: a trigger raises on
+  UPDATE, DELETE and TRUNCATE for every role); the API only inserts. The map's `session_id` and
+  `client_id` are UUID v4 (the pilot scope's `session_id uuid`; the id rule `^[A-Za-z0-9_-]{8,64}$`
+  still accepts older 32-hex ids). The pilot technical scope's names map onto these:
+  `POST /api/events` = `POST /v1/events`, `public.analytics_event` = `analytics_events`,
+  `event_name` = `name`, `zone_id` = the `zone_id` column, `planned_parcel_id` =
+  `properties.urban_parcel_id`, `layer_key` = `properties.layer_id`, `lat` / `lng` / `props` =
+  `properties` (kept after the analytics check of 2026-09-28).
 - **Never personal data.** Unknown names, malformed ids, nested / oversized properties, a
   denylist of keys (name, email, phone, ip, user_agent, address …) and string values that look
   like an e-mail or IP address reject the whole batch with 422. Request IPs are never stored.
@@ -996,7 +1007,9 @@ the POC check of Group 2 asked for it).
   `matched` / `recent` / `visible` / `on`; `panel_type`; `amount_eur` ≥ 0; `lat` −90…90 and
   `lng` −180…180, where a search landed, which the map sends rounded to 4 decimals; `sessions`;
   `assumption` ∈ construction_cost_eur_m2 | sale_price_eur_m2 | saleable_share with
-  `assumption_value` 0…100 000 and boolean `reset`) and some are required
+  `assumption_value` 0…100 000 and boolean `reset`; `coverage` ∈ covered | no_parcel | uncovered |
+  failed on `search_performed`: what a point search, map click, parcel lookup or zone pick found,
+  so an outside-coverage hit (S6) is `uncovered`) and some are required
   (`search_performed.search_kind`, `layer_toggled.layer_id`, `source_reference_opened.document_id
   + page`, `checkout_completed.amount_eur`, `assumption_edited.assumption`). `zone_id` and
   `parcel_id` are copied into columns for grouping (no FKs).
@@ -1112,7 +1125,8 @@ the POC check of Group 2 asked for it).
   covered zones by type and draws no other zone), `zone_labels` (one `ST_PointOnSurface` point per
   zone, same properties; point layers are built with `--drop-rate=1` so no label is thinned out),
   `document_coverage`, `urban_blocks`, `urban_parcels` (with the effective parameters:
-  parcel → block → zone → document scope, plus `max_gfa_m2`), `cadastral_parcels` (with
+  parcel → block → zone → document scope, plus `max_gfa_m2`, and `zone_id` = the plan's zone,
+  else the block's: the urban panel's rule, so a click names its zone), `cadastral_parcels` (with
   `has_urban_parcel`, `no_urban_parcel`, `relation`, `reduction_pct`,
   `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`, and the
   `zone_id` / `zone_type` of the zone containing the parcel's point on surface),
@@ -1416,7 +1430,7 @@ the POC check of Group 2 asked for it).
 - Allowed deviations only (spec §9): Mapbox + PMTiles instead of the SVG city; API data (all 13
   planning fields, each with its `source` chip); market data shown to everyone (no LOCKED
   chips, no "Choose your access" modal: the POC has no subscription); no planned-traffic,
-  ownership or restitution cards; the AI fab and panel are a UI shell that records `ai_interest`;
+  ownership or restitution cards; no AI assistant (the intent button "Ask about this site");
   no card fields; bilingual text; at ≤ 860 px the rail collapses into a drawer and the panel
   becomes a bottom sheet. The admin view is the wireframe's overlay inside the frontend
   (the admin console: every tab is built, see `frontend/CLAUDE.md`). Anything else is an open item

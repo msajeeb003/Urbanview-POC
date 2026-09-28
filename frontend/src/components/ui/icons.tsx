@@ -90,33 +90,6 @@ export const IconReset = (p: P) => (
   </svg>
 );
 
-/** AI floating button speech bubble (22×22). */
-export const IconChatFab = (p: P) => (
-  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden {...p}>
-    <path d="M4 5h14v9H9l-4 3v-3H4z" stroke="#FFFFFF" strokeWidth="1.5" strokeLinejoin="round" />
-    <circle cx="8" cy="9.5" r="1" fill="rgba(255,255,255,.14)" />
-    <circle cx="11" cy="9.5" r="1" fill="#f4efe6" />
-    <circle cx="14" cy="9.5" r="1" fill="#f4efe6" />
-  </svg>
-);
-
-/** AI panel header avatar (17×17). */
-export const IconChatAvatar = (p: P) => (
-  <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden {...p}>
-    <path d="M2 3h13v8H7l-3 2.5V11H2z" stroke="#fff" strokeWidth="1.3" strokeLinejoin="round" />
-    <circle cx="6" cy="7" r="1" fill="rgba(255,255,255,.14)" />
-    <circle cx="9" cy="7" r="1" fill="#fff" />
-    <circle cx="12" cy="7" r="1" fill="#fff" />
-  </svg>
-);
-
-/** AI panel send arrow (16×16). */
-export const IconSend = (p: P) => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden {...p}>
-    <path d="M2 8l12-5-5 12-2-5z" stroke="#fff" strokeWidth="1.3" strokeLinejoin="round" />
-  </svg>
-);
-
 /** CTA "Order expert analysis" card icon (16×16, white). */
 export const IconOrder = (p: P) => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden {...p}>
@@ -129,6 +102,14 @@ export const IconOrder = (p: P) => (
 export const IconAsk = (p: P) => (
   <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden {...p}>
     <path d="M2 3h11v7H6l-3 2.5V10H2z" stroke="#12211f" strokeWidth="1.2" strokeLinejoin="round" />
+  </svg>
+);
+
+/** CTA "Unlock full market data" padlock (the wireframe's lock, 15×15). */
+export const IconLock = (p: P) => (
+  <svg width="15" height="15" viewBox="0 0 18 18" fill="none" aria-hidden {...p}>
+    <rect x="3" y="8" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M6 8V5a3 3 0 016 0v3" stroke="currentColor" strokeWidth="1.5" />
   </svg>
 );
 

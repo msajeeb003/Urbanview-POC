@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { memoryStore, readJson } from "@/lib/storage";
 
-import { CLIENT_KEY, Identity, SESSION_IDLE_MS, SESSION_KEY } from "./identity";
+import { CLIENT_KEY, Identity, SESSION_IDLE_MS, SESSION_KEY, randomUuid } from "./identity";
 
 const ID = /^[A-Za-z0-9_-]{8,64}$/;
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function clock(start = Date.parse("2026-09-24T10:00:00Z")) {
   let t = start;
@@ -78,5 +79,23 @@ describe("Identity", () => {
     const v = new Identity(store, clock().now).beginVisit();
     expect(v).toMatchObject({ newSession: true, returning: false, sessions: 1 });
     expect(v.sessionId).toMatch(ID);
+  });
+});
+
+describe("randomUuid", () => {
+  it("gives session and client ids as UUID v4, which the API's id rule accepts", () => {
+    const v = new Identity(memoryStore()).beginVisit();
+    for (const id of [v.sessionId, v.clientId]) {
+      expect(id).toMatch(UUID_V4);
+      expect(id).toMatch(ID);
+    }
+    expect(v.sessionId).not.toBe(v.clientId);
+  });
+
+  it("builds a v4 UUID from getRandomValues where randomUUID is missing (no secure context)", () => {
+    const fallback = { getRandomValues: globalThis.crypto.getRandomValues.bind(globalThis.crypto) };
+    const ids = new Set(Array.from({ length: 50 }, () => randomUuid(fallback)));
+    expect(ids.size).toBe(50);
+    for (const id of ids) expect(id).toMatch(UUID_V4);
   });
 });

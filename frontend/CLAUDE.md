@@ -41,7 +41,7 @@ coordinates and zoom tools were pixel-identical at setup).
 
 | Token | Value | Tailwind | Use |
 |---|---|---|---|
-| `--ink` | `#2A2118` | `ink` | text, dark surfaces (ROI hero, toast, coverage pill, AI fab / head) |
+| `--ink` | `#2A2118` | `ink` | text, dark surfaces (ROI hero, toast, coverage pill) |
 | `--ink-2` | `#6B6152` | `ink-2` | secondary text, row keys |
 | `--ink-3` | `#A79E8C` | `ink-3` | tertiary |
 | `--paper` | `#F4EFE6` | `paper` | page, CTA stack, modal footer, inset cards |
@@ -58,7 +58,7 @@ coordinates and zoom tools were pixel-identical at setup).
 | `--z-res` `--z-com` `--z-mix` `--z-pub` `--z-grn` | `#B5744A` `#BE9A44` `#8A7A8E` `#5E8A82` `#7C8A4F` | `z-res` … | Residential, Commercial, Mixed use, Public / institutional, Green / recreation |
 | `--r` / `--r-lg` | `8px` / `12px` | `rounded-md` / `rounded-lg` | effective radius is 8 px on classed elements |
 | `--shadow` | `0 1px 2px rgba(42,33,24,.05), 0 1px 3px rgba(42,33,24,.07)` | `shadow-sm` | map buttons, doc items, admin cards |
-| `--shadow-lg` | `0 12px 32px -8px rgba(42,33,24,.20), 0 2px 6px rgba(42,33,24,.07)` | `shadow-lg` | legend, suggestions, AI panel, modal, toast, pill, fab |
+| `--shadow-lg` | `0 12px 32px -8px rgba(42,33,24,.20), 0 2px 6px rgba(42,33,24,.07)` | `shadow-lg` | legend, suggestions, modal, toast, pill |
 | `--disp` / `--body` | Schibsted Grotesk 400–800 | `font-sans`, `font-display` | everything but data |
 | `--mono` | JetBrains Mono 400 / 500 / 700 | `font-mono` | numbers, refs, coordinates, micro-labels (tabular-nums via `.mono`) |
 
@@ -78,7 +78,7 @@ figures 44 / 700, body 14, secondary 13, mono data 13 / 700, uppercase mono micr
 | Layer rail | 206 px (`--white`, hairline right), collapses to 46 px with a 34 px opener; cards 182 × ≥ 32, 24 px swatch, 16 px check |
 | Map | fills the middle, `#EDE6D6`; legend top-left 16/16 (max 264 wide); coverage pill top-centre; scale bar left 16 / bottom 52; coordinates chip left 16 / bottom 16; tools right 16 / bottom 88 (zoom label, 42 px `+` `−` reset) |
 | Panel | 392 px (`--white`, hairline left, no shadow); sticky header, scrolling body, CTA stack; hidden (never replaced by anything) when the location is uncovered |
-| AI | fab 52 × 52 at right 412 / bottom 20 with badge "3 free"; panel 380 × 544 at the same anchor |
+| AI | not built (pilot scope: "intent button only"): no fab, no chat panel, no quota; "Ask about this site" in the parcel panel's button stack records `ai_interest` |
 | Admin | overlay `inset: 0` over the main row, `--paper`; admin bar 60 px; tabs "Overview", "AI review queue", "Planning rules", "Financial assumptions", "Calculation engine", "Orders", "Data sources"; "← Back to map" |
 | Modal | overlay `rgba(20,17,14,.55)`, padding 24; modal max 520 (`wide` 860), max-height 90vh, radius 8 (effective), pop-in .2s |
 | Toast | bottom-centre, ink, `✦` + text, 2.6 s |
@@ -229,7 +229,7 @@ Planned traffic (an MVP layer; not published).
   derives the map highlight; the panel reads the same selection.
 - **Events**: `map_loaded` once the style and first tiles are in (`idle`, with `load_ms`; without a
   token on first render with `renderer: none`); `search_performed {search_kind, matched, lat, lng,
-  …ids}` per search or map click (see "Search");
+  …ids, coverage}` per search or map click (see "Search");
   `parcel_selected {parcel_id | urban_parcel_id, parcel_type, zone_id, via: click | search | link}`.
 
 ## Search (S2 "Find a Location": `src/components/shell/search-box.tsx`, `src/lib/search.ts`)
@@ -283,7 +283,12 @@ coverage), title, mono sub-label.
   parcel (cadastral or planned) is under it. Every event also says where it landed: `lat` /
   `lng` rounded to 4 decimals (≈ 11 m; the point clicked or picked, a parcel lookup's centroid)
   and the ids found (`parcel_id`, `urban_parcel_id`, `zone_id`, `document_id` for a plan-area
-  click; a zone pick carries `zone_id` only). Never the query text. The second ticket's `search_address`,
+  click; a zone pick carries `zone_id` only) and `coverage`: `covered` (a parcel or plan feature
+  inside coverage; zones, plan areas and planned parcels are drawn for covered plans only, and a
+  cadastral click reports after `/v1/locate`), `no_parcel` (covered land, no parcel), `uncovered`
+  (no adopted plan: the S6 "outside current coverage" hit) or `failed` (the lookup failed);
+  omitted for a parcel number that matched nothing (`lib/selection.ts` `pointCoverage`). Never
+  the query text. The second ticket's `search_address`,
   `search_parcel` and `search_no_result` are not in the API's enum: they map onto
   `search_performed` (open item in `docs/specs/frontend-design.md` §10).
 - **Latency:** the public Photon instance answers in about 2 s from the dev machine; the < 2 s
@@ -329,9 +334,10 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   its entry), amendments in progress;
   "General planning information" = the zone's summary (else the mock's generic text);
   "Coverage": zones spanned, cadastral and urban parcel counts, one row per zone (`24 m · FAR
-  3.2` from its typical values); CTA stack: ghost "Ask about this document" (`ai_interest
-  {trigger: document_panel, document_id}`, the assistant opens with "What does <name> allow?"
-  typed in, not sent) and line "How we read a planning document" (the methodology modal, step 2).
+  3.2` from its typical values); CTA stack: ghost "Ask about this document" (an intent button:
+  `ai_interest {trigger: document_panel, document_id}` and the toast "The assistant is not
+  available in the pilot yet. We have noted your interest."; nothing opens) and line "How we read
+  a planning document" (the methodology modal, step 2).
 - **Methodology** (`shell/methodology-modal.tsx`, the wireframe's wide `.method` modal): six steps
   with the mock's copy and diagrams, Back / Next step; the last step's gold "Order this analysis
   →" calls `onOrder` (the order form for the parcel on screen) or says "Pick a parcel on the map to
@@ -401,10 +407,14 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
 - **Parcel CTA stack** (`ParcelCtas`): gold "Order expert analysis" + price (`GET
   /v1/orders/pricing` tiers applied to the panel's `basis_area_m2` by `lib/pricing.ts`, the
   server's rule, so the price shown is the price charged; the click opens the S4 order form,
-  see "Orders"), ghost "Ask the AI assistant" (`ai_interest {trigger:
-  parcel_panel, panel_type}`, the assistant opens with "Tell me about cadastral parcel #1042" /
-  "…urban parcel UP 12" typed in), line "How we analyze this parcel" (methodology, step 1, context
-  `Parcel #1042 · Podgorica I`).
+  see "Orders"), the pilot scope's two intent buttons, which log interest and say so in a toast,
+  never opening, unlocking or changing anything (intent check 2026-09-28): ghost "Unlock full
+  market data" on the urban parcel panel, where Group 2 shows (`market_data_interest {…ids,
+  trigger: parcel_panel, panel_type}`, "Thanks — noted. Market data is free for everyone during
+  the pilot.") and ghost "Ask about this site" on both parcel panels (`ai_interest {…ids,
+  trigger: parcel_panel, panel_type}`, the string table's `ai.notYet`); then line "How we analyze
+  this parcel" (methodology, step 1, context `Parcel #1042 · Podgorica I`). The POC has no AI
+  assistant: no fab, chat panel, quota or chips.
 - `panel_viewed`: cadastral `{panel_type, parcel_id, zone_id}`, urban `{panel_type,
   urban_parcel_id, parcel_id, zone_id}`.
 - **Group 2, "Market data & feasibility"** (`market-section.tsx`, under the urban panel's
@@ -416,8 +426,8 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   design & documentation as a plain row with its range underneath (no single money figure),
   saleable area (deterministic), the assumption sandbox (below), the engine strip, the
   disclaimer (the wireframe's text until the API's `disclaimer_status` is `client_approved`,
-  then the API's) and the intent "I want market data updates" (`market_data_interest
-  {trigger: updates}`, "Coming soon — noted."). Figures are the payload's `feasibility` block
+  then the API's); its intent, "Unlock full market data", sits in the panel's button stack.
+  Figures are the payload's `feasibility` block
   (the shared engine's output), or the engine's recalculation for the visitor's edits; a figure
   the engine cannot calculate reads "cannot calculate — <reason>" (e.g. no market data for the
   zone) and the others still show; never a made-up range. `financials_viewed {urban_parcel_id,
@@ -553,7 +563,8 @@ profit = GFA × saleable share × sale price − (land + design + construction);
 × 100.
 
 **CTA stack**: gold "Order expert analysis" + price (€100 ≤ 500 m², €200 above, from the API's
-pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
+pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about this site", line
+"How we analyze this parcel".
 
 ## Admin console (`/admin/*`: `src/app/(shell)/admin/`, `src/components/admin/`, `src/lib/admin/`, `src/auth.ts`, `src/proxy.ts`)
 
@@ -746,7 +757,8 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 - Numbers arrive raw (`_pct` 0–100, `_share` 0–1); format per language on the client. Text comes
   bilingual (`_en` / `_me`).
 - **Analytics** (`src/lib/analytics`): anonymous `client_id` (persistent) and `session_id`
-  (persisted with its last activity; new after 30 min idle) in `localStorage`; batches of ≤ 50 to
+  (persisted with its last activity; new after 30 min idle) in `localStorage`, both UUID v4
+  (`randomUuid`, the pilot scope's `session_id uuid`; no cookie); batches of ≤ 50 to
   `POST /v1/events`, flushed every 4 s, when full, and on page hide (`keepalive`); `map_loaded`
   when the map has loaded (see "Map"), `return_visit` (+ `days_since_last`) and `sessions_per_user` when a session starts;
   a 4xx batch is dropped, network / 429 / 5xx retried with backoff. **Never** personal data in
@@ -770,8 +782,8 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 - **Language** (`lib/i18n/`): the shell's strings live in one table (`strings.ts`, `en` = the
   wireframe's copy verbatim, `me` = Montenegrin **drafts** until the client approves them; the
   `me` table must carry every key, `strings.test.ts` checks placeholders): topbar and search,
-  layer rail and cards, legend, map chrome and the coverage pill, the empty panel, the assistant
-  shell, the shell's toasts and the disclaimer footer. Components call `useT()` (`t("nav.map")`,
+  layer rail and cards, legend, map chrome and the coverage pill, the empty panel, the "Ask about
+  this site" acknowledgement, the shell's toasts and the disclaimer footer. Components call `useT()` (`t("nav.map")`,
   `t("nav.returnTo", { name })`); code outside React `tNow()`; pure rules take their words as a
   parameter with the English default (`lib/search.ts` `SearchWords`, the legend's `LegendContext.t`,
   `priceScheme`'s `PriceWords`), so their tests stay language-free. The topbar's language button
@@ -792,7 +804,7 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 |---|---|
 | `src/app/layout.tsx` | fonts, CSS order (globals → wireframe → overrides), providers |
 | `src/app/page.tsx` | server-reads `/v1/municipality` (1.5 s timeout, never blocks) → `AppShell` |
-| `src/components/shell/*` | `app-shell` (frame, ⌘K, intro toast, `?parcel=` sync), `topbar`, `search-box`, `layer-rail`, `legend`, `map-view` (Mapbox + PMTiles, click / hover / highlight, `map_loaded`), `map-chrome`, `info-panel` (selection → panel variant, empty state, bottom sheet), `ai-assistant` (shell, `openAiWith` drafts), `methodology-modal`, `engine-modal` ("How the figures are calculated"), `admin-overlay` (the `/admin` routes' container), `hosts` (modal + toast) |
+| `src/components/shell/*` | `app-shell` (frame, ⌘K, intro toast, `?parcel=` sync), `topbar`, `search-box`, `layer-rail`, `legend`, `map-view` (Mapbox + PMTiles, click / hover / highlight, `map_loaded`), `map-chrome`, `info-panel` (selection → panel variant, empty state, bottom sheet), `methodology-modal`, `engine-modal` ("How the figures are calculated"), `admin-overlay` (the `/admin` routes' container), `hosts` (modal + toast) |
 | `src/components/panel/*` | S3 panel variants: `zone-panel`, `document-panel`, `cadastral-panel`, `urban-panel`, `panel-parts` (header, loading / unavailable, status chip, `panel_viewed`, meta and height text), `parcel-parts` (comparison card, row source icon, parcel CTA stack, zone type), `market-section` (Group 2 figures), `assumption-sandbox` ("◐ Test your own assumptions") |
 | `src/lib/assumptions.ts` | the sandbox's sliders, bounds and validation, and the live recalculation through the shared engine package (`recalculateFeasibility`) |
 | `src/lib/order.ts` | `requestOrder`: every order button → the S4 modal for the parcel on screen, `order_started` |
@@ -803,7 +815,7 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 | `src/lib/map/*` | `style` (UrbanView layers per registry entry, visibility, choropleth paint, highlight filters), `classes` (choropleth colours, legend rows, expressions from served classes), `pick` (click priority, centroid), `tiles` (pointer → source, provider registration), `camera` (fit options, padding for the box), `use-layer-states` (every card's `layerState` for the rail and legend), `pmtiles-provider` (worker module), `provider-name` |
 | `src/components/ui/*` | shared: `LayerCard`, `Badge`, `PanelRow`, `IdGrid`, `Cta` (primary / gold / ghost / line), `SourceRef`, `Modal` + `ModalHead` (Radix Dialog with wireframe classes), `Disclaimer`, `icons` |
 | `src/lib/api/*` | `client.ts` (fetch wrapper: base URL, `X-Request-ID`, `X-Session-ID`, error envelope → `ApiError`, timeouts, 429 retries), `endpoints.ts` (one function per route), `hooks.ts` (React Query: `useMunicipality`, `useLocate`, `useLocateParcel`, `useGeocode`, `useZones`, `usePanel`, `useSourceValue` / `useSourcePage`, `useTilesCurrent`, `useCreateOrder`, `useOrderStatus`, `useTrack`), `types.ts` (aliases), `schema.d.ts` (generated) |
-| `src/lib/store.ts` | shell state (zustand): rail, layers, view, AI, sheet, selection (point / parcel / feature / zone), pin, toast, modal, map controller |
+| `src/lib/store.ts` | shell state (zustand): rail, layers, view, sheet, selection (point / parcel / feature / zone), pin, toast, modal, map controller |
 | `src/components/source/source-viewer.tsx` | the source viewer: signed link → PDF.js page (lazy), bbox highlight, pages, zoom, Open PDF, retry, `source_reference_opened` |
 | `src/lib/source.tsx` | `useOpenSource`: opens the source viewer for a value or a document page (with a `hint`) |
 | `src/lib/source-text.ts` | the source reference label (`sourceRefText`), the viewer's failure words (`sourceFailure`) and page-range note |

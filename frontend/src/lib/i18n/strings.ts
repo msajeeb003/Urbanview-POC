@@ -1,9 +1,10 @@
 /**
  * The shell's string table: every text of the frame the visitor always sees (topbar and search,
- * layer rail and cards, legend, map chrome and coverage pill, the empty panel, the assistant shell,
- * the shell's toasts, the disclaimer footer), in English (the wireframe's copy, verbatim) and
- * Montenegrin (Latin script). **The Montenegrin strings are drafts** until the client approves the
- * copy (spec §10, item 2); change them here, never in components.
+ * layer rail and cards, legend, map chrome and coverage pill, the empty panel, the "Ask about
+ * this site" acknowledgement, the shell's toasts, the disclaimer footer), in English (the
+ * wireframe's copy, verbatim) and Montenegrin (Latin script). **The Montenegrin strings are
+ * drafts** until the client approves the copy (spec §10, item 2); change them here, never in
+ * components.
  *
  * `{name}`-style placeholders are filled by `translate`. The `me` table must carry every `en` key
  * (the type says so); a missing key would be a build error, not a blank.
@@ -150,21 +151,7 @@ const en = {
   "disclaimer.placeholder":
     "Figures are indicative ranges from Realitica, Estitor & Monstat — not investment advice. Deterministic calculation; AI does not generate financial values.",
 
-  // assistant shell
-  "ai.title": "Ask UrbanView AI",
-  "ai.free": "{n} free",
-  "ai.tagline": "Custom-trained · cites its sources",
-  "ai.close": "Close the assistant",
-  "ai.quota": "{n} of {n} free interactions left this session",
-  "ai.greeting":
-    "Hi — I'm the UrbanView assistant, trained on Montenegrin planning documents and our own analysis archive. Ask me about any parcel, planning parameter, or plan document. I answer only from UrbanView's approved corpus and cite the source.",
-  "ai.chip.build": "What can I build here?",
-  "ai.chip.far": "Explain FAR and coverage",
-  "ai.chip.smaller": "Why is the planned parcel smaller?",
-  "ai.chip.worth": "Is this parcel worth developing?",
-  "ai.placeholder": "Ask about this location…",
-  "ai.inputLabel": "Ask about this location",
-  "ai.send": "Send",
+  // "Ask about this site" (an intent button: the assistant is not built in the POC)
   "ai.notYet": "The assistant is not available in the pilot yet. We have noted your interest.",
 } as const;
 
@@ -303,20 +290,6 @@ const me: Record<StringKey, string> = {
   "disclaimer.placeholder":
     "Brojke su okvirni rasponi na osnovu podataka Realitice, Estitora i Monstata — nisu investicioni savjet. Deterministički proračun; AI ne generiše finansijske vrijednosti.",
 
-  "ai.title": "Pitajte UrbanView AI",
-  "ai.free": "još {n}",
-  "ai.tagline": "Posebno obučen · navodi izvore",
-  "ai.close": "Zatvori asistenta",
-  "ai.quota": "Preostalo {n} od {n} besplatnih pitanja u ovoj sesiji",
-  "ai.greeting":
-    "Zdravo — ja sam UrbanView asistent, obučen na crnogorskim planskim dokumentima i našoj arhivi analiza. Pitajte me o bilo kojoj parceli, planskom parametru ili planskom dokumentu. Odgovaram samo iz odobrene UrbanView građe i navodim izvor.",
-  "ai.chip.build": "Šta mogu da gradim ovdje?",
-  "ai.chip.far": "Objasni izgrađenost i zauzetost",
-  "ai.chip.smaller": "Zašto je planirana parcela manja?",
-  "ai.chip.worth": "Isplati li se graditi na ovoj parceli?",
-  "ai.placeholder": "Pitajte o ovoj lokaciji…",
-  "ai.inputLabel": "Pitajte o ovoj lokaciji",
-  "ai.send": "Pošalji",
   "ai.notYet": "Asistent u pilotu još nije dostupan. Zabilježili smo vaše interesovanje.",
 };
 

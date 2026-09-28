@@ -497,10 +497,10 @@ the state is reached. Copy is in §7.
 |---|---|---|
 | Hand-drawn SVG city, random parcels | Mapbox GL JS + the published PMTiles layers (`GET /v1/tiles/current`), styled with the values in §5. Real tiles carry zoom ranges (parcels from zoom 13; the city framing is about 10.6), so a card that is on while its layer is not drawn at the current zoom says "zoom in to see" (muted, like "no data yet"), its legend group carries the same note, and turning such a layer on toasts it, as the mock does for a missing requirement. The mock's camera rules hold: city extent on load (1.0×), 0.4× zoomed out = the whole city centred, toggles re-render rail, map and legend at once | Real data |
 | `ZONES` / `DOCS` / `PARCELS` mock data, 7 planning rows | `GET /v1/locate`, `GET /v1/panel`; the planning section renders **all 13 `planning.fields`** in dictionary order with the same `.prow` component (`not_stated` values render `—`), every stated value with its `source` chip | Product rule: every value cites its source; the field dictionary is the contract |
-| Market data locked behind a subscription, `LOCKED` chips, upgrade modal, price-heatmap lock | Scope audit (2026-09-28) applies the POC plan (no subscriptions, no paywall) over the Group 2 ticket's lock: Group 2 and the price heatmap are shown to everyone; no `LOCKED` chips, no "Unlock →", no paid badge, no "Choose your access" modal. Shown: ROI hero, range rows, a plain design & documentation row that still shows its range, the wireframe's assumption sliders (values marked yours / default, "Reset to defaults", inline error for an out-of-bounds edit), the engine strip opening the engine modal, and the intent "I want market data updates" (`market_data_interest`) | POC estimation v2 out-of-scope list; exclusions doc (subscriptions: intent button kept) |
+| Market data locked behind a subscription, `LOCKED` chips, upgrade modal, price-heatmap lock | Scope audit (2026-09-28) applies the POC plan (no subscriptions, no paywall) over the Group 2 ticket's lock: Group 2 and the price heatmap are shown to everyone; no `LOCKED` chips, no "Unlock →", no paid badge, no "Choose your access" modal. Shown: ROI hero, range rows, a plain design & documentation row that still shows its range, the wireframe's assumption sliders (values marked yours / default, "Reset to defaults", inline error for an out-of-bounds edit), the engine strip opening the engine modal. The intent "Unlock full market data" (`market_data_interest` + a toast; nothing unlocks) sits in the parcel panel's button stack (intent check 2026-09-28, pilot scope wording) | POC estimation v2 out-of-scope list; exclusions doc (subscriptions: intent button kept) |
 | Rail cards Public ownership, Restitution / legal, Planned traffic | Not built (scope audit 2026-09-28): ownership / restitution only with confirmed bulk cadastral access (the API marks those layers unavailable), planned traffic is an MVP layer (not staged or published) | POC estimation v2 out-of-scope list; technical scope (traffic = MVP) |
 | Rail and zones: Urban zones core with the urban blocks folded in, one heatmap at a time, uncovered zones drawn muted with a hatch, zones selectable from the search only | S1 check (2026-09-28, POC plan): the seven layers each have their own card (Urban blocks is a card; Urban zones can be turned off; both heatmaps may be on together); only covered zones are drawn, so outside coverage the base map shows alone; a click on a covered zone (no parcel or plan area under it) outlines it and opens its panel | POC plan S1 requirements 4, 6, 7 |
-| AI assistant fab, chat panel, quota, upgrade | The fab ("3 free") and the 380×544 panel ship as a **UI shell** (setup ticket, 2026-09-24): greeting, quota strip, chips and input as in the mock; a question or chip records `ai_interest` and toasts that the assistant is not live. The ghost CTA becomes the intent button **"Ask about this site"** | Setup ticket; technical scope §1.2; exclusions doc (AI assistant) |
+| AI assistant fab, chat panel, quota, upgrade | **Not built** (intent check 2026-09-28; pilot scope: "AI assistant: not built; intent button only"): no fab, no chat panel, no quota strip or chips. The parcel panel's ghost CTA is the intent button **"Ask about this site"** (the document panel's "Ask about this document"): `ai_interest` + a toast that the assistant is not available in the pilot; nothing opens. The setup ticket's UI shell (2026-09-24) was removed | Technical scope §1.2 / §3 item 4 / S3; exclusions doc (AI assistant: intent button kept) |
 | Card payment modal (Stripe / Paddle) | S4 / S5 ticket: no card fields anywhere and no payment step, so the order form's gold button reads **"Place order →"** (the mock's "Continue to payment →") and creates the order (`POST /v1/orders`); the confirmation is the mock's success layout followed by "Pay by bank transfer": the API's instructions as `.paysummary` lines (payee, IBAN, bank / SWIFT when configured, payment reference, "Amount due" as the total line) with "Copy" on IBAN and reference, the API's note, where they were emailed and a link to the order page. The form adds inline validation messages and a one-sentence failure note (the mock has no validation state). Which of the three documented flows applies is open (§10) |
 | No order page after the confirmation | `/orders/<reference>`: the public order page the confirmation and every order email link to (status, location, turnaround from `GET /v1/orders/{reference}/status`; no personal data, no login), built from the mock's parts (topbar logo, a card in the modal's style, `.orderref`, `.paysummary` steps with the dot + word status labels, `.ordersum` rows) | S4 / S5 ticket | Build plan v2 (bank transfer, implemented in the API); exclusions doc (order form only); technical scope (hosted checkout) |
 | Engine modal content (v1.4, 9 mock formulas, land value × 0.55) | Formulas and inputs of the shared engine (`formula_version`, `client_validated`), disclaimer from the API | Formulas are client-owned |
@@ -533,8 +533,8 @@ built is the product owner's call (§10, item 7).
 3. Wording of the two intent buttons (proposed: "Unlock full market data", "Ask about this
    site", as in the technical scope) and their toasts.
 4. Order price tiers (`ORDER_PRICE_TIERS`) and the turnaround shown in the order summary.
-5. Resolved by the setup ticket: the AI fab and panel stay as a UI shell that records
-   `ai_interest`. Wording of its "not live yet" toast is provisional.
+5. Superseded by the intent check (2026-09-28): no AI fab or panel, only the intent buttons;
+   the wording of their toasts is provisional.
 6. Placement of the dictionary fields the mock does not show (building line, setbacks, parking,
    minimum green area, utilities): confirm they belong in the free planning section.
 7. Scope conflict: build plan v2 (220 h: review queue, publish job, bank transfer, e-mail) vs the
@@ -565,15 +565,15 @@ built is the product owner's call (§10, item 7).
     (`terminology.document_types_en`); confirm the English names with the client.
 13. `panel_viewed` is sent as `{panel_type, zone_id | document_id}` (the API's typed keys) where
     the ticket wrote `{type, id}`.
-14. Parcel panel ghost CTA: the S3 parcel ticket and the mock say "Ask the AI assistant"; §9's AI
-    row (setup ticket) renames it "Ask about this site". Built as the ticket says; pick one.
+14. Parcel panel ghost CTA: resolved by the intent check (2026-09-28): "Ask about this site", the
+    pilot scope's wording (the S3 parcel ticket and the mock said "Ask the AI assistant").
 15. Dictionary fields beyond the mock's seven planning rows (building line, setbacks, parking,
     green area, utilities) are listed after them (item 6 is still open): confirm, or hide them.
 16. Group 2: the second Group 2 text lists GFA and coverage area among the feasibility fields;
-    they stay in Group 1 as in the mock. Its intent buttons are built as "I want market data
-    updates" (unlocked section) and the CTA stack's "Ask the AI assistant" (`ai_interest` with the
-    parcel ids on click, where the first text says "when the AI quota is exhausted": the pilot's
-    assistant answers nothing, so every question is interest). The disclaimer shows the
+    they stay in Group 1 as in the mock. Its intent buttons are the pilot scope's "Unlock full
+    market data" and "Ask about this site" in the parcel panel's button stack (intent check
+    2026-09-28; each click is interest, with the parcel ids, where the first text says "when the
+    AI quota is exhausted": there is no assistant and no quota). The disclaimer shows the
     wireframe's wording until the lawyer approves the API's (`disclaimer_status`).
 17. Assumption sandbox: the second sandbox text asks whether the sale price is one value that
     shifts low / expected / high proportionally or three inputs ("agree with client"). Built as

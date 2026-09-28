@@ -32,7 +32,6 @@ import { useShell } from "@/lib/store";
 import { parseLayersParam, readParcelParam, syncLayersParam, syncParcelParam } from "@/lib/url-state";
 
 import { AdminOverlay } from "./admin-overlay";
-import { AiFab, AiPanel } from "./ai-assistant";
 import { ModalHost, ToastHost } from "./hosts";
 import { InfoPanel } from "./info-panel";
 import { LayerRail } from "./layer-rail";
@@ -158,8 +157,6 @@ export function AppShell({
             <MapChrome />
           </div>
           <InfoPanel />
-          <AiFab />
-          <AiPanel />
           <AdminOverlay on={adminRoute}>{children}</AdminOverlay>
         </div>
       </div>

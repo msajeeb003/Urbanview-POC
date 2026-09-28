@@ -1,6 +1,7 @@
 /**
- * Anonymous identity for analytics. Two random ids, both generated in the browser and persisted
- * in `localStorage`; neither is derived from anything personal.
+ * Anonymous identity for analytics. Two random UUIDs (v4, the pilot scope's `session_id uuid`),
+ * both generated in the browser and persisted in `localStorage`; neither is derived from anything
+ * personal, and no cookie is set.
  *
  * - `client_id` (`uv.client`): created once per browser, never rotated. Lets the dashboard count
  *   sessions per client (the prototype's 3+ sessions target).
@@ -11,7 +12,6 @@
  * `beginVisit()` reports whether this load started a new session and whether the browser had
  * been here before (a stored client id), which is what `return_visit` needs.
  */
-import { randomToken } from "@/lib/api/client";
 import { readJson, writeJson, type KeyValueStore } from "@/lib/storage";
 
 export const CLIENT_KEY = "uv.client";
@@ -44,8 +44,23 @@ export interface Visit {
   daysSinceLast: number | null;
 }
 
-/** Id format accepted by the API: `^[A-Za-z0-9_-]{8,64}$`. */
-export const newAnonymousId = (): string => randomToken(16);
+/**
+ * A random UUID v4 (RFC 4122). `crypto.randomUUID` needs a secure context, so the fallback builds
+ * one from `getRandomValues` (the version and variant bits set by hand).
+ */
+export function randomUuid(crypto: Pick<Crypto, "getRandomValues"> & Partial<Pick<Crypto, "randomUUID">> = globalThis.crypto): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+/** Session and client ids: UUIDs, which fit the API's `^[A-Za-z0-9_-]{8,64}$` (older 32-hex ids
+ * still stored in a browser stay valid). */
+export const newAnonymousId = (): string => randomUuid();
 
 export class Identity {
   constructor(

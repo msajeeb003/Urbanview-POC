@@ -306,7 +306,7 @@ export function UrbanPanel({ urbanParcelId }: { urbanParcelId: number }) {
         <MarketSection data={data} ids={eventIds} />
       </div>
       <ParcelCtas
-        question={`Tell me about urban parcel ${idn.urban_parcel_number}`}
+        marketIntent
         target={{
           parcelType: "urban",
           parcelId: urbanParcelId,

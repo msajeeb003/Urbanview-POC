@@ -6,11 +6,12 @@
  * The ROI hero, range rows (land value, construction, market value, profit: expected value, a
  * 6 px bar with the expected marker, low / expected / high), design & documentation as a plain
  * range row, saleable area (deterministic), the assumption sandbox (`assumption-sandbox.tsx`),
- * the engine strip, the disclaimer and the "I want market data updates" intent. Figures are the
- * payload's `feasibility` block (the shared engine's output) or, once the visitor edits an
- * assumption, the shared engine package's `recalculate(engine.inputs, edits)` run in the browser
- * on every change (`lib/assumptions.ts`; no formula here, no request: the two engines are held
- * equal by the shared fixtures and the cross-engine test). A
+ * the engine strip and the disclaimer (the "Unlock full market data" intent sits in the panel's
+ * button stack, `ParcelCtas`). Figures are the payload's `feasibility` block (the shared engine's
+ * output) or, once the visitor edits an assumption, the shared engine package's
+ * `recalculate(engine.inputs, edits)` run in the browser on every change (`lib/assumptions.ts`;
+ * no formula here, no request: the two engines are held equal by the shared fixtures and the
+ * cross-engine test). A
  * figure the engine cannot calculate says "cannot calculate — <reason>" and the others still
  * show. Never a single money figure, never a made-up range. `financials_viewed` fires once per
  * open of a parcel when the section is on screen, never per slider move.
@@ -25,16 +26,12 @@ import { formatEur, formatPct } from "@/lib/format";
 import { useShell } from "@/lib/store";
 
 import { ENGINE_LABEL, EngineModal } from "../shell/engine-modal";
-import { Cta } from "../ui/cta";
 import { Disclaimer } from "../ui/disclaimer";
 import { AssumptionSandbox } from "./assumption-sandbox";
 import { formatArea } from "./parcel-parts";
 
 type Feasibility = NonNullable<UrbanPanel["feasibility"]>;
 type Figure = Feasibility["fields"][number];
-
-/** Provisional copy (ticket wording): the updates feature does not exist yet. */
-const UPDATES_NOTED = "Coming soon — noted.";
 
 /** Where the expected value sits between low and high, in % of the bar (the mock's marker). */
 export function markerPosition(f: { low: number | null; expected: number | null; high: number | null }): number {
@@ -136,7 +133,6 @@ function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
   const f = data.feasibility;
   const engine = data.engine;
   const track = useTrack();
-  const showToast = useShell((s) => s.showToast);
   const edits = useShell((s) => s.assumptionEdits);
   const rootRef = useRef<HTMLDivElement>(null);
   const idsKey = JSON.stringify(ids);
@@ -220,16 +216,6 @@ function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
       <AssumptionSandbox data={data} errors={errors} ids={ids} />
       <EngineStrip marketSource={data.market_inputs?.source} />
       <Disclaimer approved={f.disclaimer_status === "client_approved"} en={f.disclaimer_en} me={f.disclaimer_me} />
-      <Cta
-        variant="line"
-        style={{ marginTop: 11 }}
-        onClick={() => {
-          track("market_data_interest", { ...ids, trigger: "updates" });
-          showToast(UPDATES_NOTED);
-        }}
-      >
-        I want market data updates
-      </Cta>
     </div>
   );
 }

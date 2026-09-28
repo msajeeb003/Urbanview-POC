@@ -43,6 +43,8 @@ def test_map_layers_carry_what_the_public_map_styles_by():
     assert by_id["zone_labels"].geometry_type == "point"
     assert "ST_PointOnSurface(z.geom)" in by_id["zone_labels"].sql
     assert "'zone_id', zc.id" in by_id["cadastral_parcels"].sql
+    # a planned parcel names the urban panel's zone: the plan's, else its block's
+    assert "COALESCE(d.zone_id, b.zone_id) AS zone_id" in by_id["urban_parcels"].sql
     assert "zone_type" in STAGED_LAYERS["zones"].properties
 
 

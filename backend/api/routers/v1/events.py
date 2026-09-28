@@ -1,10 +1,10 @@
 """Batch ingest of client analytics events: ``POST /v1/events``.
 
-The prototype is a validation instrument: the 13 product events (``api.schemas.analytics``) are
+The prototype is a validation instrument: the 14 product events (``api.schemas.analytics``) are
 accepted in batches of up to 100, validated strictly (an unknown name, a malformed id, an
 oversized, nested or personal ``properties`` object rejects the whole batch with 422) and stored
-in ``analytics_events``. Retried batches are safe when events carry an ``event_id``. Names,
-emails and IPs are never stored.
+in ``analytics_events``, which the database keeps append-only (migration 0030). Retried batches
+are safe when events carry an ``event_id``. Names, emails and IPs are never stored.
 """
 
 from __future__ import annotations

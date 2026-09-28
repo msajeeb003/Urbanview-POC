@@ -22,8 +22,8 @@
  * Analytics: `search_performed { search_kind, matched }` per search or map click (plus `result`
  * address | zone | parcel for typed searches, `recent: true` for a recent search re-run, and where
  * it landed: `lat` / `lng` rounded to 4 decimals and `parcel_id` / `urban_parcel_id` / `zone_id` /
- * `document_id` when known),
- * `parcel_selected` per selected parcel (`parcel_id` or `urban_parcel_id`, `parcel_type`,
+ * `document_id` when known, and `coverage` covered | no_parcel | uncovered | failed: an
+ * outside-coverage hit is `uncovered`), `parcel_selected` per selected parcel (`parcel_id` or `urban_parcel_id`, `parcel_type`,
  * `zone_id`, `via`).
  */
 import { useQueryClient } from "@tanstack/react-query";
@@ -64,13 +64,28 @@ function uncoveredReason(res: { coverage: { reason?: string | null } }): Uncover
   return res.coverage.reason === "outside_municipality" ? "outside_municipality" : "no_adopted_plan";
 }
 
-/** Where a search landed: the point and whatever was found there (ids only). */
+/**
+ * What a search found there (`search_performed.coverage`): a parcel or plan feature inside
+ * coverage, covered land without a parcel, a place no adopted plan covers (the S6 hit), or a
+ * lookup that failed. Omitted when nothing was looked up (a parcel number that matches nothing).
+ */
+export type SearchCoverage = "covered" | "no_parcel" | "uncovered" | "failed";
+
+/** Where a search landed: the point, whatever was found there (ids only) and its coverage. */
 export interface SearchPlace {
   point?: LngLat | null;
   parcelId?: number | null;
   urbanParcelId?: number | null;
   zoneId?: number | null;
   documentId?: number | null;
+  coverage?: SearchCoverage;
+}
+
+/** The coverage outcome of a point lookup (`null` = the lookup failed). */
+export function pointCoverage(res: LocationResolution | null, parcelFound: boolean): SearchCoverage {
+  if (!res) return "failed";
+  if (!res.covered) return "uncovered";
+  return parcelFound ? "covered" : "no_parcel";
 }
 
 const round4 = (v: number) => Math.round(v * 1e4) / 1e4; // ≈ 11 m
@@ -96,16 +111,22 @@ export function searchProps(
     ...(place.urbanParcelId ? { urban_parcel_id: place.urbanParcelId } : {}),
     ...(place.zoneId ? { zone_id: place.zoneId } : {}),
     ...(place.documentId ? { document_id: place.documentId } : {}),
+    ...(place.coverage ? { coverage: place.coverage } : {}),
   };
 }
 
 /** What a resolution found at a point (or a parcel's centroid). */
-function placeOf(point: LngLat | null | undefined, res: LocationResolution | null): SearchPlace {
+function placeOf(
+  point: LngLat | null | undefined,
+  res: LocationResolution | null,
+  coverage?: SearchCoverage,
+): SearchPlace {
   return {
     point,
     parcelId: res?.cadastral_parcel?.parcel_id,
     urbanParcelId: res?.urban_parcel?.id,
     zoneId: res?.zone?.id,
+    coverage,
   };
 }
 
@@ -191,12 +212,13 @@ export function useSelection() {
         reportLookupFailure(error);
       }
       const parcel = res ? pointSelection(res, via === "click" ? "click" : "search") : null;
+      const place = placeOf(point, res, pointCoverage(res, !!parcel));
       // an address pick matched a location; a click matches when a parcel is under it
       track(
         "search_performed",
         via === "address"
-          ? searchProps("address", true, "address", opts, placeOf(point, res))
-          : searchProps("click", !!parcel, null, undefined, placeOf(point, res)),
+          ? searchProps("address", true, "address", opts, place)
+          : searchProps("click", !!parcel, null, undefined, place),
       );
       if (!res) return "failed";
       if (useShell.getState().selection !== sel) return "superseded"; // a newer selection won
@@ -213,19 +235,23 @@ export function useSelection() {
     [locate, track],
   );
 
-  /** Map click on a feature (see `pickFeature`). */
+  /**
+   * Map click on a feature (see `pickFeature`). Zones, plan areas and planned parcels are drawn for
+   * adopted, live plans only, so their click is `covered`; a cadastral parcel is drawn everywhere,
+   * so its `search_performed` waits for `/v1/locate` to say whether a plan covers it.
+   */
   const selectFeature = useCallback(
     async (pick: Pick, clickPoint: LngLat) => {
-      track(
-        "search_performed",
-        searchProps("click", true, null, undefined, {
-          point: clickPoint,
-          parcelId: pick.type === "cadastral" ? pick.id : null,
-          urbanParcelId: pick.type === "urban" ? pick.id : pick.type === "cadastral" ? pick.linkedUrbanId : null,
-          zoneId: pick.type === "zone" ? pick.id : pick.zoneId,
-          documentId: pick.type === "document" ? pick.id : null,
-        }),
-      );
+      const place: SearchPlace = {
+        point: clickPoint,
+        parcelId: pick.type === "cadastral" ? pick.id : null,
+        urbanParcelId: pick.type === "urban" ? pick.id : pick.type === "cadastral" ? pick.linkedUrbanId : null,
+        zoneId: pick.type === "zone" ? pick.id : pick.zoneId,
+        documentId: pick.type === "document" ? pick.id : null,
+      };
+      if (pick.type !== "cadastral") {
+        track("search_performed", searchProps("click", true, null, undefined, { ...place, coverage: "covered" }));
+      }
       const s = useShell.getState();
       if (pick.type === "zone") {
         // a covered zone with no parcel or plan area under the click: the zone panel, outlined
@@ -271,6 +297,15 @@ export function useSelection() {
       } catch (error) {
         reportLookupFailure(error);
       }
+      track(
+        "search_performed",
+        searchProps("click", true, null, undefined, {
+          ...place,
+          zoneId: res?.zone?.id ?? place.zoneId,
+          urbanParcelId: res?.urban_parcel?.id ?? place.urbanParcelId,
+          coverage: pointCoverage(res, true),
+        }),
+      );
       if (useShell.getState().selection !== sel) return;
       let confirmed = sel;
       if (res?.cadastral_parcel?.parcel_id === sel.id) {
@@ -311,9 +346,11 @@ export function useSelection() {
         return "failed";
       }
       const parcel = cadastralSelection(res, "search");
+      // a parcel number that matches nothing looked nothing up: no coverage outcome
+      const coverage = parcel ? (res.covered ? "covered" : "uncovered") : undefined;
       track(
         "search_performed",
-        searchProps("parcel_number", !!parcel, "parcel", opts, placeOf(res.cadastral_parcel?.centroid, res)),
+        searchProps("parcel_number", !!parcel, "parcel", opts, placeOf(res.cadastral_parcel?.centroid, res, coverage)),
       );
       if (useShell.getState().selection !== sel) return "superseded";
       if (!parcel) {
@@ -337,7 +374,10 @@ export function useSelection() {
    */
   const selectZone = useCallback(
     (zone: ZoneRef, opts?: SearchOptions): "covered" | "uncovered" => {
-      track("search_performed", searchProps("address", true, "zone", opts, { zoneId: zone.id }));
+      track(
+        "search_performed",
+        searchProps("address", true, "zone", opts, { zoneId: zone.id, coverage: zone.covered ? "covered" : "uncovered" }),
+      );
       const s = useShell.getState();
       if (s.map) s.map.fitBounds(zone.bbox);
       else s.setFocus({ bbox: zone.bbox });

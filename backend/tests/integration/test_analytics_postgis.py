@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 
 from tests.helpers import make_app, make_client, make_settings
 
@@ -136,6 +137,36 @@ async def test_ingest_stores_rows_once_with_the_grouping_columns(analytics_app):
     assert len(rows) == 9
 
 
+async def test_the_events_table_is_append_only(analytics_app):
+    """Migration 0030: UPDATE, DELETE and TRUNCATE fail at the database for every role."""
+    app = analytics_app
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        await seed(client)
+        factory = app.state.session_factory
+        async with factory() as session:
+            event_id = (
+                await session.execute(
+                    text("SELECT max(id) FROM analytics_events WHERE session_id = :s"), {"s": S1}
+                )
+            ).scalar_one()
+        for statement in (
+            "UPDATE analytics_events SET properties = '{}'::jsonb WHERE id = :id",
+            "DELETE FROM analytics_events WHERE id = :id",
+            "TRUNCATE analytics_events",
+        ):
+            async with factory() as session:
+                with pytest.raises(DBAPIError) as refused:
+                    await session.execute(text(statement), {"id": event_id})
+                assert "append-only" in str(refused.value)
+        async with factory() as session:
+            kept = (
+                await session.execute(
+                    text("SELECT count(*) FROM analytics_events WHERE id = :id"), {"id": event_id}
+                )
+            ).scalar_one()
+    assert kept == 1
+
+
 async def test_every_dashboard_aggregate(analytics_app):
     app = analytics_app
     async with app.router.lifespan_context(app), make_client(app) as client:
@@ -166,6 +197,7 @@ async def test_every_dashboard_aggregate(analytics_app):
         "sessions_per_user": 1,
         "market_data_interest": 1,
         "ai_interest": 1,
+        "assumption_edited": 0,
     }
 
     steps = body["funnel"]["steps"]

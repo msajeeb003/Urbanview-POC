@@ -21,7 +21,7 @@ describe("the shell's string table", () => {
 
   it("fills placeholders and leaves unknown ones", () => {
     expect(translate("en", "toast.centred", { name: "Podgorica" })).toBe("Centred on Podgorica");
-    expect(translate("me", "ai.quota", { n: 3 })).toBe("Preostalo 3 od 3 besplatnih pitanja u ovoj sesiji");
+    expect(translate("me", "toast.centred", { name: "Podgorica" })).toBe("Centrirano na: Podgorica");
     expect(translate("en", "search.parcel")).toBe("Parcel #{ref}");
   });
 });

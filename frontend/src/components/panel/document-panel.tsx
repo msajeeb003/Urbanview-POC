@@ -6,9 +6,9 @@
  * urban plan" from the profile), document details with the source chip (the PDF's first page, or
  * the registry entry) and the source row (the registry name links to its eRegistri entry), the
  * general planning information of its zone, coverage counts and one row per zone spanned (typical
- * height · FAR), the data version, and the CTA stack: "Ask about this document" (the
- * assistant with the question typed in, `ai_interest`) and "How we read a planning document"
- * (the methodology, step 2).
+ * height · FAR), the data version, and the CTA stack: "Ask about this document" (an intent
+ * button: `ai_interest` + a toast; the POC builds no assistant) and "How we read a planning
+ * document" (the methodology, step 2).
  */
 import { useEffect } from "react";
 
@@ -17,6 +17,7 @@ import { ApiError } from "@/lib/api/client";
 import { useMunicipality, usePanel } from "@/lib/api/hooks";
 import type { DocumentPanel as DocumentPanelData } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 import { useOpenSource } from "@/lib/source";
 import { useShell } from "@/lib/store";
 
@@ -56,10 +57,11 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
   const query = usePanel({ type: "document", id: documentId });
   const { data: profile } = useMunicipality();
   const clearSelection = useShell((s) => s.clearSelection);
-  const openAiWith = useShell((s) => s.openAiWith);
+  const showToast = useShell((s) => s.showToast);
   const openModal = useShell((s) => s.openModal);
   const openSource = useOpenSource();
   const track = useTrack();
+  const t = useT();
   const data = query.data?.type === "document" ? query.data : undefined;
   const gone = query.error instanceof ApiError && query.error.isNotFound;
   usePanelViewed("document", data ? { document_id: documentId } : null);
@@ -165,7 +167,7 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
           icon={<IconAsk />}
           onClick={() => {
             track("ai_interest", { trigger: "document_panel", document_id: doc.id });
-            openAiWith(`What does ${doc.name} allow?`);
+            showToast(t("ai.notYet"));
           }}
         >
           Ask about this document

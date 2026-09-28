@@ -42,7 +42,7 @@ class AnalyticsEventRecord(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     municipality_id: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="one of the 13 product event names"
+        Text, nullable=False, comment="one of the product event names (the API's enum)"
     )
     session_id: Mapped[str] = mapped_column(
         Text, nullable=False, comment="anonymous, client-generated session id"

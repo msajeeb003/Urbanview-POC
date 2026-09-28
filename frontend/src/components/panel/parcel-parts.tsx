@@ -3,7 +3,7 @@
 /**
  * Pieces the cadastral and urban parcel panels share: the cadastral-vs-urban comparison card
  * (wireframe `.vscard` with its mini diagram; the area mismatch is always stated, never silent),
- * the per-value source icon, the CTA stack (gold order + price, ghost assistant, line
+ * the per-value source icon, the CTA stack (gold order + price, the two intent buttons, line
  * methodology) and the zone-type lookup for the eyebrow.
  */
 import { useEffect, type ReactNode } from "react";
@@ -12,6 +12,7 @@ import { useTrack } from "@/lib/analytics/react";
 import { useOrderPricing, useZones } from "@/lib/api/hooks";
 import type { PlanningField } from "@/lib/api/types";
 import { formatArea } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 import { ZONE_TYPES } from "@/lib/layers";
 import { requestOrder } from "@/lib/order";
 import type { OrderTarget } from "@/lib/order-form";
@@ -23,7 +24,7 @@ import { useShell } from "@/lib/store";
 import { targetLabel } from "../order/order-modal";
 import { METHODOLOGY_LABEL, MethodologyModal } from "../shell/methodology-modal";
 import { Cta } from "../ui/cta";
-import { IconAsk, IconDocSmall, IconOrder, IconSteps } from "../ui/icons";
+import { IconAsk, IconDocSmall, IconLock, IconOrder, IconSteps } from "../ui/icons";
 
 export { formatArea };
 
@@ -186,25 +187,33 @@ export function useZoneTypeName(zoneId: number | null | undefined): string | nul
   return ZONE_TYPES.find((z) => z.key === type)?.name ?? null;
 }
 
+/** Acknowledgement of "Unlock full market data" (provisional copy): the pilot locks nothing. */
+export const MARKET_INTEREST_NOTED = "Thanks — noted. Market data is free for everyone during the pilot.";
+
 /**
- * Gold "Order expert analysis" + price, ghost "Ask the AI assistant", line "How we analyze this
- * parcel". The panel's parcel is registered as the order target while the panel is on screen, so
- * "Order a report" in "Choose your access" and the methodology's last step order it too.
+ * The parcel panel's button stack: gold "Order expert analysis" + price, the pilot's two intent
+ * buttons (ghost "Unlock full market data" on the urban parcel panel, where Group 2 shows, and
+ * ghost "Ask about this site"), line "How we analyze this parcel". The intent buttons only log
+ * interest (`market_data_interest`, `ai_interest`) and say so in a toast: the POC builds no
+ * subscription and no assistant, so nothing opens, unlocks or changes. The panel's parcel is
+ * registered as the order target while the panel is on screen, so the methodology's last step
+ * orders it too.
  */
 export function ParcelCtas({
   target,
-  question,
+  marketIntent = false,
 }: {
   /** The parcel as the panel shows it; its ids go into the intent and order events. */
   target: OrderTarget;
-  /** What the assistant opens with ("Tell me about cadastral parcel #1042"). */
-  question: string;
+  /** Show "Unlock full market data" (the panel shows Group 2). */
+  marketIntent?: boolean;
 }) {
   const { data: pricing } = useOrderPricing();
-  const openAiWith = useShell((s) => s.openAiWith);
   const openModal = useShell((s) => s.openModal);
   const setOrderTarget = useShell((s) => s.setOrderTarget);
+  const showToast = useShell((s) => s.showToast);
   const track = useTrack();
+  const t = useT();
   const price = priceFor(target.basisAreaM2, pricing);
   const { parcelType, ids } = target;
 
@@ -226,15 +235,27 @@ export function ParcelCtas({
       >
         Order expert analysis
       </Cta>
+      {marketIntent && (
+        <Cta
+          variant="ghost"
+          icon={<IconLock />}
+          onClick={() => {
+            track("market_data_interest", { ...ids, trigger: "parcel_panel", panel_type: parcelType });
+            showToast(MARKET_INTEREST_NOTED);
+          }}
+        >
+          Unlock full market data
+        </Cta>
+      )}
       <Cta
         variant="ghost"
         icon={<IconAsk />}
         onClick={() => {
           track("ai_interest", { ...ids, trigger: "parcel_panel", panel_type: parcelType });
-          openAiWith(question);
+          showToast(t("ai.notYet"));
         }}
       >
-        Ask the AI assistant
+        Ask about this site
       </Cta>
       <Cta
         variant="line"
