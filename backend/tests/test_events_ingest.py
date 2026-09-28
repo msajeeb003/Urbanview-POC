@@ -7,6 +7,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from api.schemas.analytics import AnalyticsEvent
+from core.models.analytics import EVENT_NAMES
 from tests.helpers import make_app, make_client, make_redis, make_settings
 
 URL = "/v1/events"
@@ -203,6 +205,10 @@ async def test_ip_detection_is_exact_not_pattern_happy(value, status):
         ("panel_viewed", {"panel_type": "map"}),
         ("sessions_per_user", {"sessions": 0}),
         ("checkout_completed", {"amount_eur": 10, "currency": "USD"}),
+        ("assumption_edited", {"assumption_value": 960}),
+        ("assumption_edited", {"assumption": "land_rate_eur_m2"}),
+        ("assumption_edited", {"assumption": "saleable_share", "assumption_value": -0.1}),
+        ("assumption_edited", {"assumption": "saleable_share", "reset": "yes"}),
     ],
 )
 async def test_known_properties_are_typed_and_some_are_required(name, properties):
@@ -252,6 +258,14 @@ async def test_known_properties_are_typed_and_some_are_required(name, properties
         ("sessions_per_user", {"sessions": 3}),
         ("return_visit", {"days_since_last": 0}),
         ("ai_interest", {"trigger": "quota", "extra_scalar": 1.5}),
+        (
+            "assumption_edited",
+            {"assumption": "construction_cost_eur_m2", "assumption_value": 960, "zone_id": 1},
+        ),
+        (
+            "assumption_edited",
+            {"assumption": "saleable_share", "assumption_value": 0.7, "reset": True},
+        ),
     ],
 )
 async def test_well_formed_events_are_accepted(name, properties):
@@ -320,3 +334,8 @@ async def test_without_the_events_database_ingest_is_503():
     r = await post(app, {"events": [event()]})
     assert r.status_code == 503
     assert r.json()["error"]["code"] == "service_unavailable"
+
+
+def test_the_database_check_lists_exactly_the_api_events():
+    # core.models.analytics.EVENT_NAMES builds ck_analytics_events_name; a migration must follow it
+    assert set(EVENT_NAMES) == {e.value for e in AnalyticsEvent}

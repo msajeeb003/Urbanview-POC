@@ -13,7 +13,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiError } from "./client";
 import { api } from "./endpoints";
 import type {
-  FeasibilityRequest,
   MunicipalityProfile,
   OrderIn,
   PanelQuery,
@@ -132,12 +131,6 @@ export function useParcelPanel(parcelId: number | null) {
     enabled: !!parcelId,
     staleTime: 60_000,
     retry: retryTransient,
-  });
-}
-
-export function useFeasibility() {
-  return useMutation({
-    mutationFn: (body: FeasibilityRequest) => api.feasibility(body),
   });
 }
 

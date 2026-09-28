@@ -80,8 +80,9 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
 
 **Analytics events:** `map_loaded`, `search_performed`, `parcel_selected`, `layer_toggled`,
 `panel_viewed`, `financials_viewed`, `source_reference_opened`, `order_started`,
-`checkout_completed`, `return_visit`, `sessions_per_user`, `market_data_interest`, `ai_interest`
-(enum in `backend/api/schemas/analytics.py`).
+`checkout_completed`, `return_visit`, `sessions_per_user`, `market_data_interest`, `ai_interest`,
+`assumption_edited` (enum in `backend/api/schemas/analytics.py`; the last is not in BRD §6.2:
+the POC check of Group 2 asked for it).
 
 **Performance target:** under 2 seconds from query to populated panel. Requests slower than
 `SLOW_REQUEST_MS` are logged at WARNING with the route template.
@@ -975,8 +976,9 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
 ## Analytics (`api/services/analytics.py`, `api/routers/v1/events.py`, `admin_analytics.py`)
 
 - The prototype is a validation instrument: `POST /v1/events` ingests batches (≤ 100) of the
-  13 product events into `analytics_events` (migration 0005; model `core/models/analytics.py`;
-  CHECK on the name; indexes on municipality + name + time, session, zone). Each event:
+  14 product events into `analytics_events` (migration 0005, `assumption_edited` added by 0029;
+  model `core/models/analytics.py`; CHECK on the name, `EVENT_NAMES` = the API's enum, a test
+  holds them together; indexes on municipality + name + time, session, zone). Each event:
   `name`, anonymous client-generated `session_id`, optional anonymous persistent `client_id`
   (repeat usage), optional `event_id` (retried batches are de-duplicated, never errors),
   tz-aware `occurred_at` (not in the future), and a small flat `properties` object.
@@ -986,9 +988,11 @@ message. Never 404/500, never an error envelope. A parcel reference that matches
   Known properties are typed (`parcel_id`, `zone_id`, `document_id`, `page` … positive ints;
   `search_kind` ∈ address | click | parcel_number, `result` ∈ address | zone | parcel, booleans
   `matched` / `recent` / `visible` / `on`; `panel_type`; `amount_eur` ≥ 0; `lat` −90…90 and
-  `lng` −180…180, where a search landed, which the map sends rounded to 4 decimals; `sessions`)
-  and some are required (`search_performed.search_kind`, `layer_toggled.layer_id`,
-  `source_reference_opened.document_id + page`, `checkout_completed.amount_eur`). `zone_id` and
+  `lng` −180…180, where a search landed, which the map sends rounded to 4 decimals; `sessions`;
+  `assumption` ∈ construction_cost_eur_m2 | sale_price_eur_m2 | saleable_share with
+  `assumption_value` 0…100 000 and boolean `reset`) and some are required
+  (`search_performed.search_kind`, `layer_toggled.layer_id`, `source_reference_opened.document_id
+  + page`, `checkout_completed.amount_eur`, `assumption_edited.assumption`). `zone_id` and
   `parcel_id` are copied into columns for grouping (no FKs).
 - `GET /v1/admin/analytics?from=&to=` (role `admin`; `[from, to)`, default last 30 days, max
   366) returns: funnel conversion per step (map_loaded → search_performed / parcel_selected →

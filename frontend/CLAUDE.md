@@ -417,20 +417,24 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   `lib/assumptions.ts`): three range inputs as in the wireframe — construction €/m² (500–1200),
   sale price €/m² (1200–3600), saleable % (55–85): bounds are configuration (`SLIDERS`), widened
   to include a zone's default; starting values are the payload's `assumptions` (the zone's market
-  row, 70 % share), never hard-coded. Each value is marked "your assumption" or "default"; the
-  other rates in use (land, design) and the market source, formula and data version sit under
-  them; "Reset to defaults" clears the edits. Every change calls the shared engine package's
+  row, 70 % share), never hard-coded. Each value is marked "default", or "your assumption ·
+  default €860" once edited; the other rates in use (land, design), the market source and date,
+  the market version with the date it applies from (`market_version`), the formula and data
+  version sit under them; "Reset to defaults" clears the edits. Every change calls the shared engine package's
   `recalculate(engine.inputs, edits)` in the browser (`recalculateFeasibility`: maps panel keys
   onto the engine's with the payload's `engine.edit_keys` / `field_keys`, no formula of its own)
   and re-renders the ROI hero, range rows and saleable area at once (the markers glide); no
   edits = the payload's figures exactly. An edit outside its bounds (the sliders' and the
   server's: prices in (0, 100 000], share in (0, 1]) shows an inline error and is not
-  calculated. A settled set of edits is posted to `POST /v1/feasibility` a second later and any
-  difference is a console warning. Edits live in the store (`assumptionEdits`, only the edited
-  keys) and in `sessionStorage` (`uv.assumptions`) for the tab: moving to another parcel keeps
-  them (the other keys take that zone's defaults), and an order carries them. An edit
-  that returns to the default value stops being an edit. No market data for the zone: the
-  sliders are disabled.
+  calculated. Editing sends no request (the two engines are held equal by the shared fixtures
+  and the cross-engine test). Edits live in the store (`assumptionEdits`, only the edited keys),
+  in memory for the page: moving to another parcel keeps them (the other keys take that zone's
+  defaults) and an order carries them; a reload returns to the defaults, and nothing is saved
+  on the server. An edit that returns to the default value stops being an edit. Each
+  assumption sends one `assumption_edited {assumption, assumption_value, …ids}` once its slider
+  has rested 800 ms (`editEventQueue`; Reset sends one per edited assumption with `reset:
+  true`; what is still waiting goes out when the panel closes). No market data for the zone:
+  the sliders are disabled.
 - **"How the figures are calculated"** (`shell/engine-modal.tsx`, wireframe `openEngine`, from
   the engine strip): the poc-1 formulas table (name, expression, source), input
   data (planning documents, cadastre, the zone's market source, the visitor's assumptions), the
@@ -737,7 +741,8 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
   when the map has loaded (see "Map"), `return_visit` (+ `days_since_last`) and `sessions_per_user` when a session starts;
   a 4xx batch is dropped, network / 429 / 5xx retried with backoff. **Never** personal data in
   properties (the API rejects name, email, phone, address … keys and e-mail / IP-looking values).
-  The 13 event names are the API's enum.
+  The 14 event names are the API's enum (`assumption_edited` is not in the BRD's list: the POC
+  check of Group 2 asked for it).
 - The selection flow (`src/lib/selection.ts`): map click (feature or empty), address suggestion,
   zone suggestion, KO + parcel number or `?parcel=` link → `/v1/locate`, `/v1/locate/parcel`
   or `/v1/parcels/{id}/panel` (cached under `queryKeys`, where panels read it) → selection +
@@ -787,7 +792,7 @@ pricing), ghost "Ask the AI assistant", line "How we analyze this parcel".
 | `src/lib/pricing.ts` | the order price of a parcel from the configured tiers (`GET /v1/orders/pricing`), the server's `price_for` rule |
 | `src/lib/map/*` | `style` (UrbanView layers per registry entry, visibility, choropleth paint, highlight filters), `classes` (choropleth colours, legend rows, expressions from served classes), `pick` (click priority, centroid), `tiles` (pointer → source, provider registration), `camera` (fit options, padding for the box), `use-layer-states` (every card's `layerState` for the rail and legend), `pmtiles-provider` (worker module), `provider-name` |
 | `src/components/ui/*` | shared: `LayerCard`, `Badge`, `PanelRow`, `IdGrid`, `Cta` (primary / gold / ghost / line), `SourceRef`, `Modal` + `ModalHead` (Radix Dialog with wireframe classes), `Disclaimer`, `icons` |
-| `src/lib/api/*` | `client.ts` (fetch wrapper: base URL, `X-Request-ID`, `X-Session-ID`, error envelope → `ApiError`, timeouts, 429 retries), `endpoints.ts` (one function per route), `hooks.ts` (React Query: `useMunicipality`, `useLocate`, `useLocateParcel`, `useGeocode`, `useZones`, `usePanel`, `useFeasibility`, `useSourceValue` / `useSourcePage`, `useTilesCurrent`, `useCreateOrder`, `useOrderStatus`, `useTrack`), `types.ts` (aliases), `schema.d.ts` (generated) |
+| `src/lib/api/*` | `client.ts` (fetch wrapper: base URL, `X-Request-ID`, `X-Session-ID`, error envelope → `ApiError`, timeouts, 429 retries), `endpoints.ts` (one function per route), `hooks.ts` (React Query: `useMunicipality`, `useLocate`, `useLocateParcel`, `useGeocode`, `useZones`, `usePanel`, `useSourceValue` / `useSourcePage`, `useTilesCurrent`, `useCreateOrder`, `useOrderStatus`, `useTrack`), `types.ts` (aliases), `schema.d.ts` (generated) |
 | `src/lib/store.ts` | shell state (zustand): rail, layers, view, AI, sheet, selection (point / parcel / feature / zone), pin, toast, modal, map controller |
 | `src/components/source/source-viewer.tsx` | the source viewer: signed link → PDF.js page (lazy), bbox highlight, pages, zoom, Open PDF, retry, `source_reference_opened` |
 | `src/lib/source.tsx` | `useOpenSource`: opens the source viewer for a value or a document page |

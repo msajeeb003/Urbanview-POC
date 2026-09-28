@@ -9,8 +9,8 @@
  * the engine strip, the disclaimer and the "I want market data updates" intent. Figures are the
  * payload's `feasibility` block (the shared engine's output) or, once the visitor edits an
  * assumption, the shared engine package's `recalculate(engine.inputs, edits)` run in the browser
- * on every change (`lib/assumptions.ts`; no formula here, no round trip). A settled set of edits
- * is checked against `POST /v1/feasibility` a second later; a difference is a console warning. A
+ * on every change (`lib/assumptions.ts`; no formula here, no request: the two engines are held
+ * equal by the shared fixtures and the cross-engine test). A
  * figure the engine cannot calculate says "cannot calculate — <reason>" and the others still
  * show. Never a single money figure, never a made-up range. `financials_viewed` fires once per
  * open of a parcel when the section is on screen, never per slider move.
@@ -19,16 +19,8 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { useTrack } from "@/lib/analytics/react";
 import type { EventProperties } from "@/lib/analytics/tracker";
-import { api } from "@/lib/api/endpoints";
 import type { UrbanPanel } from "@/lib/api/types";
-import {
-  defaultsOf,
-  differences,
-  editErrors,
-  hasEdits,
-  recalculateFeasibility,
-  toRequestAssumptions,
-} from "@/lib/assumptions";
+import { defaultsOf, editErrors, recalculateFeasibility } from "@/lib/assumptions";
 import { formatEur, formatPct } from "@/lib/format";
 import { useShell } from "@/lib/store";
 
@@ -158,33 +150,6 @@ function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
     return recalculateFeasibility(f, engine, edits);
   }, [f, engine, edits, valid]);
 
-  // a settled set of edits is confirmed against the server; a difference is only a warning
-  useEffect(() => {
-    if (!view || !engine || !valid || !hasEdits(edits) || typeof ids.urban_parcel_id !== "number") return;
-    const controller = new AbortController();
-    const parcelId = ids.urban_parcel_id;
-    const timer = setTimeout(async () => {
-      try {
-        const res = await api.feasibility(
-          { parcel_id: parcelId, type: "urban", assumptions: toRequestAssumptions(edits) },
-          { signal: controller.signal },
-        );
-        if (!res.feasibility) return;
-        const diff = differences(
-          [...view.fields, ...view.cost_rows],
-          [...res.feasibility.fields, ...res.feasibility.cost_rows],
-        );
-        if (diff.length) console.warn("[feasibility] the browser's figures differ from POST /v1/feasibility", diff);
-      } catch {
-        // the check is for us, not for the visitor: a failed request changes nothing on screen
-      }
-    }, 1000);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [view, engine, valid, edits, ids.urban_parcel_id]);
-
   // financials_viewed once the figures are actually on screen
   useEffect(() => {
     const node = rootRef.current;
@@ -252,7 +217,7 @@ function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
         <CannotRow label="Estimated saleable area" field={saleable} />
       )}
       <RangeRow label="Potential profit" field={byKey.get("profit_eur")} />
-      <AssumptionSandbox data={data} errors={errors} />
+      <AssumptionSandbox data={data} errors={errors} ids={ids} />
       <EngineStrip marketSource={data.market_inputs?.source} />
       <Disclaimer approved={f.disclaimer_status === "client_approved"} en={f.disclaimer_en} me={f.disclaimer_me} />
       <Cta

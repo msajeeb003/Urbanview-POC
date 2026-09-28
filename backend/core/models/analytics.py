@@ -32,6 +32,7 @@ EVENT_NAMES: tuple[str, ...] = (
     "sessions_per_user",
     "market_data_interest",
     "ai_interest",
+    "assumption_edited",
 )
 
 

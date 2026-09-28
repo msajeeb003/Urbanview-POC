@@ -11,7 +11,6 @@ import { create } from "zustand";
 import type { AssumptionEdits, EditKey } from "./assumptions";
 import { DEFAULT_CHOROPLETH, DEFAULT_LAYER_STATE, type ChoroplethState, type LayerId } from "./layers";
 import { EMPTY_DRAFT, type OrderDraft, type OrderTarget } from "./order-form";
-import { readJson, safeSessionStorage, writeJson } from "./storage";
 
 
 export interface LngLat {
@@ -106,8 +105,8 @@ interface ShellState {
   /** Field shown by each choropleth card (block-cell parameter, zone-cell sale-rate level). */
   choropleth: ChoroplethState;
   /**
-   * The visitor's edited assumptions (only the edited keys), kept for the tab's session so moving
-   * to another parcel keeps them and an order can carry them.
+   * The visitor's edited assumptions (only the edited keys), in memory only: moving to another
+   * parcel keeps them and an order can carry them; a reload returns to the defaults.
    */
   assumptionEdits: AssumptionEdits;
   /**
@@ -191,21 +190,6 @@ interface ShellState {
 
 let toastSeq = 0;
 
-const EDITS_KEY = "uv.assumptions";
-const EDIT_KEYS: EditKey[] = ["construction_cost_eur_m2", "sale_price_eur_m2", "saleable_share"];
-
-/** Edits saved earlier in this tab (numbers only; anything else is dropped). */
-function readEdits(): AssumptionEdits {
-  const raw = readJson<Record<string, unknown>>(safeSessionStorage, EDITS_KEY);
-  const edits: AssumptionEdits = {};
-  if (raw && typeof raw === "object") {
-    for (const key of EDIT_KEYS) {
-      const v = raw[key];
-      if (typeof v === "number" && Number.isFinite(v)) edits[key] = v;
-    }
-  }
-  return edits;
-}
 let uncoveredTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useShell = create<ShellState>()((set) => ({
@@ -213,7 +197,7 @@ export const useShell = create<ShellState>()((set) => ({
   legendMin: false,
   layers: { ...DEFAULT_LAYER_STATE },
   choropleth: { ...DEFAULT_CHOROPLETH },
-  assumptionEdits: readEdits(),
+  assumptionEdits: {},
   orderTarget: null,
   orderDraft: EMPTY_DRAFT,
 
@@ -251,13 +235,9 @@ export const useShell = create<ShellState>()((set) => ({
       const next = { ...s.assumptionEdits };
       if (value === undefined) delete next[key];
       else next[key] = value;
-      writeJson(safeSessionStorage, EDITS_KEY, next);
       return { assumptionEdits: next };
     }),
-  resetAssumptions: () => {
-    safeSessionStorage.remove(EDITS_KEY);
-    set({ assumptionEdits: {} });
-  },
+  resetAssumptions: () => set({ assumptionEdits: {} }),
   setOrderTarget: (orderTarget) => set({ orderTarget }),
   setOrderDraft: (patch) => set((s) => ({ orderDraft: { ...s.orderDraft, ...patch } })),
   clearOrderDraft: () => set({ orderDraft: EMPTY_DRAFT }),

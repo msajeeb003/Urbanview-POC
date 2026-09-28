@@ -54,28 +54,3 @@ export function readJson<T>(store: KeyValueStore, key: string): T | null {
 export function writeJson(store: KeyValueStore, key: string, value: unknown): void {
   store.set(key, JSON.stringify(value));
 }
-
-/** `sessionStorage` with the same never-throw guarantees (the tab's session only). */
-export const safeSessionStorage: KeyValueStore = {
-  get(key) {
-    try {
-      return typeof window === "undefined" ? null : window.sessionStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  },
-  set(key, value) {
-    try {
-      if (typeof window !== "undefined") window.sessionStorage.setItem(key, value);
-    } catch {
-      /* storage full or blocked: ignore */
-    }
-  },
-  remove(key) {
-    try {
-      if (typeof window !== "undefined") window.sessionStorage.removeItem(key);
-    } catch {
-      /* ignore */
-    }
-  },
-};

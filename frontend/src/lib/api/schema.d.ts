@@ -1403,7 +1403,7 @@ export interface components {
          * AnalyticsEvent
          * @enum {string}
          */
-        AnalyticsEvent: "map_loaded" | "search_performed" | "parcel_selected" | "layer_toggled" | "panel_viewed" | "financials_viewed" | "source_reference_opened" | "order_started" | "checkout_completed" | "return_visit" | "sessions_per_user" | "market_data_interest" | "ai_interest";
+        AnalyticsEvent: "map_loaded" | "search_performed" | "parcel_selected" | "layer_toggled" | "panel_viewed" | "financials_viewed" | "source_reference_opened" | "order_started" | "checkout_completed" | "return_visit" | "sessions_per_user" | "market_data_interest" | "ai_interest" | "assumption_edited";
         /** ApproveIn */
         ApproveIn: {
             /** Note */

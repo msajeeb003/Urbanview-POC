@@ -1,8 +1,9 @@
-"""Analytics: event names (BRD §6.2 plus the two interest events added in the build plan), the
-ingest contract of ``POST /v1/events`` and the dashboard payload of ``GET /v1/admin/analytics``.
+"""Analytics: event names (BRD §6.2, the two interest events added in the build plan and
+``assumption_edited`` from the POC check of Group 2), the ingest contract of ``POST /v1/events``
+and the dashboard payload of ``GET /v1/admin/analytics``.
 
 Ingest rules (the prototype is a validation instrument, not a tracking product):
-- exactly the 13 names; anything else is rejected;
+- exactly the 14 names; anything else is rejected;
 - ids are anonymous and client-generated (``session_id`` required, ``client_id`` optional for
   repeat usage, ``event_id`` optional for de-duplicating retried batches);
 - ``properties`` is small and flat (≤ 20 scalar entries, strings ≤ 200 chars) and may never carry
@@ -40,6 +41,7 @@ class AnalyticsEvent(StrEnum):
     sessions_per_user = "sessions_per_user"
     market_data_interest = "market_data_interest"
     ai_interest = "ai_interest"
+    assumption_edited = "assumption_edited"
 
 
 # --- ingest --------------------------------------------------------------------------------------
@@ -85,6 +87,8 @@ IPV4_RE = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
 IPV6_CANDIDATE_RE = re.compile(r"[0-9A-Fa-f:]{4,45}")
 
 SEARCH_KINDS = ("address", "click", "parcel_number")
+# The three assumptions a visitor may edit in Group 2 (the panel's keys).
+EDITABLE_ASSUMPTIONS = ("construction_cost_eur_m2", "sale_price_eur_m2", "saleable_share")
 PANEL_TYPES = ("zone", "document", "cadastral", "urban")
 
 # Typed properties (validated when present). Ids are positive integers.
@@ -101,24 +105,27 @@ INT_PROPERTIES: dict[str, int] = {  # key -> minimum
 }
 NUMBER_PROPERTIES: dict[str, tuple[float, float]] = {  # key -> (minimum, maximum)
     "amount_eur": (0.0, math.inf),
+    "assumption_value": (0.0, 100_000.0),  # the edited value: EUR per m², or a share 0–1
     "lat": (-90.0, 90.0),  # where a search landed (the map sends 4 decimals, ≈ 11 m)
     "lng": (-180.0, 180.0),
 }
 STRING_PROPERTIES = frozenset(
     {"layer_id", "order_id", "product", "trigger", "panel_type", "search_kind", "currency", "via"}
 )
-BOOL_PROPERTIES = frozenset({"visible", "on", "matched", "recent"})
+BOOL_PROPERTIES = frozenset({"visible", "on", "matched", "recent", "reset"})
 ENUM_PROPERTIES: dict[str, tuple[str, ...]] = {
     "search_kind": SEARCH_KINDS,
     "result": ("address", "zone", "parcel"),
     "panel_type": PANEL_TYPES,
     "currency": ("EUR",),
+    "assumption": EDITABLE_ASSUMPTIONS,
 }
 REQUIRED_PROPERTIES: dict[AnalyticsEvent, tuple[str, ...]] = {
     AnalyticsEvent.search_performed: ("search_kind",),
     AnalyticsEvent.layer_toggled: ("layer_id",),
     AnalyticsEvent.source_reference_opened: ("document_id", "page"),
     AnalyticsEvent.checkout_completed: ("amount_eur",),
+    AnalyticsEvent.assumption_edited: ("assumption",),
 }
 
 Scalar = str | int | float | bool | None
