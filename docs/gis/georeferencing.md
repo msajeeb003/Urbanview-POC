@@ -61,7 +61,8 @@ python -m core.gis.extract run RULES --source ../docs/gis/source --out ../data/g
 python -m core.gis.georef apply RULES --gpkg ../data/gis/<doc>/<doc>.gpkg \
     --out ../data/gis/<doc> --document-id N --stage [--store]
 
-# then the publish job (admin console, "Publish") serves it
+# then a reviewer approves its batches (admin console, AI review queue → Geometry)
+# and the publish job (admin console, "Publish") serves them
 python -m core.gis.georef datasets --document-id N
 python -m core.gis.georef show geo-N-20260927-1 [--transform-out FILE]
 ```
@@ -158,8 +159,14 @@ The batches follow the staged-geometry contract:
   but not staged: planned traffic is an MVP layer, outside the POC.
 
 Every feature carries `document_id` and `dataset_version`. A newer run of the document supersedes
-its staged one. The publish job applies the batches and marks the dataset `published` (the
-document's previous one `superseded`).
+its staged one. Each batch is staged with its origin (`vector_pdf` for extraction runs,
+`manual_qgis` for redrawn sheets, `official_gis` for a GIS drawing) and its topology QA
+(`core.geometry_qa`: overlaps, gaps, the drawn planned parcel areas against the plan's table, the
+run's own warnings), and waits in the console's geometry review (`/admin/review/geometry`,
+`/v1/admin/geometry`) for a reviewer's decision: publishing waits while any batch is pending, a
+batch whose QA fails cannot be approved, a rejected one never publishes (fix it and stage again).
+The publish job applies the approved batches and marks the dataset `published` once all its
+batches are applied (the document's previous one `superseded`).
 
 The admin console's document page shows the latest run: status, RMSE against the limit, the
 maximum residual, a per-sheet table, snapping and the offset, the cadastral overlap share, and the

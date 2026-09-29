@@ -41,5 +41,11 @@ describe("publish page rules", () => {
     expect(blockersText([{ document_id: 6, document_name: "DUP Novi Grad", pending: 3 }])).toBe(
       "Publishing waits for: DUP Novi Grad (3 pending)",
     );
+    // geometry review (0033): staged batches waiting for a decision block publishing too
+    const batch = { batch_id: 4, layer_id: "urban_parcels", layer_label: "Planned urban parcels" };
+    expect(blockersText([], [batch, { ...batch, batch_id: 5 }])).toBe("Publishing waits for: 2 geometry batches to review");
+    expect(blockersText([{ document_id: 6, document_name: "DUP Novi Grad", pending: 3 }], [batch])).toBe(
+      "Publishing waits for: DUP Novi Grad (3 pending), 1 geometry batch to review",
+    );
   });
 });

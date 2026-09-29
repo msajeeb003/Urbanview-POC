@@ -24,11 +24,12 @@ import type {
 } from "@/lib/api/types";
 
 import { adminGet, adminSend } from "./api";
-import { explainReviewProblem, QUEUE_PAGE, reviewQuery, type ReviewFilters } from "./review";
+import { correctionRefusal, explainReviewProblem, QUEUE_PAGE, reviewQuery, type ReviewFilters } from "./review";
 import { canOpen } from "./sections";
 import { currentStaff } from "./session";
 
-export type Result<T> = { ok: true; message: string; data: T } | { ok: false; message: string };
+/** A refusal may name the contract rule a correction broke (`code`, e.g. `out_of_range`). */
+export type Result<T> = { ok: true; message: string; data: T } | { ok: false; message: string; code?: string };
 
 async function reviewer(): Promise<string | null> {
   const staff = await currentStaff();
@@ -63,7 +64,7 @@ async function decide(
   const denied = await reviewer();
   if (denied) return { ok: false, message: denied };
   const result = await adminSend<ReviewItem>("POST", path, body);
-  if (!result.ok) return { ok: false, message: explainReviewProblem(result) };
+  if (!result.ok) return { ok: false, message: explainReviewProblem(result), code: correctionRefusal(result)?.code };
   return { ok: true, message, data: { item: result.data, counters: await counters(result.data.source.document_id) } };
 }
 
@@ -72,15 +73,21 @@ export async function approveAction(itemId: number, note?: string): Promise<Resu
   return decide(`/v1/admin/review/${itemId}/approve`, note ? { note } : {}, "Approved");
 }
 
-/** `POST /v1/admin/review/{id}/amend`: a corrected value (typed per parameter) and the note. */
+/** `POST /v1/admin/review/{id}/amend`: a corrected value and the note; the API checks it with the
+ * extraction contract's rules (`confirm` keeps a value outside the field's usual range). */
 export async function amendAction(
   itemId: number,
-  correction: { value: number | string; unit: string | null; note: string },
+  correction: { value: number | string; unit: string | null; note: string; confirm?: boolean },
 ): Promise<Result<Decision>> {
   if (!correction.note.trim()) return { ok: false, message: "Say what was wrong: a note is required with a correction." };
   return decide(
     `/v1/admin/review/${itemId}/amend`,
-    { value: correction.value, unit: correction.unit, note: correction.note.trim() },
+    {
+      value: correction.value,
+      unit: correction.unit,
+      note: correction.note.trim(),
+      ...(correction.confirm ? { confirm_out_of_range: true } : {}),
+    },
     "Amended",
   );
 }
@@ -180,10 +187,14 @@ export async function publishAction(label?: string, notes?: string): Promise<Res
   if (notes?.trim()) body.notes = notes.trim();
   const result = await adminSend<AdminJob>("POST", "/v1/admin/publish", body);
   if (!result.ok) {
-    const details = result.details as { documents?: { document_name: string; pending: number }[] } | undefined;
-    if (result.status === 409 && details?.documents?.length) {
-      const names = details.documents.slice(0, 3).map((d) => `${d.document_name} (${d.pending} pending)`);
-      return { ok: false, message: `Publishing waits for: ${names.join(", ")}${details.documents.length > 3 ? " …" : ""}` };
+    const details = result.details as
+      | { documents?: { document_name: string; pending: number }[]; geometry?: { batch_id: number }[] }
+      | undefined;
+    if (result.status === 409 && (details?.documents?.length || details?.geometry?.length)) {
+      const parts = (details.documents ?? []).slice(0, 3).map((d) => `${d.document_name} (${d.pending} pending)`);
+      const batches = details.geometry?.length ?? 0;
+      if (batches) parts.push(`${batches} geometry batch${batches === 1 ? "" : "es"} to review`);
+      return { ok: false, message: `Publishing waits for: ${parts.join(", ")}` };
     }
     return { ok: false, message: explainReviewProblem(result) };
   }

@@ -4,14 +4,16 @@ One database transaction covers the whole run (the flip is the commit), so visit
 seeing the previous version until the new one is complete, and a failure anywhere leaves nothing
 behind but the job's error. Steps, each reported to ``pipeline_jobs.progress``:
 
-1. ``preflight``: no document may still have items pending review (a hard failure otherwise);
+1. ``preflight``: no document may still have items pending review, and no staged geometry batch
+   may wait for the reviewer's decision (geometry review, 0033); a hard failure otherwise;
 2. ``version``: a new ``publish_versions`` row (not current yet);
 3. ``values``: the previous version's serving values carried forward, overridden by the
    approved / amended review items (the amended value wins; every item cites its page), which
    are closed with ``published_value_id``; zone / block / document / parcel scopes; fields whose
    extracted value was rejected and nothing replaced become ``planning_value_gaps`` rows (the
    public panel says ``rejected`` without reading the review queue);
-4. ``geometry``: staged batches applied: entity layers upserted by natural key (stable ids),
+4. ``geometry``: the staged batches a reviewer approved applied (rejected ones never are):
+   entity layers upserted by natural key (stable ids),
    generic layers copied into ``layer_features`` for the version (untouched layers carried
    forward), document coverage updated; batches marked published; zone, cadastral and
    georeferencing datasets whose batches were applied marked published;
@@ -156,6 +158,19 @@ PENDING_SQL = text(
     WHERE e.municipality_id = :m AND e.review_state = 'pending_review'
       AND e.superseded_at IS NULL
     GROUP BY d.id, d.name ORDER BY d.name, d.id
+    """
+)
+# Staged geometry still waiting for the reviewer's decision (geometry review, 0033): publishing
+# waits for it as it waits for pending values.
+GEOMETRY_PENDING_SQL = text(
+    """
+    SELECT b.id AS batch_id, b.layer_id, b.document_id, d.name AS document_name,
+           b.dataset_version, b.qa_status
+    FROM geometry_batches b
+    LEFT JOIN planning_documents d ON d.id = b.document_id
+    WHERE b.municipality_id = :m AND b.status = 'staged'
+      AND COALESCE(b.review_state, 'pending_review') = 'pending_review'
+    ORDER BY b.id
     """
 )
 CURRENT_VERSION_SQL = text(
@@ -311,7 +326,8 @@ CLOSE_ITEM_SQL = text(
 STAGED_BATCHES_SQL = text(
     """
     SELECT id, layer_id, feature_count FROM geometry_batches
-    WHERE municipality_id = :m AND status = 'staged' ORDER BY layer_id, id
+    WHERE municipality_id = :m AND status = 'staged' AND review_state = 'approved'
+    ORDER BY layer_id, id
     """
 )
 # whether any served parcel carries each cadastral flag (from a confirmed eKatastar extract)
@@ -617,6 +633,12 @@ class PublishPipeline:
                         f"{b['document_name']} ({b['pending']} pending)" for b in blockers
                     )
                     raise PublishBlocked(f"items pending review: {names}")
+                geometry = (await session.execute(GEOMETRY_PENDING_SQL, {"m": m})).all()
+                if geometry:
+                    raise PublishBlocked(
+                        f"geometry pending review: {len(geometry)} staged batch(es) "
+                        f"({', '.join(str(g.batch_id) for g in geometry[:10])})"
+                    )
                 previous = (await session.execute(CURRENT_VERSION_SQL, {"m": m})).mappings().first()
                 await progress.done(
                     "preflight", {"previous_version": previous and previous["label"]}

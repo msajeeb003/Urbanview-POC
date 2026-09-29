@@ -93,7 +93,18 @@ export type ReviewStatus = S["ReviewItem"]["status"];
 export type ReviewEntityType = S["ReviewTarget"]["entity_type"];
 export type ReviewSort = NonNullable<NonNullable<paths["/v1/admin/review"]["get"]["parameters"]["query"]>["sort"]>;
 export type BulkResult = S["BulkResult"];
+export type ReviewPayload = S["ReviewPayload"];
 export type PublishStatus = S["PublishStatus"];
+// the geometry review (staged batches, the pilot scope's geometry_draft)
+export type GeometryDraft = S["GeometryDraft"];
+export type GeometryPage = S["GeometryPage"];
+export type GeometryCounts = S["GeometryCounts"];
+export type GeometryFeatures = S["GeometryFeatures"];
+export type GeometryBlocker = S["GeometryBlocker"];
+export type GeometryBulkResult = S["GeometryBulkResult"];
+export type QaIssue = S["QaIssueOut"];
+export type GeometryOrigin = NonNullable<S["GeometryDraft"]["origin"]>;
+export type GeometryReviewStatus = NonNullable<S["GeometryDraft"]["review_status"]>;
 export type PublishVersion = S["PublishVersionOut"];
 
 // --- expert-analysis orders (staff) ---

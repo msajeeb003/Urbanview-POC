@@ -2,7 +2,9 @@
 (``/v1/admin/audit``). A review item carries everything a reviewer needs to open the cited page
 and check the value: the parameter with its labels, the AI value with unit, the reviewer's
 corrected value when amended, the target (zone / block / urban parcel / market data), and the
-source payload (document, page, bbox, raw text snippet, confidence, a signed link to the page)."""
+source payload (document, page, bbox, raw text snippet, confidence, a signed link to the page),
+and the staged payload: the value as the document printed it and what the contract did with it.
+Notes are trimmed: a reason made of spaces is no reason (422)."""
 
 from __future__ import annotations
 
@@ -84,6 +86,49 @@ class ReviewSource(BaseModel):
     )
 
 
+class ReviewPayloadTable(BaseModel):
+    table: str | None = None
+    row: str | None = Field(default=None, description="Row label as printed, e.g. 'UP 12'")
+    column: str | None = Field(default=None, description="Column header as printed")
+    cell: str | None = Field(default=None, description="Grid cell id, e.g. 'r4c11'")
+
+
+class ReviewPayloadFloors(BaseModel):
+    notation: str
+    below_ground: int
+    above_ground: int
+    attic: int
+
+
+class ReviewPayload(BaseModel):
+    """The staged payload of an extracted item (``planning_parameter_extractions.payload``, read
+    with the reader of its schema version): the value as the document printed it, the
+    contract's normalisation rules, the derived floor count or land-use class, the table cell.
+    Null for manual and seeded items."""
+
+    schema_version: str
+    task: str = Field(description="The extraction task that read it, e.g. parameter_table")
+    path: str = Field(description="Where in the canonical result the value sits")
+    field_key: str
+    urban_parcel_number: str | None = None
+    block_ref: str | None = None
+    stated_value: str = Field(description="The value exactly as printed")
+    stated_unit: str | None = Field(default=None, description="How the unit was printed")
+    value: float | str = Field(description="The canonical value the validator made of it")
+    unit: str | None = None
+    normalisation: list[str] = Field(
+        default_factory=list, description="Rules applied, in order: decimal_comma, ratio_to_percent"
+    )
+    floors: ReviewPayloadFloors | None = Field(
+        default=None, description="Counted from the plan's floor notation"
+    )
+    land_use_class: str | None = Field(
+        default=None, description="The product-wide land-use class of the wording"
+    )
+    table: ReviewPayloadTable | None = None
+    flags: list[str] = Field(default_factory=list)
+
+
 class ReviewRun(BaseModel):
     """The extraction run that wrote the item: its job and what the whole run cost."""
 
@@ -133,6 +178,9 @@ class ReviewItem(BaseModel):
         default=None, description="The extraction run that wrote it; null = manual or seeded"
     )
     run: ReviewRun | None = Field(default=None, description="That run's job and cost")
+    payload: ReviewPayload | None = Field(
+        default=None, description="The staged payload: as printed and how it was normalised"
+    )
     change: Literal["new", "same", "changed"] | None = Field(
         default=None, description="Against the previous run's item for the same target and field"
     )
@@ -152,18 +200,43 @@ class ReviewPage(BaseModel):
     offset: int
 
 
+def _trim(value: Any) -> Any:
+    """Notes are trimmed; an optional note made of spaces is no note."""
+    return value.strip() if isinstance(value, str) else value
+
+
+def _trim_to_none(value: Any) -> Any:
+    return (value.strip() or None) if isinstance(value, str) else value
+
+
 class ApproveIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     note: str | None = Field(default=None, max_length=2000)
 
+    _note = field_validator("note", mode="before")(_trim_to_none)
+
 
 class AmendIn(BaseModel):
+    """A correction, checked with the extraction contract's rules
+    (``core.extraction.corrections``): numbers in the document's conventions and the field's unit
+    (ha for an area is converted), impossible values refused, a value outside the field's usual
+    range only with ``confirm_out_of_range``, floors in the plan's notation, a land use the
+    document or the profile knows. 422 ``validation_error`` with the rule's ``type`` otherwise."""
+
     model_config = ConfigDict(extra="forbid")
 
     value: float | str = Field(description="The corrected value: a number or a text")
     unit: str | None = Field(default=None, max_length=30)
-    note: str | None = Field(default=None, max_length=2000)
+    note: str = Field(
+        min_length=1, max_length=2000, description="What was wrong (required, not blank)"
+    )
+    confirm_out_of_range: bool = Field(
+        default=False,
+        description="Keep a number outside the field's usual range (the plan really says so)",
+    )
+
+    _note = field_validator("note", mode="before")(_trim)
 
     @field_validator("value", mode="before")
     @classmethod
@@ -178,7 +251,9 @@ class AmendIn(BaseModel):
 class RejectIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    note: str = Field(min_length=1, max_length=2000, description="The reason")
+    note: str = Field(min_length=1, max_length=2000, description="The reason (not blank)")
+
+    _note = field_validator("note", mode="before")(_trim)
 
 
 class BulkApproveIn(BaseModel):
@@ -191,6 +266,8 @@ class BulkApproveIn(BaseModel):
     source_page: int | None = Field(default=None, ge=1, description="needs document_id")
     urban_parcel_id: int | None = Field(default=None, gt=0)
     note: str | None = Field(default=None, max_length=2000)
+
+    _note = field_validator("note", mode="before")(_trim_to_none)
 
     @model_validator(mode="after")
     def _a_selector(self) -> BulkApproveIn:

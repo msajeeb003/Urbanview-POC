@@ -51,7 +51,8 @@ import { useShell } from "@/lib/store";
 import { StatusChip } from "../parts";
 
 import { PublishPanel } from "./publish-panel";
-import { ReviewDetail, type EditorMode } from "./review-detail";
+import { ReviewDetail, type EditorMode, type Refusal } from "./review-detail";
+import { ReviewTabs } from "./review-tabs";
 
 const DocIcon = (
   <svg width="9" height="10" viewBox="0 0 10 11" fill="none" style={{ verticalAlign: "-1px", marginRight: 3 }} aria-hidden="true">
@@ -72,6 +73,7 @@ export function ReviewScreen({
   counters: initialCounters,
   zones,
   publish,
+  geometryPending,
   me,
   canPublish,
 }: {
@@ -80,6 +82,8 @@ export function ReviewScreen({
   counters: ReviewCounters[];
   zones: { id: number; name: string }[];
   publish: PublishStatus | null;
+  /** Staged geometry batches waiting for a decision (the sibling list), null when unknown. */
+  geometryPending: number | null;
   me: string;
   canPublish: boolean;
 }) {
@@ -195,8 +199,8 @@ export function ReviewScreen({
   }, [advanceFrom, applyCounters, cursor, loadMore, me, replace, showToast]);
 
   const settle = useCallback(
-    (result: { ok: true; message: string; data: Decision } | { ok: false; message: string }) => {
-      if (!result.ok) return result.message;
+    (result: { ok: true; message: string; data: Decision } | { ok: false; message: string; code?: string }): Refusal | null => {
+      if (!result.ok) return { message: result.message, code: result.code };
       const list = itemsRef.current.map((i) => (i.id === result.data.item.id ? result.data.item : i));
       setItems(list);
       applyCounters(result.data.counters);
@@ -210,7 +214,7 @@ export function ReviewScreen({
 
   const submit = useMemo(
     () => ({
-      amend: async (correction: { value: number | string; unit: string | null; note: string }) =>
+      amend: async (correction: { value: number | string; unit: string | null; note: string; confirm?: boolean }) =>
         item ? settle(await amendAction(item.id, correction)) : null,
       reject: async (note: string) => (item ? settle(await rejectAction(item.id, note)) : null),
     }),
@@ -301,6 +305,11 @@ export function ReviewScreen({
           </div>
           <span className={pendingInScope ? "st pend" : "st ok"}>{pendingInScope} pending</span>
         </div>
+        <ReviewTabs
+          active="values"
+          valuesPending={counters.reduce((sum, c) => sum + c.pending, 0)}
+          geometryPending={geometryPending}
+        />
         <PublishPanel counters={docCounters} canPublish={canPublish} initialStatus={publish} />
         <Form action="/admin/review" className="datafilters rvfilters" role="search">
           <select

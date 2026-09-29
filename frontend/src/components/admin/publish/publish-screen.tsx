@@ -39,7 +39,7 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
   const [confirm, setConfirm] = useState<number | null>(null);
   const active = status.active_job;
   const current = status.current;
-  const blockers = blockersText(status.blockers);
+  const blockers = blockersText(status.blockers, status.geometry_blockers);
 
   // follow a running publish until it finishes
   useEffect(() => {
@@ -121,7 +121,11 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
         {blockers && (
           <div className="admin-note">
             {blockers}.{" "}
-            <Link href={`/admin/review?document=${status.blockers[0].document_id}`}>Open the review queue →</Link>
+            {status.blockers.length > 0 ? (
+              <Link href={`/admin/review?document=${status.blockers[0].document_id}`}>Open the review queue →</Link>
+            ) : (
+              <Link href="/admin/review/geometry">Open the geometry review →</Link>
+            )}
           </div>
         )}
         {lastFailed && (

@@ -310,6 +310,11 @@ async def test_contract_rows_queue_with_flags_versions_and_a_flag_filter(review_
     assert (item["schema_version"], item["prompt_version"]) == ("1.0", "1.0")
     assert item["source"]["extraction_method"] == "text" and item["source"]["page"] == 20
     assert item["extracted"]["number"] == 3.2 and item["source"]["confidence"] == 0.4
+    # the staged payload: as printed and what the contract made of it
+    payload = item["payload"]
+    assert payload["field_key"] == "max_far" and payload["value"] == 3.2
+    assert payload["schema_version"] == "1.0" and isinstance(payload["stated_value"], str)
+    assert payload["path"] and isinstance(payload["normalisation"], list)
     assert bad_flag.status_code == 422
 
 
@@ -330,7 +335,9 @@ async def test_approve_amend_reject_keep_the_ai_value_and_write_audit_rows(revie
             headers=auth(reviewer),
         )
         wrong_type = await client.post(
-            "/v1/admin/review/1/amend", json={"value": "three point four"}, headers=auth(reviewer)
+            "/v1/admin/review/1/amend",
+            json={"value": "three point four", "note": "typo"},
+            headers=auth(reviewer),
         )
         text_amended = await client.post(
             f"/v1/admin/review/{text_id}/amend",
@@ -338,7 +345,9 @@ async def test_approve_amend_reject_keep_the_ai_value_and_write_audit_rows(revie
             headers=auth(reviewer),
         )
         text_wrong = await client.post(
-            f"/v1/admin/review/{text_id}/amend", json={"value": 12}, headers=auth(reviewer)
+            f"/v1/admin/review/{text_id}/amend",
+            json={"value": 12, "note": "typo"},
+            headers=auth(reviewer),
         )
         rejected = await client.post(
             "/v1/admin/review/1/reject", json={"note": "wrong table"}, headers=auth(reviewer)
@@ -408,6 +417,83 @@ async def test_approve_amend_reject_keep_the_ai_value_and_write_audit_rows(revie
     assert amend_entry["note"] == "table 3 says 3.4"
     assert amend_entry["details"]["parameter_key"] == "max_far"
     assert entries[0]["actor"] == "ops" and entries[0]["note"] == "second look"
+
+
+async def test_corrections_follow_the_extraction_contract(review_app):
+    """A2 check 2026-09-29: a correction is typed, normalised and bounded with the contract's
+    rules (a non-numeric FAR or an unknown land use is refused), and a reason is required."""
+    app = review_app
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        far = await insert_item(app, field_key="max_far", value_number=2.4, source_page=13)
+        coverage = await insert_item(
+            app, field_key="max_site_coverage_pct", value_number=40, unit="%", source_page=13
+        )
+        area = await insert_item(
+            app, field_key="planned_parcel_area_m2", value_number=959.6, unit="m²"
+        )
+        land_use = await insert_item(
+            app, field_key="land_use", value_number=None, value_text="Stanovanje sa djelatnostima"
+        )
+
+        async def amend(item_id: int, **body):
+            return await client.post(
+                f"/v1/admin/review/{item_id}/amend",
+                json={"note": "per table 3", **body},
+                headers=auth(),
+            )
+
+        not_a_number = await amend(far, value="abc")
+        negative = await amend(far, value=-5)
+        unusual = await amend(far, value=999)
+        confirmed = await amend(far, value=999, confirm_out_of_range=True)
+        comma = await amend(far, value="2,8")
+        too_much = await amend(coverage, value=250, unit="%")
+        wrong_unit = await amend(far, value=2, unit="%")
+        hectares = await amend(area, value="0,1", unit="ha")
+        unknown = await amend(land_use, value="XYZ-unknown-code")
+        known = await amend(land_use, value="stanovanje  SA djelatnostima")
+        classified = await amend(land_use, value="stanovanje")
+        blank_note = await client.post(
+            f"/v1/admin/review/{far}/amend", json={"value": 2.5, "note": "   "}, headers=auth()
+        )
+        no_note = await client.post(
+            f"/v1/admin/review/{far}/amend", json={"value": 2.5}, headers=auth()
+        )
+        blank_reason = await client.post(
+            f"/v1/admin/review/{far}/reject", json={"note": " \t "}, headers=auth()
+        )
+        trail = await client.get(
+            "/v1/admin/audit",
+            params={"entity_type": "extraction_item", "entity_id": far},
+            headers=auth(),
+        )
+
+    def refused(response) -> str:
+        assert response.status_code == 422, response.text
+        (problem,) = response.json()["error"]["details"]
+        return problem["type"]
+
+    assert refused(not_a_number) == "not_a_number"
+    assert refused(negative) == "below_minimum"
+    assert refused(unusual) == "out_of_range"
+    assert unusual.json()["error"]["details"][0]["ctx"] == {"minimum": 0, "maximum": 20}
+    assert confirmed.status_code == 200 and confirmed.json()["amended"]["number"] == 999
+    assert comma.status_code == 200 and comma.json()["effective"]["number"] == 2.8
+    assert refused(too_much) == "above_maximum"
+    assert refused(wrong_unit) == "unit_not_accepted"
+    assert hectares.status_code == 200, hectares.text
+    assert hectares.json()["amended"] == {"text": None, "number": 1000.0, "unit": "m²"}
+    assert refused(unknown) == "unknown_land_use"
+    assert known.status_code == 200
+    assert known.json()["amended"]["text"] == "Stanovanje sa djelatnostima"  # the document's
+    assert classified.status_code == 200 and classified.json()["amended"]["text"] == "stanovanje"
+    assert blank_note.status_code == 422 and no_note.status_code == 422
+    assert blank_reason.status_code == 422
+
+    entries = trail.json()["items"]  # newest first: the comma correction, then the confirmed one
+    assert [e["action"] for e in entries] == ["review.amend", "review.amend"]
+    assert entries[0]["details"]["correction"] == {"normalisation": ["decimal_comma"]}
+    assert entries[1]["details"]["correction"] == {"out_of_range_confirmed": True}
 
 
 async def test_bulk_approve_by_page_and_by_ids(review_app):

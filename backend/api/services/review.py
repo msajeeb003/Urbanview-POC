@@ -5,6 +5,10 @@
 numerical. The queue reads STAGING (``planning_parameter_extractions``) only. A decision never
 touches the AI value: *approve* accepts it, *amend* stores the reviewer's corrected value
 alongside it (``amended_value_*``; ``effective`` is what would publish), *reject* keeps it out.
+A correction is checked and normalised with the extraction contract's own rules
+(``core.extraction.corrections``: numbers in the document's conventions and the field's unit,
+impossible values refused, unusual ones only when confirmed, floors in the plan's notation, a
+land use the document or the profile knows); notes are trimmed and a reason is required.
 Approved and amended items are eligible for the publish job (a separate item) and are not served
 until published; an item that has been published is closed (409). Every decision writes one
 append-only ``audit_log`` row with the state before and after; so does every other admin change.
@@ -35,6 +39,9 @@ from api.schemas.review import (
     ReviewOption,
     ReviewOptions,
     ReviewPage,
+    ReviewPayload,
+    ReviewPayloadFloors,
+    ReviewPayloadTable,
     ReviewPrevious,
     ReviewRun,
     ReviewSource,
@@ -46,6 +53,8 @@ from api.services.audit import write_audit
 from api.services.source import signed_page_link
 from core.auth import Principal
 from core.errors import AppError, ConflictError, NotFoundError
+from core.extraction.corrections import CorrectionRefused, check_correction, conventions_for
+from core.extraction.schema import UnsupportedSchemaVersion, read_payload
 from core.municipality import MunicipalityProfile
 
 log = logging.getLogger("urbanview.review")
@@ -95,6 +104,7 @@ _ITEM_COLUMNS = """
            e.raw_text, e.confidence, e.extracted_by, e.extracted_at, e.reviewer, e.reviewed_at,
            e.review_note, e.published_value_id, e.flags, e.extraction_method, e.schema_version,
            e.prompt_version, e.run_id, e.target_label, e.target_key, e.previous_item_id,
+           e.payload,
            er.job_id AS run_job_id, er.model_version AS run_model_version,
            er.estimated_cost_eur AS run_cost, er.items_written AS run_items,
            er.finished_at AS run_finished_at,
@@ -186,6 +196,15 @@ OPTIONS_SQL = text(
     LIMIT 200
     """
 )
+# The wordings a correction of a text field may take without the profile's term table: those
+# of the document's items (OPTIONS_SQL) and of the values its published versions serve.
+PUBLISHED_WORDINGS_SQL = text(
+    """
+    SELECT DISTINCT value_text FROM planning_parameter_values
+    WHERE municipality_id = :m AND document_id = :document_id AND field_key = :field_key
+      AND value_text IS NOT NULL
+    """
+)
 COUNTERS_SQL = """
     SELECT d.id AS document_id, d.name AS document_name,
            count(*) FILTER (WHERE e.review_state = 'pending_review') AS pending,
@@ -223,6 +242,46 @@ def _labels(row: Mapping[str, Any]) -> tuple[str, str, str]:
     if label is None:
         return row["parameter_key"], row["parameter_key"], "number"
     return label.en, label.me, "number"
+
+
+def _payload_out(row: Mapping[str, Any]) -> ReviewPayload | None:
+    """The stored payload read with its schema version's reader; null for manual / seeded items
+    or a payload no reader takes (logged, the item still lists)."""
+    raw = row.get("payload")
+    if not raw:
+        return None
+    try:
+        staged = read_payload(row.get("schema_version") or raw.get("schema_version") or "", raw)
+    except (UnsupportedSchemaVersion, ValueError) as exc:
+        log.warning("review item %s: unreadable payload (%s)", row.get("id"), exc)
+        return None
+    leaf = staged.leaf
+    ref = leaf.source.table_ref
+    floors = leaf.derived
+    return ReviewPayload(
+        schema_version=staged.schema_version,
+        task=str(staged.task),
+        path=staged.path,
+        field_key=staged.field_key,
+        urban_parcel_number=staged.urban_parcel_number,
+        block_ref=staged.block_ref,
+        stated_value=leaf.stated.value,
+        stated_unit=leaf.stated.unit,
+        value=leaf.value,
+        unit=leaf.unit,
+        normalisation=list(leaf.normalisation),
+        floors=ReviewPayloadFloors(
+            notation=floors.notation,
+            below_ground=floors.below_ground,
+            above_ground=floors.above_ground,
+            attic=floors.attic,
+        )
+        if floors is not None
+        else None,
+        land_use_class=leaf.category.value if leaf.category is not None else None,
+        table=ReviewPayloadTable(**ref.model_dump()) if ref is not None else None,
+        flags=[str(f) for f in leaf.flags],
+    )
 
 
 def _item_out(row: Mapping[str, Any], link: PageLinkOut | None) -> ReviewItem:
@@ -315,6 +374,7 @@ def _item_out(row: Mapping[str, Any], link: PageLinkOut | None) -> ReviewItem:
         published=row["published_value_id"] is not None,
         run_id=row.get("run_id"),
         run=run,
+        payload=_payload_out(row),
         change=row.get("change"),
         previous=previous,
         superseded=row.get("superseded_at") is not None,
@@ -484,20 +544,45 @@ class ReviewService:
     async def amend(self, principal: Principal, item_id: int, payload: AmendIn) -> ReviewItem:
         async with self.session_factory() as session:
             row = await self._item_row(session, item_id)
-            _, _, value_type = _labels(row)
-            amended = _typed_correction(value_type, payload.value)
+            wordings = await self._wordings(session, row)
+            try:
+                correction = check_correction(
+                    row["field_key"],
+                    payload.value,
+                    payload.unit,
+                    conventions=conventions_for(self.municipality_id),
+                    known_wordings=wordings,
+                    confirm_out_of_range=payload.confirm_out_of_range,
+                )
+            except CorrectionRefused as refused:
+                raise _validation_error([refused.problem()]) from None
+            checked = correction.details()
             await self._decide(
                 session,
                 principal,
                 row,
                 "amended",
                 note=payload.note,
-                amended_text=amended[0],
-                amended_number=amended[1],
-                amended_unit=payload.unit,
+                amended_text=correction.text,
+                amended_number=correction.number,
+                amended_unit=correction.unit,
+                extra_details={"correction": checked} if checked else None,
             )
             await session.commit()
         return await self.get_item(item_id)
+
+    async def _wordings(self, session: AsyncSession, row: Mapping[str, Any]) -> list[str]:
+        """For a land-use correction: the wordings the document already uses for the field."""
+        if row["field_key"] != "land_use":
+            return []
+        params = {
+            "m": self.municipality_id,
+            "document_id": row["document_id"],
+            "field_key": row["field_key"],
+        }
+        staged = [r[0] for r in (await session.execute(OPTIONS_SQL, params)).all()]
+        served = [r[0] for r in (await session.execute(PUBLISHED_WORDINGS_SQL, params)).all()]
+        return [w for w in dict.fromkeys([*staged, *served]) if w]
 
     async def reject(self, principal: Principal, item_id: int, note: str) -> ReviewItem:
         async with self.session_factory() as session:
@@ -517,6 +602,7 @@ class ReviewService:
         amended_text: str | None = None,
         amended_number: float | None = None,
         amended_unit: str | None = None,
+        extra_details: Mapping[str, Any] | None = None,
     ) -> None:
         if row["published_value_id"] is not None:
             raise ConflictError(
@@ -592,6 +678,7 @@ class ReviewService:
                 "source_page": row["source_page"],
                 "run_id": row.get("run_id"),
                 "superseded_previous_item_id": retired,
+                **(extra_details or {}),
             },
             before=before,
             after=_snapshot(after_row),
@@ -768,22 +855,6 @@ class ReviewService:
         ]
         total = int(rows[0]["total"]) if rows else 0
         return AuditPage(items=items, total=total, limit=limit, offset=offset)
-
-
-def _typed_correction(value_type: str, value: float | str) -> tuple[str | None, float | None]:
-    """The corrected value must match the parameter's type (numbers stay numbers, texts texts)."""
-    if value_type == "number":
-        if isinstance(value, str):
-            try:
-                value = float(value.replace(",", "."))
-            except ValueError:
-                raise _validation_error(
-                    [{"loc": ["body", "value"], "msg": "this parameter takes a number"}]
-                ) from None
-        return None, float(value)
-    if not isinstance(value, str):
-        raise _validation_error([{"loc": ["body", "value"], "msg": "this parameter takes a text"}])
-    return value, None
 
 
 def _utc(value: datetime) -> datetime:

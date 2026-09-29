@@ -21,6 +21,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from api.schemas.admin import JobOut
+from api.schemas.geometry_review import GeometryBlocker
 from api.schemas.publish import (
     CellClasses,
     LayerInfo,
@@ -36,7 +37,7 @@ from core.auth import Principal
 from core.choropleth import sale_price_stale, stored_classes
 from core.errors import ConflictError, NotFoundError
 from jobs.enqueue import JobDispatcher, enqueue_job
-from jobs.publish_pipeline import PENDING_SQL
+from jobs.publish_pipeline import GEOMETRY_PENDING_SQL, PENDING_SQL
 
 _VERSION_COLUMNS = """
     p.id, p.label, p.is_current, p.published_at, p.published_by, p.formula_version, p.notes,
@@ -178,6 +179,16 @@ class PublishService:
             for r in rows
         ]
 
+    async def geometry_blockers(self, session: AsyncSession) -> list[GeometryBlocker]:
+        from api.services.geometry_review import geometry_blocker
+
+        rows = (
+            (await session.execute(GEOMETRY_PENDING_SQL, {"m": self.municipality_id}))
+            .mappings()
+            .all()
+        )
+        return [geometry_blocker(r) for r in rows]
+
     async def status(self) -> PublishStatus:
         m = self.municipality_id
         async with self.session_factory() as session:
@@ -191,6 +202,7 @@ class PublishService:
                 for r in (await session.execute(PUBLISH_JOBS_SQL, {"m": m})).mappings()
             ]
             blockers = await self.blockers(session)
+            geometry = await self.geometry_blockers(session)
         current = next((v for v in versions if v["is_current"]), None)
         active = next((j for j in jobs if j.status in ("queued", "running", "retrying")), None)
         return PublishStatus(
@@ -198,8 +210,9 @@ class PublishService:
             versions=[self._version_out(v, signed=False) for v in versions],
             active_job=active,
             last_job=jobs[0] if jobs else None,
-            can_publish=not blockers and active is None,
+            can_publish=not blockers and not geometry and active is None,
             blockers=blockers,
+            geometry_blockers=geometry,
             keep_versions=self.keep_versions,
         )
 
@@ -277,17 +290,25 @@ class PublishService:
     async def enqueue(
         self, principal: Principal, *, label: str | None = None, notes: str | None = None
     ) -> EnqueuedJob:
-        """Refuse while any document has items pending review; otherwise one publish job at a
-        time (an identical active job is returned as is)."""
+        """Refuse while any document has items pending review or any staged geometry batch
+        waits for a decision; otherwise one publish job at a time (an identical active job is
+        returned as is)."""
         async with self.session_factory() as session:
             blockers = await self.blockers(session)
-        if blockers:
-            names = ", ".join(f"{b.document_name} ({b.pending})" for b in blockers)
+            geometry = await self.geometry_blockers(session)
+        if blockers or geometry:
+            parts = []
+            if blockers:
+                names = ", ".join(f"{b.document_name} ({b.pending})" for b in blockers)
+                parts.append(f"items pending review in {names}")
+            if geometry:
+                parts.append(f"{len(geometry)} geometry batch(es) waiting for review")
             raise ConflictError(
-                f"Items are still pending review: {names}",
+                "Publishing waits for review: " + "; ".join(parts),
                 details={
                     "reason": "pending_review",
                     "documents": [b.model_dump() for b in blockers],
+                    "geometry": [g.model_dump() for g in geometry],
                 },
             )
 

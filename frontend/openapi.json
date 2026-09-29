@@ -6108,6 +6108,587 @@
         }
       }
     },
+    "/v1/admin/geometry": {
+      "get": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Staged geometry waiting for review",
+        "operationId": "list_geometry_v1_admin_geometry_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "approved",
+                    "rejected"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "origin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "vector_pdf",
+                    "manual_qgis",
+                    "official_gis"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          },
+          {
+            "name": "layer_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 60,
+                  "pattern": "^[a-z_]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Layer Id"
+            }
+          },
+          {
+            "name": "document_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "dataset_version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dataset Version"
+            }
+          },
+          {
+            "name": "qa_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pass",
+                    "warn",
+                    "fail"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qa Status"
+            }
+          },
+          {
+            "name": "include_history",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also published and superseded batches",
+              "default": false,
+              "title": "Include History"
+            },
+            "description": "Also published and superseded batches"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeometryPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/geometry/bulk-approve": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Approve the pending batches of a dataset, a document or given ids",
+        "operationId": "bulk_approve_geometry_v1_admin_geometry_bulk_approve_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeometryBulkApproveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeometryBulkResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown bearer token (`unauthorized`)"
+          },
+          "403": {
+            "description": "The principal's role may not review (`forbidden`)"
+          },
+          "404": {
+            "description": "No such batch (`not_found`)"
+          },
+          "409": {
+            "description": "The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`)"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/geometry/{batch_id}": {
+      "get": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Get Geometry",
+        "operationId": "get_geometry_v1_admin_geometry__batch_id__get",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeometryDraft"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown bearer token (`unauthorized`)"
+          },
+          "403": {
+            "description": "The principal's role may not review (`forbidden`)"
+          },
+          "404": {
+            "description": "No such batch (`not_found`)"
+          },
+          "409": {
+            "description": "The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`)"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/geometry/{batch_id}/features": {
+      "get": {
+        "tags": [
+          "review"
+        ],
+        "summary": "The batch's features for the review preview (simplified GeoJSON)",
+        "operationId": "geometry_features_v1_admin_geometry__batch_id__features_get",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeometryFeatures"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown bearer token (`unauthorized`)"
+          },
+          "403": {
+            "description": "The principal's role may not review (`forbidden`)"
+          },
+          "404": {
+            "description": "No such batch (`not_found`)"
+          },
+          "409": {
+            "description": "The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`)"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/geometry/{batch_id}/approve": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Approve the batch for the next publish",
+        "operationId": "approve_geometry_v1_admin_geometry__batch_id__approve_post",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/GeometryApproveIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeometryDraft"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown bearer token (`unauthorized`)"
+          },
+          "403": {
+            "description": "The principal's role may not review (`forbidden`)"
+          },
+          "404": {
+            "description": "No such batch (`not_found`)"
+          },
+          "409": {
+            "description": "The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`)"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/geometry/{batch_id}/reject": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Reject the batch with a reason; it never publishes (stage the geometry again)",
+        "operationId": "reject_geometry_v1_admin_geometry__batch_id__reject_post",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeometryRejectIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeometryDraft"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown bearer token (`unauthorized`)"
+          },
+          "403": {
+            "description": "The principal's role may not review (`forbidden`)"
+          },
+          "404": {
+            "description": "No such batch (`not_found`)"
+          },
+          "409": {
+            "description": "The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`)"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/auth/magic-link": {
       "post": {
         "tags": [
@@ -7324,24 +7905,27 @@
             "title": "Unit"
           },
           "note": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note",
+            "description": "What was wrong (required, not blank)"
+          },
+          "confirm_out_of_range": {
+            "type": "boolean",
+            "title": "Confirm Out Of Range",
+            "description": "Keep a number outside the field's usual range (the plan really says so)",
+            "default": false
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "value"
+          "value",
+          "note"
         ],
-        "title": "AmendIn"
+        "title": "AmendIn",
+        "description": "A correction, checked with the extraction contract's rules\n(``core.extraction.corrections``): numbers in the document's conventions and the field's unit\n(ha for an area is converted), impossible values refused, a value outside the field's usual\nrange only with ``confirm_out_of_range``, floors in the plan's notation, a land use the\ndocument or the profile knows. 422 ``validation_error`` with the rule's ``type`` otherwise."
       },
       "AnalyticsDashboard": {
         "properties": {
@@ -13132,6 +13716,677 @@
           "kind"
         ],
         "title": "GeocodeResult"
+      },
+      "GeometryApproveIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GeometryApproveIn"
+      },
+      "GeometryBlocker": {
+        "properties": {
+          "batch_id": {
+            "type": "integer",
+            "title": "Batch Id"
+          },
+          "layer_id": {
+            "type": "string",
+            "title": "Layer Id"
+          },
+          "layer_label": {
+            "type": "string",
+            "title": "Layer Label"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "document_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Name"
+          },
+          "dataset_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Version"
+          },
+          "qa_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "warn",
+                  "fail"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qa Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "layer_id",
+          "layer_label"
+        ],
+        "title": "GeometryBlocker",
+        "description": "A staged batch still waiting for a decision: publishing waits for it."
+      },
+      "GeometryBulkApproveIn": {
+        "properties": {
+          "batch_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array",
+                "maxItems": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Ids"
+          },
+          "dataset_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Version"
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GeometryBulkApproveIn",
+        "description": "Approve the pending batches of one producing dataset, one document, or given ids."
+      },
+      "GeometryBulkResult": {
+        "properties": {
+          "approved": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Approved"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/GeometryBulkSkipped"
+            },
+            "type": "array",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approved",
+          "skipped"
+        ],
+        "title": "GeometryBulkResult"
+      },
+      "GeometryBulkSkipped": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "not_found",
+              "not_pending",
+              "qa_failed",
+              "not_open"
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reason"
+        ],
+        "title": "GeometryBulkSkipped"
+      },
+      "GeometryCounts": {
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "title": "Pending",
+            "description": "Staged, waiting for a decision (they block publishing)"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved",
+            "description": "Staged and approved: the next publish applies them"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "failing": {
+            "type": "integer",
+            "title": "Failing",
+            "description": "Pending batches whose QA fails: reject and stage again"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending",
+          "approved",
+          "rejected",
+          "failing"
+        ],
+        "title": "GeometryCounts"
+      },
+      "GeometryDatasetRef": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "georef",
+              "zones",
+              "cadastre"
+            ],
+            "title": "Kind"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "version",
+          "status"
+        ],
+        "title": "GeometryDatasetRef"
+      },
+      "GeometryDocumentRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "short_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Code"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "GeometryDocumentRef"
+      },
+      "GeometryDraft": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "layer_id": {
+            "type": "string",
+            "title": "Layer Id"
+          },
+          "layer_label": {
+            "type": "string",
+            "title": "Layer Label"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "vector_pdf",
+                  "manual_qgis",
+                  "official_gis"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin",
+            "description": "Null for a batch staged before geometry review (0033)"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "staged",
+              "published",
+              "superseded",
+              "rejected"
+            ],
+            "title": "Status",
+            "description": "The batch's life: staged (waiting for a publish), published, superseded by a newer run, rejected (final: stage the geometry again)"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "approved",
+                  "rejected"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Status",
+            "description": "Null = published before geometry review"
+          },
+          "feature_count": {
+            "type": "integer",
+            "title": "Feature Count"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeometryDocumentRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeometryDatasetRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dataset_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Version",
+            "description": "The producing run's label as the batch records it"
+          },
+          "produced_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Produced By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "qa_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "warn",
+                  "fail"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qa Status",
+            "description": "Null = not checked yet (checked when approved)"
+          },
+          "qa_issues": {
+            "items": {
+              "$ref": "#/components/schemas/QaIssueOut"
+            },
+            "type": "array",
+            "title": "Qa Issues"
+          },
+          "bbox": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox",
+            "description": "[west, south, east, north]"
+          },
+          "reviewed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed By"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "published_version_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Version Id"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "georeference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeoreferenceOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The georeferencing run that staged it: fit, snapping, checks"
+          },
+          "can_approve": {
+            "type": "boolean",
+            "title": "Can Approve"
+          },
+          "approve_blocker": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "qa_failed",
+                  "published",
+                  "superseded",
+                  "rejected"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approve Blocker",
+            "description": "Why it cannot be approved now"
+          },
+          "can_reject": {
+            "type": "boolean",
+            "title": "Can Reject"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "layer_id",
+          "layer_label",
+          "status",
+          "feature_count",
+          "created_at",
+          "can_approve",
+          "can_reject"
+        ],
+        "title": "GeometryDraft",
+        "description": "One staged geometry batch: one layer of one producing run (a georeferenced plan or GIS\ndrawing, a zone import, a cadastral import)."
+      },
+      "GeometryFeatures": {
+        "properties": {
+          "batch_id": {
+            "type": "integer",
+            "title": "Batch Id"
+          },
+          "layer_id": {
+            "type": "string",
+            "title": "Layer Id"
+          },
+          "bbox": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bbox"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "features": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Features",
+            "description": "GeoJSON FeatureCollection (EPSG:4326)"
+          },
+          "gaps": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Gaps",
+            "description": "[lng, lat, m²]"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "layer_id",
+          "total",
+          "truncated",
+          "features"
+        ],
+        "title": "GeometryFeatures",
+        "description": "The batch's features for the review preview: simplified geometry, a label, the issue codes\nthat name them; plus the gap locations of its QA."
+      },
+      "GeometryPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GeometryDraft"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/GeometryCounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "counts"
+        ],
+        "title": "GeometryPage"
+      },
+      "GeometryRejectIn": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Note",
+            "description": "The reason (not blank)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "title": "GeometryRejectIn"
       },
       "GeoreferenceOut": {
         "properties": {
@@ -19280,6 +20535,14 @@
             "title": "Blockers",
             "description": "Documents with items pending review"
           },
+          "geometry_blockers": {
+            "items": {
+              "$ref": "#/components/schemas/GeometryBlocker"
+            },
+            "type": "array",
+            "title": "Geometry Blockers",
+            "description": "Staged geometry batches waiting for the reviewer's decision"
+          },
           "keep_versions": {
             "type": "integer",
             "title": "Keep Versions",
@@ -19502,6 +20765,78 @@
         ],
         "title": "PublishVersionOut"
       },
+      "QaIssueOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "invalid_geometry | empty_geometry (errors), overlap | gap | area_deviation (warnings), or the producing dataset's warning as <kind>.<code>"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Severity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "One sentence for the console (English)"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Features",
+            "description": "What to look at: feature keys, pairs, parcel lines"
+          },
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keys",
+            "description": "The feature keys concerned"
+          },
+          "locations": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Locations",
+            "description": "[lng, lat, m²] of each gap listed"
+          },
+          "area_m2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area M2"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message",
+          "count"
+        ],
+        "title": "QaIssueOut"
+      },
       "RangeValue": {
         "properties": {
           "low": {
@@ -19683,7 +21018,7 @@
             "maxLength": 2000,
             "minLength": 1,
             "title": "Note",
-            "description": "The reason"
+            "description": "The reason (not blank)"
           }
         },
         "additionalProperties": false,
@@ -20093,6 +21428,17 @@
             ],
             "description": "That run's job and cost"
           },
+          "payload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewPayload"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The staged payload: as printed and how it was normalised"
+          },
           "change": {
             "anyOf": [
               {
@@ -20244,6 +21590,230 @@
           "offset"
         ],
         "title": "ReviewPage"
+      },
+      "ReviewPayload": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version"
+          },
+          "task": {
+            "type": "string",
+            "title": "Task",
+            "description": "The extraction task that read it, e.g. parameter_table"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "Where in the canonical result the value sits"
+          },
+          "field_key": {
+            "type": "string",
+            "title": "Field Key"
+          },
+          "urban_parcel_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urban Parcel Number"
+          },
+          "block_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Ref"
+          },
+          "stated_value": {
+            "type": "string",
+            "title": "Stated Value",
+            "description": "The value exactly as printed"
+          },
+          "stated_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stated Unit",
+            "description": "How the unit was printed"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Value",
+            "description": "The canonical value the validator made of it"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "normalisation": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Normalisation",
+            "description": "Rules applied, in order: decimal_comma, ratio_to_percent"
+          },
+          "floors": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewPayloadFloors"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Counted from the plan's floor notation"
+          },
+          "land_use_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Land Use Class",
+            "description": "The product-wide land-use class of the wording"
+          },
+          "table": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewPayloadTable"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Flags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schema_version",
+          "task",
+          "path",
+          "field_key",
+          "stated_value",
+          "value"
+        ],
+        "title": "ReviewPayload",
+        "description": "The staged payload of an extracted item (``planning_parameter_extractions.payload``, read\nwith the reader of its schema version): the value as the document printed it, the\ncontract's normalisation rules, the derived floor count or land-use class, the table cell.\nNull for manual and seeded items."
+      },
+      "ReviewPayloadFloors": {
+        "properties": {
+          "notation": {
+            "type": "string",
+            "title": "Notation"
+          },
+          "below_ground": {
+            "type": "integer",
+            "title": "Below Ground"
+          },
+          "above_ground": {
+            "type": "integer",
+            "title": "Above Ground"
+          },
+          "attic": {
+            "type": "integer",
+            "title": "Attic"
+          }
+        },
+        "type": "object",
+        "required": [
+          "notation",
+          "below_ground",
+          "above_ground",
+          "attic"
+        ],
+        "title": "ReviewPayloadFloors"
+      },
+      "ReviewPayloadTable": {
+        "properties": {
+          "table": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row",
+            "description": "Row label as printed, e.g. 'UP 12'"
+          },
+          "column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column",
+            "description": "Column header as printed"
+          },
+          "cell": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cell",
+            "description": "Grid cell id, e.g. 'r4c11'"
+          }
+        },
+        "type": "object",
+        "title": "ReviewPayloadTable"
       },
       "ReviewPrevious": {
         "properties": {

@@ -9,9 +9,11 @@
  * serves. "Rollback to previous" asks for confirmation first. Corrected values reach the map only
  * after a publish, and the header says so.
  */
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { relativeTime } from "@/lib/admin/format";
+import { blockersText } from "@/lib/admin/publish";
 import { progressOf } from "@/lib/admin/review";
 import { publishAction, publishStatusAction, rollbackAction } from "@/lib/admin/review-actions";
 import type { PublishStatus, ReviewCounters } from "@/lib/api/types";
@@ -73,6 +75,8 @@ export function PublishPanel({
   };
 
   const others = (status?.blockers ?? []).filter((b) => b.document_id !== counters?.document_id);
+  const geometry = status?.geometry_blockers ?? [];
+  const waiting = blockersText(others, geometry);
   const current = status?.current ?? null;
   const previous = current ? (status?.versions ?? []).find((v) => v.id === current.previous_version_id) : null;
   const last = status?.last_job ?? null;
@@ -111,8 +115,8 @@ export function PublishPanel({
           <button
             type="button"
             className="abtn"
-            disabled={busy || !!active || others.length > 0}
-            title={others.length ? `Publishing waits for: ${others.map((b) => `${b.document_name} (${b.pending} pending)`).join(", ")}` : "Publish every document's approved values as a new data version"}
+            disabled={busy || !!active || waiting != null}
+            title={waiting ?? "Publish every document's approved values and approved geometry as a new data version"}
             onClick={() => void publish()}
           >
             {active ? "Publishing…" : "Publish"}
@@ -159,6 +163,12 @@ export function PublishPanel({
         )}
         {others.length > 0 && counters && progress.pending === 0 && (
           <span className="rsub"> · waiting for {others.length} other document{others.length === 1 ? "" : "s"} with pending items</span>
+        )}
+        {geometry.length > 0 && counters && progress.pending === 0 && (
+          <span className="rsub">
+            {" "}
+            · waiting for {geometry.length} geometry batch{geometry.length === 1 ? "" : "es"} (<Link href="/admin/review/geometry">review</Link>)
+          </span>
         )}
         <span className="rsub rmapnote"> Corrected values reach the map only after a publish.</span>
       </div>

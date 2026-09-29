@@ -38,6 +38,8 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.geometry_qa import GEOREF_ORIGINS, run_batches_qa
+
 SNAPPED = ("urban_parcels", "urban_blocks")
 GENERIC = (("planned_land_use", "land_use"),)
 OVERLAP_MIN_M2 = 1.0
@@ -226,8 +228,8 @@ SUPERSEDE_BATCH_SQL = text(
 BATCH_SQL = text(
     """
     INSERT INTO geometry_batches (municipality_id, layer_id, status, feature_count, produced_by,
-                                  qa_report)
-    VALUES (:m, :layer, 'staged', 0, :by, CAST(:qa AS jsonb))
+                                  qa_report, origin, document_id, dataset_version)
+    VALUES (:m, :layer, 'staged', 0, :by, CAST(:qa AS jsonb), :origin, :d, :label)
     RETURNING id
     """
 )
@@ -741,7 +743,15 @@ async def stage_document(
         batch_id = (
             await session.execute(
                 BATCH_SQL,
-                {"m": municipality_id, "layer": layer_id, "by": f"georef:{imported_by}", "qa": qa},
+                {
+                    "m": municipality_id,
+                    "layer": layer_id,
+                    "by": f"georef:{imported_by}",
+                    "qa": qa,
+                    "origin": GEOREF_ORIGINS.get(source, "vector_pdf"),
+                    "d": document_id,
+                    "label": label,
+                },
             )
         ).scalar_one()
         batches[layer_id] = batch_id
@@ -794,6 +804,14 @@ async def stage_document(
             },
         )
     ).scalar_one()
+    # topology QA of every batch: the reviewer decides on it before a publish applies it
+    await run_batches_qa(
+        session,
+        list(batches.values()),
+        municipality_id=municipality_id,
+        srid=metric_srid,
+        parcel_abbreviation=parcel_prefix,
+    )
     return StageOutcome(
         dataset_id,
         label,

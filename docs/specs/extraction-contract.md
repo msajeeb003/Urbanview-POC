@@ -192,7 +192,25 @@ identity, block areas, public-area relation, other conditions, utilities, legend
 extraction result), values whose parcel / block has no geometry yet, missing counts by reason.
 
 `GET /v1/admin/review` items carry `flags`, `schema_version`, `prompt_version` and
-`source.extraction_method`; `?flag=low_confidence` filters.
+`source.extraction_method`; `?flag=low_confidence` filters. Each item also carries its
+`payload` read with its version's reader (A2 check of 2026-09-29): the value as printed
+(`stated_value`, `stated_unit`), the canonical value and unit, the `normalisation` rules, the
+counted `floors`, the `land_use_class` and the `table` cell, so the reviewer sees what the
+contract did to the printed text.
+
+**A reviewer's correction follows the same rules** (`core/extraction/corrections.py`,
+`check_correction`): a number is parsed in the document's conventions (`parse_number`: "2,5",
+"1.906,09", "40 %") and normalised to the field's canonical unit (`normalise_number`: ha → m² is
+the only conversion); an impossible value is refused (below the field's minimum or at an
+exclusive one, a percentage above 100); a value above the field's plausible maximum
+(`FIELD_SPECS`) needs `confirm_out_of_range`; floors must parse with the profile's floor tokens
+(`parse_floors`); a land use must be a wording the document already uses (its items or served
+values, matched without case or accents) or one the profile's land-use terms classify; other texts
+are trimmed and bounded (500). A refusal is one 422 problem `{loc, msg, type, ctx}` with the rule
+(`not_a_number`, `below_minimum`, `above_maximum`, `out_of_range`, `unit_not_accepted`,
+`unknown_floor_notation`, `unknown_land_use`, `not_a_text`, `too_long`); the audit row of an
+accepted correction records the rules applied and a confirmed out-of-range value. Notes are
+trimmed: an amend note and a rejection reason are required and a note of spaces is no note.
 
 **Stored items stay readable**: `read_payload(schema_version, payload)` uses the reader of the
 payload's major version (`PAYLOAD_READERS`); a minor version only adds. A frozen 1.0 item

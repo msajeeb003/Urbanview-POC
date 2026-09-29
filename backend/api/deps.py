@@ -14,6 +14,7 @@ from api.services.cadastral_municipalities import CadastralMunicipalityService
 from api.services.email import EmailService
 from api.services.engine_proposals import EngineProposalService
 from api.services.geocode import GeocodeService
+from api.services.geometry_review import GeometryReviewService
 from api.services.jobs import JobService
 from api.services.market import MarketService
 from api.services.orders import OrderService
@@ -293,6 +294,18 @@ def get_review_service(request: Request) -> ReviewService:
 
 
 ReviewServiceDep = Annotated[ReviewService, Depends(get_review_service)]
+
+
+def get_geometry_review_service(request: Request) -> GeometryReviewService:
+    service = getattr(request.app.state, "geometry_review_service", None)
+    if service is None:
+        raise ServiceUnavailableError(
+            "The geometry review needs the planning database (LOCATION_RESOLVER=postgis)"
+        )
+    return service
+
+
+GeometryReviewServiceDep = Annotated[GeometryReviewService, Depends(get_geometry_review_service)]
 
 
 def get_market_service(request: Request) -> MarketService:

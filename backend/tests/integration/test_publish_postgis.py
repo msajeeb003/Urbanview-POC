@@ -200,6 +200,19 @@ async def fields_of(client, parcel_id: int) -> tuple[dict[str, dict], dict]:
     return {f["key"]: f for f in body["planning"]["fields"]}, body
 
 
+async def approve_geometry(client, token: str = REVIEWER) -> list[int]:
+    """Geometry review (0033): staged batches publish only once a reviewer approved them."""
+    listing = await client.get(
+        "/v1/admin/geometry", params={"status": "pending", "limit": 200}, headers=auth(token)
+    )
+    assert listing.status_code == 200, listing.text
+    approved = [draft["id"] for draft in listing.json()["items"]]
+    for batch_id in approved:
+        r = await client.post(f"/v1/admin/geometry/{batch_id}/approve", headers=auth(token))
+        assert r.status_code == 200, r.text
+    return approved
+
+
 async def rows(app, sql: str, **params) -> list[dict]:
     async with app.state.session_factory() as session:
         return [dict(r) for r in (await session.execute(text(sql), params)).mappings()]
@@ -256,7 +269,9 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
         tiles_now = await client.get("/v1/tiles/current")
         status = await client.get("/v1/admin/publish", headers=auth())
         closed = await client.post(
-            f"/v1/admin/review/{item}/amend", json={"value": 3.6}, headers=auth()
+            f"/v1/admin/review/{item}/amend",
+            json={"value": 3.6, "note": "too late"},
+            headers=auth(),
         )
         job_row = await client.get(job["status_url"], headers=auth(ADMIN))
 
@@ -522,6 +537,7 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
             "land_use",
             [("lu-1", SQUARE, {"code": "S", "name": "Stanovanje", "category": "residential"})],
         )
+        assert sorted(await approve_geometry(client)) == [cadastral_batch, land_use_batch]
         first = (await publish(client, "test-geo-1"))["result"]
         (inserted,) = await rows(
             app,
@@ -533,6 +549,7 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
             "cadastral_parcels",
             [("Test KO|77|", SQUARE_MOVED, {**parcel, "street_address": "Nova 2"})],
         )
+        assert len(await approve_geometry(client)) == 1
         second = (await publish(client, "test-geo-2"))["result"]
         (updated,) = await rows(
             app,

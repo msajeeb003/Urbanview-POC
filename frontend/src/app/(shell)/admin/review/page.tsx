@@ -6,7 +6,7 @@ import { guard } from "@/lib/admin/guard";
 import { parseReviewFilters, reviewQuery } from "@/lib/admin/review";
 import { canOpen } from "@/lib/admin/sections";
 import { api } from "@/lib/api/endpoints";
-import type { PublishStatus, ReviewCounters, ReviewPage, ZoneIndex } from "@/lib/api/types";
+import type { GeometryPage, PublishStatus, ReviewCounters, ReviewPage, ZoneIndex } from "@/lib/api/types";
 
 async function orNull<T>(load: () => Promise<T>): Promise<T | null> {
   try {
@@ -38,9 +38,10 @@ export default async function ReviewQueuePage({
     if (err instanceof AdminAccessDenied) return null;
     return <AdminUnavailable what="AI extraction — review queue" />;
   }
-  const [publish, zones] = await Promise.all([
+  const [publish, zones, geometry] = await Promise.all([
     orNull(() => adminGet<PublishStatus>("/v1/admin/publish")),
     orNull<ZoneIndex>(() => api.zones({ timeoutMs: 3000 })),
+    orNull(() => adminGet<GeometryPage>("/v1/admin/geometry", { limit: 1 })),
   ]);
   return (
     <ReviewScreen
@@ -50,6 +51,7 @@ export default async function ReviewQueuePage({
       counters={counters}
       zones={zoneOptions(zones?.zones)}
       publish={publish}
+      geometryPending={geometry?.counts.pending ?? null}
       me={access.staff.email ?? access.staff.name ?? access.staff.role}
       canPublish={canOpen(access.staff.role, "publish")}
     />

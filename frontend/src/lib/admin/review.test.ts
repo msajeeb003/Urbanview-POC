@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ReviewCounters, ReviewItem } from "@/lib/api/types";
 
 import {
+  correctionRefusal,
   countAfter,
   editorFor,
   explainReviewProblem,
@@ -11,6 +12,7 @@ import {
   nextPending,
   parseCorrection,
   parseReviewFilters,
+  payloadLines,
   progressOf,
   reviewHrefFor,
   reviewQuery,
@@ -132,5 +134,58 @@ describe("filters and refusals", () => {
     expect(explainReviewProblem({ status: 409, details: { reason: "published" } })).toMatch(/published/);
     expect(explainReviewProblem({ status: 409, details: { reason: "superseded" } })).toMatch(/newer reading/);
     expect(explainReviewProblem({ status: 0 })).toMatch(/did not answer/);
+  });
+
+  it("a refused correction says which contract rule it broke", () => {
+    const refused = {
+      status: 422,
+      details: [{ loc: ["body", "value"], msg: "999 is outside the usual range for this field (0–20); confirm it if the plan really says so.", type: "out_of_range", ctx: { minimum: 0, maximum: 20 } }],
+    };
+    expect(correctionRefusal(refused)).toEqual({ code: "out_of_range", message: refused.details[0].msg });
+    expect(explainReviewProblem(refused)).toMatch(/usual range/);
+    expect(correctionRefusal({ status: 409, details: { reason: "published" } })).toBeNull();
+  });
+});
+
+describe("the staged payload", () => {
+  it("reads as printed, normalised, floors, class and table cell", () => {
+    const lines = payloadLines({
+      schema_version: "1.0",
+      task: "parameter_table",
+      path: "urban_parcels[UP 12].rules.max_site_coverage_pct",
+      field_key: "max_site_coverage_pct",
+      stated_value: "0,40",
+      stated_unit: "ratio",
+      value: 40,
+      unit: "%",
+      normalisation: ["decimal_comma", "ratio_to_percent"],
+      floors: null,
+      land_use_class: null,
+      table: { table: "p1t1", row: "UP 12", column: "IZ", cell: "r2c5" },
+      flags: [],
+    });
+    expect(lines).toEqual([
+      { label: "As printed", text: "“0,40” (ratio)" },
+      { label: "Normalised", text: "40 % · decimal comma, ratio → %" },
+      { label: "Table cell", text: "table p1t1 · row UP 12 · column IZ · cell r2c5" },
+    ]);
+    const floors = payloadLines({
+      schema_version: "1.0",
+      task: "parameter_table",
+      path: "urban_parcels[UP 1].rules.max_floors",
+      field_key: "max_floors",
+      stated_value: "Po+P+6",
+      value: "Po+P+6",
+      normalisation: [],
+      floors: { notation: "Po+P+6", below_ground: 1, above_ground: 7, attic: 0 },
+      land_use_class: null,
+      table: null,
+      flags: [],
+    });
+    expect(floors).toEqual([
+      { label: "As printed", text: "“Po+P+6”" },
+      { label: "Floors", text: "Po+P+6: 1 below ground, 7 above" },
+    ]);
+    expect(payloadLines(null)).toEqual([]);
   });
 });

@@ -28,6 +28,7 @@ from api.services.cadastral_municipalities import CadastralMunicipalityService
 from api.services.email import EmailService
 from api.services.engine_proposals import EngineProposalService
 from api.services.geocode import GeocodeService
+from api.services.geometry_review import GeometryReviewService
 from api.services.jobs import JobService
 from api.services.market import MarketService
 from api.services.orders import OrderService
@@ -215,6 +216,9 @@ def create_app(
                 municipality=municipality,
                 link_expires_in_seconds=settings.source_url_expires_seconds,
             )
+            app.state.geometry_review_service = GeometryReviewService(
+                app.state.session_factory, municipality=municipality
+            )
             app.state.market_service = MarketService(
                 app.state.session_factory,
                 storage=app.state.storage,
@@ -286,6 +290,7 @@ def create_app(
     app.state.magic_link_service = None
     app.state.admin_config_service = None
     app.state.review_service = None
+    app.state.geometry_review_service = None
     app.state.order_service = None
     # Orders: the payment seam (bank transfer in the POC; a card provider plugs in here).
     # Transactional mail is a job (jobs.tasks.email) queued by EmailService below.

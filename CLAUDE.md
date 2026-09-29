@@ -669,11 +669,26 @@ the POC check of Group 2 asked for it).
   dictionary's unit) and `run` (its extraction run's job id, model version, whole-run cost and
   items written); `GET /v1/admin/review/options?document_id=&field_key=` lists the wordings the
   document's items already carry for a text field, most frequent first (the land-use select of
-  a correction). Tests: `tests/integration/test_review_queue_postgis.py`.
+  a correction). Each item also carries its staged `payload` (A2 check 2026-09-29), read with its
+  schema version's reader: the value as printed (`stated_value` / `stated_unit`), the canonical
+  value and unit, the `normalisation` rules, the counted `floors`, the `land_use_class`, the
+  `table` cell (null for manual and seeded items). Tests:
+  `tests/integration/test_review_queue_postgis.py`.
 - **Decisions never overwrite the AI value.** `POST .../approve` accepts it, `.../amend`
-  (`{value, unit?, note?}`, typed to the parameter: numbers stay numbers, texts texts) stores
-  the correction alongside and sets `amended`, `.../reject` (`{note}` required) keeps it out
-  and clears any correction. Any decision may be revised while the item is unpublished; an item
+  (`{value, unit?, note, confirm_out_of_range?}`) stores the correction alongside and sets
+  `amended`, `.../reject` (`{note}` required) keeps it out and clears any correction. **A
+  correction is checked with the extraction contract's rules** (`core/extraction/corrections.py`,
+  A2 check 2026-09-29: "a non-numeric FAR or an unknown land use is rejected"): numbers in the
+  document's conventions ("2,5", "1.906,09", "40 %") normalised to the field's canonical unit (ha →
+  m² the only conversion); impossible values refused (below the field's minimum, a percentage
+  above 100); a value above the field's plausible maximum (`FIELD_SPECS`: FAR 20, height 300 m …)
+  only with `confirm_out_of_range`; floors in the plan's notation with the profile's tokens; a land
+  use the document already uses (its items or served values) or the profile's land-use terms
+  classify; texts trimmed, ≤ 500. A refusal is a 422 whose one problem names the rule (`type`
+  not_a_number | below_minimum | above_maximum | out_of_range | unit_not_accepted |
+  unknown_floor_notation | unknown_land_use | not_a_text | too_long, `ctx`); the audit row records
+  the rules applied (`details.correction`). Notes are trimmed: the amend note and the rejection
+  reason are required, a note of spaces is none (422). Any decision may be revised while the item is unpublished; an item
   with `published_value_id` is closed (409), so is a superseded one (409 `superseded`). Items of
   extraction runs carry `run_id`, `change` + `previous` (the previous run's item for the target
   and field) and `target.label` / `target.matched` (unmatched parcels stay text references);
@@ -692,10 +707,36 @@ the POC check of Group 2 asked for it).
   and new figures, users, documents, coverage, jobs, files; order status joins when the
   payment item lands). `GET /v1/admin/audit` (admin, reviewer) filters by entity type / id,
   actor, action prefix and time. Test fixtures never delete audit rows.
-- Tests: `tests/test_review_unit.py` (payloads, typed corrections, publish rule, page links) and
+- **Geometry review** (`api/services/geometry_review.py`, `api/routers/v1/admin_geometry.py`,
+  `core/geometry_qa.py`, migration 0033; the pilot scope's `staging.geometry_draft`, A2 check
+  2026-09-29): staged geometry is reviewed like the values before the publish job may apply it.
+  A draft is one staged batch (one layer of one producing run) with its `origin` (`vector_pdf`
+  georeferenced sheets, `manual_qgis` QGIS redraws and the zones, `official_gis` a supplied GIS
+  drawing and the cadastre), `document_id`, `dataset_version`, and topology QA computed when it is
+  staged (georeferencing, zone and cadastral staging call `run_batch_qa`): errors
+  `invalid_geometry` / `empty_geometry` (`qa_status` fail: it cannot be approved), warnings
+  `overlap` (pairs sharing ≥ 1 m², the locate threshold), `gap` (holes of the union below
+  `GAP_MAX_M2` 50 m²: slivers), `area_deviation` (planned parcels whose drawn area differs from the
+  plan's stated area by > 5 %: the document's staged item, else the served value) and the run's own
+  warnings (`georef.*`, `zones.*`, `cadastre.*`); `qa_issues` carry a sentence, counts, the feature
+  keys and gap locations. `GET /v1/admin/geometry` (admins, reviewers; filters status, origin,
+  layer, document, dataset, QA; `include_history`; `counts` pending / approved / rejected /
+  failing), `GET .../{id}`, `GET .../{id}/features` (simplified GeoJSON for the console's preview,
+  each feature with the issue codes naming it, the gaps), `POST .../{id}/approve` (409
+  `qa_failed`; a batch staged before 0033 is checked on its first approval), `POST
+  .../{id}/reject {note}` (final: status `rejected`, never published or carried; fix and stage
+  again), `POST .../bulk-approve {dataset_version | document_id | batch_ids}` (skips failing
+  ones); audited `geometry.approve` / `geometry.reject` (entity `geometry_batch`, before / after).
+  `python -m core.geometry_qa check | recheck [--batch N]` prints / stores the QA. Batches published
+  or superseded before 0033 have `review_state` null.
+- Tests: `tests/test_review_unit.py` (payloads, notes, the staged payload, publish rule, page
+  links), `tests/test_corrections_unit.py` (the correction rules) and
   `tests/integration/test_review_postgis.py` (queue payload, transitions with audit before /
-  after, bulk approval, counters, append-only enforcement, audit listing, contract rows with
-  flags and the flag filter).
+  after, the contract's rules through the API, bulk approval, counters, append-only enforcement,
+  audit listing, contract rows with flags and the flag filter),
+  `tests/integration/test_geometry_review_postgis.py` (QA of overlaps, gaps, area deviation and
+  invalid geometry, the queue and preview, decisions with audit and roles, publish waiting for and
+  applying approved geometry only, bulk approval).
 
 ## AI extraction contract (`backend/core/extraction/`, `docs/specs/extraction-contract.md`)
 
@@ -1179,15 +1220,19 @@ the POC check of Group 2 asked for it).
 
 - **One button.** `POST /v1/admin/publish` (roles admin, reviewer; body `{label?, notes?}`)
   refuses with 409 `reason = pending_review` and `details.documents` (id, name, pending count)
-  while any document has items pending review; otherwise it queues one `publish_approved` job
+  and `details.geometry` (staged batches waiting for the geometry review) while any document has
+  items pending review or any staged geometry waits for a decision; otherwise it queues one
+  `publish_approved` job
   (202; 200 with the active job while one is queued / running: key
   `publish_approved:publish_run:-`, `max_attempts = 1`). `GET /v1/admin/publish` is the status
   screen: `current` (label, who, when, counts, layers, signed archive link), `versions` (newest
   first), `active_job` / `last_job` with `progress` (`step` + one entry per step: pending |
-  running | done | failed, timestamps, detail), `can_publish`, `blockers`, `keep_versions`.
+  running | done | failed, timestamps, detail), `can_publish`, `blockers`,
+  `geometry_blockers`, `keep_versions`.
 - **The job** (`PublishPipeline.run`, one database transaction from preflight to flip, so
   visitors see the previous version until the commit and a failure leaves nothing behind):
-  `preflight` (pending items = hard failure; superseded items never count or publish) →
+  `preflight` (pending items or geometry pending review = hard failure; superseded items never
+  count or publish) →
   `version` (new `publish_versions` row, not
   current) → `values` (the previous version's `planning_parameter_values` carried forward for
   current document versions, overridden by approved / amended items: amended value wins, unit
@@ -1196,7 +1241,8 @@ the POC check of Group 2 asked for it).
   listed in `result.skipped_items` and stay open; `market_data` items are not published yet;
   expert-rejected fields that nothing replaced become `planning_value_gaps` rows of the version,
   counted as `values_rejected`, so the parcel panel can say `rejected` without reading staging)
-  → `geometry` (staged batches, see below) → `links` (`parcel_links`: cadastral ↔ planned
+  → `geometry` (the staged batches a reviewer approved, see below) → `links` (`parcel_links`:
+  cadastral ↔ planned
   overlaps with locate's thresholds, `rank 1` = the panel's primary: largest overlap, smallest
   planned area, lowest id, the relation of every cadastral parcel, `none` rows; the step reports
   `cadastral_unmatched`, the parcels per relation and the recompute time, stored on the version
@@ -1229,7 +1275,10 @@ the POC check of Group 2 asked for it).
   feature's `zone_type` property (invalid values ignored).
 - **Staged geometry** (`geometry_batches` + `staging_geometry`, the GIS ingestion contract in
   `STAGED_LAYERS`): one batch per (file, layer) with `status = staged`; features carry a natural
-  `feature_key` and JSON `properties`. Entity layers are upserted by natural key so UrbanView
+  `feature_key` and JSON `properties`. Since 0033 a batch carries `origin`, `qa_status` /
+  `qa_issues` and a reviewer's decision (`review_state` pending_review | approved | rejected, see
+  "Geometry review"); the geometry step applies approved batches only and a rejected batch leaves
+  the staged pool (status `rejected`), so the land-use carry-forward never picks it up. Entity layers are upserted by natural key so UrbanView
   ids stay stable (cadastral: KO + number + sub-number; urban parcels: document + number, block
   by `block_ref`; blocks: `block_ref`; zones: `name`; `document_coverage`: `document_id` →
   `coverage_geom`); no deletes. The generic layer (`land_use`; planned traffic is an MVP layer,
@@ -1351,7 +1400,9 @@ the POC check of Group 2 asked for it).
   them; the console's "Zones from QGIS" card drives it. The CLI also exports `zones.geojson` (4326) and the normalised
   `zone_documents.csv` to version (in the private data repository: `.gitignore` keeps `data/`
   out of this public one).
-- **Publish:** the publish job's `geometry` step upserts zones by `zone_key` (new column; a legacy
+- **Publish:** once a reviewer approved the zones batch in the geometry review (origin
+  `manual_qgis`, QA validity, overlaps, gaps), the publish job's `geometry` step upserts zones by
+  `zone_key` (new column; a legacy
   row with the same name takes the key once; the dataset's attributes replace the zone's) and then
   `apply_zone_datasets` updates matched documents (zone, status, type, source, registry id,
   adoption date; never the registered name or files) or registers new ones (no file, not live, no
@@ -1392,7 +1443,9 @@ the POC check of Group 2 asked for it).
   `--accept-large-change`. `cadastral_datasets` rows (staged | invalid | published | superseded)
   and batches are never deleted. Reports `report.md` / `report.json` / `diff.csv` in
   `data/cadastre/<m>/<version>/`.
-- **Publish** applies it (`UPSERT_SQL`, `dataset.apply_cadastral_datasets`): parcels upserted by
+- **Publish** applies it once a reviewer approved its two batches in the geometry review
+  (origin `official_gis`, QA validity + overlaps) (`UPSERT_SQL`,
+  `dataset.apply_cadastral_datasets`): parcels upserted by
   (KO, number, sub-number), stable ids; parcels of the dataset's KOs missing from it get
   `retired_at` / `retired_dataset_version` (kept for references, never served: locate, tiles,
   links, panel counts, overview and zone reports filter `retired_at IS NULL`); KO table refreshed;
@@ -1450,8 +1503,9 @@ the POC check of Group 2 asked for it).
   geometry job, method `native`, `rmse_m` null), CRS, method, transform JSON with residuals,
   `rmse_m`, `max_residual_m`, `points_used`, `sheets` per-sheet RMSE, `snap` (+ overlap),
   `validation`, `batches`, `output_sha256`, `gpkg_key`); a newer staged run supersedes the
-  document's staged one; the publish job's geometry step publishes a dataset once its batches
-  are applied (`apply_georef_datasets`, the previous published one superseded). `DocumentOut.
+  document's staged one; its batches are staged with their origin and QA and wait for the
+  geometry review; the publish job's geometry step publishes a dataset once its batches are
+  approved and applied (`apply_georef_datasets`, the previous published one superseded). `DocumentOut.
   georeference` (admin) is the latest run: RMSE vs limit, per-sheet table, snapping, overlap
   share, offset, warning codes; the console's document page shows it.
 - CLI `python -m core.gis.georef points | add | disable | enable | grid | fit | apply [--stage]

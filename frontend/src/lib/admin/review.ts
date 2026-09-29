@@ -3,7 +3,8 @@
  * tested: how an item reads in the list (parameter — target, source line, value chip), the status
  * chips, low confidence, which editor a correction gets (a number with its unit, the floor
  * notation, a designation from the document's own wordings, free text), checking a correction,
- * the next pending item, the URL filters and the refusals in plain words.
+ * the next pending item, the URL filters, the staged payload's fact lines and the refusals in
+ * plain words (a correction the API refuses says which contract rule it broke).
  *
  * Rule behind the screen: 100% of AI-extracted planning values are reviewed before they publish,
  * and textual accuracy matters as much as numerical (a misread planning term changes what a
@@ -14,6 +15,7 @@ import type {
   ReviewCounters,
   ReviewEntityType,
   ReviewItem,
+  ReviewPayload,
   ReviewSort,
   ReviewStatus,
   ReviewTarget,
@@ -342,16 +344,67 @@ export function emptyQueueText(filters: ReviewFilters): string {
   return "No item matches these filters.";
 }
 
+// --- the staged payload: as printed and what the contract made of it ---------------------------------------
+
+const RULE_WORDS: Record<string, string> = {
+  decimal_comma: "decimal comma",
+  grouped_number: "thousands grouping",
+  ratio_to_percent: "ratio → %",
+  ha_to_m2: "ha → m²",
+  m2_to_ha: "m² → ha",
+};
+const STATED_UNITS: Record<string, string> = { percent: "%", ratio: "ratio", m2: "m²", ha: "ha", m: "m", none: "no unit" };
+
+/** The payload as fact lines: as printed, normalised (with the rules), floors, class, table cell. */
+export function payloadLines(payload: ReviewPayload | null | undefined): { label: string; text: string }[] {
+  if (!payload) return [];
+  const lines: { label: string; text: string }[] = [];
+  const unit = payload.stated_unit ? ` (${STATED_UNITS[payload.stated_unit] ?? payload.stated_unit})` : "";
+  lines.push({ label: "As printed", text: `“${payload.stated_value}”${unit}` });
+  const rules = payload.normalisation ?? [];
+  if (rules.length) {
+    const value = typeof payload.value === "number" ? `${payload.value}${payload.unit ? ` ${payload.unit}` : ""}` : payload.value;
+    lines.push({
+      label: "Normalised",
+      text: `${value} · ${rules.map((r) => RULE_WORDS[r] ?? r.replace(/_/g, " ")).join(", ")}`,
+    });
+  }
+  if (payload.floors) {
+    const f = payload.floors;
+    lines.push({
+      label: "Floors",
+      text: `${f.notation}: ${f.below_ground} below ground, ${f.above_ground} above${f.attic ? ` (${f.attic} attic)` : ""}`,
+    });
+  }
+  if (payload.land_use_class) lines.push({ label: "Land-use class", text: payload.land_use_class.replace(/_/g, " ") });
+  const t = payload.table;
+  if (t && (t.table || t.row || t.column || t.cell)) {
+    const parts = [t.table && `table ${t.table}`, t.row && `row ${t.row}`, t.column && `column ${t.column}`, t.cell && `cell ${t.cell}`];
+    lines.push({ label: "Table cell", text: parts.filter(Boolean).join(" · ") });
+  }
+  return lines;
+}
+
 // --- refusals in plain words -------------------------------------------------------------------------------
 
+/** A correction the API refused (a 422 from the contract's rules): its rule and sentence. */
+export function correctionRefusal(problem: { status: number; details?: unknown }): { code: string; message: string } | null {
+  if (problem.status !== 422 || !Array.isArray(problem.details)) return null;
+  const first = problem.details[0] as { type?: unknown; msg?: unknown } | undefined;
+  if (!first || typeof first.msg !== "string") return null;
+  return { code: typeof first.type === "string" ? first.type : "invalid", message: first.msg };
+}
+
 export function explainReviewProblem(problem: { status: number; message?: string; details?: unknown }): string {
+  const refusal = correctionRefusal(problem);
+  if (refusal) return refusal.message;
   const reason =
     problem.details && typeof problem.details === "object" && "reason" in problem.details
       ? String((problem.details as { reason?: unknown }).reason)
       : null;
   if (reason === "superseded") return "A newer reading replaced this item; its decision is closed.";
   if (reason === "published") return "This value is published; its decision is closed.";
-  if (reason === "pending_review") return "Publishing waits until no document has pending items.";
+  if (reason === "pending_review") return "Publishing waits until no document has pending items and no geometry waits for review.";
   if (problem.status === 0) return "The data service did not answer. Try again in a moment.";
   if (problem.status === 403) return "Your role cannot do this.";
   if (problem.status >= 500) return "The data service had a problem. Try again in a moment.";

@@ -10,10 +10,14 @@
  *   plan, as the plan names it), the raw text the value was read from, confidence (low confidence
  *   flagged) and the checker's flags, page and file, the extraction run's job and cost, and the
  *   last decision's actor, time and note, with the item's audit trail on demand.
+ * - The staged payload: the value as the document printed it and what the contract made of it
+ *   (the normalisation rules, a floor count, the land-use class, the table cell).
  * - Approve (Enter), Amend (E): an editor typed per parameter — a number with its unit (FAR,
  *   coverage %, heights, areas), the plan's floor notation ("P+5+Pk"), a land-use designation from
  *   the wordings the document already uses (or typed), free text otherwise — and a note, required;
- *   Reject (R): the reason, required. Esc closes an editor, Ctrl+Enter saves it.
+ *   the API checks the correction with the extraction contract's rules, and a number outside the
+ *   field's usual range asks "keep it anyway?" before it is saved. Reject (R): the reason,
+ *   required. Esc closes an editor, Ctrl+Enter saves it.
  * - Bulk: approve every pending item of this page / this urban parcel at once.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -29,6 +33,7 @@ import {
   isLowConfidence,
   itemTitle,
   parseCorrection,
+  payloadLines,
   statusChip,
   targetLabel,
   unitChoices,
@@ -41,9 +46,15 @@ import { StatusChip } from "../parts";
 
 export type EditorMode = "amend" | "reject" | null;
 
+/** Why the API refused a decision; `code` names the contract rule a correction broke. */
+export interface Refusal {
+  message: string;
+  code?: string;
+}
+
 export interface Submit {
-  amend: (correction: { value: number | string; unit: string | null; note: string }) => Promise<string | null>;
-  reject: (note: string) => Promise<string | null>;
+  amend: (correction: { value: number | string; unit: string | null; note: string; confirm?: boolean }) => Promise<Refusal | null>;
+  reject: (note: string) => Promise<Refusal | null>;
 }
 
 function Fact({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
@@ -79,6 +90,9 @@ function AmendEditor({
   const [saving, setSaving] = useState(false);
   const [options, setOptions] = useState<ReviewOptions | null>(null);
   const [other, setOther] = useState(false);
+  // the API said the number is outside the field's usual range: keep it only when confirmed
+  const [unusual, setUnusual] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const first = useRef<HTMLInputElement & HTMLSelectElement>(null);
 
   useEffect(() => {
@@ -113,10 +127,16 @@ function AmendEditor({
       setMessage("Add a note: what was wrong with the extracted value.");
       return;
     }
+    const confirm = confirmed && unusual === `${parsed.value}`;
     setSaving(true);
-    const refused = await onSubmit({ value: parsed.value, unit: parsed.unit, note });
+    const refused = await onSubmit({ value: parsed.value, unit: parsed.unit, note, confirm });
     setSaving(false);
-    if (refused) setMessage(refused);
+    if (!refused) return;
+    setMessage(refused.message);
+    if (refused.code === "out_of_range") {
+      setUnusual(`${parsed.value}`);
+      setConfirmed(false);
+    }
   };
 
   const keys = (e: React.KeyboardEvent) => {
@@ -154,7 +174,10 @@ function AmendEditor({
         inputMode={editor.kind === "number" ? "decimal" : undefined}
         value={value}
         placeholder={editor.kind === "floors" ? "P+5+Pk" : editor.kind === "number" ? "2.5" : "As printed in the plan"}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          setValue(e.target.value);
+          setUnusual(null);
+        }}
         onKeyDown={keys}
       />
     );
@@ -191,8 +214,14 @@ function AmendEditor({
         onKeyDown={keys}
       />
       {message && <div className="rmsg">{message}</div>}
+      {unusual && (
+        <label className="rconfirmbox">
+          <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} /> The plan really says{" "}
+          <b className="mono">{unusual}</b>: keep it
+        </label>
+      )}
       <div className="rbtns">
-        <button type="button" className="abtn sm" disabled={saving} onClick={() => void save()}>
+        <button type="button" className="abtn sm" disabled={saving || (unusual != null && !confirmed)} onClick={() => void save()}>
           {saving ? "Saving…" : "Save correction"}
         </button>
         <button type="button" className="abtn sm ghost" onClick={onCancel}>
@@ -218,7 +247,7 @@ function RejectEditor({ onSubmit, onCancel }: { onSubmit: Submit["reject"]; onCa
     setSaving(true);
     const refused = await onSubmit(note);
     setSaving(false);
-    if (refused) setMessage(refused);
+    if (refused) setMessage(refused.message);
   };
   return (
     <div className="reditor" role="group" aria-label="Reject the value">
@@ -416,6 +445,11 @@ export function ReviewDetail({
         <Fact label="Read from" wide>
           {item.source.raw_text ? <q className="rraw">{item.source.raw_text}</q> : <span className="rsub">no text recorded</span>}
         </Fact>
+        {payloadLines(item.payload).map((line) => (
+          <Fact key={line.label} label={line.label} wide={line.label === "Table cell" || line.label === "Normalised"}>
+            <span className={line.label === "As printed" ? "mono" : undefined}>{line.text}</span>
+          </Fact>
+        ))}
         <Fact label="Confidence">
           {confidence != null ? `${Math.round(confidence * 100)}%` : "—"}
           {item.source.extraction_method && <span className="rsub"> · read as {item.source.extraction_method}</span>}

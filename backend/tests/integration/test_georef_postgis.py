@@ -38,6 +38,7 @@ from core.gis.georef.stage import stage_document  # noqa: E402
 from tests import gis_synthetic as syn  # noqa: E402
 from tests.helpers import make_client  # noqa: E402
 from tests.integration.test_publish_postgis import (  # noqa: E402, F401 - fixtures
+    approve_geometry,
     auth,
     publish,
     publish_env,
@@ -387,6 +388,7 @@ async def test_cli_snaps_stages_and_publishes_a_georeferenced_document(
         assert geo["systematic_offset_m"] == snap["systematic_offset_m"]
 
         await reject_seeded_pending_item(app)
+        await approve_geometry(client)
         await publish(client, "v-geo-1")
         (published,) = await rows(
             app,
@@ -425,6 +427,7 @@ async def test_cli_snaps_stages_and_publishes_a_georeferenced_document(
         # the stored transform again: the same georeferenced features, a new dataset version
         assert await run(*apply_args(tmp_path, doc_id, "geo-test-2")) == 0
         assert report(tmp_path)["output_sha256"] == first["output_sha256"]
+        await approve_geometry(client)
         await publish(client, "v-geo-2")
         states = {
             r["dataset_version"]: r["status"]
@@ -573,6 +576,7 @@ async def test_land_use_of_other_documents_is_carried_forward(db, publish_env): 
     app = publish_env()
     async with app.router.lifespan_context(app), make_client(app) as client:
         await reject_seeded_pending_item(app)
+        await approve_geometry(client)
         await publish(client, "v-geo-lu")
     served = await _rows(
         db,

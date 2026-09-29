@@ -1107,6 +1107,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/geometry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staged geometry waiting for review */
+        get: operations["list_geometry_v1_admin_geometry_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/geometry/bulk-approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve the pending batches of a dataset, a document or given ids */
+        post: operations["bulk_approve_geometry_v1_admin_geometry_bulk_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/geometry/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Geometry */
+        get: operations["get_geometry_v1_admin_geometry__batch_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/geometry/{batch_id}/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The batch's features for the review preview (simplified GeoJSON) */
+        get: operations["geometry_features_v1_admin_geometry__batch_id__features_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/geometry/{batch_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve the batch for the next publish */
+        post: operations["approve_geometry_v1_admin_geometry__batch_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/geometry/{batch_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject the batch with a reason; it never publishes (stage the geometry again) */
+        post: operations["reject_geometry_v1_admin_geometry__batch_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/magic-link": {
         parameters: {
             query?: never;
@@ -1400,7 +1502,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** AmendIn */
+        /**
+         * AmendIn
+         * @description A correction, checked with the extraction contract's rules
+         *     (``core.extraction.corrections``): numbers in the document's conventions and the field's unit
+         *     (ha for an area is converted), impossible values refused, a value outside the field's usual
+         *     range only with ``confirm_out_of_range``, floors in the plan's notation, a land use the
+         *     document or the profile knows. 422 ``validation_error`` with the rule's ``type`` otherwise.
+         */
         AmendIn: {
             /**
              * Value
@@ -1409,8 +1518,17 @@ export interface components {
             value: number | string;
             /** Unit */
             unit?: string | null;
-            /** Note */
-            note?: string | null;
+            /**
+             * Note
+             * @description What was wrong (required, not blank)
+             */
+            note: string;
+            /**
+             * Confirm Out Of Range
+             * @description Keep a number outside the field's usual range (the plan really says so)
+             * @default false
+             */
+            confirm_out_of_range: boolean;
         };
         /** AnalyticsDashboard */
         AnalyticsDashboard: {
@@ -3572,6 +3690,232 @@ export interface components {
              * @enum {string}
              */
             kind: "address" | "street" | "place" | "poi" | "other";
+        };
+        /** GeometryApproveIn */
+        GeometryApproveIn: {
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * GeometryBlocker
+         * @description A staged batch still waiting for a decision: publishing waits for it.
+         */
+        GeometryBlocker: {
+            /** Batch Id */
+            batch_id: number;
+            /** Layer Id */
+            layer_id: string;
+            /** Layer Label */
+            layer_label: string;
+            /** Document Id */
+            document_id?: number | null;
+            /** Document Name */
+            document_name?: string | null;
+            /** Dataset Version */
+            dataset_version?: string | null;
+            /** Qa Status */
+            qa_status?: ("pass" | "warn" | "fail") | null;
+        };
+        /**
+         * GeometryBulkApproveIn
+         * @description Approve the pending batches of one producing dataset, one document, or given ids.
+         */
+        GeometryBulkApproveIn: {
+            /** Batch Ids */
+            batch_ids?: number[] | null;
+            /** Dataset Version */
+            dataset_version?: string | null;
+            /** Document Id */
+            document_id?: number | null;
+            /** Note */
+            note?: string | null;
+        };
+        /** GeometryBulkResult */
+        GeometryBulkResult: {
+            /** Approved */
+            approved: number[];
+            /** Skipped */
+            skipped: components["schemas"]["GeometryBulkSkipped"][];
+        };
+        /** GeometryBulkSkipped */
+        GeometryBulkSkipped: {
+            /** Id */
+            id: number;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "not_found" | "not_pending" | "qa_failed" | "not_open";
+        };
+        /** GeometryCounts */
+        GeometryCounts: {
+            /**
+             * Pending
+             * @description Staged, waiting for a decision (they block publishing)
+             */
+            pending: number;
+            /**
+             * Approved
+             * @description Staged and approved: the next publish applies them
+             */
+            approved: number;
+            /** Rejected */
+            rejected: number;
+            /**
+             * Failing
+             * @description Pending batches whose QA fails: reject and stage again
+             */
+            failing: number;
+        };
+        /** GeometryDatasetRef */
+        GeometryDatasetRef: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "georef" | "zones" | "cadastre";
+            /** Version */
+            version: string;
+            /** Status */
+            status: string;
+        };
+        /** GeometryDocumentRef */
+        GeometryDocumentRef: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Short Code */
+            short_code?: string | null;
+            /** Type */
+            type?: string | null;
+        };
+        /**
+         * GeometryDraft
+         * @description One staged geometry batch: one layer of one producing run (a georeferenced plan or GIS
+         *     drawing, a zone import, a cadastral import).
+         */
+        GeometryDraft: {
+            /** Id */
+            id: number;
+            /** Layer Id */
+            layer_id: string;
+            /** Layer Label */
+            layer_label: string;
+            /**
+             * Origin
+             * @description Null for a batch staged before geometry review (0033)
+             */
+            origin?: ("vector_pdf" | "manual_qgis" | "official_gis") | null;
+            /**
+             * Status
+             * @description The batch's life: staged (waiting for a publish), published, superseded by a newer run, rejected (final: stage the geometry again)
+             * @enum {string}
+             */
+            status: "staged" | "published" | "superseded" | "rejected";
+            /**
+             * Review Status
+             * @description Null = published before geometry review
+             */
+            review_status?: ("pending" | "approved" | "rejected") | null;
+            /** Feature Count */
+            feature_count: number;
+            document?: components["schemas"]["GeometryDocumentRef"] | null;
+            dataset?: components["schemas"]["GeometryDatasetRef"] | null;
+            /**
+             * Dataset Version
+             * @description The producing run's label as the batch records it
+             */
+            dataset_version?: string | null;
+            /** Produced By */
+            produced_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Qa Status
+             * @description Null = not checked yet (checked when approved)
+             */
+            qa_status?: ("pass" | "warn" | "fail") | null;
+            /** Qa Issues */
+            qa_issues?: components["schemas"]["QaIssueOut"][];
+            /**
+             * Bbox
+             * @description [west, south, east, north]
+             */
+            bbox?: number[] | null;
+            /** Reviewed By */
+            reviewed_by?: string | null;
+            /** Reviewed At */
+            reviewed_at?: string | null;
+            /** Review Note */
+            review_note?: string | null;
+            /** Published Version Id */
+            published_version_id?: number | null;
+            /** Published At */
+            published_at?: string | null;
+            /** @description The georeferencing run that staged it: fit, snapping, checks */
+            georeference?: components["schemas"]["GeoreferenceOut"] | null;
+            /** Can Approve */
+            can_approve: boolean;
+            /**
+             * Approve Blocker
+             * @description Why it cannot be approved now
+             */
+            approve_blocker?: ("qa_failed" | "published" | "superseded" | "rejected") | null;
+            /** Can Reject */
+            can_reject: boolean;
+        };
+        /**
+         * GeometryFeatures
+         * @description The batch's features for the review preview: simplified geometry, a label, the issue codes
+         *     that name them; plus the gap locations of its QA.
+         */
+        GeometryFeatures: {
+            /** Batch Id */
+            batch_id: number;
+            /** Layer Id */
+            layer_id: string;
+            /** Bbox */
+            bbox?: number[] | null;
+            /** Total */
+            total: number;
+            /** Truncated */
+            truncated: boolean;
+            /**
+             * Features
+             * @description GeoJSON FeatureCollection (EPSG:4326)
+             */
+            features: {
+                [key: string]: unknown;
+            };
+            /**
+             * Gaps
+             * @description [lng, lat, m²]
+             */
+            gaps?: number[][];
+        };
+        /** GeometryPage */
+        GeometryPage: {
+            /** Items */
+            items: components["schemas"]["GeometryDraft"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            counts: components["schemas"]["GeometryCounts"];
+        };
+        /** GeometryRejectIn */
+        GeometryRejectIn: {
+            /**
+             * Note
+             * @description The reason (not blank)
+             */
+            note: string;
         };
         /**
          * GeoreferenceOut
@@ -5973,6 +6317,11 @@ export interface components {
              */
             blockers: components["schemas"]["PublishBlocker"][];
             /**
+             * Geometry Blockers
+             * @description Staged geometry batches waiting for the reviewer's decision
+             */
+            geometry_blockers?: components["schemas"]["GeometryBlocker"][];
+            /**
              * Keep Versions
              * @description Archives kept for rollback (retention)
              */
@@ -6033,6 +6382,43 @@ export interface components {
             rolled_back_at?: string | null;
             /** Rolled Back By */
             rolled_back_by?: string | null;
+        };
+        /** QaIssueOut */
+        QaIssueOut: {
+            /**
+             * Code
+             * @description invalid_geometry | empty_geometry (errors), overlap | gap | area_deviation (warnings), or the producing dataset's warning as <kind>.<code>
+             */
+            code: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "error" | "warning";
+            /**
+             * Message
+             * @description One sentence for the console (English)
+             */
+            message: string;
+            /** Count */
+            count: number;
+            /**
+             * Features
+             * @description What to look at: feature keys, pairs, parcel lines
+             */
+            features?: string[];
+            /**
+             * Keys
+             * @description The feature keys concerned
+             */
+            keys?: string[];
+            /**
+             * Locations
+             * @description [lng, lat, m²] of each gap listed
+             */
+            locations?: number[][];
+            /** Area M2 */
+            area_m2?: number | null;
         };
         /** RangeValue */
         RangeValue: {
@@ -6099,7 +6485,7 @@ export interface components {
         RejectIn: {
             /**
              * Note
-             * @description The reason
+             * @description The reason (not blank)
              */
             note: string;
         };
@@ -6265,6 +6651,8 @@ export interface components {
             run_id?: number | null;
             /** @description That run's job and cost */
             run?: components["schemas"]["ReviewRun"] | null;
+            /** @description The staged payload: as printed and how it was normalised */
+            payload?: components["schemas"]["ReviewPayload"] | null;
             /**
              * Change
              * @description Against the previous run's item for the same target and field
@@ -6315,6 +6703,96 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * ReviewPayload
+         * @description The staged payload of an extracted item (``planning_parameter_extractions.payload``, read
+         *     with the reader of its schema version): the value as the document printed it, the
+         *     contract's normalisation rules, the derived floor count or land-use class, the table cell.
+         *     Null for manual and seeded items.
+         */
+        ReviewPayload: {
+            /** Schema Version */
+            schema_version: string;
+            /**
+             * Task
+             * @description The extraction task that read it, e.g. parameter_table
+             */
+            task: string;
+            /**
+             * Path
+             * @description Where in the canonical result the value sits
+             */
+            path: string;
+            /** Field Key */
+            field_key: string;
+            /** Urban Parcel Number */
+            urban_parcel_number?: string | null;
+            /** Block Ref */
+            block_ref?: string | null;
+            /**
+             * Stated Value
+             * @description The value exactly as printed
+             */
+            stated_value: string;
+            /**
+             * Stated Unit
+             * @description How the unit was printed
+             */
+            stated_unit?: string | null;
+            /**
+             * Value
+             * @description The canonical value the validator made of it
+             */
+            value: number | string;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Normalisation
+             * @description Rules applied, in order: decimal_comma, ratio_to_percent
+             */
+            normalisation?: string[];
+            /** @description Counted from the plan's floor notation */
+            floors?: components["schemas"]["ReviewPayloadFloors"] | null;
+            /**
+             * Land Use Class
+             * @description The product-wide land-use class of the wording
+             */
+            land_use_class?: string | null;
+            table?: components["schemas"]["ReviewPayloadTable"] | null;
+            /** Flags */
+            flags?: string[];
+        };
+        /** ReviewPayloadFloors */
+        ReviewPayloadFloors: {
+            /** Notation */
+            notation: string;
+            /** Below Ground */
+            below_ground: number;
+            /** Above Ground */
+            above_ground: number;
+            /** Attic */
+            attic: number;
+        };
+        /** ReviewPayloadTable */
+        ReviewPayloadTable: {
+            /** Table */
+            table?: string | null;
+            /**
+             * Row
+             * @description Row label as printed, e.g. 'UP 12'
+             */
+            row?: string | null;
+            /**
+             * Column
+             * @description Column header as printed
+             */
+            column?: string | null;
+            /**
+             * Cell
+             * @description Grid cell id, e.g. 'r4c11'
+             */
+            cell?: string | null;
         };
         /**
          * ReviewPrevious
@@ -11899,6 +12377,363 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AuditPage"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_geometry_v1_admin_geometry_get: {
+        parameters: {
+            query?: {
+                status?: ("pending" | "approved" | "rejected") | null;
+                origin?: ("vector_pdf" | "manual_qgis" | "official_gis") | null;
+                layer_id?: string | null;
+                document_id?: number | null;
+                dataset_version?: string | null;
+                qa_status?: ("pass" | "warn" | "fail") | null;
+                /** @description Also published and superseded batches */
+                include_history?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeometryPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_approve_geometry_v1_admin_geometry_bulk_approve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GeometryBulkApproveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeometryBulkResult"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not review (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such batch (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_geometry_v1_admin_geometry__batch_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeometryDraft"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not review (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such batch (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    geometry_features_v1_admin_geometry__batch_id__features_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeometryFeatures"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not review (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such batch (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_geometry_v1_admin_geometry__batch_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["GeometryApproveIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeometryDraft"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not review (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such batch (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_geometry_v1_admin_geometry__batch_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GeometryRejectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeometryDraft"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role may not review (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such batch (`not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

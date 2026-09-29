@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.geometry_qa import run_batch_qa
 from core.zones.schema import (
     DOCUMENT_FIELD_NAMES,
     ZONE_FIELD_NAMES,
@@ -152,8 +153,8 @@ SUPERSEDE_BATCH_SQL = text(
 BATCH_SQL = text(
     """
     INSERT INTO geometry_batches (municipality_id, layer_id, status, feature_count, produced_by,
-                                  qa_report)
-    VALUES (:m, 'zones', 'staged', :n, :by, CAST(:qa AS jsonb))
+                                  qa_report, origin, dataset_version)
+    VALUES (:m, 'zones', 'staged', :n, :by, CAST(:qa AS jsonb), 'manual_qgis', :label)
     RETURNING id
     """
 )
@@ -252,6 +253,7 @@ async def stage_dataset(
                 "n": len(zones),
                 "by": f"import_zones:{imported_by}",
                 "qa": _json(qa),
+                "label": label,
             },
         )
     ).scalar_one()
@@ -283,6 +285,8 @@ async def stage_dataset(
             },
         )
     ).scalar_one()
+    # topology QA of the zones: the reviewer decides on it before a publish applies them
+    await run_batch_qa(session, batch_id, municipality_id=municipality_id)
     rows = [d.values for d in dataset.documents]
     matches = match_existing(rows, await existing_documents(session, municipality_id))
     for record, (doc_id, method) in zip(dataset.documents, matches, strict=True):

@@ -79,8 +79,11 @@ python -m core.cadastre datasets
    `--accept-large-change` (a renamed KO or a partial export would otherwise retire whole KOs).
    Reports: `report.md`, `report.json`, `diff.csv` in `data/cadastre/<m>/<version>/`
    (git-ignored).
-5. **Publish.** `POST /v1/admin/publish` applies the dataset in the same transaction as everything
-   else:
+5. **Review, then publish.** Both batches are staged with origin `official_gis` and their
+   topology QA (validity and overlaps; the grid coverage is the import's own check), and wait in
+   the console's geometry review for a reviewer's decision (publishing waits while they are
+   pending). `POST /v1/admin/publish` then applies the approved dataset in the same transaction as
+   everything else:
    - parcels are upserted by (KO, number, sub-number), so Parcel IDs stay stable;
    - parcels of the imported KOs that the new version no longer contains are **retired**
      (`retired_at`, `retired_dataset_version`), never deleted. Links of earlier versions and orders

@@ -5,6 +5,7 @@ from api.routers.v1 import (
     admin_config,
     admin_email,
     admin_engine,
+    admin_geometry,
     admin_jobs,
     admin_market,
     admin_orders,
@@ -49,6 +50,7 @@ router.include_router(admin_config.router)
 # before admin_review: /admin/review/market-inputs must not be read as /review/{item_id}
 router.include_router(admin_market.router)
 router.include_router(admin_review.router)
+router.include_router(admin_geometry.router)
 router.include_router(auth.router)
 router.include_router(orders.router)
 router.include_router(admin_orders.router)

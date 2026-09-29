@@ -5,6 +5,9 @@
   the layer's contract (``jobs.publish_layers``); the publish job upserts entity layers into
   their serving tables by natural key (stable ids) and copies the generic layers into
   ``layer_features`` for the new version.
+  Since 0033 a staged batch carries its ``origin``, topology QA (``qa_status`` /
+  ``qa_issues``, ``core.geometry_qa``) and a reviewer's decision (``review_state``): the publish
+  job applies approved batches only (the pilot scope's ``staging.geometry_draft``).
 - ``layer_features``: versioned generic map layers (planned land use, traffic network).
 - ``parcel_links``: cadastral ↔ planned parcel overlaps per version (rank 1 = primary), the
   same thresholds as location resolution.
@@ -76,13 +79,66 @@ class GeometryBatch(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # geometry review (0033): where it came from, what the QA found, what the reviewer decided
+    origin: Mapped[str | None] = mapped_column(
+        Text,
+        comment="vector_pdf (drawing layers read from a vector plan PDF) | manual_qgis (drawn or "
+        "redrawn in QGIS) | official_gis (an official GIS file: a supplied plan drawing, the "
+        "cadastre)",
+    )
+    document_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("planning_documents.id", ondelete="SET NULL"),
+        comment="the planning document a georeferenced or drawn batch belongs to",
+    )
+    dataset_version: Mapped[str | None] = mapped_column(
+        Text, comment="label of the producing dataset (georeferencing, zone or cadastral import)"
+    )
+    qa_status: Mapped[str | None] = mapped_column(
+        Text, comment="topology QA (core.geometry_qa): pass | warn | fail; null = not checked yet"
+    )
+    qa_issues: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=False,
+        server_default=text("'[]'::jsonb"),
+        comment="overlaps, gaps, area deviation, invalid geometry, the dataset's warnings",
+    )
+    review_state: Mapped[str | None] = mapped_column(
+        Text,
+        server_default=text("'pending_review'"),
+        comment="pending_review | approved | rejected; null = published before geometry review "
+        "(0033)",
+    )
+    reviewer: Mapped[str | None] = mapped_column(Text)
+    reviewed_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("staff_users.id", ondelete="SET NULL")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_note: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
         CheckConstraint(
             "status IN ('staged', 'published', 'superseded', 'rejected')",
             name="ck_geometry_batches_status",
         ),
+        CheckConstraint(
+            "origin IN ('vector_pdf', 'manual_qgis', 'official_gis')",
+            name="ck_geometry_batches_origin",
+        ),
+        CheckConstraint(
+            "qa_status IN ('pass', 'warn', 'fail')", name="ck_geometry_batches_qa_status"
+        ),
+        CheckConstraint(
+            "review_state IN ('pending_review', 'approved', 'rejected')",
+            name="ck_geometry_batches_review_state",
+        ),
         Index("ix_geometry_batches_layer_status", "municipality_id", "layer_id", "status"),
+        Index(
+            "ix_geometry_batches_review",
+            "municipality_id",
+            "review_state",
+            postgresql_where=text("status = 'staged'"),
+        ),
     )
 
 

@@ -26,6 +26,7 @@ from core.cadastre.ogr import find_ogr2ogr
 from core.gis.inspect_gis import gdal_env
 from tests.helpers import make_client
 from tests.integration.test_publish_postgis import (  # noqa: F401 - fixtures
+    approve_geometry,
     publish,
     publish_env,
     reject_seeded_pending_item,
@@ -233,6 +234,7 @@ async def test_import_publish_lookup_reimport_and_retire(run, publish_env, tiles
                 )
             )
             await session.commit()
+        assert len(await approve_geometry(client)) == 2  # parcels and KOs
         job = await publish(client, "cad-test-1")
         counts = job["result"]["counts"]
         assert counts["geometry"]["cadastral_parcels"] == 6
@@ -309,6 +311,7 @@ async def test_import_publish_lookup_reimport_and_retire(run, publish_env, tiles
         }
         diff_csv = (tmp_path / "r2" / "diff.csv").read_text(encoding="utf-8").splitlines()
         assert len(diff_csv) == 5 and diff_csv[0].startswith("change,ko_name,parcel_number")
+        assert len(await approve_geometry(client)) == 2
         job = await publish(client, "cad-test-2")
         assert job["result"]["counts"]["cadastre"]["parcels_retired"] == 1
         after = {

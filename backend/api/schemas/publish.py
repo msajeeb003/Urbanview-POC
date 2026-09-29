@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from api.schemas.admin import JobOut
+from api.schemas.geometry_review import GeometryBlocker
 
 
 class PublishRequest(BaseModel):
@@ -73,6 +74,10 @@ class PublishStatus(BaseModel):
     last_job: JobOut | None = Field(description="The most recent publish job")
     can_publish: bool
     blockers: list[PublishBlocker] = Field(description="Documents with items pending review")
+    geometry_blockers: list[GeometryBlocker] = Field(
+        default_factory=list,
+        description="Staged geometry batches waiting for the reviewer's decision",
+    )
     keep_versions: int = Field(description="Archives kept for rollback (retention)")
 
 

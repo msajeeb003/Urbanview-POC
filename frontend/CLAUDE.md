@@ -596,8 +596,9 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   map stays mounted under the console (the wireframe's `.admin` overlay over the main row). The
   admin pages arrive as `AppShell`'s children and render inside `AdminOverlay` when the path starts
   with `/admin`; the store's `view` mirrors the route both ways (the topbar's Map / Admin, the
-  pill and ⌘K call `setView`, which navigates). Tabs are routes: `/admin/overview`, `/review`,
-  `/rules`, `/assumptions`, `/engine`, `/orders`, `/data`, `/publish`, `/analytics`, `/audit`;
+  pill and ⌘K call `setView`, which navigates). Tabs are routes: `/admin/overview`, `/review`
+  (+ `/review/geometry`), `/rules`, `/assumptions`, `/engine`, `/orders`, `/data`, `/publish`,
+  `/analytics`, `/audit`;
   plus `/admin/users` (the account menu), `/admin/login` and `/admin/no-access`. `/admin` goes to
   the role's first tab.
 - **Sign-in: magic links only (Auth.js v5, `src/auth.ts`).** The backend owns the link: the form's
@@ -650,12 +651,16 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   Publish for admins and reviewers once the document has nothing pending — until then a "n pending before
   publish" chip with a tooltip — the job's step while it runs, the data version the map serves,
   "Rollback to previous" with an inline confirmation, "Corrected values reach the map only after a
-  publish"), filters (document with its pending count, status, zone, target type, page, order:
+  publish"), the switch "Extracted values · n pending | Geometry · m pending" (`review-tabs.tsx`;
+  the geometry count from `GET /v1/admin/geometry?limit=1`), filters (document with its pending
+  count, status, zone, target type, page, order:
   pending first / page then parcel / low confidence first; `?document=&file=` from Data sources),
   then three panes that scroll on their own: the queue (the mock's `.review-item` rows: "Max floor
   area ratio (II) — UP 12", "DUP … · p.14", the value chip; ⚑ low confidence), the item (value, AI
-  value struck through next to a correction, parameter labels, unit, target, the raw text,
-  confidence and the checker's flags, source page and file, the run's job and cost, the last
+  value struck through next to a correction, parameter labels, unit, target, the raw text, the
+  staged payload (`payloadLines`: as printed, normalised with its rules, floors, land-use class,
+  table cell), confidence and the checker's flags, source page and file, the run's job and cost,
+  the last
   decision's actor, time and note, the item's audit trail on demand, bulk "approve all pending on
   this page / of this parcel") and the cited page (`components/source/pdf-page-view.tsx`: PDF.js
   from the item's signed link, the value's box, prev / next, zoom, fit, "Cited p.N", Open PDF; a
@@ -663,15 +668,35 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   and moves to the next pending item at once (sent in the background, undone with a toast if
   refused), e amends (an editor per parameter: a number with its unit, the floor notation "P+5+Pk",
   a land-use designation from the document's own wordings or typed, free text; a note is
-  required), r rejects (reason required), n next pending, Esc closes, Ctrl+Enter saves. Toasts
+  required; the API checks it with the extraction contract's rules and its refusal names the rule
+  (`correctionRefusal`): a number outside the field's usual range shows "The plan really says N:
+  keep it" and saves only when ticked, `confirm_out_of_range`), r rejects (reason required), n next
+  pending, Esc closes, Ctrl+Enter saves. Toasts
   "Approved", "Amended", "Rejected"; refusals in plain words, never red. The queue keeps its own
   state (200 items a page, "Load more"); decisions answer the item and the document's counters.
   Styles: block 18 of `overrides.css`. Tests: `lib/admin/review.test.ts`.
+- **Geometry review** (`/admin/review/geometry`, admins and reviewers, the pilot scope's A2
+  geometry drafts; `components/admin/review/geometry-screen.tsx`, `geometry-preview.tsx`, rules in
+  `lib/admin/geometry.ts`, calls in `lib/admin/geometry-actions.ts`; no mock screen: the value
+  queue's card, panes, rows and keys): the card ("Geometry — review queue", pending chip, the
+  switch, the counts line "n pending · n approved, waiting for the next publish · n rejected ·
+  n failing their checks", filters status / origin / layer / include published), then three panes:
+  the batches (pending first, failing QA first; title = layer — document short code / name / run,
+  source line = origin · run · features, QA and decision chips), the batch (origin and run, decision
+  and QA chips, the last decision, Approve (Enter; disabled with the reason when its QA fails),
+  Reject (r, reason required, final), "Approve all n pending of <run>", the checks: every issue
+  with its chip, sentence, count and the features it names; facts: origin with its meaning, layer,
+  document link, producing run, features, staged, the georeferencing fit and snapping, published)
+  and the preview (`projectFeatures`: the batch's simplified features as an SVG, north up, fitted to
+  the pane; features an issue names outlined in the danger colour, gaps circled, a feature named
+  on hover). Keys j / k, Enter, r, n, Esc. Styles: block 23 of `overrides.css`. Tests:
+  `lib/admin/geometry.test.ts`.
 - **Publish** (`/admin/publish`, admins and reviewers, the pilot scope's A4;
   `components/admin/publish/publish-screen.tsx`, rules in `lib/admin/publish.ts`, calls
   `publishAction` / `rollbackAction` / `publishStatusAction` in `lib/admin/review-actions.ts`):
   what the map serves (label, when, who), "Publish" with an optional label and notes (disabled
-  while any document has pending items, which are named with a link into the review queue), the
+  while any document has pending items or any geometry waits for review, `blockersText`, named with
+  a link into the review queue or the geometry review), the
   running job's steps (preflight … prune, `stepLabel`, read every 2 s until it ends; a failed
   last run says where it stopped), and the versions (label + Live chip, published when and by
   whom, what it holds: values, parcel links, heatmap cells, tile size or "cleared") with "Roll
@@ -810,6 +835,7 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   admin` (backend) prints a one-time sign-in link (works without SMTP; `deploy/README.md` step 6).
   Tests: `lib/admin/sections.test.ts` (tabs per role, guard decisions, callback URLs),
   `lib/admin/format.test.ts`, `lib/admin/data.test.ts`, `lib/admin/review.test.ts`,
+  `lib/admin/geometry.test.ts`,
   `lib/admin/orders.test.ts`, `lib/admin/assumptions.test.ts`, `lib/admin/engine.test.ts`,
   `lib/admin/rules.test.ts`; backend `tests/integration/test_admin_console_postgis.py`,
   `test_document_files_postgis.py`, `test_review_queue_postgis.py`,

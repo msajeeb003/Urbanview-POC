@@ -92,9 +92,15 @@ export function countsText(counts: Record<string, unknown> | null | undefined): 
   return parts.length ? parts.join(" · ") : "—";
 }
 
-/** "Publishing waits for: DUP Novi Grad (3 pending), …". */
-export function blockersText(blockers: PublishStatus["blockers"]): string | null {
-  if (!blockers.length) return null;
+/** "Publishing waits for: DUP Novi Grad (3 pending), … and 2 geometry batches to review". */
+export function blockersText(
+  blockers: PublishStatus["blockers"],
+  geometry: PublishStatus["geometry_blockers"] = [],
+): string | null {
+  const batches = geometry?.length ?? 0;
+  if (!blockers.length && !batches) return null;
   const named = blockers.slice(0, 3).map((b) => `${b.document_name} (${b.pending} pending)`);
-  return `Publishing waits for: ${named.join(", ")}${blockers.length > 3 ? ` and ${blockers.length - 3} more` : ""}`;
+  if (blockers.length > 3) named.push(`${blockers.length - 3} more document${blockers.length - 3 === 1 ? "" : "s"}`);
+  if (batches) named.push(`${batches} geometry batch${batches === 1 ? "" : "es"} to review`);
+  return `Publishing waits for: ${named.join(", ")}`;
 }

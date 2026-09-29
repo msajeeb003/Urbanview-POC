@@ -34,6 +34,8 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.geometry_qa import run_batches_qa
+
 SAMPLE_LIMIT = 20
 INSERT_CHUNK = 2000
 DIFF_CLASSES = ("added", "removed", "geometry_changed", "attributes_changed", "unchanged")
@@ -524,8 +526,8 @@ SUPERSEDE_BATCH_SQL = text(
 BATCH_SQL = text(
     """
     INSERT INTO geometry_batches (municipality_id, layer_id, status, feature_count, produced_by,
-                                  qa_report)
-    VALUES (:m, :layer, 'staged', :n, :by, CAST(:qa AS jsonb))
+                                  qa_report, origin, dataset_version)
+    VALUES (:m, :layer, 'staged', :n, :by, CAST(:qa AS jsonb), 'official_gis', :label)
     RETURNING id
     """
 )
@@ -872,6 +874,7 @@ async def import_dataset(
                 "n": parcels,
                 "by": by,
                 "qa": _json(qa),
+                "label": label,
             },
         )
     ).scalar_one()
@@ -888,6 +891,7 @@ async def import_dataset(
                 "n": ko_count,
                 "by": by,
                 "qa": _json(qa),
+                "label": label,
             },
         )
     ).scalar_one()
@@ -946,6 +950,10 @@ async def import_dataset(
             },
         )
     ).scalar_one()
+    # topology QA of both batches: the reviewer decides on it before a publish applies them
+    await run_batches_qa(
+        session, [parcels_batch, ko_batch], municipality_id=municipality_id, srid=area_srid
+    )
     return ImportOutcome(
         dataset_id,
         label,
