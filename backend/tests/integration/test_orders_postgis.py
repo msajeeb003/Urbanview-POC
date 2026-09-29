@@ -178,8 +178,6 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
         assert created.status_code == 201, created.text
         body = created.json()
         reference = body["reference"]
-        public = await client.get(f"/v1/orders/{reference}/status")
-        unknown = await client.get("/v1/orders/UV-NOPE-0-000000-00/status")
         confirmation = await client.get(f"/v1/orders/{reference.lower()}")
         unknown_confirmation = await client.get("/v1/orders/UV-NOPE-0-000000-00")
         legal = await client.post("/v1/orders", json=LEGAL)
@@ -251,20 +249,6 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
         "ORDER BY id LIMIT 1",
     )
     assert audit[0]["actor"] == "guest" and audit[0]["action"] == "order.create"
-
-    assert public.status_code == 200
-    assert set(public.json()) == {
-        "reference",
-        "status",
-        "status_label_en",
-        "status_label_me",
-        "placed_at",
-        "status_changed_at",
-        "location",
-        "turnaround",
-    }
-    assert public.json()["location"]["parcel_label"] == body["location"]["parcel_label"]
-    assert unknown.status_code == 404
 
     # the confirmation again from the reference alone (reload-safe S5), no personal data
     assert confirmation.status_code == 200, confirmation.text
@@ -470,7 +454,6 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
         )
         queue = await client.get("/v1/admin/orders", params={"status": "delivered"}, headers=auth())
         found = await client.get("/v1/admin/orders", params={"search": "novak"}, headers=auth())
-        public = await client.get(f"/v1/orders/{reference}/status")
         confirm_done = await client.get(f"/v1/orders/{reference}")
         trail = await client.get(
             "/v1/admin/audit",
@@ -523,7 +506,7 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
     assert refunded.json()["refunded_at"]
     assert [o["id"] for o in queue.json()["items"]] == [oid]
     assert {o["id"] for o in found.json()["items"]} == {oid, other}
-    assert public.json()["status"] == "delivered" and "email" not in public.json()
+    assert confirm_done.json()["status"] == "delivered" and "email" not in confirm_done.json()
     done = confirm_done.json()
     assert done["payment_due"] is False and done["payment_instructions"] is None
 

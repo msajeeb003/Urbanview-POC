@@ -7,7 +7,7 @@ of what the visitor saw, and e-mails the bank-transfer instructions.
 ``GET /v1/orders/{reference}`` answers the confirmation data again (the pilot scope's
 "confirmation page data": status, location, price, turnaround, the payment instructions while the
 transfer is due), so the S5 confirmation and the order page survive a reload.
-``GET /v1/orders/{reference}/status`` returns status, location and turnaround only. Neither returns
+It never returns
 personal data. All are behind the global per-IP rate limit; creation is additionally capped per
 e-mail address and day.
 """
@@ -24,7 +24,6 @@ from api.schemas.orders import (
     OrderIn,
     OrderPricing,
     OrderPublic,
-    OrderStatusPublic,
     PriceTierOut,
 )
 from core.config import Settings
@@ -82,16 +81,3 @@ async def order_confirmation(
 ) -> OrderPublic:
     response.headers["Cache-Control"] = "no-store"
     return await service.public_order(reference)
-
-
-@router.get(
-    "/{reference}/status",
-    response_model=OrderStatusPublic,
-    summary="Public order status: status, location and turnaround only",
-    responses={404: {"description": "No order with that reference (`not_found`)"}},
-)
-async def order_status(
-    reference: Reference, service: OrderServiceDep, response: Response
-) -> OrderStatusPublic:
-    response.headers["Cache-Control"] = "no-store"
-    return await service.public_status(reference)

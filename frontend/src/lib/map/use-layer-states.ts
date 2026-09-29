@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Every rail card's `layerState` (`lib/layers.ts`) for the rail state, the market entitlement, the
+ * Every rail card's `layerState` (`lib/layers.ts`) for the rail state, the
  * map's zoom and the published version on the map. The rail and the legend read it, so both say
  * the same thing about a layer the map cannot draw right now ("zoom in to see", "no data yet").
  *

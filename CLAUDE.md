@@ -128,6 +128,14 @@ the POC check of Group 2 asked for it).
   script and the CI workflow; the analytics page is plain tables (funnel, districts, intent
   counts). Migration 0035 drops `engine_proposals`, `zone_parameter_sets` and the
   `rolled_back_*` columns.
+- **Public-app check (2026-09-30):** routes the map never called are gone (`GET
+  /v1/cadastral-municipalities`: the KO list comes from the profile; `GET
+  /v1/orders/{reference}/status`: the confirmation data endpoint serves the order page; `GET
+  /v1/zones/{zone_id}/panel`: the zone panel reads `/v1/panel?type=zone`); the rail shows exactly
+  the plan's seven toggleable cards (base map and document coverage are drawn without a card);
+  the public urban panel shows the pilot scope's Group 1 fields (parking, green area and
+  utilities stay extracted and reviewed, not shown); the market approval derives a zone's first
+  range factors from the reviewed ranges instead of a fixed 0.86 / 1.15.
 - **Open (S3 check):** a separate `land_use_code` in Group 1 and a `sample_size` per market
   input: neither is in the data yet (`docs/specs/frontend-design.md` §10 item 22).
 
@@ -325,7 +333,7 @@ the POC check of Group 2 asked for it).
   **`engine.inputs`** are the exact engine inputs: `calculate(inputs)` in the browser gives the
   same figures, `recalculate(inputs, edits)` applies a visitor's edits (the TS engine and the
   Python copy are held to the shared fixtures; the integration test runs the built TS bundle).
-- `GET /v1/zones/{zone_id}/panel`: title, subtitle, summary (as stored) with its label, the
+- (`GET /v1/zones/{zone_id}/panel` was removed 2026-09-30: the map's zone panel reads `/v1/panel?type=zone`; it showed) title, subtitle, summary (as stored) with its label, the
   zone's current document versions with status labels, profile type name, `covered`,
   `file_available`, counts.
 - **Cache** (`PanelCache`, Redis, `PANEL_CACHE_TTL_SECONDS`, 0 = off): one entry per entity per
@@ -985,7 +993,7 @@ the POC check of Group 2 asked for it).
   turnaround, `payment_due` (pending_payment | payment_failed), `payment_instructions` while it is
   due (else null), `data_version`, `status_url`; never personal data. The public map's order page
   `/orders/{reference}` (`frontend/src/app/orders/`) and the reloaded S5 confirmation read it; the
-  confirmation and every order e-mail link to the page. `GET /v1/orders/{reference}/status` stays
+  confirmation and every order e-mail link to the page. There is no compact status variant
   the compact variant (status, location and turnaround only).
 - **The public map's flow** (`frontend/src/components/order/`): S4 order modal from the parcel
   panel (location carried through with the planned parcel and the data version, fee and
@@ -1432,7 +1440,7 @@ the POC check of Group 2 asked for it).
   layer and there are no ownership map layers (not in the POC plan). The seeded sample states
   its flags. Flags belong to the dataset that loaded them.
 - **KOs** `cadastral_municipalities` (name, code, boundary `delivered | derived_from_parcels`,
-  parcel count; unique per municipality on `lower(ko_name)`); `GET /v1/cadastral-municipalities`
+  parcel count; unique per municipality on `lower(ko_name)`); the KO list the search box uses comes from the profile
   (public, `max-age=300`) lists KOs with parcels for the search dropdown; the seed loader derives
   the sample's (`refresh_derived_kos`). The KO + number lookup stays `/v1/locate/parcel`.
 - Tests: `tests/test_cadastre_unit.py` (profile, access gate, adapters, mapping, ogr2ogr on the

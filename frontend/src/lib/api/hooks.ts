@@ -72,16 +72,6 @@ export function useLocate(point: { lat: number; lng: number } | null) {
   });
 }
 
-export function useLocateParcel(ref: { ko: string; number: string; sub?: string | null } | null) {
-  return useQuery({
-    queryKey: ref ? queryKeys.locateParcel(ref.ko, ref.number, ref.sub) : ["locate-parcel", "idle"],
-    queryFn: ({ signal }) => api.locateParcel(ref!, { signal }),
-    enabled: !!ref && !!ref.ko && !!ref.number,
-    staleTime: 60_000,
-    retry: retryTransient,
-  });
-}
-
 /** Pass the debounced query; below `minLength` characters nothing is requested. */
 /** The zone index; fetched when the search box first opens (`enabled`), then kept for the visit. */
 export function useZones(enabled = true) {
@@ -119,39 +109,6 @@ export function usePanel(query: PanelQuery | null) {
       (previousQuery.queryKey[1] as PanelQuery).type === query.type
         ? previous
         : undefined,
-    retry: retryTransient,
-  });
-}
-
-/** Display-shaped panel of a cadastral parcel (`/v1/parcels/{id}/panel`). */
-export function useParcelPanel(parcelId: number | null) {
-  return useQuery({
-    queryKey: parcelId ? queryKeys.parcelPanel(parcelId) : ["parcel-panel", "idle"],
-    queryFn: ({ signal }) => api.parcelPanel(parcelId!, { signal }),
-    enabled: !!parcelId,
-    staleTime: 60_000,
-    retry: retryTransient,
-  });
-}
-
-export function useSourceValue(valueId: number | null) {
-  return useQuery<SourcePage>({
-    queryKey: valueId ? queryKeys.sourceValue(valueId) : ["source-value", "idle"],
-    queryFn: ({ signal }) => api.sourceValue(valueId!, { signal }),
-    enabled: !!valueId,
-    staleTime: (q) => freshUntil(q.state.data?.expires_at),
-    gcTime: 5 * 60_000,
-    retry: retryTransient,
-  });
-}
-
-export function useSourcePage(documentId: number | null, page: number | null) {
-  return useQuery<SourcePage>({
-    queryKey: documentId && page ? queryKeys.sourcePage(documentId, page) : ["source-page", "idle"],
-    queryFn: ({ signal }) => api.sourcePage(documentId!, page!, { signal }),
-    enabled: !!documentId && !!page,
-    staleTime: (q) => freshUntil(q.state.data?.expires_at),
-    gcTime: 5 * 60_000,
     retry: retryTransient,
   });
 }
@@ -208,7 +165,3 @@ export function useOrder(reference: string | null) {
     retry: retryTransient,
   });
 }
-
-// `/v1/events` is not a hook of its own: analytics go through the batching tracker
-// (`@/lib/analytics`), exposed to components as `useTrack()`.
-export { useTrack } from "@/lib/analytics/react";

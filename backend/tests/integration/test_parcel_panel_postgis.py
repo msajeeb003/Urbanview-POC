@@ -20,7 +20,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import event, text
 
-from api.services.parcel_panel_sql import PARCEL_PANEL_SQL, ZONE_PANEL_SQL
+from api.services.parcel_panel_sql import PARCEL_PANEL_SQL
 from core.engine import shared
 from jobs.base import SqlJobStore, configure_job_store
 from jobs.tasks.publish import configure_publish
@@ -216,8 +216,6 @@ async def test_unknown_and_invalid_ids(client):
     assert missing.status_code == 404
     assert missing.json()["error"]["details"] == {"type": "parcel", "id": 999_999}
     assert (await client.get(parcel_url(0))).status_code == 422
-    assert (await client.get("/v1/zones/999999/panel")).status_code == 404
-    assert (await client.get("/v1/zones/abc/panel")).status_code == 422
 
 
 # --- Group 2 equals both engines ------------------------------------------------------------------
@@ -265,34 +263,6 @@ async def test_group2_equals_the_panel_route_and_both_engines(client, parcel_id)
             old["expected"],
             old["high"],
         ), field["key"]
-
-
-# --- zone panel ----------------------------------------------------------------------------------
-
-
-async def test_zone_panel(client, pg_conn):
-    r = await client.get("/v1/zones/1/panel")
-    assert r.status_code == 200, r.text
-    body = r.json()
-    summary = (
-        await pg_conn.execute(text("SELECT general_planning_summary FROM zones WHERE id = 1"))
-    ).scalar_one()
-    assert (body["title"], body["zone"], body["summary"]) == (
-        "Centar",
-        {"id": 1, "name": "Centar"},
-        summary,
-    )
-    assert body["summary_label_en"] and body["summary_label_me"] and body["subtitle_me"]
-    assert [(d["id"], d["status"], d["covered"]) for d in body["documents"]] == [
-        (2, "adopted", True),  # adopted first, then by name: "DUP Centar…" < "PUP Glavni…"
-        (1, "adopted", True),
-        (3, "in_progress", False),
-    ]
-    in_progress = next(d for d in body["documents"] if d["id"] == 3)
-    assert in_progress["status_label_en"] == "in progress" and in_progress["covered"] is False
-    assert in_progress["type_name"].startswith("Detaljni")
-    assert body["counts"]["adopted"] == 2 and body["counts"]["in_progress"] == 1
-    assert r.headers["X-Panel-Cache"] in {"miss", "hit"} and r.headers["ETag"]
 
 
 # --- cache ---------------------------------------------------------------------------------------
@@ -410,8 +380,6 @@ async def test_plans_are_index_backed_and_fast(pg_conn):
         )
         seq = {n.get("Relation Name") for n in _nodes(root["Plan"]) if n["Node Type"] == "Seq Scan"}
         assert "parcel_links" not in seq  # 10k rows: the version + parcel index, never a scan
-    zone = await _explain(pg_conn, ZONE_PANEL_SQL, {"municipality_id": "podgorica", "id": 1})
-    _assert_indexed_and_fast(zone, {"ix_planning_documents_zone_id"})
 
 
 async def test_value_and_gap_lookups_have_index_paths(pg_conn):

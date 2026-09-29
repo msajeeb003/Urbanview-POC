@@ -5,8 +5,6 @@
 import { apiGet, apiPost, apiRequest, type RequestOptions } from "./client";
 import type {
   EventBatch,
-  FeasibilityRequest,
-  FeasibilityResponse,
   GeocodeResponse,
   GeocodeStatus,
   IngestResult,
@@ -48,9 +46,6 @@ export const api = {
   /** Display-shaped parcel panel by Parcel ID (cadastral parcel id); carries centroid and bbox. */
   parcelPanel: (parcelId: number, init?: Init) =>
     apiGet<ParcelPanel>(`/v1/parcels/${parcelId}/panel`, undefined, init),
-
-  feasibility: (body: FeasibilityRequest, init?: Init) =>
-    apiPost<FeasibilityResponse>("/v1/feasibility", body, init),
 
   /** One short-lived signed link to the cited page of a planning value. */
   sourceValue: (valueId: number, init?: Init) => apiGet<SourcePage>(`/v1/source/value/${valueId}`, undefined, init),

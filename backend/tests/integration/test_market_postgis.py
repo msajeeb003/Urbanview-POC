@@ -358,6 +358,15 @@ async def test_a_zone_without_assumptions_waits_for_all_four_metrics(market_app)
                 assert sorted(body["waiting_for"]) == sorted(metrics[n:])
             else:
                 assert body["applied_assumption_id"] is not None and body["waiting_for"] is None
+                applied_id = body["applied_assumption_id"]
+        # no factors configured for the zone or the municipality: the version's factors come from
+        # the reviewed inputs' own ranges (the widest ratios), never from a fixed percentage
+        version = (await client.get(f"/v1/admin/assumptions/{applied_id}", headers=auth())).json()
+        ranges = [item_for(queue, 2, m)["imported"] for m in metrics]
+        low_ratio = round(min(r["low"] / r["expected"] for r in ranges), 4)
+        high_ratio = round(max(r["high"] / r["expected"] for r in ranges), 4)
+        factors = (version["range_low_factor"], version["range_high_factor"])
+        assert factors == (low_ratio, high_ratio) and factors != (0.86, 1.15)
         coverage = (await client.get("/v1/admin/market/coverage", headers=auth(REVIEWER))).json()
         zone2 = next(z for z in coverage["zones"] if z["zone_id"] == 2)
         assert zone2["market_data"] is True and zone2["sale_price_reviewed"] is True

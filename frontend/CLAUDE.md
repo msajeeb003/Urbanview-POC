@@ -97,8 +97,6 @@ each entry. Rail order, groups and names are the wireframe's.
 
 | Group | Layer | Default | Rule | Published tile layer(s) |
 |---|---|---|---|---|
-| Base | Planning documents | on | core (always on, muted check, click toasts "Core layer — always visible") | `document_coverage` |
-| Base | Base map | on | core | Mapbox style |
 | Base | Urban zones | on | covered zones only (type fill, outline, label); a click opens the zone panel | `zones`, `zone_labels` |
 | Base | Urban blocks | on | block boundaries (dotted) with block refs (z15+) | `urban_blocks` |
 | Parcels | Cadastral parcels | on | never merged with planned parcels | `cadastral_parcels` |
@@ -107,6 +105,12 @@ each entry. Rail order, groups and names are the wireframe's.
 | Context | FAR heatmap | off | parameter choropleth; field chips FAR / Coverage / Floors / GFA | `heat_far`, `heat_coverage`, `heat_height`, `heat_gfa` |
 | Feasibility | Price heatmap | off | sale-price choropleth, free like every card; field chips Low / Expected / High | `heat_sale_price` |
 
+Two core layers are drawn but have no card (the POC plan's rail is exactly the seven toggleable
+layers above; public-app check 2026-09-30): the base map (Mapbox style) and the planning-document
+coverage areas (`document_coverage`, a click opens the document panel). They stay in `LAYERS` as
+`core` entries so the style, the `?layers=` parameter and `layerState` keep working; the rail
+(`CARDS`) and the legend skip them.
+
 Not in the POC (scope audit 2026-09-28): the wireframe's Public ownership and Restitution / legal
 cards (only with confirmed bulk cadastral access; the API marks those layers unavailable) and
 Planned traffic (an MVP layer; not published).
@@ -114,9 +118,7 @@ Planned traffic (an MVP layer; not published).
 - **Cards** are toggled by clicking (swatch + name), each independently (`toggleLayer`): the POC
   plan's seven layers (zones, blocks, cadastral and planned parcels, land use, the two heatmaps,
   which may be on together) each have their own card, unlike the mock's core zones card with the
-  blocks folded in and its one-heatmap rule (S1 check, 2026-09-28). States: on / off / core
-  (Planning documents and Base map only: ◆ in the markup, hidden by the wireframe CSS, muted
-  check). The rendered wireframe has no tint on an "on" card and an 8 px card radius (its
+  blocks folded in and its one-heatmap rule (S1 check, 2026-09-28). States: on / off. The rendered wireframe has no tint on an "on" card and an 8 px card radius (its
   late CSS passes override the 10 px and the tint); that is what ships.
 - **A card never claims a layer the map is not drawing.** `layerState` (`lib/layers.ts`) is the one
   answer the rail, the legend and the map share: `off` / `no_data` (the published version lists
@@ -247,8 +249,8 @@ wireframe's `.searchsug` rows: icon tile (⌂ address, # parcel reference, ▤ z
 coverage), title, mono sub-label.
 
 - **Rows, in order:** parcel reference, zones (≤ 3), addresses (geocoder, ≤ 8). Duplicates
-  collapse. Nothing → `No match. The client will supply available data locations.` (the mock's
-  row, never an error). A picked row's label stays in the input and is not searched again.
+  collapse. Nothing → `No match. Try a street name, a zone or a parcel number (e.g. 1042/3).` (the
+  mock's row with its placeholder copy replaced, never an error). A picked row's label stays in the input and is not searched again.
 - **Addresses:** `GET /v1/geocode?q=` debounced 250 ms, from 2 characters, never for a parcel
   reference; replies for older text are dropped (`isPlaceholderData`). Each hit is placed in its
   zone with the outlines of `GET /v1/zones` (fetched on first focus, cached 10 min): sub-label
@@ -398,8 +400,10 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   Land use designation, Max building height (`27.5 m · P+8`: metres and floors, each with its
   source), Max site coverage (IZ) %, Floor Area Ratio (II), Planned parcel area (the plan's
   stated value, else the geometry's area with a tooltip), Max Gross Floor Area (brand-dark),
-  Max coverage area — then the dictionary's other fields (building line, setbacks, parking,
-  green area, utilities; API labels). Every stated value ends with a source icon (`.rowsrc`,
+  Max coverage area — then the plan's other Group 1 fields (building line, setback to
+  neighbours; API labels). Parking, green area and utilities are extracted and reviewed but not
+  shown: the pilot scope's Group 1 does not list them (`NOT_IN_PLAN`, public-app check
+  2026-09-30). The data version line follows the section. Every stated value ends with a source icon (`.rowsrc`,
   `RowSource`): the cited page through the source viewer (`/v1/source/value/{value_id}`),
   `source_reference_opened`; its title and accessible name are the reference itself
   (`sourceRefText`: `Max number of floors: DUP Centar – Zona C2, page 14 · table 3 – UP 12`, +
@@ -460,8 +464,8 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
 - **"How the figures are calculated"** (`shell/engine-modal.tsx`, wireframe `openEngine`, from
   the engine strip): the poc-1 formulas table (name, expression, source), input
   data (planning documents, cadastre, the zone's market source, the visitor's assumptions), the
-  mock's growth note, "Indicative ranges, not investment advice. Deterministic calculation — the
-  AI assistant reads these figures but never generates them.", footer with engine and formula
+  mock's growth note, "Indicative ranges, not investment advice. Deterministic calculation — no
+  language model generates or edits these figures.", footer with engine and formula
   versions.
 - **Orders: S4 "Order expert analysis" and S5 "Order confirmed"** (`components/order/*`,
   `lib/order.ts`, `lib/order-form.ts`), modals over the map as in `screens/order.png`,

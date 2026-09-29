@@ -13,11 +13,11 @@ import { useState, type ReactNode } from "react";
 import { useShell } from "@/lib/store";
 
 import { Cta } from "../ui/cta";
+import { PICK_A_PARCEL } from "@/lib/order";
+
 import { ModalHead } from "../ui/modal";
 
 export const METHODOLOGY_LABEL = "Our analysis methodology";
-/** Provisional copy (not in the wireframe): ordering needs a parcel and starts from its panel. */
-const PICK_A_PARCEL = "Pick a parcel on the map to order its analysis.";
 
 interface Step {
   t: string;
@@ -90,10 +90,10 @@ const STEPS: Step[] = [
     ),
   },
   {
-    t: "3D fitting",
+    t: "Massing in context",
     tag: "Design",
     phase: "Phase 2 · Massing in context",
-    body: "After the design of the object we start working on 3D view and we start fitting the object into the build environment.",
+    body: "After the design of the object we fit its massing into the built environment around the parcel.",
     dia: (
       <svg width="210" height="122" viewBox="0 0 210 122" fill="none">
         <path d="M30 92l70-24 70 24-70 24z" fill="#EDEFF2" stroke="#B3A894" strokeWidth="1.2" />
@@ -109,7 +109,7 @@ const STEPS: Step[] = [
     t: "Preliminary package & feasibility",
     tag: "Deliverable",
     phase: "Phase 3 · Client package",
-    body: "This step is the final. After we conclude that it is the design that should be presented to the Client, we prepare preliminary 2D plans, 3D model and comprehensive analysis of real estate development venture.",
+    body: "This step is the final. After we conclude that it is the design that should be presented to the Client, we prepare preliminary plans and a comprehensive analysis of the real estate development venture.",
     dia: (
       <svg width="200" height="120" viewBox="0 0 200 120" fill="none">
         <rect x="24" y="30" width="70" height="84" rx="3" fill="#fff" stroke="#B3A894" strokeWidth="1.3" transform="rotate(-6 59 72)" />

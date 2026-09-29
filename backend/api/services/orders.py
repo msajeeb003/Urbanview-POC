@@ -50,7 +50,6 @@ from api.schemas.orders import (
     OrderLocationOut,
     OrderOut,
     OrderPublic,
-    OrderStatusPublic,
     OrderSummary,
     PaymentIn,
     PaymentInstructionsOut,
@@ -701,20 +700,6 @@ class OrderService:
             payment_instructions=instructions,
             data_version=row["data_version"],
             status_url=self.status_url(row["reference"]),
-        )
-
-    async def public_status(self, reference: str) -> OrderStatusPublic:
-        row = await self._public_row(reference)
-        labels = _labels(row["status"])
-        return OrderStatusPublic(
-            reference=row["reference"],
-            status=row["status"],
-            status_label_en=labels[0],
-            status_label_me=labels[1],
-            placed_at=_utc(row["placed_at"]),
-            status_changed_at=_utc(row["status_changed_at"]),
-            location=_location_out(row),
-            turnaround=_turnaround(row["turnaround_business_days"], row["expected_by"]),
         )
 
     # --- staff -----------------------------------------------------------------------------------

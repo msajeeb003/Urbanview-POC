@@ -5,10 +5,11 @@
  * `GET /v1/panel?type=urban&id=`: header (URBAN PARCEL +
  * zone type, "UP 12", "Centar · Podgorica I") with the backlink to the cadastral parcel, the
  * identification grid and the Parcel ID line, "Cadastral vs urban parcel" (area comparison and
- * the calculation basis), "Planning parameters" (Free, source chip): the mock's seven rows, then
- * the dictionary's other stated fields, every stated value with its source icon (the cited page,
- * `source_reference_opened`), then Group 2 "Market data & feasibility" (`market-section.tsx`,
- * behind the market-data boundary) and the CTA stack.
+ * the calculation basis), "Planning parameters" (source chip): the mock's seven rows, then the
+ * plan's other Group 1 fields (setbacks; not the parking, green-area and utilities fields, which
+ * the POC plan's Group 1 does not list), every stated value with its source icon (the cited page,
+ * `source_reference_opened`), the data version line, then Group 2 "Market data & feasibility"
+ * (`market-section.tsx`) and the CTA stack.
  */
 import { useEffect, type ReactNode } from "react";
 
@@ -24,7 +25,7 @@ import { IdGrid } from "../ui/id-grid";
 import { PanelRow } from "../ui/panel-row";
 import { SourceRef } from "../ui/source-ref";
 import { MarketSection } from "./market-section";
-import { PanelHead, PanelLoading, PanelUnavailable, usePanelViewed } from "./panel-parts";
+import { DataVersionLine, PanelHead, PanelLoading, PanelUnavailable, usePanelViewed } from "./panel-parts";
 import {
   AreaCompare,
   AreaNote,
@@ -47,6 +48,10 @@ const MOCK_KEYS = new Set([
   "max_gfa_m2",
   "max_coverage_area_m2",
 ]);
+
+/** Dictionary fields the POC plan's Group 1 does not list (pilot technical scope: land use,
+ * floors, height, coverage, FAR, the two setbacks, planned area, max GFA, max coverage area). */
+const NOT_IN_PLAN = new Set(["parking_requirement", "min_green_area_pct", "utilities"]);
 
 function Eyebrow({ typeName }: { typeName?: string | null }) {
   return (
@@ -119,7 +124,7 @@ function PlanningRows({ data }: { data: UrbanPanelData }) {
   const plannedStated = planned?.status === "stated";
   const geometryArea = data.areas.urban_parcel_area_m2;
 
-  const others = fields.filter((f) => !MOCK_KEYS.has(f.key));
+  const others = fields.filter((f) => !MOCK_KEYS.has(f.key) && !NOT_IN_PLAN.has(f.key));
 
   return (
     <>
@@ -301,6 +306,7 @@ export function UrbanPanel({ urbanParcelId }: { urbanParcelId: number }) {
             <p className="panelnote">{data.coverage_note_en ?? "No adopted planning document covers this parcel."}</p>
           )}
         </div>
+        <DataVersionLine version={data.data_version} date={data.data_version_date} />
 
         <MarketSection data={data} ids={eventIds} />
       </div>

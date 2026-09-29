@@ -42,7 +42,7 @@ in `backend/pyproject.toml`).
 - Location resolution: `GET /v1/locate?lat=&lng=`, `GET /v1/locate/parcel?ko=&number=&sub=`
 - Display-shaped panels: `GET /v1/parcels/{id}/panel` (header with calculation basis,
   Group 1 with a source on every value, market, assumptions, Group 2 and the engine inputs;
-  cached per data version, ETag) and `GET /v1/zones/{id}/panel`
+  cached per data version, ETag)
 - Information panel: `GET /v1/panel?type=zone|document|cadastral|urban&id=` (optional
   `saleable_share`, `construction_cost_eur_m2`, `sale_price_eur_m2` overrides; contract in
   `docs/specs/panel-payload.md`)
@@ -77,8 +77,8 @@ in `backend/pyproject.toml`).
   `GET /v1/admin/review/summary` (per-document counters, `can_publish`); `GET /v1/admin/audit`
   reads the append-only audit trail (who changed what and when)
 - Expert-analysis orders: `POST /v1/orders` (guest checkout, price from `ORDER_PRICE_TIERS`,
-  bank-transfer instructions by e-mail, snapshot of the panel shown), `GET /v1/orders/{reference}/status`
-  (no personal data); staff: `GET /v1/admin/orders`, `PATCH .../status`, `POST .../payment`,
+  bank-transfer instructions by e-mail, snapshot of the panel shown), `GET /v1/orders/{reference}`
+  (confirmation data, no personal data); staff: `GET /v1/admin/orders`, `PATCH .../status`, `POST .../payment`,
   `POST .../assign`, `POST .../report` (PDF upload delivers the order and e-mails a signed link)
 
 ## Publishing

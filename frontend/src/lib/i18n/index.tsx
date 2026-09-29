@@ -16,11 +16,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { DEFAULT_LANG, HTML_LANG, LANG_COOKIE } from "./config";
 import { translate, type Lang, type StringKey, type Translate, type Vars } from "./strings";
 
-export { LANGS, isLang, translate, type Lang, type StringKey, type Translate } from "./strings";
+export { type Lang, type StringKey, type Translate } from "./strings";
 
 let current: Lang = DEFAULT_LANG;
-/** The language on screen, for code outside React. */
-export const getLang = (): Lang => current;
 
 interface LangState {
   lang: Lang;

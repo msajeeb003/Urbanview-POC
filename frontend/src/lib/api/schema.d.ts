@@ -140,23 +140,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/cadastral-municipalities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Every cadastral municipality (KO) with parcels: name, code, count, bounding box */
-        get: operations["cadastral_municipalities_v1_cadastral_municipalities_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/parcels/{parcel_id}/panel": {
         parameters: {
             query?: never;
@@ -166,23 +149,6 @@ export interface paths {
         };
         /** Everything the panel shows for a cadastral parcel */
         get: operations["parcel_panel_v1_parcels__parcel_id__panel_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/zones/{zone_id}/panel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Zone name, documents with status and summary text */
-        get: operations["zone_panel_v1_zones__zone_id__panel_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1205,23 +1171,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/orders/{reference}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Public order status: status, location and turnaround only */
-        get: operations["order_status_v1_orders__reference__status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/admin/orders": {
         parameters: {
             query?: never;
@@ -1971,51 +1920,6 @@ export interface components {
              * @enum {string}
              */
             relation: "same" | "reduced" | "enlarged" | "split" | "merged" | "none";
-        };
-        /** CadastralMunicipalities */
-        CadastralMunicipalities: {
-            /** Items */
-            items: components["schemas"]["CadastralMunicipalityEntry"][];
-            /**
-             * Dataset Version
-             * @description The newest cadastral dataset among the KOs
-             */
-            dataset_version?: string | null;
-        };
-        /** CadastralMunicipalityEntry */
-        CadastralMunicipalityEntry: {
-            /**
-             * Ko Name
-             * @description The KO name the parcel lookup takes (?ko=)
-             */
-            ko_name: string;
-            /**
-             * Ko Code
-             * @description The cadastre's KO code, when known
-             */
-            ko_code?: string | null;
-            /**
-             * Parcel Count
-             * @description Cadastral parcels served in the KO
-             */
-            parcel_count: number;
-            /**
-             * Bbox
-             * @description min_lng, min_lat, max_lng, max_lat of the KO boundary
-             */
-            bbox: [
-                number,
-                number,
-                number,
-                number
-            ];
-            /** @description A point on the KO's surface (label / pin) */
-            centroid: components["schemas"]["LatLng"];
-            /**
-             * Boundary Source
-             * @description delivered | derived_from_parcels
-             */
-            boundary_source: string;
         };
         /** CadastralPanel */
         CadastralPanel: {
@@ -5236,32 +5140,6 @@ export interface components {
             /** Status Url */
             status_url: string;
         };
-        /** OrderStatusPublic */
-        OrderStatusPublic: {
-            /** Reference */
-            reference: string;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "pending_payment" | "paid" | "payment_failed" | "in_progress" | "delivered" | "refunded";
-            /** Status Label En */
-            status_label_en: string;
-            /** Status Label Me */
-            status_label_me: string;
-            /**
-             * Placed At
-             * Format: date-time
-             */
-            placed_at: string;
-            /**
-             * Status Changed At
-             * Format: date-time
-             */
-            status_changed_at: string;
-            location: components["schemas"]["OrderLocationOut"];
-            turnaround: components["schemas"]["TurnaroundOut"];
-        };
         /** OrderSummary */
         OrderSummary: {
             /** Id */
@@ -7259,56 +7137,6 @@ export interface components {
             /** General Planning Summary */
             general_planning_summary?: string | null;
         };
-        /** ZoneDocument */
-        ZoneDocument: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /**
-             * Type
-             * @description Abbreviation (DUP / PUP / PGR), as-is
-             */
-            type?: string | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "adopted" | "in_progress" | "superseded";
-            /** Status Label En */
-            status_label_en: string;
-            /** Status Label Me */
-            status_label_me: string;
-            /** Source */
-            source?: string | null;
-            /**
-             * Registry Url
-             * @description planning_documents.source_url
-             */
-            registry_url?: string | null;
-            /** Amends Document Id */
-            amends_document_id?: number | null;
-            /**
-             * Adopted On
-             * @description Adoption date, when known
-             */
-            adopted_on?: string | null;
-            /**
-             * Type Name
-             * @description From the municipality profile
-             */
-            type_name?: string | null;
-            /**
-             * Covered
-             * @description Adopted and its coverage is live on the map
-             */
-            covered: boolean;
-            /**
-             * File Available
-             * @description The PDF is stored (source links open)
-             */
-            file_available: boolean;
-        };
         /** ZoneHeader */
         ZoneHeader: {
             /** Title */
@@ -7413,47 +7241,6 @@ export interface components {
              * @description Current versions: adopted first, then in progress, then superseded; name asc
              */
             planning_documents: components["schemas"]["ZonePlanningDocument"][];
-            counts: components["schemas"]["DocumentCounts"];
-        };
-        /** ZonePanelView */
-        ZonePanelView: {
-            /**
-             * Type
-             * @default zone
-             * @constant
-             */
-            type: "zone";
-            /** Municipality Id */
-            municipality_id: string;
-            /** Zone Id */
-            zone_id: number;
-            /** Version Id */
-            version_id?: number | null;
-            /** Data Version */
-            data_version: string;
-            /** Data Version Date */
-            data_version_date?: string | null;
-            /** Title */
-            title: string;
-            /** Subtitle En */
-            subtitle_en: string;
-            /** Subtitle Me */
-            subtitle_me: string;
-            zone: components["schemas"]["ZoneRef"];
-            /**
-             * Summary
-             * @description General planning summary, as stored
-             */
-            summary?: string | null;
-            /** Summary Label En */
-            summary_label_en: string;
-            /** Summary Label Me */
-            summary_label_me: string;
-            /**
-             * Documents
-             * @description Current versions: adopted first, then in progress, then superseded
-             */
-            documents: components["schemas"]["ZoneDocument"][];
             counts: components["schemas"]["DocumentCounts"];
         };
         /**
@@ -7965,33 +7752,6 @@ export interface operations {
             };
         };
     };
-    cadastral_municipalities_v1_cadastral_municipalities_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CadastralMunicipalities"];
-                };
-            };
-            /** @description The planning database is not configured */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     parcel_panel_v1_parcels__parcel_id__panel_get: {
         parameters: {
             query?: never;
@@ -8013,61 +7773,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ParcelPanel"];
-                };
-            };
-            /** @description The client's copy (If-None-Match) is current */
-            304: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No entity with that id (`not_found`) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description The planning database is not configured */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    zone_panel_v1_zones__zone_id__panel_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "if-none-match"?: string | null;
-            };
-            path: {
-                /** @description zones.id */
-                zone_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ZonePanelView"];
                 };
             };
             /** @description The client's copy (If-None-Match) is current */
@@ -11872,44 +11577,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderPublic"];
-                };
-            };
-            /** @description No order with that reference (`not_found`) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    order_status_v1_orders__reference__status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                reference: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OrderStatusPublic"];
                 };
             };
             /** @description No order with that reference (`not_found`) */

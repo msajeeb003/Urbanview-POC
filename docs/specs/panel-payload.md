@@ -670,7 +670,7 @@ field is `not_stated`.
   Feature `id` = the entity id (cadastral `id` is the Parcel ID; heatmaps carry the block / zone
   id), so a click can go straight to `GET /v1/panel?type=…&id=…`.
 
-## 13. Display-shaped panels — `GET /v1/parcels/{id}/panel`, `GET /v1/zones/{id}/panel` (added 2026-09-26)
+## 13. Display-shaped parcel panel — `GET /v1/parcels/{id}/panel` (added 2026-09-26; the zone variant `GET /v1/zones/{id}/panel` was removed 2026-09-30, unused by the map)
 
 Everything the panel shows for a cadastral parcel in one response, in display order, labels in
 English and Montenegrin on every item (the frontend hard-codes none). Numbers are raw JSON numbers
@@ -779,25 +779,6 @@ English and Montenegrin on every item (the frontend hard-codes none). Numbers ar
   revalidated. Any publish, coverage switch, document registration, assumption or zone
   parameter change produces a new ETag.
 
-`GET /v1/zones/{id}/panel`:
-
-```json
-{
-  "type": "zone", "municipality_id": "podgorica", "zone_id": 1, "version_id": 1,
-  "data_version": "sample-2026-09-22", "data_version_date": "2026-09-22",
-  "title": "Centar", "subtitle_en": "Internal city division", "subtitle_me": "Interna podjela grada",
-  "zone": {"id": 1, "name": "Centar"},
-  "summary": "…", "summary_label_en": "General planning summary", "summary_label_me": "Opšti planski sažetak",
-  "documents": [{"id": 2, "name": "DUP Centar – Zona C2", "type": "DUP",
-                 "type_name": "Detaljni urbanistički plan (detailed urban plan)", "status": "adopted",
-                 "status_label_en": "adopted", "status_label_me": "usvojen", "covered": true,
-                 "file_available": true, "registry_url": "…", "amends_document_id": null}],
-  "counts": {"documents": 3, "adopted": 2, "in_progress": 1, "superseded": 0}
-}
-```
-
-Documents are the zone's current versions: adopted first, then in progress, then superseded,
-name order within a status. Same caching headers as the parcel panel.
 
 ## 14. Zone and document panels for the public map's S3 variants (added 2026-09-28)
 

@@ -173,10 +173,9 @@ export function MapView({
     handlers.current = { selectPoint, selectFeature };
   }, [selectPoint, selectFeature]);
 
-  // Tile pointer: remember it, show its data version, swap the source when a publish changed it.
+  // Tile pointer: remember it, swap the source when a publish changed it.
   useEffect(() => {
     tilesRef.current = tiles;
-    useShell.getState().setDataVersion(tiles?.data_version ?? null);
     const map = mapRef.current;
     // before `style.load` there is nothing to swap: its handler installs this pointer
     if (!map || installedVersion.current === undefined) return;
@@ -319,7 +318,7 @@ export function MapView({
       unsubscribers.push(() => resizeObserver.disconnect());
 
       let hover: Highlight = NO_HOVER;
-      /** Apply the rail, the entitlement, the choropleth fields and the selection as they are now. */
+      /** Apply the rail, the choropleth fields and the selection as they are now. */
       const syncAll = () => {
         syncVisibility(map);
         syncChoropleth(map, tilesRef.current);

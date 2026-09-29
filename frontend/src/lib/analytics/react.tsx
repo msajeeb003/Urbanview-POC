@@ -50,12 +50,3 @@ export function useTrack() {
     getTracker().track(name, properties);
   }, []);
 }
-
-/** Emit an event once per page load after the first render of the calling component. */
-export function useTrackOnce(key: string, name: AnalyticsEventName, properties?: EventProperties) {
-  useEffect(() => {
-    getTracker().trackOnce(key, name, properties);
-    // properties are read once by design
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, name]);
-}

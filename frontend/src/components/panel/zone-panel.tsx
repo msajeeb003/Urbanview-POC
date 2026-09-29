@@ -6,7 +6,6 @@
  * documents (status, source, adoption date when known, "n parcels with data" for a document the
  * map covers — a click opens its document panel — or "not yet digitised"; the registry name links
  * to its eRegistri entry), "General planning information" (the zone's summary, BRD §2.3), the
- * zone-level planning values from the staff-maintained parameter set (with their source page),
  * the closing note and the data version. A zone without an adopted plan says so instead of
  * listing nothing.
  */

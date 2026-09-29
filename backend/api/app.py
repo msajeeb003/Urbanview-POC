@@ -24,7 +24,6 @@ from api.services.admin import AdminService
 from api.services.admin_config import AdminConfigService
 from api.services.analytics import AnalyticsRepository, AnalyticsService, SqlAnalyticsRepository
 from api.services.auth import MagicLinkService
-from api.services.cadastral_municipalities import CadastralMunicipalityService
 from api.services.email import EmailService
 from api.services.geocode import GeocodeService
 from api.services.geometry_review import GeometryReviewService
@@ -106,9 +105,6 @@ def create_app(
             # computes with locate's thresholds.
             app.state.panel_service = PanelService(municipality, app.state.session_factory)
             app.state.zone_index_service = ZoneIndexService(
-                app.state.session_factory, municipality_id=municipality.id
-            )
-            app.state.cadastral_municipality_service = CadastralMunicipalityService(
                 app.state.session_factory, municipality_id=municipality.id
             )
             app.state.parcel_panel_service = ParcelPanelService(

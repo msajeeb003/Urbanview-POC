@@ -35,17 +35,16 @@ describe("shell text in Montenegrin", () => {
       t: me,
     });
     expect(groups.map((g) => g.title)).toEqual([
-      "Planski dokumenti",
       "Urbane zone",
       "Urbanistički blokovi",
       "Katastarske parcele",
       "Urbanističke parcele",
       translate("me", "layer.landuse"),
     ]);
-    expect(groups[1].rows.map((r) => r.label)).toContain("Stanovanje");
+    expect(groups[0].rows.map((r) => r.label)).toContain("Stanovanje");
     // English stays the default without a translator
     expect(legendGroups({ layers: DEFAULT_LAYER_STATE, choropleth: DEFAULT_CHOROPLETH, classes: null })[0].title).toBe(
-      "Planning documents",
+      "Urban zones",
     );
   });
 

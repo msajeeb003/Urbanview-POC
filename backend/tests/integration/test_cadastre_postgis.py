@@ -260,8 +260,15 @@ async def test_import_publish_lookup_reimport_and_retire(run, publish_env, tiles
             id=cad["parcel_id"],
         )
         assert served == {"ko_code": "901", "dataset_version": "cadtest-1"}
-        ko_list = (await client.get("/v1/cadastral-municipalities")).json()
-        test_kos = {k["ko_name"]: k for k in ko_list["items"] if k["ko_name"].startswith("Test")}
+        test_kos = {
+            k["ko_name"]: k
+            for k in await rows(
+                app,
+                "SELECT ko_name, ko_code, boundary_source, parcel_count "
+                "FROM cadastral_municipalities "
+                "WHERE municipality_id = 'podgorica' AND ko_name LIKE 'Test%'",
+            )
+        }
         assert test_kos["Test KO Alpha"]["parcel_count"] == 4
         assert test_kos["Test KO Alpha"]["ko_code"] == "901"
         assert test_kos["Test KO Beta"]["boundary_source"] == "delivered"
@@ -323,8 +330,11 @@ async def test_import_publish_lookup_reimport_and_retire(run, publish_env, tiles
             for d in await rows(app, "SELECT * FROM cadastral_datasets")
         }
         assert datasets == {"cadtest-1": "superseded", "cadtest-2": "published"}
-        ko_list = (await client.get("/v1/cadastral-municipalities")).json()
-        alpha = next(k for k in ko_list["items"] if k["ko_name"] == "Test KO Alpha")
+        (alpha,) = await rows(
+            app,
+            "SELECT parcel_count FROM cadastral_municipalities "
+            "WHERE municipality_id = 'podgorica' AND ko_name = 'Test KO Alpha'",
+        )
         assert alpha["parcel_count"] == 4  # 1234/5, 1235, 1236/1, 1237
 
 

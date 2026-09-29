@@ -193,17 +193,6 @@ class OrderPublic(BaseModel):
     status_url: str
 
 
-class OrderStatusPublic(BaseModel):
-    reference: str
-    status: OrderStatus
-    status_label_en: str
-    status_label_me: str
-    placed_at: datetime
-    status_changed_at: datetime
-    location: OrderLocationOut
-    turnaround: TurnaroundOut
-
-
 # --- staff ----------------------------------------------------------------------------------------
 
 

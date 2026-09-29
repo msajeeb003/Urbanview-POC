@@ -24,7 +24,6 @@ from api.schemas.panel import (
     RELATION_DESCRIPTION,
     AssumptionsVersion,
     BlockRef,
-    DocumentCounts,
     DocumentRef,
     LinkRelation,
     ZoneRef,
@@ -345,29 +344,3 @@ class ParcelPanel(BaseModel):
     engine: EngineInfo | None = None
     centroid: LatLng
     bbox: list[float] = Field(description="[min_lng, min_lat, max_lng, max_lat]")
-
-
-class ZoneDocument(DocumentRef):
-    type_name: str | None = Field(default=None, description="From the municipality profile")
-    covered: bool = Field(description="Adopted and its coverage is live on the map")
-    file_available: bool = Field(description="The PDF is stored (source links open)")
-
-
-class ZonePanelView(BaseModel):
-    type: Literal["zone"] = "zone"
-    municipality_id: str
-    zone_id: int
-    version_id: int | None = None
-    data_version: str
-    data_version_date: str | None = None
-    title: str
-    subtitle_en: str
-    subtitle_me: str
-    zone: ZoneRef
-    summary: str | None = Field(default=None, description="General planning summary, as stored")
-    summary_label_en: str
-    summary_label_me: str
-    documents: list[ZoneDocument] = Field(
-        description="Current versions: adopted first, then in progress, then superseded"
-    )
-    counts: DocumentCounts

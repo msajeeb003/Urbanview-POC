@@ -13,7 +13,6 @@ from api.routers.v1 import (
     admin_publish,
     admin_review,
     auth,
-    cadastral_municipalities,
     events,
     feasibility,
     geocode,
@@ -33,7 +32,6 @@ router.include_router(locate.router)
 router.include_router(geocode.router)
 router.include_router(panel.router)
 router.include_router(zones.router)
-router.include_router(cadastral_municipalities.router)
 router.include_router(parcel_panel.router)
 router.include_router(feasibility.router)
 router.include_router(source.router)

@@ -254,6 +254,19 @@ MUNICIPALITY_ROW_SQL = text(
     WHERE municipality_id = :m AND is_current AND zone_id IS NULL
     """
 )
+
+
+def _factors_from_ranges(rates: Mapping[str, RateIn]) -> tuple[float, float]:
+    """Range factors for a zone's first version when none are configured: the widest low / high
+    ratio among the reviewed inputs' own ranges (every rate approved without configured factors
+    carries one), never a fixed percentage; (1, 1) = no spread when no range exists."""
+    lows = [r.low / r.expected for r in rates.values() if r.low is not None and r.expected > 0]
+    highs = [r.high / r.expected for r in rates.values() if r.high is not None and r.expected > 0]
+    if not lows or not highs:
+        return (1.0, 1.0)
+    return (min(1.0, round(min(lows), 4)), max(1.0, round(max(highs), 4)))
+
+
 MARK_APPLIED_SQL = text(
     "UPDATE market_data SET applied_assumption_id = :assumption_id WHERE id = ANY(:ids)"
 )
@@ -955,7 +968,7 @@ class MarketService:
         factors = (
             (float(current["range_low_factor"]), float(current["range_high_factor"]))
             if current is not None
-            else await self._factors(session, zone_id) or (0.86, 1.15)
+            else await self._factors(session, zone_id) or _factors_from_ranges(rates)
         )
         ids = [int(item["id"]) for item in by_metric.values()]
         trigger = next(item for item in ready if item["id"] == trigger_id)

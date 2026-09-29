@@ -77,8 +77,8 @@ export function EngineModal({ marketSource }: { marketSource?: string | null }) 
           narrow as the evidence behind them grows.
         </div>
         <p style={{ fontSize: "10.5px", color: "var(--ink-2)", opacity: 0.8, marginTop: 12, lineHeight: 1.5 }}>
-          Indicative ranges, not investment advice. Deterministic calculation — the AI assistant reads these figures but
-          never generates them.
+          Indicative ranges, not investment advice. Deterministic calculation — no language model generates or edits
+          these figures.
         </p>
       </div>
       <div className="mfoot">

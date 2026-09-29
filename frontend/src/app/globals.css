@@ -7,7 +7,6 @@
  */
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
-@import "tw-animate-css";
 
 /*
  * Design tokens as Tailwind theme values. The CSS variables themselves are declared by the

@@ -5,7 +5,7 @@
  * registry (`lib/layers.ts` → `LAYERS`). Layers are chosen by clicking their card (swatch + name),
  * each independently:
  *
- * - core layers only toast "Core layer — always visible";
+ * - core layers (base map, planning-document areas) are drawn but have no card;
  * - choropleth cards show their field selector while on; both heatmaps may be on together.
  *
  * Every real toggle emits `layer_toggled { layer_id, on }` (the published layer key).
@@ -24,6 +24,9 @@ import { useTilesCurrent } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n";
 import { PARAM_METRICS, PRICE_METRICS } from "@/lib/map/classes";
 import { LAYERS, analyticsLayerId, hasNoData, layerState, toggleLayer, type LayerDef } from "@/lib/layers";
+
+/** The rail's cards: the seven toggleable layers (the POC plan's list); core layers have none. */
+const CARDS = LAYERS.filter((l) => !l.core);
 import { useLayerStates } from "@/lib/map/use-layer-states";
 import { useShell } from "@/lib/store";
 
@@ -111,9 +114,9 @@ export function LayerRail() {
           <IconChevronLeft />
         </button>
       </div>
-      {LAYERS.map((l, i) => {
+      {CARDS.map((l, i) => {
         const on = layers[l.id];
-        const heading = i === 0 || LAYERS[i - 1].group !== l.group ? t(`group.${l.group}`) : null;
+        const heading = i === 0 || CARDS[i - 1].group !== l.group ? t(`group.${l.group}`) : null;
         const showFields = !!l.choropleth && on;
         const sub = !showFields
           ? undefined

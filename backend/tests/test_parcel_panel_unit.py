@@ -15,7 +15,7 @@ import pytest
 from pydantic import BaseModel
 
 from api.services.panel_cache import PanelCache, Stamp, etag_matches
-from api.services.parcel_panel import GROUP2_KEYS, build_parcel_panel, build_zone_panel
+from api.services.parcel_panel import GROUP2_KEYS, build_parcel_panel
 from core.engine import shared
 from core.errors import NotFoundError
 from core.municipality import load_profile
@@ -586,32 +586,6 @@ def test_every_label_is_bilingual():
     assert panel.group2.disclaimer_en and panel.group2.disclaimer_status == "placeholder"
 
 
-# --- zone panel -----------------------------------------------------------------------------------
-
-
-def test_zone_panel_builder():
-    zone_row = {
-        "zone": {"id": 1, "name": "Centar", "general_planning_summary": "Mixed-use centre."},
-        "documents": [
-            {**DOC2, "file_available": True},
-            {**DOC3, "file_available": False},
-        ],
-        "counts": {"documents": 2, "adopted": 1, "in_progress": 1, "superseded": 0},
-        "version_id": 1,
-        "data_version": "sample-2026-09-22",
-        "data_version_date": "2026-09-22",
-    }
-    panel = build_zone_panel(zone_row, PROFILE)
-    assert (panel.title, panel.summary, panel.zone_id) == ("Centar", "Mixed-use centre.", 1)
-    assert panel.summary_label_en == "General planning summary"
-    docs = {d.id: d for d in panel.documents}
-    assert docs[2].covered and docs[2].file_available and docs[2].status_label_en == "adopted"
-    assert docs[2].type_name.startswith("Detaljni urbanistički plan")
-    assert docs[3].covered is False and docs[3].status == "in_progress"
-    assert panel.counts.adopted == 1
-    assert panel.counts.covered == 1  # the documents the map covers, as /v1/panel counts them
-
-
 # --- cache ----------------------------------------------------------------------------------------
 
 
@@ -679,6 +653,5 @@ async def test_routes_without_postgis_answer_503():
     app = make_app(make_settings())
     async with app.router.lifespan_context(app), make_client(app) as client:
         parcel = await client.get("/v1/parcels/1001/panel")
-        zone = await client.get("/v1/zones/1/panel")
-    assert parcel.status_code == 503 and zone.status_code == 503
+    assert parcel.status_code == 503
     assert parcel.json()["error"]["code"] == "service_unavailable"

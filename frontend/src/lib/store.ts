@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Shell state: what the wireframe's global `STATE` held (rail, layers, selection pin, AI panel,
+ * Shell state: what the wireframe's global `STATE` held (rail, layers, selection pin,
  * admin view, modal, toast). Components read slices with
  * selectors; the map registers a small controller so chrome buttons can drive the camera.
  */
@@ -28,7 +28,7 @@ export type FeatureType = "cadastral" | "urban" | "document";
  *   parcel, or planning-document coverage area; `linkedUrbanId` is the cadastral parcel's primary
  *   planned parcel, highlighted with it.
  * - `zone`: a zone picked in the search (framed) or clicked on the map; its panel is
- *   `/v1/zones/{id}/panel` and the map outlines it.
+ *   `/v1/panel?type=zone` and the map outlines it.
  */
 export type Selection =
   | { kind: "point"; point: LngLat; via: "click" | "address" }
@@ -104,7 +104,7 @@ interface ShellState {
   assumptionEdits: AssumptionEdits;
   /**
    * The parcel an order would be for: the parcel panel on screen registers it (`ParcelCtas`), so
-   * every order button (panel, "Choose your access", the methodology's last step) orders what
+   * every order button (panel, the methodology's last step) orders what
    * the visitor is looking at. Null without a parcel panel.
    */
   orderTarget: OrderTarget | null;
@@ -127,7 +127,6 @@ interface ShellState {
   coverReason: UncoveredReason;
   focus: CameraFocus | null;
   /** Data version of the tiles on the map (`/v1/tiles/current`), `"unpublished"` before a publish. */
-  dataVersion: string | null;
 
   zoomLabel: string;
   scale: { label: string; widthPx: number };
@@ -162,7 +161,6 @@ interface ShellState {
   /** Uncovered location: pill for 2.6 s with the panel closed, then the panel comes back. */
   flashUncovered(reason: UncoveredReason): void;
   setFocus(focus: CameraFocus | null): void;
-  setDataVersion(version: string | null): void;
   setCamera(zoomLabel: string, scale: { label: string; widthPx: number }, zoom: number | null): void;
   showToast(message: string): void;
   hideToast(id: number): void;
@@ -195,7 +193,6 @@ export const useShell = create<ShellState>()((set) => ({
   coverWarn: false,
   coverReason: "no_adopted_plan",
   focus: null,
-  dataVersion: null,
 
   zoomLabel: "1.0×",
   scale: { label: "250 m", widthPx: 80 },
@@ -241,7 +238,6 @@ export const useShell = create<ShellState>()((set) => ({
     }, UNCOVERED_FLASH_MS);
   },
   setFocus: (focus) => set({ focus }),
-  setDataVersion: (dataVersion) => set({ dataVersion }),
   setCamera: (zoomLabel, scale, zoom) => set({ zoomLabel, scale, zoom }),
   showToast: (message) => set({ toast: { id: ++toastSeq, message, visible: true } }),
   hideToast: (id) => set((s) => (s.toast?.id === id ? { toast: { ...s.toast, visible: false } } : {})),

@@ -194,11 +194,11 @@ describe("legend", () => {
 
   it("lists the default layers with the wireframe's rows", () => {
     const groups = legendGroups(ctx());
-    expect(groups.map((g) => g.title)).toEqual(["Planning documents", "Urban zones", "Urban blocks", "Cadastral parcels", "Urban parcels"]);
-    expect(groups[1].rows.map((r) => r.label)).toEqual(["Residential", "Commercial", "Mixed use", "Public / institutional", "Green / recreation"]);
-    expect(groups[2].rows.map((r) => r.label)).toEqual(["Urban block boundary"]);
-    expect(groups[3].rows[0].label).toBe("Parcel outline");
-    expect(groups[4].rows[0].label).toBe("Parcel — click to open");
+    expect(groups.map((g) => g.title)).toEqual(["Urban zones", "Urban blocks", "Cadastral parcels", "Urban parcels"]);
+    expect(groups[0].rows.map((r) => r.label)).toEqual(["Residential", "Commercial", "Mixed use", "Public / institutional", "Green / recreation"]);
+    expect(groups[1].rows.map((r) => r.label)).toEqual(["Urban block boundary"]);
+    expect(groups[2].rows[0].label).toBe("Parcel outline");
+    expect(groups[3].rows[0].label).toBe("Parcel — click to open");
   });
 
   it("falls back to the wireframe's FAR gradient without served classes", () => {

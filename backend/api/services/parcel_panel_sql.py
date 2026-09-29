@@ -218,38 +218,6 @@ SELECT
     (SELECT id FROM version) AS version_id,{_VERSION_COLUMNS}
 """
 
-ZONE_PANEL_SQL = f"""WITH{_VERSION},
-zone AS (
-    SELECT z.id, z.name, z.general_planning_summary
-    FROM zones z
-    WHERE z.id = CAST(:id AS bigint) AND z.municipality_id = :municipality_id
-),
-docs AS (
-    -- current document versions of the zone (earlier registered versions are history)
-    SELECT COALESCE(jsonb_agg({_document_ref("d")} || jsonb_build_object(
-                   'file_available', d.file_key IS NOT NULL)
-               ORDER BY CASE d.status::text WHEN 'adopted' THEN 0 WHEN 'in_progress' THEN 1
-                        ELSE 2 END ASC, d.name ASC, d.id ASC), '[]'::jsonb) AS docs,
-           count(*) AS documents,
-           count(*) FILTER (WHERE d.status = 'adopted') AS adopted,
-           count(*) FILTER (WHERE d.status = 'in_progress') AS in_progress,
-           count(*) FILTER (WHERE d.status = 'superseded') AS superseded
-    FROM planning_documents d
-    WHERE d.zone_id = CAST(:id AS bigint)
-      AND d.municipality_id = :municipality_id
-      AND d.is_current_version
-)
-SELECT
-    (SELECT jsonb_build_object('id', id, 'name', name,
-                               'general_planning_summary', general_planning_summary)
-     FROM zone) AS zone,
-    (SELECT docs FROM docs) AS documents,
-    (SELECT jsonb_build_object('documents', documents, 'adopted', adopted,
-                               'in_progress', in_progress, 'superseded', superseded)
-     FROM docs) AS counts,
-    (SELECT id FROM version) AS version_id,{_VERSION_COLUMNS}
-"""
-
 # The cache key's input (one cheap statement: the documents table holds a few hundred rows).
 STAMP_SQL = f"""
 SELECT

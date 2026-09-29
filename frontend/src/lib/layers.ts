@@ -102,13 +102,6 @@ export interface LayerDef {
   legend: (ctx: LegendContext) => LegendGroup | null;
 }
 
-export const GROUP_LABEL: Record<LayerGroup, string> = {
-  base: "Base",
-  parcels: "Parcels",
-  context: "Context",
-  feas: "Feasibility",
-};
-
 /** Zone types (wireframe `ZTYPES`): legend rows, zone fills, land-use colours. */
 export const ZONE_TYPES = [
   { key: "res", name: "Residential", token: "--z-res", hex: "#B5744A" },
@@ -269,12 +262,13 @@ export function hasNoData(layer: LayerDef, tiles: TilesCurrent | null | undefine
 }
 
 /**
- * Legend groups for the layers that are on, in rail order; empty = "No overlays active". A layer
+ * Legend groups for the toggleable layers that are on, in rail order (core layers are drawn, not
+ * listed); empty = "No overlays active". A layer
  * the map cannot draw right now says why next to its title: "zoom in to see" (its rows stay: they
  * are what appears closer in) or "no data yet" (no rows: nothing will appear until a publish).
  */
 export function legendGroups(ctx: LegendContext): LegendGroup[] {
-  return LAYERS.filter((l) => ctx.layers[l.id])
+  return LAYERS.filter((l) => !l.core && ctx.layers[l.id])
     .map((l): LegendGroup | null => {
       const group = l.legend(ctx);
       if (!group) return null;

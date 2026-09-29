@@ -28,7 +28,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from api.schemas.locate import LatLng
-from api.schemas.panel import BlockRef, DocumentCounts, DocumentRef, ZoneRef
+from api.schemas.panel import BlockRef, DocumentRef, ZoneRef
 from api.schemas.parcel_panel import (
     AssumptionItem,
     AssumptionsView,
@@ -50,8 +50,6 @@ from api.schemas.parcel_panel import (
     ParcelPanel,
     RangeValue,
     ValueSource,
-    ZoneDocument,
-    ZonePanelView,
 )
 from api.services import panel_text
 from api.services.panel import (
@@ -69,7 +67,7 @@ from api.services.panel import (
     default_saleable_share,
 )
 from api.services.panel_cache import PanelCache, PanelView
-from api.services.parcel_panel_sql import PARCEL_PANEL_SQL, ZONE_PANEL_SQL
+from api.services.parcel_panel_sql import PARCEL_PANEL_SQL
 from core.engine import (
     FORMULA_VERSION,
     Assumptions,
@@ -717,50 +715,6 @@ def build_parcel_panel(row: Mapping[str, Any], profile: MunicipalityProfile) -> 
     )
 
 
-def build_zone_panel(row: Mapping[str, Any], profile: MunicipalityProfile) -> ZonePanelView:
-    zone_raw = _as_json(row["zone"])
-    version_id = row.get("version_id")
-    documents: list[ZoneDocument] = []
-    for raw in _as_json(row["documents"]) or []:
-        raw = dict(raw)
-        file_available = bool(raw.pop("file_available", False))
-        coverage_live = bool(raw.get("coverage_live"))
-        ref = _document_ref(raw)
-        documents.append(
-            ZoneDocument(
-                **ref.model_dump(),
-                type_name=profile.terminology.document_types.get(ref.type or ""),
-                covered=ref.status == "adopted" and coverage_live,
-                file_available=file_available,
-            )
-        )
-    counts = _as_json(row["counts"]) or {}
-    subtitle = panel_text.ZONE_SUBTITLE
-    summary_label = panel_text.ZONE_SUMMARY_LABEL
-    return ZonePanelView(
-        municipality_id=profile.id,
-        zone_id=zone_raw["id"],
-        version_id=int(version_id) if version_id is not None else None,
-        data_version=row.get("data_version") or UNPUBLISHED,
-        data_version_date=_iso(row.get("data_version_date")),
-        title=zone_raw["name"],
-        subtitle_en=subtitle.en,
-        subtitle_me=subtitle.me,
-        zone=ZoneRef(id=zone_raw["id"], name=zone_raw["name"]),
-        summary=zone_raw.get("general_planning_summary"),
-        summary_label_en=summary_label.en,
-        summary_label_me=summary_label.me,
-        documents=documents,
-        counts=DocumentCounts(
-            documents=int(counts.get("documents") or 0),
-            adopted=int(counts.get("adopted") or 0),
-            in_progress=int(counts.get("in_progress") or 0),
-            superseded=int(counts.get("superseded") or 0),
-            covered=sum(1 for d in documents if d.covered),
-        ),
-    )
-
-
 # --- service --------------------------------------------------------------------------------------
 
 
@@ -783,11 +737,6 @@ class ParcelPanelService:
             "parcel", parcel_id, lambda: self.parcel_panel(parcel_id), if_none_match
         )
 
-    async def zone(self, zone_id: int, if_none_match: str | None = None) -> PanelView:
-        return await self.cache.serve(
-            "zone", zone_id, lambda: self.zone_panel(zone_id), if_none_match
-        )
-
     async def parcel_panel(self, parcel_id: int) -> ParcelPanel:
         row = await self._execute(PARCEL_PANEL_SQL, parcel_id)
         if _as_json(row["cadastral"]) is None:
@@ -796,15 +745,6 @@ class ParcelPanelService:
                 details={"type": "parcel", "id": parcel_id},
             )
         return build_parcel_panel(row, self.profile)
-
-    async def zone_panel(self, zone_id: int) -> ZonePanelView:
-        row = await self._execute(ZONE_PANEL_SQL, zone_id)
-        if _as_json(row["zone"]) is None:
-            raise NotFoundError(
-                f"No zone with id {zone_id} in municipality {self.profile.id}",
-                details={"type": "zone", "id": zone_id},
-            )
-        return build_zone_panel(row, self.profile)
 
     async def _execute(self, sql: str, entity_id: int) -> Mapping[str, Any]:
         params = {"municipality_id": self.profile.id, "id": entity_id, "tz": self.profile.timezone}
@@ -817,7 +757,6 @@ __all__ = [
     "GROUP2_KEYS",
     "ParcelPanelService",
     "build_parcel_panel",
-    "build_zone_panel",
     "group1_fields",
     "run_engine",
 ]

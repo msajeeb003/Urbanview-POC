@@ -5,8 +5,7 @@
  * `GET /v1/panel?type=document&id=`: header (PLANNING DOCUMENT + status, name, "DUP — Detailed
  * urban plan" from the profile), document details with the source chip (the PDF's first page, or
  * the registry entry) and the source row (the registry name links to its eRegistri entry), the
- * general planning information of its zone, coverage counts and one row per zone spanned (typical
- * height · FAR), the data version, and the CTA stack: "Ask about this document" (an intent
+ * general planning information of its zone, coverage counts, the data version, and the CTA stack: "Ask about this document" (an intent
  * button: `ai_interest` + a toast; the POC builds no assistant) and "How we read a planning
  * document" (the methodology, step 2).
  */

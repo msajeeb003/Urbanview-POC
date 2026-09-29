@@ -10,7 +10,6 @@ from api.services.admin import AdminService
 from api.services.admin_config import AdminConfigService
 from api.services.analytics import AnalyticsService
 from api.services.auth import MagicLinkService
-from api.services.cadastral_municipalities import CadastralMunicipalityService
 from api.services.email import EmailService
 from api.services.geocode import GeocodeService
 from api.services.geometry_review import GeometryReviewService
@@ -91,20 +90,6 @@ def get_zone_index_service(request: Request) -> ZoneIndexService:
 
 
 ZoneIndexServiceDep = Annotated[ZoneIndexService, Depends(get_zone_index_service)]
-
-
-def get_cadastral_municipality_service(request: Request) -> CadastralMunicipalityService:
-    service = getattr(request.app.state, "cadastral_municipality_service", None)
-    if service is None:
-        raise ServiceUnavailableError(
-            "The KO list needs the planning database (LOCATION_RESOLVER=postgis)"
-        )
-    return service
-
-
-CadastralMunicipalityServiceDep = Annotated[
-    CadastralMunicipalityService, Depends(get_cadastral_municipality_service)
-]
 
 
 def get_geocode_service(request: Request) -> GeocodeService:

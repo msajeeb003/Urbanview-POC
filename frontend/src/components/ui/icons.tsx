@@ -131,9 +131,3 @@ export const IconPinSmall = (p: P) => (
 );
 
 /** Map selection pin, the wireframe's path at the mock's on-screen scale; anchor at the bottom. */
-export const IconMapPin = (p: P) => (
-  <svg width="30" height="39" viewBox="-13 -27 26 34" aria-hidden {...p}>
-    <path d="M0,-26 c-7,0 -12,5 -12,12 c0,9 12,20 12,20 c0,0 12,-11 12,-20 c0,-7 -5,-12 -12,-12 z" fill="#B5613B" stroke="#ffffff" strokeWidth="1.5" />
-    <circle cx="0" cy="-14" r="3.6" fill="#ffffff" />
-  </svg>
-);
