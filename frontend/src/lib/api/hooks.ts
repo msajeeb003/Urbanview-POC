@@ -16,7 +16,6 @@ import type {
   MunicipalityProfile,
   OrderIn,
   PanelQuery,
-  SourcePage,
   TilesCurrent,
 } from "./types";
 
