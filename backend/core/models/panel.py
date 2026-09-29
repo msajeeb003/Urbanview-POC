@@ -100,8 +100,6 @@ class PublishVersion(Base):
         ForeignKey("publish_versions.id", ondelete="SET NULL"),
         comment="the version that was current when this one was published",
     )
-    rolled_back_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    rolled_back_by: Mapped[str | None] = mapped_column(Text)
     archive_pruned_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         comment="retention removed the archive object; the version cannot be restored",
@@ -157,62 +155,6 @@ ASSUMPTION_BOUNDS_CHECK = " AND ".join(
     f"{r}_rate_eur_m2 <= {r}_rate_high_eur_m2))"
     for r in ASSUMPTION_RATES
 )
-ZONE_PARAMETER_VALUES_CHECK = (
-    "(max_far IS NULL OR max_far >= 0) AND "
-    "(max_site_coverage_pct IS NULL OR "
-    "(max_site_coverage_pct >= 0 AND max_site_coverage_pct <= 100)) AND "
-    "(max_height_m IS NULL OR max_height_m >= 0) AND (max_floors IS NULL OR max_floors >= 0) AND "
-    "(source_page IS NULL OR source_page >= 1)"
-)
-
-
-class ZoneParameterSet(Base):
-    """Typical planning values of a zone (admin-maintained, versioned): the zone panel's
-    ``typical_parameters``. A parcel's own document values always take precedence."""
-
-    __tablename__ = "zone_parameter_sets"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    municipality_id: Mapped[str] = mapped_column(Text, nullable=False)
-    zone_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("zones.id", ondelete="CASCADE"), nullable=False
-    )
-    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
-    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
-    supersedes_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("zone_parameter_sets.id", ondelete="SET NULL")
-    )
-    land_use: Mapped[str | None] = mapped_column(Text)
-    max_far: Mapped[float | None] = mapped_column(Float(53), comment="II, typical")
-    max_site_coverage_pct: Mapped[float | None] = mapped_column(Float(53), comment="IZ %, typical")
-    max_height_m: Mapped[float | None] = mapped_column(Float(53))
-    max_floors: Mapped[int | None] = mapped_column(Integer)
-    notes: Mapped[str | None] = mapped_column(Text)
-    source_document_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("planning_documents.id", ondelete="SET NULL")
-    )
-    source_page: Mapped[int | None] = mapped_column(Integer)
-    source_note: Mapped[str | None] = mapped_column(Text)
-    verified_on: Mapped[date | None] = mapped_column(Date, comment="expert verification date")
-    verified_by: Mapped[str | None] = mapped_column(Text)
-    created_by: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    retired_by: Mapped[str | None] = mapped_column(Text)
-    dataset_version: Mapped[str | None] = mapped_column(Text)
-
-    __table_args__ = (
-        CheckConstraint(ZONE_PARAMETER_VALUES_CHECK, name="ck_zone_parameter_sets_values"),
-        Index(
-            "uq_zone_parameter_sets_current",
-            "zone_id",
-            unique=True,
-            postgresql_where=text("is_current"),
-        ),
-        Index("ix_zone_parameter_sets_zone", "municipality_id", "zone_id", "version"),
-    )
 
 
 class FinancialAssumption(Base):

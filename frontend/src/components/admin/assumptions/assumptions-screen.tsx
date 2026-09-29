@@ -5,8 +5,7 @@
  * district" with "Save changes", one row per zone (district) with its figures as inputs: land,
  * construction, design & documentation and sale rates (€/m²), the saleable share (blank = the
  * product's 70 %), the range ± and the source note. The row's "Details" opens the absolute bounds
- * per rate and notes, a preview of Group 2 on a test parcel with the unsaved figures, and the
- * version history with a diff against the previous version.
+ * per rate and notes, and the version history with a diff against the previous version.
  *
  * Saving sends every changed zone as a new version applying from the chosen date (today by
  * default; a later date schedules it and the panel keeps today's figures until then), after a

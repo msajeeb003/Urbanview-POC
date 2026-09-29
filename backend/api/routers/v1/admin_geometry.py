@@ -1,12 +1,12 @@
 """Geometry review (roles admin and reviewer, like the value queue; experts have no access): the
 staged geometry batches (the pilot scope's ``staging.geometry_draft``) with their origin and
-topology QA, decided before the publish job may apply them.
+validity QA, decided before the publish job may apply them.
 
 - ``GET /v1/admin/geometry`` — staged and rejected batches (``include_history`` adds published and
   superseded ones), pending first, failing QA first; filters: review status, origin, layer,
   document, dataset, QA status; ``counts`` for the queue header;
 - ``GET /v1/admin/geometry/{id}`` — one batch; ``.../features`` — its features for the preview
-  (simplified GeoJSON, the issue codes naming each feature, the gap locations);
+  (simplified GeoJSON, the issue codes naming each feature);
 - ``POST /v1/admin/geometry/{id}/approve | reject`` — one decision, one audit row; approve is
   refused for a batch whose QA fails (409 ``qa_failed``), reject needs a reason and is final;
 - ``POST /v1/admin/geometry/bulk-approve`` — the pending batches of a dataset, a document or ids.

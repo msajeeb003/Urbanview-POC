@@ -1,6 +1,6 @@
 """Admin configuration on PostGIS: financial assumption versions (and what the panel and the
-feasibility route state), absolute bounds flowing into the ranges, zone parameter set versions
-on the zone panel, staff user CRUD with session revocation, and the audit rows behind it all."""
+feasibility route state), absolute bounds flowing into the ranges, staff user CRUD with session
+revocation, and the audit rows behind it all."""
 
 from __future__ import annotations
 
@@ -16,9 +16,6 @@ pytestmark = pytest.mark.integration
 
 TOKEN = "admin-token-1234"
 CLEANUP = (
-    "DELETE FROM zone_parameter_sets WHERE created_by <> 'seed'",
-    "UPDATE zone_parameter_sets SET is_current = true, retired_at = NULL, retired_by = NULL "
-    "WHERE created_by = 'seed'",
     "DELETE FROM financial_assumptions WHERE created_by <> 'seed'",
     "UPDATE financial_assumptions SET is_current = true, retired_at = NULL, retired_by = NULL, "
     "effective_from = (created_at AT TIME ZONE 'UTC')::date WHERE created_by = 'seed'",
@@ -258,95 +255,6 @@ async def test_absolute_bounds_flow_into_the_ranges(config_app):
 
 
 # --- zone parameter sets --------------------------------------------------------------------------
-
-
-async def test_zone_parameter_versions_and_the_zone_panel(config_app):
-    app = config_app
-    async with app.router.lifespan_context(app), make_client(app) as client:
-        seeded = (await client.get("/v1/panel", params={"type": "zone", "id": 1})).json()
-        empty = (await client.get("/v1/panel", params={"type": "zone", "id": 2})).json()
-        v1 = await client.post(
-            "/v1/admin/zone-parameters",
-            json={
-                "zone_id": 2,
-                "land_use": "Residential – low density",
-                "max_far": 1.5,
-                "max_site_coverage_pct": 40,
-                "source_document_id": 4,
-                "source_page": 5,
-                "source_note": "chapter 4",
-                "verified_on": "2026-09-15",
-                "verified_by": "expert",
-            },
-            headers=auth(),
-        )
-        assert v1.status_code == 201, v1.text
-        v1 = v1.json()
-        with_v1 = (await client.get("/v1/panel", params={"type": "zone", "id": 2})).json()
-        v2 = await client.post(
-            "/v1/admin/zone-parameters", json={"zone_id": 2, "max_floors": 4}, headers=auth()
-        )
-        assert v2.status_code == 201, v2.text
-        v2 = v2.json()
-        v3 = await client.put(
-            f"/v1/admin/zone-parameters/{v2['id']}", json={"max_height_m": 12}, headers=auth()
-        )
-        assert v3.status_code == 201, v3.text
-        v3 = v3.json()
-        history = (
-            await client.get(
-                "/v1/admin/zone-parameters",
-                params={"zone_id": 2, "include_history": "true"},
-                headers=auth(),
-            )
-        ).json()["items"]
-        stale = await client.put(
-            f"/v1/admin/zone-parameters/{v1['id']}", json={"max_far": 2}, headers=auth()
-        )
-        retired = await client.delete(f"/v1/admin/zone-parameters/{v3['id']}", headers=auth())
-        after = (await client.get("/v1/panel", params={"type": "zone", "id": 2})).json()
-        bad = [
-            await client.post("/v1/admin/zone-parameters", json=b, headers=auth())
-            for b in (
-                {"zone_id": 999_999, "max_far": 1},
-                {"zone_id": 2, "max_far": 1, "source_document_id": 999_999},
-                {"zone_id": 2, "max_far": 1, "source_page": 3},
-                {"zone_id": 2, "max_site_coverage_pct": 101},
-                {"zone_id": 2},
-            )
-        ]
-
-    typical = seeded["typical_parameters"]
-    assert typical["version"] == 1 and typical["max_far"] == 3.2 and typical["max_floors"] == 7
-    assert typical["source"]["document_name"] == "DUP Centar – Zona C2"
-    assert typical["source"]["page"] == 12 and typical["verified_on"] == "2026-09-01"
-    assert "take precedence" in typical["note_en"] and typical["note_me"]
-    assert empty["typical_parameters"] is None
-
-    assert (v1["zone_id"], v1["zone_name"], v1["version"]) == (2, "Stari Aerodrom", 1)
-    assert v1["source"]["document_name"] == "DUP Stari Aerodrom" and v1["source"]["page"] == 5
-    assert with_v1["typical_parameters"]["max_far"] == 1.5
-    assert with_v1["typical_parameters"]["source"]["document_id"] == 4
-    assert with_v1["typical_parameters"]["verified_by"] == "expert"
-    assert (v2["version"], v2["supersedes_id"], v2["max_far"]) == (2, v1["id"], None)  # fresh set
-    assert (v3["version"], v3["supersedes_id"]) == (3, v2["id"])
-    assert (v3["max_floors"], v3["max_height_m"]) == (4, 12.0)  # carried over + changed
-    assert [(item["version"], item["is_current"]) for item in history] == [
-        (3, True),
-        (2, False),
-        (1, False),
-    ]
-    assert stale.status_code == 409
-    assert retired.status_code == 200 and retired.json()["is_current"] is False
-    assert after["typical_parameters"] is None
-    assert [r.status_code for r in bad] == [422, 422, 422, 422, 422]
-    assert [a["action"] for a in await audit_actions(app, "zone_parameter_set", v3["id"])] == [
-        "zone_parameters.update",
-        "zone_parameters.retire",
-    ]
-
-
-# --- staff users ----------------------------------------------------------------------------------
 
 
 async def test_staff_users_crud_without_passwords(config_app):

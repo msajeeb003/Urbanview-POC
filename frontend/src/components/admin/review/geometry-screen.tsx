@@ -3,14 +3,14 @@
 /**
  * The geometry review (`/admin/review/geometry`; the pilot scope's A2: geometry drafts "in the
  * same or a sibling queue", no mock screen: the value queue's card, panes and keys): staged
- * geometry batches with their origin and topology QA, decided before the publish job may apply
- * them.
+ * geometry batches with their origin and validity QA (invalid or empty features, the producing
+ * run's own warnings), decided before the publish job may apply them.
  *
  * The card (pending count, the switch to the extracted values, counts, filters: status, origin,
  * layer, history), then three panes: the batches (pending first, failing QA first), the batch
  * (what it is, where it came from, its QA issues with the features they name, the georeferencing
- * fit when it has one, the decision) and the preview (the features drawn, issues outlined, gaps
- * marked). Keys: j / k or ↓ / ↑ move, Enter approves (not a batch whose QA fails), r rejects
+ * fit when it has one, the decision) and the preview (the features drawn, issues outlined).
+ * Keys: j / k or ↓ / ↑ move, Enter approves (not a batch whose QA fails), r rejects
  * (reason required; final: the geometry is fixed and staged again), n next pending, Esc closes.
  * A rejected or approved batch keeps its row; the counts follow every decision.
  */
@@ -201,7 +201,7 @@ function GeometryDetail({
         {draft.qa_status === null ? (
           <div className="rhint">Not checked yet: the checks run when it is first approved.</div>
         ) : issues.length === 0 ? (
-          <div className="rhint">No overlaps, gaps or area differences found.</div>
+          <div className="rhint">Every feature is a valid geometry; the producing run reported no warnings.</div>
         ) : (
           <ul>
             {issues.map((issue, i) => (
@@ -402,7 +402,7 @@ export function GeometryScreen({
         <div className="cardhd">
           <div>
             <h3>Geometry — review queue</h3>
-            <div className="sub">Staged geometry is checked (overlaps, gaps, area against the plan) and approved before it publishes</div>
+            <div className="sub">Staged geometry is checked (valid, non-empty features; the producing run&apos;s warnings) and approved before it publishes</div>
           </div>
           <span className={counts.pending ? "st pend" : "st ok"}>{counts.pending} pending</span>
         </div>

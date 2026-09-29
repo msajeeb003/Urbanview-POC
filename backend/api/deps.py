@@ -12,7 +12,6 @@ from api.services.analytics import AnalyticsService
 from api.services.auth import MagicLinkService
 from api.services.cadastral_municipalities import CadastralMunicipalityService
 from api.services.email import EmailService
-from api.services.engine_proposals import EngineProposalService
 from api.services.geocode import GeocodeService
 from api.services.geometry_review import GeometryReviewService
 from api.services.jobs import JobService
@@ -242,20 +241,8 @@ def get_admin_config_service(request: Request) -> AdminConfigService:
 
 
 AdminConfigServiceDep = Annotated[AdminConfigService, Depends(get_admin_config_service)]
-# who may read the configuration pages: admins edit, reviewers read the planning rules
-ConfigReaderPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
 
 
-def get_engine_proposal_service(request: Request) -> EngineProposalService:
-    service = getattr(request.app.state, "engine_proposal_service", None)
-    if service is None:
-        raise ServiceUnavailableError(
-            "The staff API needs the planning database (LOCATION_RESOLVER=postgis)"
-        )
-    return service
-
-
-EngineProposalServiceDep = Annotated[EngineProposalService, Depends(get_engine_proposal_service)]
 # any signed-in staff member (the admin console's own account routes)
 StaffPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer, Role.expert))]
 
@@ -280,7 +267,7 @@ AuditReaderPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Rol
 # admins change it; reviewers read documents, files and jobs.
 PipelinePrincipal = Annotated[Principal, Depends(require_role(Role.admin))]
 DocumentReaderPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
-# publish and rollback (A4, "review and publish"): admins and reviewers
+# publish (A4, "review and publish"): admins and reviewers
 PublisherPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
 
 

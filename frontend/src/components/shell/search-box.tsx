@@ -17,7 +17,6 @@
  * - Empty list → "No match. The client will supply available data locations." Never an error.
  * - Keyboard: ⌘K / Ctrl+K focuses (bound in the shell), ↑ ↓ move (← → between KO chips), Enter
  *   picks (the first row when none is active), Esc closes.
- * - ≤ 760 px: a focused search opens as a full-screen sheet with a Cancel button (`overrides.css`).
  * - Analytics: `search_performed { search_kind, matched }` comes from the selection flow for
  *   picks; this box adds `matched: false` for a query left with no result (Enter or closing).
  */
@@ -355,7 +354,7 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
   const koPending = pending && parcel && sameRef(pending, parcel) ? pending.ko : null;
 
   return (
-    <div className={open ? "searchwrap searching" : "searchwrap"} ref={wrapRef}>
+    <div className="searchwrap" ref={wrapRef}>
       <span className="mag">
         <IconSearch />
       </span>
@@ -418,17 +417,6 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
       <span className="kbd" aria-hidden>
         ⌘K
       </span>
-      <button
-        type="button"
-        className="searchcancel"
-        onMouseDown={keepFocus}
-        onClick={() => {
-          close();
-          inputRef.current?.blur();
-        }}
-      >
-        {t("search.cancel")}
-      </button>
       <div className={listOpen ? "searchsug on" : "searchsug"} id={listId} role="listbox" aria-label={t("search.suggestions")}>
         {showNotFound && (
           <div className="searchnote" role="option" aria-disabled="true" aria-selected={false}>
@@ -458,9 +446,6 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
           >
             {t("search.noMatch")}
           </div>
-        )}
-        {empty && options.length === 0 && (
-          <div className="searchhint">{t("search.hint")}</div>
         )}
       </div>
       <span className="sr-only" aria-live="polite">

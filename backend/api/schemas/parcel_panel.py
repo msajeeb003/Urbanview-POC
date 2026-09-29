@@ -28,7 +28,6 @@ from api.schemas.panel import (
     DocumentRef,
     LinkRelation,
     ZoneRef,
-    ZoneTypicalParameters,
 )
 
 BasisReason = Literal["planned_parcel", "split", "no_planned_parcel", "not_covered", "unpublished"]
@@ -192,7 +191,6 @@ class ComputedField(BaseModel):
 
 
 class Group1(BaseModel):
-    tier: Literal["free"] = "free"
     title_en: str
     title_me: str
     document: DocumentRef | None = Field(
@@ -216,7 +214,6 @@ class RangeValue(BaseModel):
 
 
 class MarketView(BaseModel):
-    tier: Literal["paid"] = "paid"
     title_en: str
     title_me: str
     zone: ZoneRef | None = None
@@ -258,7 +255,6 @@ class AssumptionItem(BaseModel):
 
 
 class AssumptionsView(BaseModel):
-    tier: Literal["paid"] = "paid"
     title_en: str
     title_me: str
     formula_version: str
@@ -296,7 +292,6 @@ class InputFlag(BaseModel):
 
 
 class Group2(BaseModel):
-    tier: Literal["paid"] = "paid"
     title_en: str
     title_me: str
     status: Literal["ok", "partial", "unavailable"]
@@ -376,4 +371,3 @@ class ZonePanelView(BaseModel):
         description="Current versions: adopted first, then in progress, then superseded"
     )
     counts: DocumentCounts
-    typical_parameters: ZoneTypicalParameters | None = None

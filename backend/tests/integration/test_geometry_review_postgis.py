@@ -1,11 +1,12 @@
 """Geometry review through the API (the pilot scope's ``staging.geometry_draft``, A2 check of
-2026-09-29): topology QA of a staged batch (overlaps, gaps, area deviation against the plan's
-stated area, invalid geometry), the queue with origin, QA and counts, the preview features,
+2026-09-29): the validity QA of a staged batch (invalid or empty geometry, the producing run's own
+warnings; no topology QA in the POC), the queue with origin, QA and counts, the preview features,
 approve and reject with their audit rows and the roles, and the publish job waiting for the
 decisions and applying approved geometry only."""
 
 from __future__ import annotations
 
+import json
 import math
 
 import pytest
@@ -56,16 +57,31 @@ def parcel(number: str) -> dict:
 
 
 PARCELS = [
-    # UP 12 is seeded with a stated plan area of 959.6 m²: drawn 400 m² is a deviation
+    # Valid geometry that a topology QA would flag: UP 13 overlaps UP 12 by 1 m x 20 m, UP 91-94
+    # leave a 2 m x 2 m sliver between them, and UP 12 is drawn at 400 m² against the plan's
+    # stated 959.6 m². The POC checks validity only, so none of it is an issue.
     ("2|UP 12", box(0, 0, 20, 20), parcel("UP 12")),
-    # overlaps UP 12 by 1 m x 20 m
     ("2|UP 13", box(19, 0, 39, 20), parcel("UP 13")),
-    # four parcels around a 2 m x 2 m hole: a digitising gap
     ("2|UP 91", box(100, 0, 110, 12), parcel("UP 91")),
     ("2|UP 92", box(112, 0, 122, 12), parcel("UP 92")),
     ("2|UP 93", box(110, 0, 112, 5), parcel("UP 93")),
     ("2|UP 94", box(110, 7, 112, 12), parcel("UP 94")),
 ]
+ZONES_RUN = "podgorica-zones-qa-test"
+# the zone import's own recorded warning (core.zones.validate Problem.to_json shape)
+ZONES_VALIDATION = {
+    "problems": [
+        {
+            "severity": "warning",
+            "code": "document_adopted_without_reference",
+            "message": "adopted but no eregistri_reference: confirm it against the registry",
+            "zone_id": "centar",
+            "zone_ids": ["centar"],
+            "document": "row 1: DUP Centar",
+            "area_m2": None,
+        }
+    ]
+}
 
 
 async def qa(app, batch_id: int):
@@ -75,51 +91,76 @@ async def qa(app, batch_id: int):
     return result
 
 
-async def test_qa_names_overlaps_gaps_and_area_deviation(publish_env):  # noqa: F811 - imported fixtures
+async def test_qa_flags_invalid_geometry_and_the_runs_own_warnings(publish_env):  # noqa: F811 - imported fixtures
+    """A valid batch passes with no topology issues (overlaps, slivers and areas unlike the plan's
+    are the reviewer's eye on the preview, not checks), the producing run's own warnings still reach
+    its batch, and the preview marks nothing; invalid geometry fails in the test below."""
     app = publish_env()
     async with app.router.lifespan_context(app), make_client(app) as client:
-        batch = await stage(app, "urban_parcels", PARCELS)
-        result = await qa(app, batch)
-        listing = await client.get("/v1/admin/geometry", headers=auth())
-        detail = await client.get(f"/v1/admin/geometry/{batch}", headers=auth())
-        preview = await client.get(f"/v1/admin/geometry/{batch}/features", headers=auth())
+        parcels = await stage(app, "urban_parcels", PARCELS)
+        zones = await stage(app, "zones", [("centar", box(0, 0, 90, 90), {"name": "Centar"})])
+        async with app.state.session_factory() as session:  # the run that staged the zones
+            await session.execute(
+                text(
+                    "INSERT INTO zone_datasets (municipality_id, dataset_version, zones_batch_id, "
+                    "validation) VALUES ('podgorica', :version, :batch, CAST(:report AS jsonb))"
+                ),
+                {"version": ZONES_RUN, "batch": zones, "report": json.dumps(ZONES_VALIDATION)},
+            )
+            await session.commit()
+        try:
+            passed = await qa(app, parcels)
+            warned = await qa(app, zones)
+            listing = await client.get("/v1/admin/geometry", headers=auth())
+            detail = await client.get(f"/v1/admin/geometry/{parcels}", headers=auth())
+            preview = await client.get(f"/v1/admin/geometry/{parcels}/features", headers=auth())
+        finally:  # the publish reset does not know this row
+            async with app.state.session_factory() as session:
+                await session.execute(
+                    text("DELETE FROM zone_datasets WHERE dataset_version = :version"),
+                    {"version": ZONES_RUN},
+                )
+                await session.commit()
 
-    assert result.status == "warn"
-    assert result.checks == ("validity", "overlaps", "gaps", "area_deviation")
-    issues = {i.code: i for i in result.issues}
-    assert set(issues) == {"overlap", "gap", "area_deviation"}
-    overlap = issues["overlap"]
-    assert overlap.count == 1 and set(overlap.keys) == {"2|UP 12", "2|UP 13"}
-    assert overlap.area_m2 == pytest.approx(20, abs=0.5)
-    gap = issues["gap"]
-    assert gap.count == 1 and gap.area_m2 == pytest.approx(4, abs=0.2)
-    lng, lat, m2 = gap.locations[0]
-    assert abs(lng - (LNG0 + 111 * M_LNG)) < 2e-5 and abs(lat - (LAT0 + 6 * M_LAT)) < 2e-5
-    deviation = issues["area_deviation"]
-    assert deviation.keys == ("2|UP 12",) and "plan 959.6 m²" in deviation.features[0]
+    assert passed.status == "pass" and passed.checks == ("validity",)
+    assert passed.issues == []
+    assert warned.status == "warn" and warned.checks == ("validity",)
+    (issue,) = warned.issues
+    assert issue.code == "zones.document_adopted_without_reference"
+    assert issue.severity == "warning" and issue.count == 1 and issue.keys == ()
+    assert issue.message == ZONES_VALIDATION["problems"][0]["message"]
 
     assert listing.status_code == 200 and detail.status_code == 200
     body = listing.json()
-    assert body["counts"] == {"pending": 1, "approved": 0, "rejected": 0, "failing": 0}
-    (item,) = body["items"]
+    assert body["counts"] == {"pending": 2, "approved": 0, "rejected": 0, "failing": 0}
+    items = {i["id"]: i for i in body["items"]}
+    assert set(items) == {parcels, zones}
+    assert body["items"][0]["id"] == zones  # pending first, warnings before passes
+    item = items[parcels]
     assert item == detail.json()
     assert item["layer_id"] == "urban_parcels" and item["layer_label"] == "Planned urban parcels"
     assert item["status"] == "staged" and item["review_status"] == "pending"
-    assert item["qa_status"] == "warn" and item["feature_count"] == 6
-    assert [i["code"] for i in item["qa_issues"]] == ["overlap", "gap", "area_deviation"]
+    assert item["qa_status"] == "pass" and item["qa_issues"] == [] and item["feature_count"] == 6
     assert item["can_approve"] and item["approve_blocker"] is None and item["can_reject"]
     west, south, east, north = item["bbox"]
     assert west == pytest.approx(LNG0, abs=1e-6) and north == pytest.approx(LAT0 + 20 * M_LAT)
+    with_warning = items[zones]
+    assert with_warning["qa_status"] == "warn" and with_warning["can_approve"]
+    assert [i["code"] for i in with_warning["qa_issues"]] == [
+        "zones.document_adopted_without_reference"
+    ]
+    assert with_warning["qa_issues"][0]["keys"] == []
+    assert with_warning["dataset"] == {"kind": "zones", "version": ZONES_RUN, "status": "staged"}
 
     assert preview.status_code == 200
     features = preview.json()
     assert features["total"] == 6 and features["truncated"] is False
     marked = {f["id"]: f["properties"] for f in features["features"]["features"]}
-    assert marked["2|UP 12"]["issues"] == ["overlap", "area_deviation"]
-    assert marked["2|UP 13"]["issues"] == ["overlap"] and marked["2|UP 91"]["issues"] == []
+    assert set(marked) == {key for key, _, _ in PARCELS}
+    assert all(props["issues"] == [] for props in marked.values())
     assert marked["2|UP 12"]["label"] == "UP 12"
     assert marked["2|UP 12"]["area_m2"] == pytest.approx(400, abs=1)
-    assert len(features["gaps"]) == 1
+    assert "gaps" not in features
 
 
 async def test_decisions_are_audited_and_a_failing_batch_cannot_be_approved(publish_env):  # noqa: F811 - imported fixtures

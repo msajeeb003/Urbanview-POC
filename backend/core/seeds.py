@@ -165,32 +165,6 @@ TABLES: list[tuple[str, str | None, frozenset[str]]] = [
         ),
     ),
     (
-        "zone_parameter_sets",
-        None,
-        frozenset(
-            {
-                "id",
-                "municipality_id",
-                "zone_id",
-                "version",
-                "is_current",
-                "land_use",
-                "max_far",
-                "max_site_coverage_pct",
-                "max_height_m",
-                "max_floors",
-                "notes",
-                "source_document_id",
-                "source_page",
-                "source_note",
-                "verified_on",
-                "verified_by",
-                "created_by",
-                "dataset_version",
-            }
-        ),
-    ),
-    (
         "planning_parameter_values",
         None,
         frozenset(

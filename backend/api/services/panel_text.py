@@ -46,13 +46,6 @@ MARKET_PARAMETER_LABELS: dict[str, Bilingual] = {
     ),
     "sale_rate_eur_m2": Bilingual("Selling price per m²", "Prodajna cijena po m²"),
 }
-ZONE_TYPICAL_NOTE = Bilingual(
-    "Typical values for the zone, maintained by staff; the values of a parcel's own planning "
-    "document always take precedence.",
-    "Tipične vrijednosti za zonu koje održava osoblje; vrijednosti iz planskog dokumenta "
-    "parcele uvijek imaju prednost.",
-)
-
 FLAGS_NOTE = Bilingual(
     "false means not flagged in the cadastral extract; no value means the data is not available",
     "false znači da nije označeno u katastarskom izvodu; bez vrijednosti znači da podatak "

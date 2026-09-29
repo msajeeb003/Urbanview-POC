@@ -20,8 +20,6 @@ import type {
   AssumptionSet,
   AssumptionSetIn,
   AssumptionStatus,
-  AssumptionsPreview,
-  Group2View,
   RateRange,
 } from "@/lib/api/types";
 
@@ -342,63 +340,4 @@ export function previousVersion(history: AssumptionSet[], set: AssumptionSet): A
       .filter((s) => s.version < set.version)
       .sort((a, b) => b.version - a.version)[0] ?? null
   );
-}
-
-// --- preview ---------------------------------------------------------------------------------
-
-export interface FigureText {
-  /** The expected figure, or "—" with the reason. */
-  main: string;
-  /** "low – high" for a ranged figure, else null. */
-  range: string | null;
-}
-
-export interface PreviewRow {
-  key: string;
-  label: string;
-  now: FigureText;
-  draft: FigureText;
-  changed: boolean;
-}
-
-type Group2Field = Group2View["fields"][number];
-
-function figureText(field: Group2Field | undefined): FigureText {
-  if (field == null) return { main: "—", range: null };
-  if (field.status !== "ok" || field.expected == null) return { main: `— ${field.reason_en ?? "cannot calculate"}`, range: null };
-  const fmt = (v: number | null | undefined) => {
-    if (v == null) return "—";
-    if (field.unit === "€" || field.unit === "EUR") {
-      const whole = Math.round(v);
-      return `${whole < 0 ? "−" : ""}€${Math.abs(whole).toLocaleString("en-GB")}`;
-    }
-    if (field.unit === "%") return `${v.toLocaleString("en-GB", { maximumFractionDigits: 1 })}%`;
-    return `${v.toLocaleString("en-GB", { maximumFractionDigits: 1 })} ${field.unit}`;
-  };
-  return {
-    main: fmt(field.expected),
-    range: field.range_kind === "range" ? `${fmt(field.low)} – ${fmt(field.high)}` : null,
-  };
-}
-
-/** Group 2 today vs with the draft, figure by figure in the panel's order (money in whole euros). */
-export function previewRows(preview: AssumptionsPreview): PreviewRow[] {
-  const draftFields = preview.draft.group2?.fields ?? [];
-  const nowFields = new Map((preview.current.group2?.fields ?? []).map((f) => [f.key, f]));
-  return draftFields.map((field) => {
-    const now = figureText(nowFields.get(field.key));
-    const draft = figureText(field);
-    return {
-      key: field.key,
-      label: field.label_en,
-      now,
-      draft,
-      changed: now.main !== draft.main || now.range !== draft.range,
-    };
-  });
-}
-
-/** "UP 12" whether the plan's number already carries the prefix or not. */
-export function plannedLabel(number: string): string {
-  return /^UP(\s|$)/i.test(number.trim()) ? number.trim() : `UP ${number.trim()}`;
 }

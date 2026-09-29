@@ -218,7 +218,7 @@ payload's major version (`PAYLOAD_READERS`); a minor version only adds. A frozen
 
 ## 9. Evaluation
 
-The corpus evaluation (every parcel of the client's POC documents, scored per field, in CI) is
+The corpus evaluation (every parcel of the client's POC documents, scored per field) is
 `backend/tests/corpus/README.md`; the checks below are the contract's own.
 
 - **Never guessed** (`cases.py`): five pages where a field is absent and a plausible value is in

@@ -177,8 +177,8 @@ colours; `dash` = white with 1.5 px dashed brand; `docdash` = white with 2 px da
 | 3 | `zones` | Urban zones | Base | on | zones | core; also draws block boundaries + labels and zone labels | `zones`, `urban_blocks` |
 | 4 | `cadastre` | Cadastral parcels | Parcels | on | `#B3A894` | | `cadastral_parcels` |
 | 5 | `planned` | Urban parcels | Parcels | on | dash | | `urban_parcels` |
-| 6 | `owner` | Public ownership | Parcels | off | `#4F6D82` | requires `cadastre` | `public_ownership` |
-| 7 | `restit` | Restitution / legal | Parcels | off | `#9E5568` | requires `cadastre` | `legal_burdens` |
+| 6 | `owner` | Public ownership | Parcels | off | `#4F6D82` | requires `cadastre` | — (no published layer; not in the POC) |
+| 7 | `restit` | Restitution / legal | Parcels | off | `#9E5568` | requires `cadastre` | — (no published layer; not in the POC) |
 | 8 | `landuse` | Land use | Context | off | `#b98a5a` | | `land_use` |
 | 9 | `heatFAR` | FAR heatmap | Context | off | heat1 | | `heat_far` (+ `heat_coverage`, `heat_height`, `heat_gfa`) |
 | 10 | `traffic` | Planned traffic | Context | off | `#5b5b5b` | | `traffic_network` |

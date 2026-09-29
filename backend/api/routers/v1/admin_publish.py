@@ -4,9 +4,7 @@
   items pending review, naming the documents; otherwise queues the ``publish_approved`` job
   (202 with the job; 200 with the running one when a publish is already active);
 - ``GET /v1/admin/publish``: the status screen: current version (who, when, label, archive
-  link), earlier versions, the active job with its per-step progress, the last job, blockers;
-- ``POST /v1/admin/publish/rollback``: flips the current pointer back to an earlier version
-  (default the previous one) without recomputing anything; audited.
+  link), earlier versions, the active job with its per-step progress, the last job, blockers.
 
 Responses are ``Cache-Control: no-store``.
 """
@@ -17,7 +15,7 @@ from fastapi import APIRouter, Depends, Response
 
 from api.deps import PublisherPrincipal, PublishServiceDep
 from api.schemas.admin import JobOut
-from api.schemas.publish import PublishRequest, PublishStatus, RollbackRequest
+from api.schemas.publish import PublishRequest, PublishStatus
 
 
 async def _no_store(response: Response) -> None:
@@ -61,22 +59,3 @@ async def publish_status(
     principal: PublisherPrincipal, service: PublishServiceDep
 ) -> PublishStatus:
     return await service.status()
-
-
-@router.post(
-    "/rollback",
-    response_model=PublishStatus,
-    summary="Roll the map back to an earlier version",
-    responses={
-        **RESPONSES,
-        404: {"description": "No such version"},
-        409: {"description": "Nothing to roll back to, already current, or pruned"},
-    },
-)
-async def rollback(
-    principal: PublisherPrincipal,
-    service: PublishServiceDep,
-    payload: RollbackRequest | None = None,
-) -> PublishStatus:
-    payload = payload or RollbackRequest()
-    return await service.rollback(principal, payload.version_id)

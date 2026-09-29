@@ -15,7 +15,7 @@ export function fitOptions(padding: number, maxZoom?: number): { padding: number
 
 /**
  * The padding to fit with in a `width` × `height` px box: `want`, but never so much that nothing
- * is left to fit into (a phone's map above the bottom sheet), which Mapbox would also drop.
+ * is left to fit into, which Mapbox would also drop.
  */
 export function fitPadding(want: number, width: number, height: number): number {
   return Math.max(0, Math.min(want, Math.floor(Math.min(width, height) / 2) - 1));

@@ -13,7 +13,7 @@ parameters cast explicitly, every access index-backed), with three differences:
 
 ``STAMP_SQL`` is the cache key's input: the current version plus a fingerprint of everything that
 changes the panels outside a publish (document status / coverage switch / new versions, the market
-assumptions that apply today, current zone parameter sets). The market part is the set of live
+assumptions that apply today). The market part is the set of live
 versions on the municipality's local date (``core.assumptions``), so a scheduled version taking
 effect at midnight changes the key without anyone touching the data. Parameters:
 ``municipality_id``, ``id`` and ``tz`` (the parcel statement and the stamp).
@@ -238,15 +238,6 @@ docs AS (
     WHERE d.zone_id = CAST(:id AS bigint)
       AND d.municipality_id = :municipality_id
       AND d.is_current_version
-),
-typical AS (
-    SELECT p.id, p.version, p.land_use, p.max_far, p.max_site_coverage_pct, p.max_height_m,
-           p.max_floors, p.notes, p.verified_on, p.verified_by, p.source_page, p.source_note,
-           p.source_document_id, d.name AS document_name, d.source_url AS registry_url
-    FROM zone_parameter_sets p
-    LEFT JOIN planning_documents d ON d.id = p.source_document_id
-    WHERE p.zone_id = CAST(:id AS bigint) AND p.is_current
-    LIMIT 1
 )
 SELECT
     (SELECT jsonb_build_object('id', id, 'name', name,
@@ -256,14 +247,6 @@ SELECT
     (SELECT jsonb_build_object('documents', documents, 'adopted', adopted,
                                'in_progress', in_progress, 'superseded', superseded)
      FROM docs) AS counts,
-    (SELECT jsonb_build_object(
-        'id', id, 'version', version, 'land_use', land_use, 'max_far', max_far,
-        'max_site_coverage_pct', max_site_coverage_pct, 'max_height_m', max_height_m,
-        'max_floors', max_floors, 'notes', notes, 'verified_on', verified_on,
-        'verified_by', verified_by, 'source_document_id', source_document_id,
-        'document_name', document_name, 'registry_url', registry_url,
-        'source_page', source_page, 'source_note', source_note)
-     FROM typical) AS typical_parameters,
     (SELECT id FROM version) AS version_id,{_VERSION_COLUMNS}
 """
 
@@ -283,8 +266,5 @@ SELECT
                                     '|' ORDER BY id), ''))
      FROM planning_documents WHERE municipality_id = :municipality_id) AS documents,
     (SELECT md5(COALESCE(string_agg(id::text, ',' ORDER BY id), ''))
-     FROM ({live_versions_sql(municipality=":municipality_id")}) live_market) AS market,
-    (SELECT md5(COALESCE(string_agg(id::text, ',' ORDER BY id), ''))
-     FROM zone_parameter_sets WHERE municipality_id = :municipality_id AND is_current)
-        AS typical
+     FROM ({live_versions_sql(municipality=":municipality_id")}) live_market) AS market
 """

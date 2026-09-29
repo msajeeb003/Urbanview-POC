@@ -89,14 +89,11 @@ export function issueTone(issue: Pick<QaIssue, "severity">): ChipTone {
   return issue.severity === "error" ? "rev" : "pend";
 }
 
-/** The issue's name for the console ("Overlap", "Gap", "Area differs from the plan", …). */
+/** The issue's name for the console ("Invalid geometry", "Systematic offset (georeferencing)", …). */
 export function issueName(code: string): string {
   const names: Record<string, string> = {
     invalid_geometry: "Invalid geometry",
     empty_geometry: "Empty geometry",
-    overlap: "Overlap",
-    gap: "Gap",
-    area_deviation: "Area differs from the plan",
   };
   if (names[code]) return names[code];
   const [kind, rest] = code.includes(".") ? code.split(".", 2) : ["", code];
@@ -175,12 +172,6 @@ export interface PreviewShape {
   area: number | null;
 }
 
-export interface PreviewGap {
-  x: number;
-  y: number;
-  m2: number;
-}
-
 type Position = number[];
 type Geometry = { type: string; coordinates: unknown } | null;
 
@@ -204,16 +195,16 @@ function rings(geometry: Geometry): { ring: Position[]; closed: boolean }[] {
 /**
  * The batch's features on a `width` × `height` SVG box: an equirectangular projection around the
  * batch's middle latitude (east–west shrunk by its cosine, so shapes keep their proportions),
- * fitted with `pad` pixels to spare, north up. Gaps become points at their location.
+ * fitted with `pad` pixels to spare, north up.
  */
 export function projectFeatures(
-  data: Pick<GeometryFeatures, "bbox" | "features" | "gaps">,
+  data: Pick<GeometryFeatures, "bbox" | "features">,
   width: number,
   height: number,
   pad = 12,
-): { shapes: PreviewShape[]; gaps: PreviewGap[] } {
+): { shapes: PreviewShape[] } {
   const bbox = data.bbox;
-  if (!bbox || bbox.length !== 4) return { shapes: [], gaps: [] };
+  if (!bbox || bbox.length !== 4) return { shapes: [] };
   const [west, south, east, north] = bbox;
   const k = Math.cos((((south + north) / 2) * Math.PI) / 180);
   const spanX = Math.max((east - west) * k, 1e-9);
@@ -241,8 +232,7 @@ export function projectFeatures(
       area: typeof props.area_m2 === "number" ? props.area_m2 : null,
     };
   });
-  const gaps = (data.gaps ?? []).map(([lng, lat, m2]) => ({ x: round(x(lng)), y: round(y(lat)), m2 }));
-  return { shapes, gaps };
+  return { shapes };
 }
 
 /** "3 geometry batches wait for review" (null when none). */

@@ -12,7 +12,6 @@ Source documents (BRD v1.6, BRQ, wireframe, brand assets): `docs/`.
 | `backend/` | Public API, location resolution, jobs | FastAPI, SQLAlchemy 2 (async), Celery, Redis, S3 |
 | `database/` | Schema migrations, seed datasets, DB tooling | Alembic, PostgreSQL 16 + PostGIS |
 | `frontend/` | Public map: shell, shared components, typed API client, analytics (see `frontend/README.md`) | Next.js 16, TypeScript, Tailwind v4, shadcn/ui, Mapbox GL JS, TanStack Query |
-| `admin/` | Admin / review tool (reserved, build plan P1) | Next.js, Auth.js |
 | `packages/` | `feasibility-engine`: the shared feasibility formula engine and its fixtures (npm workspace; the backend runs a Python copy held to the same fixtures) | TypeScript |
 | `docs/` | BRD, BRQ, pilot technical scope, POC exclusions, wireframe (+ per-state screenshots), brand SVGs, specs (`specs/panel-payload.md`, `specs/frontend-design.md`) | |
 
@@ -34,7 +33,7 @@ under your local app-data folder (see `database/README.md`), then:
 TEST_DATABASE_URL=postgresql+asyncpg://postgres@127.0.0.1:55432/urbanview_test make test-integration
 ```
 
-Without `make`: `cd backend` and use `poe run | test | migrate | seed | worker | flower` (tasks
+Without `make`: `cd backend` and use `poe run | test | migrate | seed | worker` (tasks
 in `backend/pyproject.toml`).
 
 - API docs: http://localhost:8000/docs
@@ -64,15 +63,14 @@ in `backend/pyproject.toml`).
   `GET /v1/admin/jobs` (+ `/{id}`, `/{id}/retry`, `/costs`: status, attempts, LLM cost),
   `POST /v1/admin/publish` (everything approved → new serving version → PMTiles archive →
   pointer flip; refused while items are pending review), `GET /v1/admin/publish` (status,
-  per-step progress), `POST /v1/admin/publish/rollback` (pointer flip back, no recompute),
+  per-step progress),
   public `GET /v1/tiles/current` (signed archive URL + data version),
-  `GET /v1/admin/email-log` (+ `/{id}/bounce`), public `POST /v1/auth/magic-link` (+
+  `GET /v1/admin/email-log`, public `POST /v1/auth/magic-link` (+
   `/exchange`) for the staff login,
   `PATCH /v1/admin/documents/{id}/coverage`; every action lands in `audit_log`
 - Admin configuration (role `admin`, versioned, audited): `/v1/admin/assumptions` (financial
   assumptions per zone with optional absolute bounds; the current version is what the panel
-  reads and names), `/v1/admin/zone-parameters` (typical planning values per zone, shown on
-  the zone panel), `/v1/admin/users` (staff users, no passwords)
+  reads and names), `/v1/admin/users` (staff users, no passwords)
 - Expert review (roles admin / reviewer / expert): `GET /v1/admin/review` (staged extracted
   items with value, target, source page + bbox + snippet and a signed page link),
   `POST /v1/admin/review/{id}/approve|amend|reject`, `POST /v1/admin/review/bulk-approve`,
@@ -83,7 +81,7 @@ in `backend/pyproject.toml`).
   (no personal data); staff: `GET /v1/admin/orders`, `PATCH .../status`, `POST .../payment`,
   `POST .../assign`, `POST .../report` (PDF upload delivers the order and e-mails a signed link)
 
-## Publishing and rollback
+## Publishing
 
 `POST /v1/admin/publish` runs the `publish_approved` job on the `publish` queue: approved and
 amended review items and staged geometry become a new serving version, parcel links and heatmap
@@ -92,16 +90,11 @@ cells are recomputed, every map layer is exported and built into one PMTiles arc
 bucket, and the version becomes current in the same transaction. The public map asks
 `GET /v1/tiles/current` for the signed archive URL and the data version.
 
-Rollback is a manual pointer flip, nothing is recomputed:
-
-```bash
-curl -X POST http://localhost:8000/v1/admin/publish/rollback -H "Authorization: Bearer $TOKEN" -d '{}'
-```
-
-(`{"version_id": N}` picks a specific version; `GET /v1/admin/publish` lists them.) The last
+There is no rollback endpoint (not in the POC plan). The last
 `PUBLISH_KEEP_VERSIONS` (3) versions keep their archives and derived rows; older archives are
-pruned and can no longer be restored. Entity geometry (parcels, blocks, zones, coverage) is
-upserted in place with stable ids, so a geometry change is rolled back by re-ingesting.
+pruned; an operator can point `is_current` at a kept version by hand. Entity geometry (parcels,
+blocks, zones, coverage) is upserted in place with stable ids, so a geometry change is undone by
+re-ingesting.
 
 ## Transactional e-mail
 

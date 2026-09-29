@@ -91,9 +91,6 @@ class LayerSpec:
     max_zoom: int
     sql: str  # one column: the GeoJSON feature (jsonb); params :m, :v
     description: str
-    # a cadastral flag the layer shows: while no served parcel has it loaded (null everywhere:
-    # no confirmed eKatastar extract), the manifest marks the layer unavailable
-    requires_flag: str | None = None
 
 
 LAYERS: tuple[LayerSpec, ...] = (
@@ -236,48 +233,6 @@ LAYERS: tuple[LayerSpec, ...] = (
         WHERE c.municipality_id = :m AND c.retired_at IS NULL ORDER BY c.id
         """,
         "Cadastral parcels with their primary planned-parcel link and coverage",
-    ),
-    LayerSpec(
-        "public_ownership",
-        "polygon",
-        13,
-        16,
-        f"""
-        SELECT {
-            _feature(
-                "c.id",
-                "c.geom",
-                "jsonb_build_object('id', c.id,"
-                " 'parcel_number', c.parcel_number, 'ko_name', c.ko_name)",
-            )
-        }
-        FROM cadastral_parcels c
-        WHERE c.municipality_id = :m AND c.retired_at IS NULL AND c.public_ownership
-        ORDER BY c.id
-        """,
-        "Cadastral parcels in public ownership",
-        requires_flag="public_ownership",
-    ),
-    LayerSpec(
-        "legal_burdens",
-        "polygon",
-        13,
-        16,
-        f"""
-        SELECT {
-            _feature(
-                "c.id",
-                "c.geom",
-                "jsonb_build_object('id', c.id,"
-                " 'parcel_number', c.parcel_number, 'ko_name', c.ko_name)",
-            )
-        }
-        FROM cadastral_parcels c
-        WHERE c.municipality_id = :m AND c.retired_at IS NULL AND c.restitution_or_legal_burden
-        ORDER BY c.id
-        """,
-        "Cadastral parcels under restitution or legal burden",
-        requires_flag="restitution_or_legal_burden",
     ),
     LayerSpec(
         "land_use",

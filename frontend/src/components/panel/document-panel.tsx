@@ -22,7 +22,6 @@ import { useOpenSource } from "@/lib/source";
 import { useShell } from "@/lib/store";
 
 import { METHODOLOGY_LABEL, MethodologyModal } from "../shell/methodology-modal";
-import { Badge } from "../ui/badge";
 import { Cta } from "../ui/cta";
 import { IconAsk, IconSteps } from "../ui/icons";
 import { PanelRow } from "../ui/panel-row";
@@ -37,7 +36,6 @@ import {
   docTypeLabel,
   planPhrase,
   usePanelViewed,
-  zoneTypicalLine,
 } from "./panel-parts";
 
 /** The mock's text when the zone has no summary of its own. */
@@ -104,7 +102,7 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
         <div className="sect">
           <div className="secthead">
             <span className="lbl">
-              Document details <Badge tone="free" />
+              Document details
             </span>
             <SourceRef
               onClick={openDocument}
@@ -145,19 +143,6 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
           <PanelRow label="Urban zones spanned" value={data.zones.length} />
           <PanelRow label="Cadastral parcels" value={data.coverage_counts.cadastral_parcels} />
           <PanelRow label="Urban parcels" value={data.coverage_counts.urban_parcels} />
-          {data.zones.length > 0 && (
-            <div style={{ marginTop: 9, display: "flex", flexDirection: "column", gap: 5 }}>
-              {data.zones.map((z) => (
-                <PanelRow
-                  key={z.id}
-                  style={{ padding: "5px 0" }}
-                  label={<span style={{ fontSize: "12.5px" }}>{z.name}</span>}
-                  value={zoneTypicalLine(z)}
-                  text
-                />
-              ))}
-            </div>
-          )}
         </div>
         <DataVersionLine version={data.data_version} date={data.data_version_date} />
       </div>

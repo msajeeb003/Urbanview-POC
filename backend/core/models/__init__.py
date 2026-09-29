@@ -13,7 +13,6 @@ from core.db import Base
 from core.models.admin import (
     AppSecret,
     AuditLogEntry,
-    EngineProposal,
     PipelineJob,
     PlanningDocumentFile,
     StaffLoginToken,
@@ -36,7 +35,6 @@ from core.models.panel import (
     PlanningValueGap,
     PublishVersion,
     ReviewState,
-    ZoneParameterSet,
 )
 from core.models.planning import (
     CadastralParcel,
@@ -66,7 +64,6 @@ __all__ = [
     "CadastralParcel",
     "Customer",
     "EmailLogEntry",
-    "EngineProposal",
     "ExtractionRun",
     "ExtractionRunChunk",
     "FinancialAssumption",
@@ -97,5 +94,4 @@ __all__ = [
     "UrbanParcel",
     "Zone",
     "ZoneDataset",
-    "ZoneParameterSet",
 ]

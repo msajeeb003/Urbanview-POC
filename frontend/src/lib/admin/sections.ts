@@ -47,16 +47,7 @@ export interface Section {
 export const SECTIONS: readonly Section[] = [
   { id: "overview", label: "Overview", href: "/admin/overview", tab: true, roles: ["admin", "reviewer"] },
   { id: "review", label: "AI review queue", href: "/admin/review", tab: true, roles: ["admin", "reviewer"] },
-  {
-    id: "rules",
-    label: "Planning rules",
-    href: "/admin/rules",
-    tab: true,
-    roles: ["admin", "reviewer"],
-    readOnly: ["reviewer"],
-  },
   { id: "assumptions", label: "Financial assumptions", href: "/admin/assumptions", tab: true, roles: ["admin"] },
-  { id: "engine", label: "Calculation engine", href: "/admin/engine", tab: true, roles: ["admin"] },
   // Admins manage orders; experts see and deliver their own (reviewers have no order access).
   { id: "orders", label: "Orders", href: "/admin/orders", tab: true, roles: ["admin", "expert"] },
   // Reviewers read the documents, files and jobs; admins register, upload and run the jobs.
@@ -68,7 +59,7 @@ export const SECTIONS: readonly Section[] = [
     roles: ["admin", "reviewer"],
     readOnly: ["reviewer"],
   },
-  // the pilot scope's A4 "Publish" (versions, publish, rollback): admins and reviewers
+  // the pilot scope's A4 "Publish" (versions, publish): admins and reviewers
   { id: "publish", label: "Publish", href: "/admin/publish", tab: true, roles: ["admin", "reviewer"] },
   // the pilot scope's A7 "Analytics and audit" (GET /v1/admin/analytics is admin only)
   { id: "analytics", label: "Analytics", href: "/admin/analytics", tab: true, roles: ["admin"] },

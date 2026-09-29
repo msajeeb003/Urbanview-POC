@@ -79,7 +79,7 @@ from core.errors import (
     ServiceUnavailableError,
 )
 from core.municipality import MunicipalityProfile
-from core.payments import PaymentInstructions, PaymentProvider
+from core.payments import BankTransferProvider, PaymentInstructions
 from core.pricing import PriceTier, add_business_days, price_for
 from core.storage import ObjectStorage
 
@@ -446,7 +446,7 @@ class OrderService:
         panel_service: PanelService,
         storage: Any,
         emails: EmailService,
-        provider: PaymentProvider,
+        provider: BankTransferProvider,
         municipality: MunicipalityProfile,
         tiers: list[PriceTier],
         turnaround_business_days: int,

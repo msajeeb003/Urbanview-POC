@@ -3,7 +3,7 @@
 The AI extraction (`core.extraction`, contract in `docs/specs/extraction-contract.md`) is measured
 against the client's own planning documents: every urban parcel of their parameter tables,
 labelled by hand, and scored field by field. The prompts are iterated against this corpus until
-they are review-ready, and CI re-runs it on every prompt or schema change.
+they are review-ready.
 
 ## The corpus
 
@@ -94,14 +94,13 @@ schema) in `backend/.cache/extraction-eval/replies/`, so an unchanged request is
 and a prompt change re-reads only what it changes. `CORPUS_SOURCE_DIR` points at the documents
 (default `../docs/gis/source`).
 
-## Regression check (CI)
+## Regression check
 
-`.github/workflows/extraction-eval.yml` runs on any change to `core/extraction/` (prompts, schema,
-validator, chunking, pre-processing), the municipality profiles or this corpus: it fetches the PDFs
-from a private link (`CORPUS_ARCHIVE_URL` secret), restores the reply cache, runs
-`corpus eval --live --check` and fails when any value is hallucinated, a wrong page citation
-appears, or a document's accuracy falls more than half a point below `baseline.json`. After an
-accepted improvement, run the full corpus and `corpus baseline`, and commit `baseline.json`.
+After a change to `core/extraction/` (prompts, schema, validator, chunking, pre-processing), the
+municipality profiles or this corpus, run `corpus eval --check`: it fails when any value is
+hallucinated, a wrong page citation appears, or a document's accuracy falls more than half a point
+below `baseline.json`. After an accepted improvement, run the full corpus and `corpus baseline`,
+and commit `baseline.json`.
 
 ## Adding a document (when the client uploads more)
 

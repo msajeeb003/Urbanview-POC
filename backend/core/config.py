@@ -216,7 +216,7 @@ class Settings(BaseSettings):
     tiles_min_zoom: int = Field(default=8, ge=0, le=22)
     tiles_max_zoom: int = Field(default=16, ge=0, le=22)
     tiles_url_expires_seconds: int = Field(default=3600, ge=60, le=86400)
-    publish_keep_versions: int = Field(default=3, ge=2, le=50)  # archives kept for rollback
+    publish_keep_versions: int = Field(default=3, ge=2, le=50)  # versions whose archives are kept
     publish_tmp_dir: str | None = None  # scratch dir for GeoJSON + tiles; None = system temp
 
     # expert-analysis orders (POST /v1/orders): guest checkout by bank transfer

@@ -24,8 +24,6 @@ BRD_LAYERS = {
     "cadastral_parcels",
     "urban_parcels",
     "land_use",
-    "public_ownership",
-    "legal_burdens",
     "heat_coverage",
     "heat_far",
     "heat_height",
@@ -43,21 +41,12 @@ def test_map_layers_carry_what_the_public_map_styles_by():
     assert by_id["zone_labels"].geometry_type == "point"
     assert "ST_PointOnSurface(z.geom)" in by_id["zone_labels"].sql
     assert "'zone_id', zc.id" in by_id["cadastral_parcels"].sql
+    # the cadastral flags ride on the parcel feature; retired parcels are never served
+    assert "'public_ownership', c.public_ownership" in by_id["cadastral_parcels"].sql
+    assert "retired_at IS NULL" in by_id["cadastral_parcels"].sql
     # a planned parcel names the urban panel's zone: the plan's, else its block's
     assert "COALESCE(d.zone_id, b.zone_id) AS zone_id" in by_id["urban_parcels"].sql
     assert "zone_type" in STAGED_LAYERS["zones"].properties
-
-
-def test_ownership_layers_depend_on_loaded_flags():
-    by_id = {layer.id: layer for layer in LAYERS}
-    assert by_id["public_ownership"].requires_flag == "public_ownership"
-    assert by_id["legal_burdens"].requires_flag == "restitution_or_legal_burden"
-    assert {layer.id for layer in LAYERS if layer.requires_flag} == {
-        "public_ownership",
-        "legal_burdens",
-    }
-    for layer_id in ("cadastral_parcels", "public_ownership", "legal_burdens"):
-        assert "retired_at IS NULL" in by_id[layer_id].sql, layer_id
 
 
 def test_heatmaps_are_one_source_layer_each_with_value_and_band():
@@ -82,6 +71,8 @@ def test_layer_catalogue_is_consistent():
         assert ":m" in layer.sql and "jsonb_build_object('type', 'Feature'" in layer.sql
     # planned traffic is an MVP layer: never in the POC's catalogue
     assert "traffic_network" not in LAYER_IDS
+    # ownership / restitution are flags on cadastral_parcels, not layers of their own (unfunded)
+    assert "public_ownership" not in LAYER_IDS and "legal_burdens" not in LAYER_IDS
     versioned = {"urban_parcels", "cadastral_parcels", "land_use"}
     versioned |= {"heat_coverage", "heat_far", "heat_height", "heat_gfa", "heat_sale_price"}
     for layer in LAYERS:

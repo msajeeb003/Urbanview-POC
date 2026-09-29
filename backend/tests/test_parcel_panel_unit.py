@@ -317,7 +317,7 @@ def test_every_stated_value_carries_its_source():
     ]
     assert computed["max_coverage_area_m2"].value == pytest.approx(527.78)
     assert panel.group1.document.id == 2 and panel.group1.urban_parcel_number == "UP 12"
-    assert panel.group1.title_en == "Planning parameters" and panel.group1.tier == "free"
+    assert panel.group1.title_en == "Planning parameters"
 
 
 def test_missing_height_is_not_in_document_and_group2_still_computes():
@@ -597,7 +597,6 @@ def test_zone_panel_builder():
             {**DOC3, "file_available": False},
         ],
         "counts": {"documents": 2, "adopted": 1, "in_progress": 1, "superseded": 0},
-        "typical_parameters": None,
         "version_id": 1,
         "data_version": "sample-2026-09-22",
         "data_version_date": "2026-09-22",
@@ -609,7 +608,7 @@ def test_zone_panel_builder():
     assert docs[2].covered and docs[2].file_available and docs[2].status_label_en == "adopted"
     assert docs[2].type_name.startswith("Detaljni urbanistički plan")
     assert docs[3].covered is False and docs[3].status == "in_progress"
-    assert panel.counts.adopted == 1 and panel.typical_parameters is None
+    assert panel.counts.adopted == 1
     assert panel.counts.covered == 1  # the documents the map covers, as /v1/panel counts them
 
 

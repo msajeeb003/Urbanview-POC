@@ -66,7 +66,6 @@ from api.services.panel import (
     _pct,
     _r1,
     _rate_range,
-    _typical_parameters,
     default_saleable_share,
 )
 from api.services.panel_cache import PanelCache, PanelView
@@ -759,7 +758,6 @@ def build_zone_panel(row: Mapping[str, Any], profile: MunicipalityProfile) -> Zo
             superseded=int(counts.get("superseded") or 0),
             covered=sum(1 for d in documents if d.covered),
         ),
-        typical_parameters=_typical_parameters(_as_json(row["typical_parameters"])),
     )
 
 
@@ -798,23 +796,6 @@ class ParcelPanelService:
                 details={"type": "parcel", "id": parcel_id},
             )
         return build_parcel_panel(row, self.profile)
-
-    async def preview(
-        self, parcel_id: int, draft_market: Mapping[str, Any]
-    ) -> tuple[ParcelPanel, ParcelPanel]:
-        """The parcel's panel as served today and with ``draft_market`` (an unsaved assumptions
-        set, shaped like the statement's ``market`` column) in place of the live version: the
-        admin console's preview. One statement, the same builders and engine, nothing written
-        or cached."""
-        row = await self._execute(PARCEL_PANEL_SQL, parcel_id)
-        if _as_json(row["cadastral"]) is None:
-            raise NotFoundError(
-                f"No cadastral parcel with id {parcel_id} in municipality {self.profile.id}",
-                details={"type": "parcel", "id": parcel_id},
-            )
-        draft_row = dict(row)
-        draft_row["market"] = dict(draft_market)
-        return build_parcel_panel(row, self.profile), build_parcel_panel(draft_row, self.profile)
 
     async def zone_panel(self, zone_id: int) -> ZonePanelView:
         row = await self._execute(ZONE_PANEL_SQL, zone_id)

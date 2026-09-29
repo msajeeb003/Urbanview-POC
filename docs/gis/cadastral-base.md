@@ -28,9 +28,8 @@ owners.
   `ownership_fields.true_values` / `false_values`). Nothing is derived from other data: not from
   owner names, and not from the absence of a burden.
 - Until bulk access is confirmed in P0, both columns stay **null** ("not available", which is
-  different from "no"). The API returns `null` for them. The publish manifest (`GET /v1/tiles/current`
-  `layers[]`) marks the **Public ownership** and **Restitution / legal** layers
-  `available: false, unavailable_reason: "ownership_data_not_loaded"`.
+  different from "no"). The API returns `null` for them; there are no ownership map layers in
+  the POC (the flags ride on the `cadastral_parcels` tile features).
 - The columns stay in the schema (nullable) rather than being dropped, so the API contract does not
   change when access is granted.
 - If the flags are loaded later, they belong to the dataset that loaded them. Re-importing parcels

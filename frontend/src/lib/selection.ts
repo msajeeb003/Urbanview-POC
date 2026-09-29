@@ -180,7 +180,6 @@ function showCoverage(covered: boolean, res: { coverage: { reason?: string | nul
   }
   s.setCoverWarn(false);
   s.setPanelHidden(false);
-  s.setSheet("half");
 }
 
 export function useSelection() {
@@ -261,7 +260,6 @@ export function useSelection() {
         s.dropPin(null);
         s.setCoords(clickPoint);
         s.setPanelHidden(false);
-        s.setSheet("half");
         return;
       }
       const sel: FeatureSelection = {
@@ -278,7 +276,6 @@ export function useSelection() {
         s.dropPin(null); // the wireframe clears the pin for a plan area
         s.setCoords(clickPoint);
         s.setPanelHidden(false);
-        s.setSheet("half");
         return;
       }
       s.dropPin(pick.centre ?? clickPoint);
@@ -286,11 +283,9 @@ export function useSelection() {
         // planned parcels exist in the tiles only for adopted, live plans: always covered
         emitParcelSelected(sel);
         s.setPanelHidden(false);
-        s.setSheet("half");
         return;
       }
       s.setPanelHidden(false);
-      s.setSheet("half");
       let res: LocationResolution | null = null;
       try {
         res = await locate(clickPoint);

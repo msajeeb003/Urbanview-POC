@@ -2,17 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import type { MunicipalityProfile } from "@/lib/api/types";
 import { formatDate, formatFigure } from "@/lib/format";
-import { nextSheet } from "@/lib/store";
 
 import {
   dataVersionText,
   docTypeLabel,
   documentMeta,
   documentMetaParts,
-  heightText,
   planPhrase,
-  zoneTypicalLine,
-  type DocZone,
   type ZoneDoc,
 } from "./panel-parts";
 
@@ -81,23 +77,6 @@ describe("dataVersionText", () => {
   });
 });
 
-describe("zone typical values", () => {
-  const zone = (typical: DocZone["typical"]): DocZone => ({ id: 1, name: "Centar", zone_type: "mix", typical });
-
-  it("shows height and FAR per zone spanned", () => {
-    expect(zoneTypicalLine(zone({ max_height_m: 24, max_floors: 7, max_far: 3.2 }))).toBe("24 m · FAR 3.2");
-    expect(zoneTypicalLine(zone({ max_floors: 5, max_far: 2 }))).toBe("5 floors · FAR 2");
-    expect(zoneTypicalLine(zone({ land_use: "Residential" }))).toBe("—");
-    expect(zoneTypicalLine(zone(null))).toBe("—");
-  });
-  it("writes the typical height from metres and floors", () => {
-    expect(heightText({ max_height_m: 24, max_floors: 7 })).toBe("24 m · 7 floors");
-    expect(heightText({ max_floors: 1 })).toBe("1 floor");
-    expect(heightText({ max_height_m: 10.25 })).toBe("10.3 m");
-    expect(heightText({})).toBeNull();
-  });
-});
-
 describe("document type and status", () => {
   const profile = {
     terminology: {
@@ -120,7 +99,7 @@ describe("document type and status", () => {
   });
 });
 
-describe("formatting and the bottom sheet", () => {
+describe("formatting", () => {
   it("formats figures and dates", () => {
     expect(formatFigure(3.2, 1)).toBe("3.2");
     expect(formatFigure(55, 1)).toBe("55");
@@ -128,10 +107,5 @@ describe("formatting and the bottom sheet", () => {
     expect(formatDate("2019-05-12")).toBe("12 May 2019");
     expect(formatDate("2026-09-22")).toBe("22 Sep 2026");
     expect(formatDate("not a date")).toBeNull();
-  });
-  it("cycles the sheet peek → half → full → peek", () => {
-    expect(nextSheet("peek")).toBe("half");
-    expect(nextSheet("half")).toBe("full");
-    expect(nextSheet("full")).toBe("peek");
   });
 });

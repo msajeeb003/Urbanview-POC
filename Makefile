@@ -15,7 +15,7 @@ COMPOSE ?= docker compose
 ALEMBIC := $(BIN)/alembic -c ../database/alembic.ini
 TEST_DATABASE_URL ?= postgresql+asyncpg://urbanview:urbanview@localhost:5432/urbanview_test
 
-.PHONY: help venv install run worker flower migrate migration downgrade seed openapi gis-assess cadastre test test-integration test-all \
+.PHONY: help venv install run worker migrate migration downgrade seed openapi gis-assess cadastre test test-integration test-all \
         lint fmt up down logs ps db-dev-install db-dev-start db-dev-stop db-dev-status clean
 
 help: ## list targets
@@ -32,9 +32,6 @@ run: ## run the API with auto-reload on :8000
 
 worker: ## run the Celery worker (all queues)
 	cd backend && $(BIN)/celery -A jobs.celery_app worker --loglevel=info -Q default,extraction,geo,publish,email
-
-flower: ## Celery monitoring UI on http://localhost:5555
-	cd backend && $(BIN)/celery -A jobs.celery_app flower --port=5555
 
 migrate: ## apply migrations to head (database/migrations)
 	cd backend && $(ALEMBIC) upgrade head

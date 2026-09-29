@@ -7,7 +7,7 @@
  * the data version the panel was served from), the order summary (parcel size and its basis, the
  * fee and its band, the turnaround: all from `GET /v1/orders/pricing`, the server's rule), the
  * pricing note, "Ordering as" Individual | Legal entity, the methodology card, the guest-checkout
- * note and the links to the terms, refund policy and privacy notice (`/legal/*`, new tab); footer
+ * note; footer
  * `€100 · 5 working days`, Cancel, gold "Place order →". The fields are the pilot scope's guest
  * form, not the mock's: name, telephone and e-mail for everyone; a legal entity adds its company
  * name and PIB, both optional.
@@ -22,7 +22,6 @@ import { useId, useRef, useState, type FormEvent, type KeyboardEvent } from "rea
 
 import { getTracker } from "@/lib/analytics/react";
 import { formatArea } from "@/lib/format";
-import { legalPath } from "@/lib/legal";
 import { useCreateOrder, useOrderPricing } from "@/lib/api/hooks";
 import {
   FIELDS,
@@ -348,21 +347,6 @@ function OrderModal({ target }: { target: OrderTarget }) {
 
           <p style={{ fontSize: 11, color: "var(--ink-2)", lineHeight: 1.5, marginTop: 12 }}>
             No account needed — guest checkout. You&apos;ll get the report and an order reference by email.
-          </p>
-          <p className="orderlegal">
-            By placing the order you accept the{" "}
-            <a href={legalPath("terms")} target="_blank" rel="noopener">
-              terms of service
-            </a>{" "}
-            and the{" "}
-            <a href={legalPath("refund")} target="_blank" rel="noopener">
-              refund policy
-            </a>
-            . How we use your details:{" "}
-            <a href={legalPath("privacy")} target="_blank" rel="noopener">
-              privacy notice
-            </a>
-            .
           </p>
           {failure && (
             <p className="orderfail" role="alert" ref={failureRef}>

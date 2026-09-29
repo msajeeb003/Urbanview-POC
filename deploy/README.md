@@ -22,8 +22,7 @@ network.
   the pilot, 8 GB is more comfortable for builds), location Falkenstein / Nuremberg / Helsinki.
 - **SSH key:** add the public key(s) of whoever deploys (never a password). Keep the private key on
   your machine only.
-- Optional but recommended: **Backups** (Hetzner's daily server backups, about +20 % of the server
-  price) and a **Cloud Firewall** allowing only TCP 22, 80, 443 and UDP 443.
+- Optional: a **Cloud Firewall** allowing only TCP 22, 80, 443 and UDP 443.
 
 ## 2. DNS
 
@@ -49,7 +48,7 @@ bash /opt/urbanview/deploy/server-setup.sh
 ```
 
 `server-setup.sh` installs Docker and the compose plugin, adds 4 GB swap, opens only SSH / HTTP /
-HTTPS in the firewall, turns on automatic security updates and creates `/opt/urbanview-backups`.
+HTTPS in the firewall and turns on automatic security updates.
 
 **Private repository:** create a deploy key on the server (`ssh-keygen -t ed25519 -f
 ~/.ssh/github_deploy -N ""`), add `~/.ssh/github_deploy.pub` to GitHub → repository → Settings →
@@ -144,24 +143,6 @@ Pulls, rebuilds what changed, applies new migrations, restarts the changed servi
 images. A change to a `NEXT_PUBLIC_*` value in `deploy/.env` also needs this (they are baked into
 the map at build time).
 
-## 9. Backups
-
-```bash
-crontab -e
-# nightly database dump at 03:15, kept 14 days
-15 3 * * * /bin/bash /opt/urbanview/deploy/backup.sh >> /var/log/urbanview-backup.log 2>&1
-```
-
-Restore a dump into the running database:
-
-```bash
-docker compose -f deploy/compose.yml --env-file deploy/.env exec -T postgres \
-  pg_restore -U urbanview -d urbanview --clean --if-exists < /opt/urbanview-backups/FILE.dump
-```
-
-The bucket (PDFs, tiles, reports) lives in the `minio` volume; Hetzner's server backups or
-snapshots cover it. Copy the dumps off the server now and then (or enable Hetzner backups).
-
 ## Everyday commands
 
 ```bash
@@ -186,4 +167,3 @@ $dc run --rm api python -m core.staff list   # staff users
   `Content-Range`, `Content-Length`).
 - **Memory:** the Next.js and tippecanoe builds peak above 4 GB; the swap from `server-setup.sh`
   covers it on a 4 GB server.
-- **Not deployed here:** the staff tool (`admin/`, not built yet) and Flower.

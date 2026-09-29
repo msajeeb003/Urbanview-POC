@@ -1,6 +1,6 @@
 """The cadastral base loader on PostGIS: ogr2ogr import of the sample extract, validation, a
 versioned staged dataset with its diff, the publish job applying it (stable ids, retired parcels,
-the KO table, ownership layers marked unavailable), the KO + number lookup, refusals.
+the KO table), the KO + number lookup, refusals.
 
 The import runs through the CLI (``core.cadastre.__main__``) with a test profile whose UZN source
 is confirmed; the sample KOs ("Test KO Alpha" / "Test KO Beta") are not in the seeded sample, so
@@ -226,14 +226,6 @@ async def test_import_publish_lookup_reimport_and_retire(run, publish_env, tiles
         ]
 
         await reject_seeded_pending_item(app)
-        async with app.state.session_factory() as session:  # no parcel with a loaded flag
-            await session.execute(
-                text(
-                    "UPDATE cadastral_parcels SET public_ownership = NULL, "
-                    "restitution_or_legal_burden = NULL"
-                )
-            )
-            await session.commit()
         assert len(await approve_geometry(client)) == 2  # parcels and KOs
         job = await publish(client, "cad-test-1")
         counts = job["result"]["counts"]
@@ -241,13 +233,6 @@ async def test_import_publish_lookup_reimport_and_retire(run, publish_env, tiles
         assert counts["geometry"]["cadastral_municipalities"] == 2
         assert counts["cadastre"]["cadastral_datasets"] == 1
         assert counts["cadastre"]["parcels_retired"] == 0
-        layers = {layer["id"]: layer for layer in job["result"]["layers"]}
-        for layer_id in ("public_ownership", "legal_burdens"):
-            assert layers[layer_id]["available"] is False
-            assert layers[layer_id]["unavailable_reason"] == "ownership_data_not_loaded"
-        assert layers["cadastral_parcels"]["available"] is True
-        pointer = (await client.get("/v1/tiles/current")).json()
-        assert {x["id"]: x["available"] for x in pointer["layers"]}["public_ownership"] is False
 
         # the acceptance lookup: KO + number finds the parcel where the export drew it
         r = await client.get(

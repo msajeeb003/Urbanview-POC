@@ -16,7 +16,6 @@ import {
   integrationChip,
   jobPill,
   jobTimes,
-  kindIntegration,
   kindsForRole,
   parseFilters,
   reasonText,
@@ -95,12 +94,6 @@ describe("sources", () => {
     expect(rows[2]).toMatchObject({ format: "—", note: null, integration: "not_connected" });
     expect(integrationChip("linked")).toEqual({ label: "Linked", tone: "ok" });
     expect(sourceRows(null)).toEqual([]);
-  });
-
-  it("names a kind by its best-connected source", () => {
-    expect(kindIntegration([...profile], "cadastre")).toBe("access_pending");
-    expect(kindIntegration([...profile, { id: "emapa", kind: "cadastre", name: "eMapa", url: "", provides: "", integration: "access_confirmed" }], "cadastre")).toBe("access_confirmed");
-    expect(kindIntegration([], "market")).toBe("not_connected");
   });
 });
 

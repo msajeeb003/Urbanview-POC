@@ -201,16 +201,6 @@ export async function publishAction(label?: string, notes?: string): Promise<Res
   return { ok: true, message: result.status === 202 ? "Publishing started" : "A publish is already running", data: result.data };
 }
 
-/** `POST /v1/admin/publish/rollback`: back to the version before the current one (answers the
- * publish status after the flip). */
-export async function rollbackAction(versionId?: number): Promise<Result<PublishStatus>> {
-  const denied = await publisher();
-  if (denied) return { ok: false, message: denied };
-  const result = await adminSend<PublishStatus>("POST", "/v1/admin/publish/rollback", versionId ? { version_id: versionId } : {});
-  if (!result.ok) return { ok: false, message: explainReviewProblem(result) };
-  const label = result.data.current?.label;
-  return { ok: true, message: label ? `The map serves ${label} again` : "Rolled back", data: result.data };
-}
 
 /** The item's audit trail (`GET /v1/admin/audit`, entity `extraction_item`): every decision. */
 export async function historyAction(itemId: number): Promise<Result<AuditPage>> {

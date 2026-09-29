@@ -337,15 +337,6 @@ STAGED_BATCHES_SQL = text(
     ORDER BY layer_id, id
     """
 )
-# whether any served parcel carries each cadastral flag (from a confirmed eKatastar extract)
-FLAGS_LOADED_SQL = text(
-    """
-    SELECT COALESCE(bool_or(public_ownership IS NOT NULL), false) AS public_ownership,
-           COALESCE(bool_or(restitution_or_legal_burden IS NOT NULL), false)
-               AS restitution_or_legal_burden
-    FROM cadastral_parcels WHERE municipality_id = :m AND retired_at IS NULL
-    """
-)
 BATCH_PUBLISHED_SQL = text(
     """
     UPDATE geometry_batches
@@ -739,8 +730,6 @@ class PublishPipeline:
                         "min_zoom": lf.min_zoom,
                         "max_zoom": lf.max_zoom,
                         "features": lf.feature_count,
-                        "available": lf.available,
-                        "unavailable_reason": lf.unavailable_reason,
                     }
                     for lf in layer_files
                 ]
@@ -1016,8 +1005,6 @@ class PublishPipeline:
                             "min_zoom": lf.min_zoom,
                             "max_zoom": lf.max_zoom,
                             "features": lf.feature_count,
-                            "available": lf.available,
-                            "unavailable_reason": lf.unavailable_reason,
                         }
                         for lf in layer_files
                     ]
@@ -1091,9 +1078,6 @@ class PublishPipeline:
         self, session: AsyncSession, version_id: int, work_dir: Path
     ) -> list[LayerFile]:
         files: list[LayerFile] = []
-        loaded = (
-            (await session.execute(FLAGS_LOADED_SQL, {"m": self.municipality_id})).mappings().one()
-        )
         for spec in self.layers:
             path = work_dir / f"{spec.id}.geojson"
             count = 0
@@ -1113,12 +1097,6 @@ class PublishPipeline:
                     geometry_type=spec.geometry_type,
                     min_zoom=max(self.min_zoom, spec.min_zoom),
                     max_zoom=min(self.max_zoom, spec.max_zoom),
-                    available=spec.requires_flag is None or bool(loaded[spec.requires_flag]),
-                    unavailable_reason=(
-                        None
-                        if spec.requires_flag is None or loaded[spec.requires_flag]
-                        else "ownership_data_not_loaded"
-                    ),
                 )
             )
             log.info("publish: exported %s features of %s", count, spec.id)

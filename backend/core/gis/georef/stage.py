@@ -804,14 +804,8 @@ async def stage_document(
             },
         )
     ).scalar_one()
-    # topology QA of every batch: the reviewer decides on it before a publish applies it
-    await run_batches_qa(
-        session,
-        list(batches.values()),
-        municipality_id=municipality_id,
-        srid=metric_srid,
-        parcel_abbreviation=parcel_prefix,
-    )
+    # validity QA of every batch: the reviewer decides on it before a publish applies it
+    await run_batches_qa(session, list(batches.values()), municipality_id=municipality_id)
     return StageOutcome(
         dataset_id,
         label,

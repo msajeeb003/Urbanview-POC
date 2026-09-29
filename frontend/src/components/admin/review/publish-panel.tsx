@@ -6,7 +6,7 @@
  * chip says how many are left — and publishes every document's approved values as a new data
  * version (the API refuses while any document has pending items; the blocking documents are
  * named). While the job runs the header follows its steps; then it shows the data version the map
- * serves. "Rollback to previous" asks for confirmation first. Corrected values reach the map only
+ * serves. Corrected values reach the map only
  * after a publish, and the header says so.
  */
 import Link from "next/link";
@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import { relativeTime } from "@/lib/admin/format";
 import { blockersText } from "@/lib/admin/publish";
 import { progressOf } from "@/lib/admin/review";
-import { publishAction, publishStatusAction, rollbackAction } from "@/lib/admin/review-actions";
+import { publishAction, publishStatusAction } from "@/lib/admin/review-actions";
 import type { PublishStatus, ReviewCounters } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
@@ -27,13 +27,12 @@ export function PublishPanel({
   initialStatus,
 }: {
   counters: ReviewCounters | null;
-  /** Admins and reviewers publish and roll back (pilot scope, A4). */
+  /** Admins and reviewers publish (pilot scope, A4). */
   canPublish: boolean;
   initialStatus: PublishStatus | null;
 }) {
   const showToast = useShell((s) => s.showToast);
   const [status, setStatus] = useState<PublishStatus | null>(initialStatus);
-  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const progress = progressOf(counters);
   const active = status?.active_job ?? null;
@@ -65,20 +64,10 @@ export function PublishPanel({
     setBusy(false);
   };
 
-  const rollback = async () => {
-    setBusy(true);
-    const result = await rollbackAction();
-    showToast(result.message);
-    if (result.ok) setStatus(result.data);
-    setConfirming(false);
-    setBusy(false);
-  };
-
   const others = (status?.blockers ?? []).filter((b) => b.document_id !== counters?.document_id);
   const geometry = status?.geometry_blockers ?? [];
   const waiting = blockersText(others, geometry);
   const current = status?.current ?? null;
-  const previous = current ? (status?.versions ?? []).find((v) => v.id === current.previous_version_id) : null;
   const last = status?.last_job ?? null;
   const step = active?.progress && typeof active.progress === "object" ? (active.progress as { step?: string }).step : null;
 
@@ -124,22 +113,6 @@ export function PublishPanel({
         )}
         {counters && progress.total > 0 && progress.pending === 0 && !canPublish && (
           <span className="rsub">Every item is decided — an administrator publishes.</span>
-        )}
-        {canPublish && previous && !confirming && (
-          <button type="button" className="abtn ghost" disabled={busy || !!active} onClick={() => setConfirming(true)}>
-            Rollback to previous
-          </button>
-        )}
-        {confirming && previous && current && (
-          <span className="rconfirm">
-            Serve {previous.label} again instead of {current.label}?
-            <button type="button" className="abtn sm" disabled={busy} onClick={() => void rollback()}>
-              Roll back
-            </button>
-            <button type="button" className="abtn sm ghost" onClick={() => setConfirming(false)}>
-              Cancel
-            </button>
-          </span>
         )}
       </div>
       <div className="rprog-status">

@@ -370,21 +370,8 @@ async def test_document_panel_dup_with_amendment_in_progress(pg_client):
     assert [a["id"] for a in amendments] == [3]
     _assert_document_ref(amendments[0], AMENDMENT, "in_progress")
     assert amendments[0]["amends_document_id"] == 2
-    # each zone spanned with its type and the typical values of its current parameter set
-    assert body["zones"] == [
-        {
-            "id": 1,
-            "name": "Centar",
-            "zone_type": "mix",
-            "typical": {
-                "land_use": "Residential – mixed use (ground-floor commercial)",
-                "max_far": 3.2,
-                "max_site_coverage_pct": 55.0,
-                "max_height_m": 24.0,
-                "max_floors": 7,
-            },
-        }
-    ]
+    # each zone spanned with its type
+    assert body["zones"] == [{"id": 1, "name": "Centar", "zone_type": "mix"}]
     # #1042, #1043, #2001/1 and #1044 have their point on surface inside the DUP; UP 12, 13, 21,
     # 31 and 32 belong to it (UP 7 belongs to the Stari Aerodrom DUP)
     assert body["coverage_counts"] == {"cadastral_parcels": 4, "urban_parcels": 5}
@@ -410,14 +397,6 @@ async def test_document_panel_of_the_amendment_itself(pg_client):
     assert [z["name"] for z in body["zones"]] == ["Centar"]
     assert body["document"]["file_available"] is False
     assert body["coverage_counts"] == {"cadastral_parcels": 1, "urban_parcels": 0}  # #3005
-
-
-async def test_document_panel_zone_without_a_parameter_set(pg_client):
-    body = await _get(pg_client, type="document", id=4)
-    assert body["document"]["name"] == DUP_SA
-    assert body["zones"] == [
-        {"id": 2, "name": "Stari Aerodrom", "zone_type": "res", "typical": None}
-    ]
 
 
 # --- cadastral ------------------------------------------------------------------------------------
@@ -498,7 +477,7 @@ async def test_cadastral_1042_is_calculated_on_its_planned_parcel(pg_client):
     assert body["covered"] is True
     assert body["coverage_note_en"] is None and body["coverage_note_me"] is None
     planning = body["planning"]
-    assert planning["tier"] == "free" and planning["calculation_basis"] == "urban"
+    assert planning["calculation_basis"] == "urban"
     assert planning["basis_area_m2"] == link["area_m2"]
     fields = _planning(body)
     assert [f["status"] for f in planning["fields"]][:11] == ["stated"] * 11
@@ -772,7 +751,7 @@ async def test_urban_up12_panel(pg_client):
 
     # planning: the 13 dictionary fields in order, 11 stated with a page-level source each
     planning = body["planning"]
-    assert planning["tier"] == "free" and planning["calculation_basis"] == "urban"
+    assert planning["calculation_basis"] == "urban"
     assert planning["basis_area_m2"] == body["basis_area_m2"]
     assert [f["key"] for f in planning["fields"]] == PLANNING_KEYS
     assert planning["not_stated_label"] == {
@@ -809,7 +788,7 @@ async def test_urban_up12_panel(pg_client):
     assert coverage["derived_from"] == ["max_site_coverage_pct", "basis_area_m2"]
 
     market = body["market_inputs"]
-    assert market["tier"] == "paid" and market["available"] is True
+    assert market["available"] is True
     assert market["reason_code"] is None and market["reason_en"] is None
     assert market["zone"] == {"id": 1, "name": "Centar"}
     assert (
@@ -823,7 +802,6 @@ async def test_urban_up12_panel(pg_client):
     assert datetime.fromisoformat(market["effective_from"]).tzinfo is not None
 
     assumptions = body["assumptions"]
-    assert assumptions["tier"] == "paid"
     assert assumptions["saleable_share"] == 0.7
     assert assumptions["construction_cost_eur_m2"] == 860
     assert assumptions["sale_price_eur_m2"] == 2450
@@ -847,7 +825,7 @@ async def test_urban_up12_panel(pg_client):
     assert assumptions["client_validated"] is False
 
     feasibility = body["feasibility"]
-    assert feasibility["tier"] == "paid" and feasibility["calculation_basis"] == "urban"
+    assert feasibility["calculation_basis"] == "urban"
     assert feasibility["basis_area_m2"] == body["basis_area_m2"]
     assert feasibility["formula_version"] == "poc-1"
     assert [f["key"] for f in feasibility["fields"]] == list(FIELD_KEYS)
@@ -1115,15 +1093,6 @@ async def test_urban_up21_without_far_or_cadastral_parcel(pg_client):
         assert cost_rows[key]["reason_code"] == "requires_gfa", key
     _assert_ranges_ordered(body["feasibility"])
     assert body["market_inputs"]["available"] is True  # the market is there; the plan is not
-
-
-@pytest.mark.parametrize("panel_type", ["cadastral", "urban"])
-async def test_tier_markers(pg_client, panel_type):
-    body = await _get(pg_client, type=panel_type, id={"cadastral": 1001, "urban": 1}[panel_type])
-    assert body["planning"]["tier"] == "free"
-    assert body["market_inputs"]["tier"] == "paid"
-    assert body["assumptions"]["tier"] == "paid"
-    assert body["feasibility"]["tier"] == "paid"
 
 
 # --- admin changes are visible immediately (no cache) ---------------------------------------------

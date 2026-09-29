@@ -160,9 +160,8 @@ The batches follow the staged-geometry contract:
 
 Every feature carries `document_id` and `dataset_version`. A newer run of the document supersedes
 its staged one. Each batch is staged with its origin (`vector_pdf` for extraction runs,
-`manual_qgis` for redrawn sheets, `official_gis` for a GIS drawing) and its topology QA
-(`core.geometry_qa`: overlaps, gaps, the drawn planned parcel areas against the plan's table, the
-run's own warnings), and waits in the console's geometry review (`/admin/review/geometry`,
+`manual_qgis` for redrawn sheets, `official_gis` for a GIS drawing) and its validity QA
+(`core.geometry_qa`: invalid or empty features, the run's own warnings), and waits in the console's geometry review (`/admin/review/geometry`,
 `/v1/admin/geometry`) for a reviewer's decision: publishing waits while any batch is pending, a
 batch whose QA fails cannot be approved, a rejected one never publishes (fix it and stage again).
 The publish job applies the approved batches and marks the dataset `published` once all its

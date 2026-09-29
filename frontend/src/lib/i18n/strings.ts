@@ -28,10 +28,8 @@ const en = {
   // search
   "search.placeholder": "Search an address, click the map, or enter a parcel number…",
   "search.label": "Search an address, click the map, or enter a parcel number",
-  "search.cancel": "Cancel",
   "search.suggestions": "Search suggestions",
   "search.noMatch": "No match. The client will supply available data locations.",
-  "search.hint": "Search an address, a zone or a parcel number (e.g. 1042/3).",
   "search.notFound": "No parcel {ref} in {ko}",
   "search.notFoundHint": "Check the number or choose another cadastral municipality",
   "search.koGroup": "Cadastral municipality",
@@ -135,9 +133,6 @@ const en = {
 
   // panel frame and empty state
   "panel.label": "Information panel",
-  "sheet.peek": "Expand the panel to half the screen",
-  "sheet.half": "Expand the panel",
-  "sheet.full": "Collapse the panel",
   "empty.title": "Pick a parcel to begin",
   "empty.pinDropped": "Pin dropped at",
   "empty.noParcel": "— no parcel at this point.",
@@ -173,10 +168,8 @@ const me: Record<StringKey, string> = {
 
   "search.placeholder": "Pretražite adresu, kliknite na mapu ili unesite broj parcele…",
   "search.label": "Pretražite adresu, kliknite na mapu ili unesite broj parcele",
-  "search.cancel": "Otkaži",
   "search.suggestions": "Prijedlozi pretrage",
   "search.noMatch": "Nema rezultata. Klijent će dostaviti lokacije s dostupnim podacima.",
-  "search.hint": "Pretražite adresu, zonu ili broj parcele (npr. 1042/3).",
   "search.notFound": "Nema parcele {ref} u KO {ko}",
   "search.notFoundHint": "Provjerite broj ili izaberite drugu katastarsku opštinu",
   "search.koGroup": "Katastarska opština",
@@ -276,9 +269,6 @@ const me: Record<StringKey, string> = {
   "toast.serviceDown": "Servis s podacima mape ne odgovara. Pokušajte ponovo za trenutak.",
 
   "panel.label": "Informacioni panel",
-  "sheet.peek": "Proširi panel na pola ekrana",
-  "sheet.half": "Proširi panel",
-  "sheet.full": "Skupi panel",
   "empty.title": "Izaberite parcelu za početak",
   "empty.pinDropped": "Oznaka postavljena na",
   "empty.noParcel": "— na ovoj tački nema parcele.",

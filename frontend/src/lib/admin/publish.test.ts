@@ -2,25 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   blockersText,
-  canRollBackTo,
   countsText,
   jobSteps,
   shortError,
   sizeText,
   stepChip,
   stepLabel,
-  type PublishVersion,
 } from "./publish";
-
-const version = (over: Partial<PublishVersion>): PublishVersion =>
-  ({
-    id: 2,
-    label: "2026-09-28.1",
-    is_current: false,
-    published_at: "2026-09-28T10:00:00Z",
-    formula_version: "poc-1",
-    ...over,
-  }) as PublishVersion;
 
 describe("publish page rules", () => {
   it("names the job's steps and their state", () => {
@@ -31,17 +19,6 @@ describe("publish page rules", () => {
     expect(stepChip("pending").label).toBe("Waiting");
     expect(jobSteps({ step: "values", steps: [{ name: "preflight", status: "done" }, { name: "values", status: "running" }] })).toHaveLength(2);
     expect(jobSteps(null)).toEqual([]);
-  });
-
-  it("offers a rollback only to an earlier version whose archive is kept (the API's guards)", () => {
-    const current = version({ id: 5, is_current: true, published_at: "2026-09-29T08:00:00Z" });
-    const archive_key = "podgorica/tiles/4/2026-09-28.1.pmtiles";
-    expect(canRollBackTo(version({ id: 4, published_at: "2026-09-28T08:00:00Z", archive_key }), current)).toBe(true);
-    expect(canRollBackTo(current, current)).toBe(false);
-    expect(canRollBackTo(version({ id: 3, archive_pruned_at: "2026-09-29T09:00:00Z" }), current)).toBe(false);
-    // a version that never had tiles (the seeded one): nothing to serve
-    expect(canRollBackTo(version({ id: 1, published_at: "2026-09-22T10:00:00Z", archive_key: null }), current)).toBe(false);
-    expect(canRollBackTo(version({ id: 4, archive_key }), null)).toBe(false);
   });
 
   it("shortens a failed publish's error at a word", () => {

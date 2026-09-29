@@ -1,10 +1,8 @@
-"""The e-mail log (roles ``admin`` and ``reviewer``): every send with its recipient, template,
-order / user id, provider message id and status; bounces reported here surface on the order.
+"""The e-mail log (role ``admin``): every send with its recipient, template, order / user id,
+provider message id and status.
 
 - ``GET /v1/admin/email-log`` (filters ``order_id``, ``user_id``, ``status``, ``template``);
-- ``GET /v1/admin/email-log/{id}``;
-- ``POST /v1/admin/email-log/{id}/bounce {reason}``: marks a sent e-mail bounced (audited); the
-  provider webhook of the chosen SMTP service will call the same service method.
+- ``GET /v1/admin/email-log/{id}``.
 """
 
 from __future__ import annotations
@@ -14,7 +12,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query, Response
 
 from api.deps import EmailServiceDep, OrderManagerPrincipal
-from api.schemas.email import BounceIn, EmailLogList, EmailLogOut, EmailStatus, EmailTemplate
+from api.schemas.email import EmailLogList, EmailLogOut, EmailStatus, EmailTemplate
 
 
 async def _no_store(response: Response) -> None:
@@ -57,15 +55,3 @@ async def get_email_log(
     principal: OrderManagerPrincipal, service: EmailServiceDep, log_id: Id
 ) -> EmailLogOut:
     return await service.get(log_id)
-
-
-@router.post(
-    "/{log_id}/bounce",
-    response_model=EmailLogOut,
-    summary="Record a bounce",
-    responses={**RESPONSES, 409: {"description": "Only a sent e-mail can bounce"}},
-)
-async def record_bounce(
-    principal: OrderManagerPrincipal, service: EmailServiceDep, log_id: Id, payload: BounceIn
-) -> EmailLogOut:
-    return await service.mark_bounced(principal, log_id, payload.reason)

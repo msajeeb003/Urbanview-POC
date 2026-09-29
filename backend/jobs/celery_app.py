@@ -7,8 +7,6 @@ Podgorica specifically. ``CELERY_TASK_ALWAYS_EAGER=true`` runs tasks inline (tes
 
 Run a worker:  celery -A jobs.celery_app worker --loglevel=info \\
                    -Q default,extraction,geo,publish,email
-Monitor:       celery -A jobs.celery_app flower --port=5555
-               (docker compose --profile monitoring up flower)
 """
 
 from __future__ import annotations

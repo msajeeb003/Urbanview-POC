@@ -2,20 +2,14 @@
 
 /**
  * A district's details under its row in Financial assumptions: the absolute low / high bounds per
- * rate (blank = the range ±) and the notes of the draft; "Preview on a test parcel", which asks
- * the API for the parcel's Group 2 today and with the unsaved figures (the panel's own builders
- * and the shared engine: nothing is written); and the version history with each version's status
+ * rate (blank = the range ±) and the notes of the draft; and the version history with each version's status
  * (the one that applies today is Live), author, date and a diff against the previous version.
  */
-import { useState, useTransition } from "react";
+import { useState } from "react";
 
-import { previewAction, previewParcelsAction } from "@/lib/admin/assumption-actions";
 import {
-  checkDraft,
   dayLabel,
   diffVersions,
-  plannedLabel,
-  previewRows,
   previousVersion,
   RATE_BASIS,
   RATE_LABELS,
@@ -27,7 +21,6 @@ import {
   type ZoneRow,
 } from "@/lib/admin/assumptions";
 import { utcStamp } from "@/lib/admin/format";
-import type { AssumptionsPreview, PreviewParcel } from "@/lib/api/types";
 
 import { StatusChip } from "../parts";
 
@@ -98,118 +91,8 @@ export function ZoneDetail({
           onChange={(e) => onEdit((d) => ({ ...d, notes: e.target.value }))}
         />
       </section>
-      <Preview row={row} draft={draft} />
       <History row={row} today={today} timezone={timezone} />
     </div>
-  );
-}
-
-function Preview({ row, draft }: { row: ZoneRow; draft: SetDraft }) {
-  const [parcels, setParcels] = useState<PreviewParcel[] | null>(null);
-  const [parcelId, setParcelId] = useState<string>("");
-  const [preview, setPreview] = useState<AssumptionsPreview | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [pending, start] = useTransition();
-
-  const load = () =>
-    start(async () => {
-      setMessage(null);
-      const result = await previewParcelsAction(row.zoneId);
-      if (!result.ok) {
-        setMessage(result.message);
-        return;
-      }
-      setParcels(result.items);
-      if (result.items[0]) setParcelId(String(result.items[0].parcel_id));
-      if (!result.items.length) setMessage("No covered parcel in this district to preview on.");
-    });
-
-  const run = () =>
-    start(async () => {
-      setMessage(null);
-      const checked = checkDraft(draft);
-      if (!checked.ok) {
-        setMessage("Fix the marked figures first.");
-        return;
-      }
-      const { land_rate, build_rate, design_rate, sale_rate, range_low_factor, range_high_factor, saleable_share } = checked.value;
-      const result = await previewAction({
-        parcel_id: Number(parcelId),
-        zone_id: row.zoneId,
-        land_rate,
-        build_rate,
-        design_rate,
-        sale_rate,
-        range_low_factor,
-        range_high_factor,
-        saleable_share,
-      });
-      if (result.ok) setPreview(result.preview);
-      else setMessage(result.message);
-    });
-
-  const rows = preview ? previewRows(preview) : [];
-  const liveVersion = preview?.current.market?.version?.version;
-  return (
-    <section className="finsect">
-      <h4>Preview on a test parcel</h4>
-      <p className="ohint">Group 2 as the public panel shows it today, and with the figures above. Nothing is saved.</p>
-      {parcels == null ? (
-        <button type="button" className="abtn sm ghost" disabled={pending} onClick={load}>
-          {pending ? "Loading parcels…" : "Choose a test parcel"}
-        </button>
-      ) : (
-        <div className="oacts">
-          <select className="rinput oselect" value={parcelId} aria-label="Test parcel" onChange={(e) => setParcelId(e.target.value)}>
-            {parcels.map((p) => (
-              <option key={p.parcel_id} value={p.parcel_id}>
-                {p.title} · {p.urban_parcel_number ? `${plannedLabel(p.urban_parcel_number)} · ${p.planned_area_m2} m²` : `${p.area_m2} m²`}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="abtn sm" disabled={pending || !parcelId} onClick={run}>
-            {pending ? "Calculating…" : "Preview"}
-          </button>
-        </div>
-      )}
-      {message && <div className="rmsg">{message}</div>}
-      {preview && (
-        <div className="fpreview">
-          <div className="osub">
-            {preview.title} · {preview.calculation_basis === "urban" ? "planned parcel" : "cadastral"} area {preview.basis_area_m2} m²
-            {preview.zone_mismatch && " · outside this district: its own district's figures apply on the map"}
-          </div>
-          {!preview.covered ? (
-            <div className="rmsg">{preview.coverage_note_en ?? "No adopted plan covers this parcel: the panel shows no figures."}</div>
-          ) : (
-            <table className="tbl otbl fprev">
-              <thead>
-                <tr>
-                  <th>Figure</th>
-                  <th>Now{liveVersion ? ` (v${liveVersion})` : ""}</th>
-                  <th>With these figures</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.key} className={r.changed ? "changed" : undefined}>
-                    <td>{r.label}</td>
-                    <td className="mono">
-                      {r.now.main}
-                      {r.now.range && <span className="fmeta">{r.now.range}</span>}
-                    </td>
-                    <td className="mono">
-                      {r.draft.main}
-                      {r.draft.range && <span className="fmeta">{r.draft.range}</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </section>
   );
 }
 

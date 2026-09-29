@@ -1,9 +1,8 @@
 /**
  * The rules of the Publish page (`/admin/publish`, the pilot scope's A4 "Publish": copies approved
  * records to a new version, computes the heatmaps and parcel links, builds the tiles, flips the
- * pointer; rollback in one action), kept pure and unit-tested: the words of the job's steps and
- * their chips, which versions a rollback may return to (the API's guards, mirrored so a button is
- * never offered that the API would refuse), and the one-line summary of a version.
+ * pointer), kept pure and unit-tested: the words of the job's steps and their chips, and the
+ * one-line summary of a version.
  */
 import type { ChipTone } from "@/components/admin/parts";
 import type { PublishStatus } from "@/lib/api/types";
@@ -53,16 +52,6 @@ export function jobSteps(progress: unknown): JobStep[] {
   if (!progress || typeof progress !== "object") return [];
   const steps = (progress as { steps?: unknown }).steps;
   return Array.isArray(steps) ? (steps.filter((s) => s && typeof s === "object" && "name" in s) as JobStep[]) : [];
-}
-
-/**
- * Whether "Roll back to this" may be offered for `version`: not the current one, published
- * before it, with map tiles that are still kept (the API answers 409 otherwise).
- */
-export function canRollBackTo(version: PublishVersion, current: PublishVersion | null): boolean {
-  if (version.is_current || !current) return false;
-  if (!version.archive_key) return false; // never had tiles, or retention cleared them
-  return Date.parse(version.published_at) < Date.parse(current.published_at) || version.id < current.id;
 }
 
 /** A failed publish's error for the note: at most `max` characters, cut at a word, "…" when cut. */

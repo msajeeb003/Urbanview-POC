@@ -85,24 +85,6 @@ services:
       mailpit:
         condition: service_healthy
 
-  # Flower: queue / task monitoring UI on http://localhost:5555
-  # (`docker compose --profile monitoring up flower`). Set FLOWER_BASIC_AUTH=user:pass before
-  # exposing it anywhere.
-  flower:
-    build: *app-build
-    command: celery -A jobs.celery_app flower --port=5555
-    profiles: ["monitoring"]
-    env_file:
-      - path: backend/.env
-        required: false
-    environment:
-      <<: *app-env
-    ports:
-      - "5555:5555"
-    depends_on:
-      redis:
-        condition: service_healthy
-
   # Mailpit catches every e-mail the worker sends in dev: SMTP on 1025, inbox UI on
   # http://localhost:8025. Nothing leaves the machine.
   mailpit:

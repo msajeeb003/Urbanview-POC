@@ -26,7 +26,6 @@ from api.services.analytics import AnalyticsRepository, AnalyticsService, SqlAna
 from api.services.auth import MagicLinkService
 from api.services.cadastral_municipalities import CadastralMunicipalityService
 from api.services.email import EmailService
-from api.services.engine_proposals import EngineProposalService
 from api.services.geocode import GeocodeService
 from api.services.geometry_review import GeometryReviewService
 from api.services.jobs import JobService
@@ -50,7 +49,7 @@ from core.geocode.base import BoundingBox, GeocodeProvider, SearchScope
 from core.logging import configure_logging
 from core.middleware import RateLimitMiddleware, RequestContextMiddleware
 from core.municipality import load_profile
-from core.payments import BankTransferProvider, PaymentProvider
+from core.payments import BankTransferProvider
 from core.pricing import parse_price_tiers
 from core.redis import create_redis
 from core.storage import ObjectStorage
@@ -83,7 +82,7 @@ def create_app(
     analytics_repository: AnalyticsRepository | None = None,
     admin_dispatcher: JobDispatcher | None = None,
     staff_authenticator: Any | None = None,
-    payment_provider: PaymentProvider | None = None,
+    payment_provider: BankTransferProvider | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings)
@@ -203,9 +202,6 @@ def create_app(
                 on_assumptions_changed=lambda: publish_service.refresh_heatmaps_if_stale(
                     reason="assumptions"
                 ),
-            )
-            app.state.engine_proposal_service = EngineProposalService(
-                app.state.session_factory, municipality_id=municipality.id
             )
             app.state.overview_service = OverviewService(
                 app.state.session_factory, municipality=municipality

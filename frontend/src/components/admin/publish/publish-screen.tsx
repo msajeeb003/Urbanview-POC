@@ -4,8 +4,8 @@
  * The Publish page (`/admin/publish`, the pilot scope's A4 "Publish"; admins and reviewers): what
  * the public map serves, "Publish" (optional label and notes; refused while any document has items
  * pending review, and the blocking documents are named with a link into the review queue), the
- * running job's steps (read again every 2 s until it ends), and every kept version with "Roll back
- * to this" (confirmed inline; the pointer flips, nothing is recomputed). No mock screen: the
+ * running job's steps (read again every 2 s until it ends), and every kept version (earlier
+ * versions keep their tiles for retention). No mock screen: the
  * wireframe's admin cards, tables and chips. Every call is a server action over the staff API,
  * which checks the role again.
  */
@@ -15,7 +15,6 @@ import { useEffect, useState } from "react";
 import { relativeTime, utcStamp } from "@/lib/admin/format";
 import {
   blockersText,
-  canRollBackTo,
   countsText,
   jobSteps,
   shortError,
@@ -25,7 +24,7 @@ import {
   type JobStep,
   type PublishVersion,
 } from "@/lib/admin/publish";
-import { publishAction, publishStatusAction, rollbackAction } from "@/lib/admin/review-actions";
+import { publishAction, publishStatusAction } from "@/lib/admin/review-actions";
 import type { PublishStatus } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
@@ -37,7 +36,6 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
   const [label, setLabel] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
-  const [confirm, setConfirm] = useState<number | null>(null);
   const active = status.active_job;
   const current = status.current;
   const blockers = blockersText(status.blockers, status.geometry_blockers);
@@ -71,15 +69,6 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
       setNotes("");
     }
     await refresh();
-    setBusy(false);
-  };
-
-  const rollback = async (versionId: number) => {
-    setBusy(true);
-    const result = await rollbackAction(versionId);
-    showToast(result.message);
-    if (result.ok) setStatus(result.data);
-    setConfirm(null);
     setBusy(false);
   };
 
@@ -161,7 +150,7 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
         </AdminCard>
       )}
 
-      <AdminCard title="Versions" sub={`Newest first · the ${status.keep_versions} newest keep their tiles for a rollback`}>
+      <AdminCard title="Versions" sub={`Newest first · the ${status.keep_versions} newest keep their tiles`}>
         <DataTable<PublishVersion>
           rows={status.versions}
           rowKey={(v) => v.id}
@@ -189,28 +178,6 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
               mono: true,
               render: (v) =>
                 v.archive_pruned_at ? "cleared" : v.archive_key ? `${v.archive_key} · ${sizeText(v.archive_size_bytes)}` : "—",
-            },
-            {
-              key: "act",
-              label: "",
-              render: (v) =>
-                canRollBackTo(v, current) ? (
-                  confirm === v.id ? (
-                    <span className="rconfirm">
-                      Serve {v.label} again{current ? ` instead of ${current.label}` : ""}?
-                      <button type="button" className="abtn sm" disabled={busy} onClick={() => void rollback(v.id)}>
-                        Roll back
-                      </button>
-                      <button type="button" className="abtn sm ghost" onClick={() => setConfirm(null)}>
-                        Cancel
-                      </button>
-                    </span>
-                  ) : (
-                    <button type="button" className="abtn sm ghost" disabled={busy || !!active} onClick={() => setConfirm(v.id)}>
-                      Roll back to this
-                    </button>
-                  )
-                ) : null,
             },
           ]}
         />

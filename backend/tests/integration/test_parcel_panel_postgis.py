@@ -292,7 +292,6 @@ async def test_zone_panel(client, pg_conn):
     assert in_progress["status_label_en"] == "in progress" and in_progress["covered"] is False
     assert in_progress["type_name"].startswith("Detaljni")
     assert body["counts"]["adopted"] == 2 and body["counts"]["in_progress"] == 1
-    assert body["typical_parameters"]["max_far"] is not None
     assert r.headers["X-Panel-Cache"] in {"miss", "hit"} and r.headers["ETag"]
 
 

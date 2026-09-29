@@ -12,7 +12,7 @@ wrong page citations, parcels found / missed / extra, tokens, cost), a per-field
 confidence calibration, writes the full report (with examples of every error) to the cache folder,
 and appends its numbers to ``tests/corpus/results/log.jsonl`` (one line per run; the iteration
 log). ``--check`` exits 1 when a document's accuracy falls below the baseline or any value is
-hallucinated or cited on the wrong page (the CI regression gate).
+hallucinated or cited on the wrong page (the regression gate).
 """
 
 from __future__ import annotations
@@ -392,7 +392,7 @@ def add_parser(commands: Any) -> None:
     ev.add_argument("--effort")
     ev.add_argument("--note")
     ev.add_argument("--no-log", action="store_true")
-    ev.add_argument("--check", action="store_true", help="fail on a regression (CI)")
+    ev.add_argument("--check", action="store_true", help="fail on a regression")
     ev.add_argument("--quiet", action="store_true")
     ch = actions.add_parser("check", help="compare the last run with baseline.json")
     ch.add_argument("--run", type=Path)

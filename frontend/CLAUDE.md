@@ -18,7 +18,7 @@ design. Proof, not taste: `docs/wireframe/screens/*.png` are the acceptance refe
   `[class][class][class]{border-radius:8px}` gives every classed element an 8 px radius: that is
   load-bearing, do not "clean it up".
 - Every deviation lives in `src/styles/overrides.css`, one commented block per reason (fonts,
-  a11y helpers, Mapbox, tablet / phone layout).
+  a11y helpers, Mapbox).
 - **No Tailwind Preflight** (`globals.css` imports only `theme.css` + `utilities.css`): Preflight's
   `line-height: 1.5`, block SVGs and heading resets change the design. The wireframe CSS is
   unlayered, so it beats every Tailwind layer; utilities are for layout glue only.
@@ -79,12 +79,10 @@ figures 44 / 700, body 14, secondary 13, mono data 13 / 700, uppercase mono micr
 | Map | fills the middle, `#EDE6D6`; legend top-left 16/16 (max 264 wide); coverage pill top-centre; scale bar left 16 / bottom 52; coordinates chip left 16 / bottom 16; tools right 16 / bottom 88 (zoom label, 42 px `+` `−` reset) |
 | Panel | 392 px (`--white`, hairline left, no shadow); sticky header, scrolling body, CTA stack; hidden (never replaced by anything) when the location is uncovered |
 | AI | not built (pilot scope: "intent button only"): no fab, no chat panel, no quota; "Ask about this site" in the parcel panel's button stack records `ai_interest` |
-| Admin | overlay `inset: 0` over the main row, `--paper`; admin bar 60 px; tabs "Overview", "AI review queue", "Planning rules", "Financial assumptions", "Calculation engine", "Orders", "Data sources" (the wireframe's), then "Publish", "Analytics", "Audit log" (the pilot scope's A4 / A7; the bar scrolls sideways when narrow); "← Back to map" |
+| Admin | overlay `inset: 0` over the main row, `--paper`; admin bar 60 px; tabs "Overview", "AI review queue", "Financial assumptions", "Orders", "Data sources" (the wireframe's, without its Planning rules and Calculation engine tabs: not in the POC plan), then "Publish", "Analytics", "Audit log" (the pilot scope's A4 / A7; the bar scrolls sideways when narrow); "← Back to map" |
 | Modal | overlay `rgba(20,17,14,.55)`, padding 24; modal max 520 (`wide` 860), max-height 90vh, radius 8 (effective), pop-in .2s |
 | Toast | bottom-centre, ink, `✦` + text, 2.6 s |
 | ≤ 1100 px | panel 360, rail 182 (wireframe) |
-| ≤ 860 px | rail collapsed by default, opens as a drawer over the map; panel = bottom sheet (peek 148 px / half `min(50vh, 440px)` / full `min(78vh, 680px)`, grab handle cycles them); chrome sits above the sheet and hides when it is full; nav icons only |
-| ≤ 760 px | topbar padding 12, logo 26 px, pill hidden; form rows single column |
 
 Desktop-first; no login wall, splash or onboarding tour. The intro toast ("Click any parcel to see
 what can be built", 0.9 s after load) is part of the wireframe, not a tour.
@@ -186,7 +184,7 @@ Planned traffic (an MVP layer; not published).
   start on the pointer the page already has and re-read the pointer shortly before the signed link
   expires or when a range request fails. A new `version_id` from `useTilesCurrent` recreates the
   source, so a publish swaps tiles without a deploy; the page reads the pointer again at least
-  every 5 minutes and when the tab regains focus (`pointerRefreshMs`), so a publish or a rollback
+  every 5 minutes and when the tab regains focus (`pointerRefreshMs`), so a publish
   reaches maps already open within 5 minutes (a reload at once). No archive (unpublished) = base
   map only, nothing drawn. The page reads `/v1/tiles/current` server-side together with the
   profile, so the
@@ -281,9 +279,6 @@ coverage), title, mono sub-label.
   Enter picks the highlighted row, or the first row (waiting for the geocoder when its answer is
   not in yet), Esc closes. Combobox ARIA (`aria-activedescendant`, `role="option"` rows and chips,
   a polite live region for "No match" / "No parcel").
-- **Phone (≤ 760 px):** the focused search is a full-screen sheet (`overrides.css` block 9:
-  input on top, rows filling the screen, `Cancel`, a hint when there is nothing to show); the
-  topbar rises above the bottom sheet while it is open. A pick closes it.
 - **Events:** `search_performed { search_kind: address | parcel_number | click, matched }` +
   `result: address | zone | parcel` for typed searches (zones count as `address`, the enum has no
   zone kind) + `recent: true`. Address / zone picks are `matched: true`; a query left with no
@@ -319,7 +314,7 @@ and its map highlight. Loading: the header with what the selection knows and "Lo
 trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map quietly.
 
 - **Zone** (`renderPanelZone`): eyebrow `ZONE` + the zone type name (`ZONE_TYPES`), title, sub
-  `Internal city division · ≈ city quarter`; "Planning documents" + Free, the mock's note ("This
+  `Internal city division · ≈ city quarter`; "Planning documents", the mock's note ("This
   zone groups N."), one `.docitem` per current document version: name, meta `source PDF ·
   eRegistri · adopted 12 May 2019 · 4 parcels with data` (`documentMeta`: PDF when stored, the
   adoption date when known, parcels for a document the map covers, `not yet digitised` for an
@@ -329,22 +324,19 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   viewer. **No adopted plan:** a zone without an adopted document
   shows a "No adopted plan" note above whatever is listed, never an empty list (searching such a
   zone first shows the S6 pill, then this panel). "General planning information": the zone's
-  summary (BRD §2.3), or a neutral note while none is written. "Zone-level planning" from
-  `typical_parameters` (staff-maintained): predominant land use, typical FAR (II) and coverage
-  (IZ) (abbreviations from the profile), typical height (`24 m · 7 floors`), with a source chip
-  opening the cited page; "Typical values … not recorded yet" without a set. Closing note as in
+  summary (BRD §2.3), or a neutral note while none is written (no zone-level typical parameters:
+  not in the POC plan). Closing note as in
   the mock, then the data version line (`DataVersionLine`: `Data version <label> · published
   <date>`, mono, also under the document and cadastral panels; the urban panel names it in the
   assumption sandbox).
 - **Planning document** (`renderPanelDoc`): eyebrow `PLANNING DOCUMENT` + `adopted plan` / `plan
   in progress` / `superseded plan`, title, sub `DUP — Detailed urban plan` (profile
-  `terminology.document_types_en`, else `document_types`); "Document details" + Free + source
+  `terminology.document_types_en`, else `document_types`); "Document details" + source
   chip (the PDF's page 1 through the source viewer when stored, else the registry entry): name,
   type, status, `Adopted` date when known, source (`PDF · eRegistri`, the registry name a link to
   its entry), amendments in progress;
   "General planning information" = the zone's summary (else the mock's generic text);
-  "Coverage": zones spanned, cadastral and urban parcel counts, one row per zone (`24 m · FAR
-  3.2` from its typical values); CTA stack: ghost "Ask about this document" (an intent button:
+  "Coverage": zones spanned, cadastral and urban parcel counts; CTA stack: ghost "Ask about this document" (an intent button:
   `ai_interest {trigger: document_panel, document_id}` and the toast "The assistant is not
   available in the pilot yet. We have noted your interest."; nothing opens) and line "How we read
   a planning document" (the methodology modal, step 2).
@@ -355,7 +347,7 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
 - **Source viewer** (`components/source/source-viewer.tsx`, opened by `useOpenSource` in
   `lib/source.tsx`): every source chip and row source icon, and every stored document in a zone's
   list, opens the cited page in the app, in the wireframe's wide modal (`.modal.wide.srcmodal`,
-  90vh; full screen at ≤ 760 px). Map and panel stay mounted behind the overlay, so closing (✕,
+  90vh). Map and panel stay mounted behind the overlay, so closing (✕,
   Esc, the overlay) returns to the same panel with the visitor's edited assumptions. Header:
   eyebrow "Source document", document name, `p.13` + status chip + "Max floor area ratio: 3.2" +
   the value's note. One signed link (`/v1/source/value/{value_id}` or
@@ -402,7 +394,7 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   governing document; `Parcel ID 1001 · urban parcel ID 1` (mono meta line, `.parcelid`);
   "Cadastral vs urban parcel": the comparison card + "All calculations use the urban parcel
   area." (or the cadastral basis with the API's reason; `no_cadastral_parcel` stated as such);
-  "Planning parameters" (Free, source chip = the first cited page): the mock's seven rows —
+  "Planning parameters" (source chip = the first cited page): the mock's seven rows —
   Land use designation, Max building height (`27.5 m · P+8`: metres and floors, each with its
   source), Max site coverage (IZ) %, Floor Area Ratio (II), Planned parcel area (the plan's
   stated value, else the geometry's area with a tooltip), Max Gross Floor Area (brand-dark),
@@ -491,8 +483,7 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
     entity (the pilot scope's guest form, not the mock's: first / last name, telephone, email;
     "Legal entity" adds company name and `PIB` above them, both `optional`; switching keeps what
     was typed), the methodology card (opens the wizard; its last step returns to the form), the
-    guest note, the line with the terms of service / refund policy / privacy notice links
-    (`lib/legal.ts`, new tab, `.orderlegal`); footer `€200 · 5 working days`, Cancel, gold "Place
+    guest note; footer `€200 · 5 working days`, Cancel, gold "Place
     order →" (the mock's "Continue to payment →": there is no payment step).
   - *Validation* (`validateDraft`, the API's rules): first name, telephone and email for both
     types (last name, company name and PIB optional); the server's email and telephone patterns
@@ -530,14 +521,6 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   `PayInstructions`) while the payment is due, the order rows (location, analysis fee, placed,
   last update, planning data version, expected delivery), "← Back to the map". Unknown
   reference: "Order not found". `noindex`.
-- **Legal pages** (`app/legal/[page]`, `components/legal/legal-page.tsx`, text in `lib/legal.ts`):
-  `/legal/terms`, `/legal/privacy`, `/legal/refund`, `/legal/disclaimer` (static, any other slug
-  404), the order page's layout with a draft notice first, links to the other three and "← Back
-  to the map". Draft wording until the client's lawyer supplies it (`LEGAL_STATUS =
-  "placeholder"`); it describes what the build does.
-- **Bottom sheet (≤ 860 px):** peek (148 px) → half (`min(50vh, 440px)`, where a selection opens)
-  → full (`min(78vh, 680px)`) → peek, by tapping the handle (`nextSheet`); the chrome sits above
-  peek and half and hides when full.
 
 ## Panel fields
 
@@ -551,7 +534,7 @@ urban parcel" (`Cadastral a m² → urban b m². −d% taken for roads / public 
 calculations use the urban parcel area."), the cadastral panel the gold "Corresponding urban
 parcel" card or "Not defined". Any area mismatch is always shown (`area_comparison`).
 
-**Group 1: planning parameters (free)**, badge `Free` + `source` chip, all 13 fields of the
+**Group 1: planning parameters (free)**, `source` chip, all 13 fields of the
 dictionary in this order (`planning.fields`), every stated value with its source (document +
 page, one click to the cited page via `viewer_url`); `not_stated` renders `—`:
 
@@ -622,7 +605,7 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   behind Caddy, `API_INTERNAL_BASE_URL`.
 - **Roles** (`lib/admin/sections.ts`, the one table the proxy, the tab row and the pages read;
   the pilot technical scope's, auth check 2026-09-29): admin = every tab + users; reviewer
-  ("planning expert approving extractions") = Overview, AI review queue, Planning rules (read),
+  ("planning expert approving extractions") = Overview, AI review queue,
   Data sources (read: no upload, register, job or live buttons, `DataReadOnly` context), Publish;
   expert ("produces paid reports") = Orders only (the API returns only the orders assigned to
   them; the report upload is their only action). Reviewers have no order access. Guards: `src/proxy.ts` (Next 16's renamed
@@ -636,16 +619,15 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   Queued / In progress / Done, expert review %, Live Yes / Partial / No); Orders (below);
   Audit log `GET /v1/admin/audit` (filters entity type and actor as a GET
   form, 50 per page, before → after as the changed keys); **Analytics** (`/admin/analytics`,
-  admins, the pilot scope's A7 "Analytics and audit"; `lib/admin/analytics.ts`, no mock screen:
-  the console's cards, tables and stat cards) `GET /v1/admin/analytics` with a from / to GET form
+  admins; `lib/admin/analytics.ts`, no mock screen: plain tables, no dashboard: the POC plan funds
+  the funnel, districts and intent counts) `GET /v1/admin/analytics` with a from / to GET form
   (default the API's last 30 days; `to` inclusive on the form, sent as the exclusive next day):
-  stat cards (sessions, searches with how many were outside coverage, orders placed + revenue,
-  repeat usage), the funnel (step, events, sessions, from previous, from start), most-searched
+  the funnel (step, events, sessions, from previous, from start), most-searched
   districts (district, Covered / No adopted plan chip, searches, outside coverage, parcel picks,
   sessions, share; searches outside coverage count for the district of their point, a point in
-  no zone is "Outside every district"), orders and revenue by product, and repeat usage /
-  intent counts / panels reaching the financials; Users `GET /v1/admin/users`; Planning
-  rules, Financial assumptions and Calculation engine (below). Action buttons are hidden for
+  no zone is "Outside every district"), and repeat usage /
+  intent counts / panels reaching the financials; Users `GET /v1/admin/users`; Financial
+  assumptions (below). Action buttons are hidden for
   read-only roles.
 - **AI review queue** (`/admin/review`; `components/admin/review/*`, rules in
   `lib/admin/review.ts`, calls in `lib/admin/review-actions.ts`): the wireframe's card ("AI
@@ -653,7 +635,7 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   publish", "N pending"), a progress header (n of N reviewed for the document in view, counters,
   Publish for admins and reviewers once the document has nothing pending — until then a "n pending before
   publish" chip with a tooltip — the job's step while it runs, the data version the map serves,
-  "Rollback to previous" with an inline confirmation, "Corrected values reach the map only after a
+  "Corrected values reach the map only after a
   publish"), the switch "Extracted values · n pending | Geometry · m pending" (`review-tabs.tsx`;
   the geometry count from `GET /v1/admin/geometry?limit=1`), filters (document with its pending
   count, status, zone, target type, page, order:
@@ -691,12 +673,12 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   with its chip, sentence, count and the features it names; facts: origin with its meaning, layer,
   document link, producing run, features, staged, the georeferencing fit and snapping, published)
   and the preview (`projectFeatures`: the batch's simplified features as an SVG, north up, fitted to
-  the pane; features an issue names outlined in the danger colour, gaps circled, a feature named
+  the pane; features an issue names outlined in the danger colour, a feature named
   on hover). Keys j / k, Enter, r, n, Esc. Styles: block 23 of `overrides.css`. Tests:
   `lib/admin/geometry.test.ts`.
 - **Publish** (`/admin/publish`, admins and reviewers, the pilot scope's A4;
   `components/admin/publish/publish-screen.tsx`, rules in `lib/admin/publish.ts`, calls
-  `publishAction` / `rollbackAction` / `publishStatusAction` in `lib/admin/review-actions.ts`):
+  `publishAction` / `publishStatusAction` in `lib/admin/review-actions.ts`):
   what the map serves (`v7 · label`, when, who), "Publish" with an optional label and notes
   (disabled while any document has pending items or any geometry waits for review, `blockersText`,
   named with
@@ -704,9 +686,9 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   running job's steps (preflight … prune, `stepLabel`, read every 2 s until it ends; a failed
   last run says where it stopped, its error cut at a word with the full text on hover,
   `shortError`), and every version (`version_no` + label + Live chip, published when and by
-  whom, what it holds: values, parcel links, heatmap cells, the tiles key and size or "cleared")
-  with "Roll back to this" (confirmed inline) on earlier versions that have tiles, still kept
-  (`canRollBackTo`, the API's guards). Tests: `lib/admin/publish.test.ts`.
+  whom, what it holds: values, parcel links, heatmap cells, the tiles key and size or "cleared").
+  Earlier versions keep their tiles (retention) for a manual pointer flip by an operator; there
+  is no rollback button or endpoint. Tests: `lib/admin/publish.test.ts`.
 - **Users** (`/admin/users`, admins; `components/admin/users/users-screen.tsx`, `lib/admin/users.ts`,
   `lib/admin/user-actions.ts`): "Add staff" (work e-mail, name, role; they sign in by e-mailed
   link, no password) over `POST /v1/admin/users`, and the staff table with a role select and
@@ -795,37 +777,10 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   source; marked cells, the first bad row opened), shows a confirmation line (zones, new versions,
   date) and sends one `POST /v1/admin/assumptions/batch` (all or nothing); failures keep every
   figure. "Details" opens a row under the district (`zone-detail.tsx`): the absolute low / high per
-  rate and the notes; "Preview on a test parcel" (`GET …/preview-parcels`, then `POST
-  …/preview`: Group 2 now vs with these figures, changed figures in brand, money in whole euros,
-  the range under the expected figure); the version history (version, status chip, applies from,
+  rate and the notes; the version history (version, status chip, applies from,
   author, time, "View diff vs vN" = `diffVersions`). Drafts start from the live version; the page
   is keyed on the versions, so a save remounts it with fresh drafts. Nothing is deleted.
-- **Calculation engine** (`/admin/engine`, admins; `components/admin/engine/engine-screen.tsx`,
-  `lib/admin/engine.ts`, `lib/admin/engine-actions.ts`): the wireframe's "Formulas" card (Output,
-  Expression, Source, Status "Live") from `FORMULA_ROWS` (the page's words for the shared engine's
-  figures, keyed by the engine's result keys: a test keeps them in step with `FIELD_ORDER`), the
-  "Input data" card (Adopted planning documents, Cadastre, Market sources, named from the profile's
-  `sources` by kind, each with its kind's best-connected integration, `kindIntegration`, never a
-  blanket "Connected"), proposals from `GET /v1/admin/engine/proposals` under each
-  (gold-tinted rows, "New" / "Pending", who and when), the footer line (`engineFooter`: engine and
-  formula versions, counts, last updated = `ENGINE_UPDATED`, proposals waiting, "the calculation
-  changes only with a new formula version the client has validated") and the changelog
-  (`#changelog`, `ENGINE_CHANGELOG` from the engine package). "+ Add formula" / "+ Add data input"
-  are the wireframe's dialogs (Output name, Expression, Source optional / Dataset name, What it
-  provides) recording a proposal: they say so and never claim to change the engine.
-- **Planning rules** (`/admin/rules`, admins edit, reviewers read; `components/admin/rules/*`,
-  `lib/admin/rules.ts`, `lib/admin/rule-actions.ts`): the wireframe's card ("Planning rules — Zone
-  parameter sets — each carries its source & verification date", "+ New rule") and table Zone
-  (with `vN`), Use, FAR, Coverage, Height (`24 m · 7 floors`), Source (document · p.N), Status
-  (Verified with the date and who under it, or Unverified). "Edit" opens an editor row under the
-  rule, "+ New rule" one at the top for a zone without a rule: use, FAR, coverage %, height,
-  floors, source document (the zone's documents, adopted first, loaded when the select is
-  opened), page, source note, verified on (≤ the municipality's today) / by, "Verified against the
-  source today", notes. Saving is a new version of the zone's set (`POST` / `PUT
-  /v1/admin/zone-parameters`, every field sent); a value changed without verifying again saves as
-  unverified (`staleVerification`: an old date never vouches for new values). Reviewers get the
-  table only.
-- Styles of the three: block 20 of `overrides.css`.
+  Styles: block 20 of `overrides.css`.
 - **Components** (`components/admin/parts.tsx`, the wireframe's markup): `AdminCard` (`.card >
   .cardhd` h3 + `.sub` + right-side action), `DataTable` (`.tbl`, `.mono` cells for numbers and
   references), `StatusChip` (`.st.ok | .pend | .rev`), `AdminButton` (`.abtn`, `ghost`, `sm`),
@@ -841,8 +796,7 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   Tests: `lib/admin/sections.test.ts` (tabs per role, guard decisions, callback URLs),
   `lib/admin/format.test.ts`, `lib/admin/data.test.ts`, `lib/admin/review.test.ts`,
   `lib/admin/geometry.test.ts`,
-  `lib/admin/orders.test.ts`, `lib/admin/assumptions.test.ts`, `lib/admin/engine.test.ts`,
-  `lib/admin/rules.test.ts`; backend `tests/integration/test_admin_console_postgis.py`,
+  `lib/admin/orders.test.ts`, `lib/admin/assumptions.test.ts`; backend `tests/integration/test_admin_console_postgis.py`,
   `test_document_files_postgis.py`, `test_review_queue_postgis.py`,
   `test_orders_console_postgis.py`, `test_assumptions_schedule_postgis.py`.
 

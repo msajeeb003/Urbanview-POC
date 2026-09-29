@@ -1,12 +1,11 @@
 """Publish API: the one button (``POST /v1/admin/publish``), its status screen
-(``GET /v1/admin/publish``), the manual rollback (``POST /v1/admin/publish/rollback``) and the
-public tiles pointer (``GET /v1/tiles/current``).
+(``GET /v1/admin/publish``) and the public tiles pointer (``GET /v1/tiles/current``).
 
 The heavy lifting is the job (``jobs.publish_pipeline``); this service refuses a publish while
 items are pending review (naming the documents), enqueues one ``publish_approved`` job at a time
-(idempotent), reads ``publish_versions`` and flips ``is_current`` back on rollback. Rollback is
-a pointer flip: the previous version's values, links, cells and archive are still there, nothing
-is recomputed. The public API only ever reads the current version.
+(idempotent) and reads ``publish_versions``. Earlier versions keep their values, links, cells and
+archive (retention ``PUBLISH_KEEP_VERSIONS``) for a manual pointer flip by an operator; the
+public API only ever reads the current version.
 """
 
 from __future__ import annotations
@@ -42,8 +41,7 @@ from jobs.publish_pipeline import GEOMETRY_PENDING_SQL, PENDING_SQL
 _VERSION_COLUMNS = """
     p.id, p.label, p.version_no, p.is_current, p.published_at, p.published_by, p.formula_version,
     p.notes, p.previous_version_id, p.job_id, p.archive_key, p.archive_size_bytes, p.archive_sha256,
-    p.archive_pruned_at, p.layers, p.counts, p.duration_ms, p.min_zoom, p.max_zoom,
-    p.rolled_back_at, p.rolled_back_by"""
+    p.archive_pruned_at, p.layers, p.counts, p.duration_ms, p.min_zoom, p.max_zoom"""
 VERSIONS_SQL = text(
     f"""
     SELECT {_VERSION_COLUMNS} FROM publish_versions p
@@ -53,27 +51,6 @@ VERSIONS_SQL = text(
 CURRENT_SQL = text(
     f"SELECT {_VERSION_COLUMNS} FROM publish_versions p "
     "WHERE p.municipality_id = :m AND p.is_current"
-)
-CURRENT_FOR_UPDATE_SQL = text(
-    f"SELECT {_VERSION_COLUMNS} FROM publish_versions p "
-    "WHERE p.municipality_id = :m AND p.is_current FOR UPDATE"
-)
-VERSION_SQL = text(
-    f"SELECT {_VERSION_COLUMNS} FROM publish_versions p WHERE p.municipality_id = :m AND p.id = :id"
-)
-PREVIOUS_SQL = text(
-    f"""
-    SELECT {_VERSION_COLUMNS} FROM publish_versions p
-    WHERE p.municipality_id = :m AND p.id < :current_id AND NOT p.is_current
-    ORDER BY p.id DESC LIMIT 1
-    """
-)
-UNSET_CURRENT_SQL = text(
-    "UPDATE publish_versions SET is_current = false WHERE municipality_id = :m AND is_current"
-)
-SET_CURRENT_SQL = text("UPDATE publish_versions SET is_current = true WHERE id = :id")
-ROLLED_BACK_SQL = text(
-    "UPDATE publish_versions SET rolled_back_at = now(), rolled_back_by = :by WHERE id = :id"
 )
 PUBLISH_JOBS_SQL = text(
     f"""
@@ -163,8 +140,6 @@ class PublishService:
             duration_ms=row["duration_ms"],
             min_zoom=row["min_zoom"],
             max_zoom=row["max_zoom"],
-            rolled_back_at=_utc(row["rolled_back_at"]),
-            rolled_back_by=row["rolled_back_by"],
         )
 
     # --- reads -----------------------------------------------------------------------------------
@@ -368,76 +343,6 @@ class PublishService:
         if row is None:
             raise NotFoundError(f"No job with id {job_id}", details={"job_id": job_id})
         return job_out(row)
-
-    async def rollback(self, principal: Principal, version_id: int | None = None) -> PublishStatus:
-        """Flip ``is_current`` to an earlier version (default: the one before the current)."""
-        m = self.municipality_id
-        async with self.session_factory() as session:
-            current = (await session.execute(CURRENT_FOR_UPDATE_SQL, {"m": m})).mappings().first()
-            if current is None:
-                raise ConflictError(
-                    "Nothing is published; there is no version to roll back from",
-                    details={"reason": "unpublished"},
-                )
-            if version_id is None:
-                target = (
-                    (await session.execute(PREVIOUS_SQL, {"m": m, "current_id": current["id"]}))
-                    .mappings()
-                    .first()
-                )
-                if target is None:
-                    raise ConflictError(
-                        "There is no earlier version to roll back to",
-                        details={
-                            "reason": "no_previous_version",
-                            "current_version_id": current["id"],
-                        },
-                    )
-            else:
-                target = (
-                    (await session.execute(VERSION_SQL, {"m": m, "id": version_id}))
-                    .mappings()
-                    .first()
-                )
-                if target is None:
-                    raise NotFoundError(
-                        f"No publish version with id {version_id}",
-                        details={"version_id": version_id},
-                    )
-                if target["is_current"]:
-                    raise ConflictError(
-                        f"Version {target['label']} is already current",
-                        details={"reason": "already_current", "version_id": version_id},
-                    )
-            if target["archive_pruned_at"] is not None:
-                raise ConflictError(
-                    f"Version {target['label']} was pruned by retention; its archive is gone",
-                    details={"reason": "pruned", "version_id": target["id"]},
-                )
-            if not target["archive_key"]:
-                raise ConflictError(
-                    f"Version {target['label']} has no map tiles to serve",
-                    details={"reason": "no_archive", "version_id": target["id"]},
-                )
-            await session.execute(UNSET_CURRENT_SQL, {"m": m})
-            await session.execute(SET_CURRENT_SQL, {"id": target["id"]})
-            await session.execute(ROLLED_BACK_SQL, {"id": current["id"], "by": principal.subject})
-            await write_audit(
-                session,
-                municipality_id=m,
-                principal=principal,
-                action="publish.rollback",
-                entity_type="publish_version",
-                entity_id=int(target["id"]),
-                details={"from_version_id": int(current["id"]), "from_label": current["label"]},
-                before={
-                    "current_version_id": int(current["id"]),
-                    "current_label": current["label"],
-                },
-                after={"current_version_id": int(target["id"]), "current_label": target["label"]},
-            )
-            await session.commit()
-        return await self.status()
 
 
 def dumps(value: Any) -> str:

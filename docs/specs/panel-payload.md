@@ -361,9 +361,8 @@ confirms the numbers; never regenerate it from an engine.
   over cadastral parcel 2001/1; cadastral area used", me "nad katastarskom parcelom 2001/1 nije
   definisana urbanistička parcela; koristi se katastarska površina"), `no_cadastral_parcel`
   (params `{urban_parcel_number}`, en "planned parcel UP 21 has no cadastral parcel under it").
-- Tier markers: `planning.tier = "free"`; `market_inputs.tier`, `assumptions.tier`,
-  `feasibility.tier = "paid"`. The POC serves the paid blocks without entitlement checks; the
-  marker exists so the boundary is explicit on screen and a later gate needs no redesign.
+- Tier markers (`tier: free | paid`) were removed on 2026-09-29 (POC conformance): the blocks
+  carry no `tier` field.
 
 ### 5.1 zone
 ```
@@ -443,7 +442,7 @@ CadastralLink = {parcel_id, parcel_number, sub_number, ko_name, street_address, 
 ### 5.5 Shared blocks
 ```
 PlanningBlock = {
-  tier: "free", calculation_basis, basis_area_m2,
+  calculation_basis, basis_area_m2,
   fields: [ PlanningField ],               // dictionary order; all 13 always present
   not_stated_label: {en: "not stated in plan", me: "nije navedeno u planu"} }
 PlanningField = {key, label_en, label_me, abbreviation, unit,   // unit = row override else dictionary unit
@@ -455,17 +454,17 @@ PlanningField = {key, label_en, label_me, abbreviation, unit,   // unit = row ov
   reason_code, reason_en, reason_me }      // cannot_compute (far_not_stated / coverage_not_stated / area_unknown)
 Source = {document_id, document_name, page, bbox, bbox_space: "pdf-points-bottom-left", note,
           registry_url, value_id, viewer_url: "/v1/source/value/{value_id}"}  // section 10
-MarketInputsBlock = {tier: "paid", available: bool, reason_code, reason_en, reason_me,
+MarketInputsBlock = {available: bool, reason_code, reason_en, reason_me,
   zone: ZoneRef | null, land_rate_eur_m2, build_rate_eur_m2, design_rate_eur_m2, sale_rate_eur_m2,
   range_low_factor, range_high_factor, source, source_date, effective_from}   // numbers null when unavailable
-AssumptionsBlock = {tier: "paid", saleable_share, construction_cost_eur_m2, sale_price_eur_m2,
+AssumptionsBlock = {saleable_share, construction_cost_eur_m2, sale_price_eur_m2,
   design_documentation_eur_m2, land_rate_eur_m2, range_low_factor, range_high_factor,
   overrides: {saleable_share: bool, construction_cost_eur_m2: bool, sale_price_eur_m2: bool},
   sources: {construction_cost_eur_m2: "market" | "user" | null, sale_price_eur_m2: "market" | "user" | null},
   market_source, market_source_date, formula_version, data_version, data_version_date, client_validated: false}
   // when market data is unavailable the rate numbers are null; saleable_share and the override flags still reflect the query
 FeasibilityBlock = {
-  tier: "paid", calculation_basis, basis_area_m2, formula_version,
+  calculation_basis, basis_area_m2, formula_version,
   fields: [ FeasibilityField ×7 ],          // order: max_gfa_m2, max_coverage_area_m2, saleable_area_m2, construction_cost_eur, revenue_eur, profit_eur, roi_pct
   cost_rows: [ FeasibilityField ×4 ],       // land_value_eur, design_documentation_eur, construction_cost_eur, total_cost_eur
   disclaimer_en: "Figures are indicative ranges derived from the adopted plan and public market data, not investment, planning or legal advice.",
@@ -552,7 +551,8 @@ else `not_stated`. For a cadastral-basis panel: document-level values of the gov
 2. Formulas, range model (rate × low/high factors) and Montenegrin labels/reasons await client
    validation; the disclaimer wording awaits the lawyer.
 3. Market inputs are admin-published, not versioned with `data_version` (POC decision).
-4. Free/paid: the paid blocks are served without entitlement checks in the POC, marked by `tier`.
+4. Free/paid: the paid blocks are served without entitlement checks in the POC (no `tier` markers
+   since 2026-09-29).
 
 ## 9. `POST /v1/feasibility` — server-side recalculation (added 2026-09-23)
 
@@ -610,23 +610,21 @@ SourceValue = {value_id, field_key, label_en, label_me, value, unit, urban_parce
 - Sample data: `make seed` uploads placeholder PDFs (`core.seeds.placeholder_pdf`) for documents
   1, 2, 4, 5; document 3 (in-progress amendment) has no file and answers 404 `not_stored`.
 
-## 11. Assumption versions, per-rate ranges, zone typical parameters (added 2026-09-24)
+## 11. Assumption versions, per-rate ranges (added 2026-09-24)
 
 - `MarketInputsBlock` gains `version: {id, version, zone_id, effective_from} | null` (the
   `financial_assumptions` row that produced the figures) and `ranges: {land_rate, build_rate,
   design_rate, sale_rate}` with `RateRange = {expected, low, high, kind: "absolute" | "multiplier"}`.
   `AssumptionsBlock` gains `market_version` (same object); `POST /v1/feasibility` echoes it.
-- `ZonePanel` gains `typical_parameters: {id, version, land_use, max_far, max_site_coverage_pct,
-  max_height_m, max_floors, notes, source: {document_id, document_name, page, note, registry_url} | null,
-  verified_on, verified_by, note_en, note_me} | null` — the zone's current parameter set
-  (staff-maintained, `GET/POST/PUT/DELETE /v1/admin/zone-parameters`).
+- `ZonePanel.typical_parameters` and the `zone_parameter_sets` table (`/v1/admin/zone-parameters`)
+  were removed on 2026-09-29 (POC conformance; migration 0035 drops the table).
 - Schema: migration `0007_admin_config` (assumption `version` / `supersedes_id` / `retired_*`,
-  absolute bound columns per rate with `low ≤ rate ≤ high`, table `zone_parameter_sets`).
+  absolute bound columns per rate with `low ≤ rate ≤ high`).
 
 ## 12. Publish versions and the tiles pointer — `GET /v1/tiles/current` (added 2026-09-25)
 
 Every planning value the panel shows belongs to the **current publish version**
-(`data_version`); a publish creates a complete new set and flips the pointer, a rollback flips it
+(`data_version`); a publish creates a complete new set and flips the pointer, an operator's manual pointer flip moves it
 back. With no current version the panel says `data_version: "unpublished"` and every planning
 field is `not_stated`.
 
@@ -654,8 +652,8 @@ field is `not_stated`.
 - `archive_url` is a signed URL into the private bucket; the PMTiles client reads it with HTTP
   range requests. Fetch a fresh one after `expires_at` (or on a 403).
 - `version_no` numbers the municipality's versions in publish order (1, 2, 3 …); `archive_key`
-  is the current version's tiles key (the object `archive_url` signs). Both change with a publish
-  or a rollback, never with a deploy (added 2026-10-16).
+  is the current version's tiles key (the object `archive_url` signs). Both change with a publish,
+  never with a deploy (added 2026-10-16).
 - `status: "unpublished"` (no version yet) or a version without an archive (the seeded sample)
   answers `archive_url: null`; the map then shows the base map only.
 - Source layers (one per map layer, toggled independently): `zones`, `document_coverage`,
@@ -663,8 +661,8 @@ field is `not_stated`.
   `max_far`, `max_site_coverage_pct`, `max_height_m`, `max_floors`, `land_use`, `max_gfa_m2`),
   `cadastral_parcels` (number, sub-number, KO, address, area, ownership and burden flags,
   `has_urban_parcel`, `no_urban_parcel`, `relation`, `reduction_pct`,
-  `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`), `public_ownership`,
-  `legal_burdens` (both only with loaded ownership flags), `land_use`, and one layer per heatmap: `heat_coverage`,
+  `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`), `land_use`, and one layer per
+  heatmap: `heat_coverage`,
   `heat_far`, `heat_height`, `heat_gfa` (every urban block: `value`, `band`, `unit`, `label` = the
   floor notation for height, `parcel_count`; no `value` = not covered) and `heat_sale_price`
   (every zone: `value`, `low`, `high`, `band`, `band_low`, `band_high`, `unit`,
@@ -709,7 +707,7 @@ English and Montenegrin on every item (the frontend hard-codes none). Numbers ar
     }
   },
   "group1": {
-    "tier": "free", "title_en": "Planning parameters", "title_me": "Planski parametri",
+    "title_en": "Planning parameters", "title_me": "Planski parametri",
     "document": {"id": 2, "…": "…"}, "urban_parcel_number": "UP 12",
     "fields": [
       {"key": "max_far", "label_en": "Max floor area ratio", "label_me": "Maksimalni indeks izgrađenosti",
@@ -727,12 +725,12 @@ English and Montenegrin on every item (the frontend hard-codes none). Numbers ar
                   "formula": "max_far × basis_area_m2",
                   "inputs": [{"key": "max_far", "value": 3.2}, {"key": "basis_area_m2", "value": 959.6}]}]
   },
-  "market": {"tier": "paid", "scope": "zone", "zone": {"id": 1, "name": "Centar"},
+  "market": {"scope": "zone", "zone": {"id": 1, "name": "Centar"},
              "label_en": "Selling price per m²", "unit": "€/m²",
              "sale_price_eur_m2": {"low": 2107.0, "expected": 2450.0, "high": 2817.5, "kind": "multiplier"},
              "source": "Realitica, Estitor, Monstat (sample)", "source_date": "2026-08-01",
              "effective_from": "…", "version": {"id": 1, "version": 1, "zone_id": 1, "effective_from": "…"}},
-  "assumptions": {"tier": "paid", "formula_version": "poc-1", "client_validated": false,
+  "assumptions": {"formula_version": "poc-1", "client_validated": false,
                   "market_version": {"…": "…"},
                   "items": [
                     {"key": "construction_cost_eur_m2", "unit": "€/m²", "value": 860, "low": 739.6, "high": 989.0,
@@ -742,7 +740,7 @@ English and Montenegrin on every item (the frontend hard-codes none). Numbers ar
                     {"key": "sale_price_eur_m2", "editable": true, "engine_edit_key": "market_value_per_m2", "…": "…"},
                     {"key": "land_value_eur_m2", "editable": false, "…": "…"},
                     {"key": "design_documentation_eur_m2", "editable": false, "…": "…"}]},
-  "group2": {"tier": "paid", "status": "ok", "calculation_basis": "urban", "basis_area_m2": 959.6,
+  "group2": {"status": "ok", "calculation_basis": "urban", "basis_area_m2": 959.6,
              "formula_version": "poc-1",
              "fields": [{"key": "land_value_eur", "engine_key": "land_value", "unit": "€",
                          "status": "ok", "range_kind": "range", "low": …, "expected": …, "high": …}],
@@ -778,7 +776,7 @@ English and Montenegrin on every item (the frontend hard-codes none). Numbers ar
   `assumptions`, `group2` and `engine` null, the header still filled. Unknown id: 404.
 - **Caching:** the response carries a strong `ETag` and `Cache-Control: no-cache`; send
   `If-None-Match` to get 304 while nothing changed. `X-Panel-Cache` says hit / miss / bypass /
-  revalidated. Any publish, rollback, coverage switch, document registration, assumption or zone
+  revalidated. Any publish, coverage switch, document registration, assumption or zone
   parameter change produces a new ETag.
 
 `GET /v1/zones/{id}/panel`:
@@ -794,8 +792,7 @@ English and Montenegrin on every item (the frontend hard-codes none). Numbers ar
                  "type_name": "Detaljni urbanistički plan (detailed urban plan)", "status": "adopted",
                  "status_label_en": "adopted", "status_label_me": "usvojen", "covered": true,
                  "file_available": true, "registry_url": "…", "amends_document_id": null}],
-  "counts": {"documents": 3, "adopted": 2, "in_progress": 1, "superseded": 0},
-  "typical_parameters": {"…": "section 11"}
+  "counts": {"documents": 3, "adopted": 2, "in_progress": 1, "superseded": 0}
 }
 ```
 
@@ -812,9 +809,7 @@ panels show (migration `0016_document_adopted_on`):
   a `ZonePlanningDocument` = `DocumentRef + {covered, file_available, parcel_count}` (`covered` =
   adopted AND live AND current AND a coverage geometry; `parcel_count` = cadastral parcels whose
   point on surface lies in the coverage, null when not covered); `counts.covered`.
-- Document panel: `document.file_available`; `zones[]` = `{id, name, zone_type, typical:
-  {land_use, max_far, max_site_coverage_pct, max_height_m, max_floors} | null}` (the zone's
-  current parameter set).
+- Document panel: `document.file_available`; `zones[]` = `{id, name, zone_type}`.
 - Profile: `terminology.document_types_en` (English names shown after the abbreviation).
 - Cadastral and urban panels: `engine = {engine_version, formula_version, range_derivation,
   deterministic, inputs, edit_keys, field_keys} | null` — the shared engine's exact inputs behind

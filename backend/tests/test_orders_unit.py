@@ -183,8 +183,6 @@ def test_bank_transfer_provider_and_emails():
     assert instructions.method == "bank_transfer"
     assert instructions.amount_eur == 200.0 and instructions.currency == "EUR"
     assert "UV-PODI-1042-260924-01" in instructions.note_en
-    assert provider.checkout_url(reference="x", amount_eur=1, return_url="http://x") is None
-    assert provider.parse_webhook(b"{}", {}) is None
 
     facts = OrderFacts(
         reference="UV-PODI-1042-260924-01",

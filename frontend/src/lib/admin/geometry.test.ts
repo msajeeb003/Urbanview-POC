@@ -60,8 +60,8 @@ describe("how a draft reads", () => {
   });
 
   it("issue names, the dataset's own warnings included", () => {
-    expect(issueName("overlap")).toBe("Overlap");
-    expect(issueName("area_deviation")).toBe("Area differs from the plan");
+    expect(issueName("invalid_geometry")).toBe("Invalid geometry");
+    expect(issueName("empty_geometry")).toBe("Empty geometry");
     expect(issueName("georef.systematic_offset")).toBe("Systematic offset (georeferencing)");
     expect(issueName("cadastre.parcels_below_1m2")).toBe("Parcels below 1m2 (cadastral import)");
   });
@@ -117,25 +117,24 @@ describe("the preview", () => {
     ],
   });
 
-  it("fits the batch north up and keeps the features' issues and the gaps", () => {
-    const { shapes, gaps } = projectFeatures(
+  it("fits the batch north up and keeps the features' issues", () => {
+    const { shapes } = projectFeatures(
       {
         bbox: [19.0, 42.0, 19.002, 42.001],
         features: {
           type: "FeatureCollection",
           features: [
-            { type: "Feature", id: "a", geometry: square(19.0, 42.0, 19.001, 42.001), properties: { key: "a", label: "UP 1", area_m2: 9000, issues: ["overlap"] } },
+            { type: "Feature", id: "a", geometry: square(19.0, 42.0, 19.001, 42.001), properties: { key: "a", label: "UP 1", area_m2: 9000, issues: ["invalid_geometry"] } },
             { type: "Feature", id: "b", geometry: square(19.001, 42.0, 19.002, 42.001), properties: { key: "b", label: "UP 2", area_m2: null, issues: [] } },
           ],
         },
-        gaps: [[19.001, 42.0005, 3.5]],
       },
       200,
       100,
       0,
     );
     expect(shapes.map((s) => [s.key, s.label, s.issues, s.area])).toEqual([
-      ["a", "UP 1", ["overlap"], 9000],
+      ["a", "UP 1", ["invalid_geometry"], 9000],
       ["b", "UP 2", [], null],
     ]);
     // north up: the first corner (south-west) sits at the bottom left; closed rings end with Z
@@ -144,16 +143,11 @@ describe("the preview", () => {
     const [firstX, firstY] = shapes[0].d.slice(1).split("L")[0].split(" ").map(Number);
     expect(firstY).toBeGreaterThan(50);
     expect(firstX).toBeLessThan(100);
-    expect(gaps).toHaveLength(1);
-    expect(gaps[0].m2).toBe(3.5);
-    expect(gaps[0].y).toBeGreaterThan(0);
-    expect(gaps[0].y).toBeLessThan(100);
   });
 
   it("draws nothing without an extent", () => {
-    expect(projectFeatures({ bbox: null, features: { type: "FeatureCollection", features: [] }, gaps: [] }, 100, 100)).toEqual({
+    expect(projectFeatures({ bbox: null, features: { type: "FeatureCollection", features: [] } }, 100, 100)).toEqual({
       shapes: [],
-      gaps: [],
     });
   });
 });

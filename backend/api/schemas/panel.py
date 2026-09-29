@@ -9,8 +9,6 @@ decimal, ``_share`` 0–1, ``_factor`` multipliers, areas one decimal, euros who
 formats per language). Every panel carries ``type``, ``municipality_id``, ``data_version``,
 ``data_version_date``, ``formula_version`` and ``client_validated: false`` (formulas and
 Montenegrin labels are pending client validation). Entity ids are always ``id`` inside refs.
-Tier markers (``free`` / ``paid``) make the free/paid boundary explicit on screen; the POC serves
-the paid blocks without entitlement checks.
 """
 
 from __future__ import annotations
@@ -28,7 +26,6 @@ PlanningFieldStatus = Literal["stated", "not_stated", "computed", "cannot_comput
 FeasibilityStatus = Literal["ok", "cannot_calculate"]
 RangeKind = Literal["deterministic", "range"]
 RateSource = Literal["market", "user"]
-Tier = Literal["free", "paid"]
 
 FORMULA_VERSION_DESCRIPTION = "Formula version the figures were computed with (poc-1)"
 
@@ -98,21 +95,10 @@ class ZoneDetail(ZoneRef):
     general_planning_summary: str | None = None
 
 
-class ZoneTypicalSummary(BaseModel):
-    land_use: str | None = None
-    max_far: float | None = None
-    max_site_coverage_pct: float | None = None
-    max_height_m: float | None = None
-    max_floors: int | None = None
-
-
 class DocumentZone(ZoneRef):
-    """A zone the document's coverage spans, with its type and typical values (if any)."""
+    """A zone the document's coverage spans, with its type."""
 
     zone_type: str | None = None
-    typical: ZoneTypicalSummary | None = Field(
-        default=None, description="The zone's current parameter set, or null"
-    )
 
 
 class BlockRef(BaseModel):
@@ -206,7 +192,6 @@ class PlanningField(BaseModel):
 
 
 class PlanningBlock(BaseModel):
-    tier: Literal["free"] = "free"
     calculation_basis: CalculationBasis
     basis_area_m2: float
     fields: list[PlanningField] = Field(description="Dictionary order; all 13 always present")
@@ -243,7 +228,6 @@ class MarketRanges(BaseModel):
 
 
 class MarketInputsBlock(BaseModel):
-    tier: Literal["paid"] = "paid"
     available: bool
     reason_code: str | None = None
     reason_en: str | None = None
@@ -278,7 +262,6 @@ class RateSources(BaseModel):
 
 
 class AssumptionsBlock(BaseModel):
-    tier: Literal["paid"] = "paid"
     saleable_share: float
     construction_cost_eur_m2: float | None = None
     sale_price_eur_m2: float | None = None
@@ -314,7 +297,6 @@ class FeasibilityField(BaseModel):
 
 
 class FeasibilityBlock(BaseModel):
-    tier: Literal["paid"] = "paid"
     calculation_basis: CalculationBasis
     basis_area_m2: float
     formula_version: str
@@ -360,33 +342,6 @@ class DocumentCounts(BaseModel):
     covered: int = Field(default=0, description="Documents that resolve locations on the map")
 
 
-class ZoneTypicalSource(BaseModel):
-    document_id: int
-    document_name: str | None = None
-    page: int | None = None
-    note: str | None = None
-    registry_url: str | None = None
-
-
-class ZoneTypicalParameters(BaseModel):
-    """The zone's typical planning values (staff-maintained, versioned): fallback figures for
-    the zone panel; a parcel's own document values always take precedence."""
-
-    id: int
-    version: int
-    land_use: str | None = None
-    max_far: float | None = None
-    max_site_coverage_pct: float | None = None
-    max_height_m: float | None = None
-    max_floors: int | None = None
-    notes: str | None = None
-    source: ZoneTypicalSource | None = None
-    verified_on: str | None = None
-    verified_by: str | None = None
-    note_en: str
-    note_me: str
-
-
 class ZonePanel(PanelBase):
     type: Literal["zone"] = "zone"
     zone: ZoneDetail
@@ -395,9 +350,6 @@ class ZonePanel(PanelBase):
         description="Current versions: adopted first, then in progress, then superseded; name asc"
     )
     counts: DocumentCounts
-    typical_parameters: ZoneTypicalParameters | None = Field(
-        default=None, description="The zone's current parameter set, or null"
-    )
 
 
 class CoverageCounts(BaseModel):

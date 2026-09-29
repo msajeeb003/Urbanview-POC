@@ -1,10 +1,9 @@
 "use client";
 
 /**
- * Right information panel (wireframe `.panel`, 392 px, scrolling body under a sticky header). On
- * desktop it sits beside the map; at ≤ 860 px it becomes a bottom sheet (peek → half → full, see
- * `overrides.css`) with a grab handle. The map is never replaced: `panelHidden` (outside
- * coverage) only removes the panel.
+ * Right information panel (wireframe `.panel`, 392 px, scrolling body under a sticky header)
+ * beside the map. The map is never replaced: `panelHidden` (outside coverage) only removes the
+ * panel.
  *
  * What it shows follows the selection: a zone (search) → the zone panel; a planning-document
  * coverage area → the document panel; a cadastral parcel → the cadastral panel; a planned (urban)
@@ -14,7 +13,7 @@
 import { useLocate, useMunicipality } from "@/lib/api/hooks";
 import { formatCoords } from "@/lib/format";
 import { useT, type StringKey } from "@/lib/i18n";
-import { nextSheet, useShell, type SheetState } from "@/lib/store";
+import { useShell } from "@/lib/store";
 
 import { CadastralPanel } from "../panel/cadastral-panel";
 import { DocumentPanel } from "../panel/document-panel";
@@ -22,31 +21,16 @@ import { UrbanPanel } from "../panel/urban-panel";
 import { ZonePanel } from "../panel/zone-panel";
 import { IconPinSmall } from "../ui/icons";
 
-const SHEET_LABEL: Record<SheetState, StringKey> = {
-  peek: "sheet.peek",
-  half: "sheet.half",
-  full: "sheet.full",
-};
-
 export function InfoPanel() {
   const hidden = useShell((s) => s.panelHidden);
-  const sheet = useShell((s) => s.sheet);
-  const setSheet = useShell((s) => s.setSheet);
   const t = useT();
 
   return (
     <aside
-      className={["panel", hidden && "hidden", `sheet-${sheet}`].filter(Boolean).join(" ")}
+      className={hidden ? "panel hidden" : "panel"}
       id="panel"
       aria-label={t("panel.label")}
     >
-      <button
-        type="button"
-        className="sheethandle"
-        aria-label={t(SHEET_LABEL[sheet])}
-        aria-expanded={sheet !== "peek"}
-        onClick={() => setSheet(nextSheet(sheet))}
-      />
       <PanelContent />
     </aside>
   );

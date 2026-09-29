@@ -191,15 +191,6 @@ docs AS (
     FROM planning_documents d
     WHERE d.zone_id = CAST(:id AS bigint) AND d.municipality_id = :municipality_id
       AND d.is_current_version
-),
-typical AS (
-    SELECT p.id, p.version, p.land_use, p.max_far, p.max_site_coverage_pct, p.max_height_m,
-           p.max_floors, p.notes, p.verified_on, p.verified_by, p.source_page, p.source_note,
-           p.source_document_id, d.name AS document_name, d.source_url AS registry_url
-    FROM zone_parameter_sets p
-    LEFT JOIN planning_documents d ON d.id = p.source_document_id
-    WHERE p.zone_id = CAST(:id AS bigint) AND p.is_current
-    LIMIT 1
 )
 SELECT
     (SELECT jsonb_build_object('id', id, 'name', name, 'zone_type', zone_type,
@@ -210,14 +201,7 @@ SELECT
                                'in_progress', in_progress, 'superseded', superseded,
                                'covered', covered)
      FROM docs) AS counts,
-    (SELECT jsonb_build_object(
-        'id', id, 'version', version, 'land_use', land_use, 'max_far', max_far,
-        'max_site_coverage_pct', max_site_coverage_pct, 'max_height_m', max_height_m,
-        'max_floors', max_floors, 'notes', notes, 'verified_on', verified_on,
-        'verified_by', verified_by, 'source_document_id', source_document_id,
-        'document_name', document_name, 'registry_url', registry_url,
-        'source_page', source_page, 'source_note', source_note)
-     FROM typical) AS typical_parameters,{_VERSION_COLUMNS}
+{_VERSION_COLUMNS}
 """
 
 # --- document -------------------------------------------------------------------------------------
@@ -238,17 +222,12 @@ zone_ids AS (
     WHERE z.municipality_id = :municipality_id
       AND ST_Intersects(z.geom, doc.coverage_geom)
 ),
--- each zone spanned, with its type and the typical values of its current parameter set
+-- each zone spanned, with its type
 zone_refs AS (
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
-               'id', z.id, 'name', z.name, 'zone_type', z.zone_type,
-               'typical', CASE WHEN p.id IS NULL THEN NULL ELSE jsonb_build_object(
-                   'land_use', p.land_use, 'max_far', p.max_far,
-                   'max_site_coverage_pct', p.max_site_coverage_pct,
-                   'max_height_m', p.max_height_m, 'max_floors', p.max_floors) END)
+               'id', z.id, 'name', z.name, 'zone_type', z.zone_type)
                ORDER BY z.name ASC, z.id ASC), '[]'::jsonb) AS zones
     FROM zones z
-    LEFT JOIN zone_parameter_sets p ON p.zone_id = z.id AND p.is_current
     WHERE z.id IN (SELECT id FROM zone_ids)
 ),
 cadastral_count AS (

@@ -289,53 +289,6 @@ async def test_staging_only_mails_the_allow_list(mail_env, transport):
     assert entry["suppressed_reason"] == "staging_allowlist_empty"
 
 
-async def test_bounces_are_recorded_and_surface_on_the_order(mail_env):
-    app = mail_env()
-    async with app.router.lifespan_context(app), make_client(app) as client:
-        created = await client.post("/v1/orders", json=FORM)
-        (order,) = await rows(
-            app, "SELECT id FROM orders WHERE reference = :r", r=created.json()["reference"]
-        )
-        entry = (
-            await client.get(
-                "/v1/admin/email-log", params={"order_id": order["id"]}, headers=auth()
-            )
-        ).json()["items"][0]
-        bounced = await client.post(
-            f"/v1/admin/email-log/{entry['id']}/bounce",
-            json={"reason": "550 5.1.1 mailbox does not exist"},
-            headers=auth(),
-        )
-        twice = await client.post(
-            f"/v1/admin/email-log/{entry['id']}/bounce", json={"reason": "again"}, headers=auth()
-        )
-        queue = await client.get("/v1/admin/orders", headers=auth())
-        detail = await client.get(f"/v1/admin/orders/{order['id']}", headers=auth())
-        missing = await client.post(
-            "/v1/admin/email-log/999999/bounce", json={"reason": "x"}, headers=auth()
-        )
-    assert bounced.status_code == 200, bounced.text
-    body = bounced.json()
-    assert body["status"] == "bounced" and body["bounced_at"]
-    assert body["bounce_reason"] == "550 5.1.1 mailbox does not exist"
-    assert twice.status_code == 409 and missing.status_code == 404
-    assert queue.json()["items"][0]["email_alerts"] == 1
-    assert detail.json()["emails"][0]["status"] == "bounced"
-    audit = await rows(
-        app,
-        "SELECT action, before, after, note FROM audit_log WHERE entity_type = 'email_log' "
-        "ORDER BY id",
-    )
-    assert audit == [
-        {
-            "action": "email.bounce",
-            "before": {"status": "sent"},
-            "after": {"status": "bounced"},
-            "note": "550 5.1.1 mailbox does not exist",
-        }
-    ]
-
-
 async def test_transient_smtp_trouble_is_retried_then_failed(mail_env):
     app = mail_env(transport_override=Transport(fail=True))
     async with app.router.lifespan_context(app), make_client(app) as client:

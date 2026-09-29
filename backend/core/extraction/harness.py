@@ -7,8 +7,7 @@ per step (land-use legend first, then the rest concurrently), then
 
 - **Reply cache.** Every model reply is stored under the request's hash (model, system blocks,
   user message, schema) in the cache folder (git-ignored: it holds document text). An unchanged
-  request is never paid for twice, and ``--replay`` scores from the cache alone (no key, no cost:
-  what CI runs when prompts did not change).
+  request is never paid for twice, and ``--replay`` scores from the cache alone (no key, no cost).
 - **Cost.** Tokens per document from the replies (cached replies count what they cost when they
   were made), priced from the published per-million-token rates (USD).
 - **Pages cache.** The PDF stage's page data per checksum and ``PREPROCESS_VERSION``.

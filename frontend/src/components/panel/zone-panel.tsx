@@ -13,16 +13,12 @@
 import { useEffect } from "react";
 
 import { ApiError } from "@/lib/api/client";
-import { useMunicipality, usePanel } from "@/lib/api/hooks";
-import { formatFigure } from "@/lib/format";
+import { usePanel } from "@/lib/api/hooks";
 import { ZONE_TYPES } from "@/lib/layers";
 import { useOpenSource } from "@/lib/source";
 import { useShell } from "@/lib/store";
 
-import { Badge } from "../ui/badge";
 import { IconDoc } from "../ui/icons";
-import { PanelRow } from "../ui/panel-row";
-import { SourceRef } from "../ui/source-ref";
 import {
   DataVersionLine,
   DocStatusChip,
@@ -30,7 +26,6 @@ import {
   PanelHead,
   PanelLoading,
   PanelUnavailable,
-  heightText,
   usePanelViewed,
   type ZoneDoc,
 } from "./panel-parts";
@@ -117,9 +112,7 @@ function DocItem({ doc, zoneId }: { doc: ZoneDoc; zoneId: number }) {
 
 export function ZonePanel({ zoneId, name }: { zoneId: number; name?: string }) {
   const query = usePanel({ type: "zone", id: zoneId });
-  const { data: profile } = useMunicipality();
   const clearSelection = useShell((s) => s.clearSelection);
-  const openSource = useOpenSource();
   const data = query.data?.type === "zone" ? query.data : undefined;
   const gone = query.error instanceof ApiError && query.error.isNotFound;
   usePanelViewed("zone", data ? { zone_id: zoneId } : null);
@@ -134,11 +127,6 @@ export function ZonePanel({ zoneId, name }: { zoneId: number; name?: string }) {
   }
 
   const docs = data.planning_documents;
-  const typical = data.typical_parameters;
-  const far = profile?.terminology.far.abbreviation ?? "II";
-  const coverage = profile?.terminology.site_coverage.abbreviation ?? "IZ";
-  const height = typical ? heightText(typical) : null;
-  const source = typical?.source;
 
   return (
     <div className="pscroll">
@@ -146,7 +134,7 @@ export function ZonePanel({ zoneId, name }: { zoneId: number; name?: string }) {
       <div className="sect">
         <div className="secthead">
           <span className="lbl">
-            Planning documents <Badge tone="free" />
+            Planning documents
           </span>
         </div>
         <p style={{ fontSize: "11.5px", color: "var(--ink-2)", margin: "-4px 0 11px", lineHeight: 1.5 }}>
@@ -180,37 +168,6 @@ export function ZonePanel({ zoneId, name }: { zoneId: number; name?: string }) {
           </p>
         ) : (
           <p className="panelnote">A general planning summary for this zone has not been written yet.</p>
-        )}
-      </div>
-      <div className="sect">
-        <div className="secthead">
-          <span className="lbl">Zone-level planning</span>
-          {source && (
-            <SourceRef
-              title={`${source.document_name ?? "Source document"}${source.page ? `, page ${source.page}` : ""}`}
-              onClick={() =>
-                void openSource({
-                  documentId: source.document_id,
-                  page: source.page ?? 1,
-                  hint: { documentName: source.document_name, page: source.page ?? 1, note: source.note, registryUrl: source.registry_url },
-                })
-              }
-            />
-          )}
-        </div>
-        {typical ? (
-          <>
-            <PanelRow label="Predominant land use" value={typical.land_use ?? "—"} text />
-            <PanelRow label={`Typical FAR (${far})`} value={typical.max_far != null ? formatFigure(typical.max_far, 1) : "—"} />
-            <PanelRow
-              label={`Typical coverage (${coverage})`}
-              value={typical.max_site_coverage_pct != null ? formatFigure(typical.max_site_coverage_pct, 1) : "—"}
-              unit={typical.max_site_coverage_pct != null ? "%" : undefined}
-            />
-            <PanelRow label="Typical height" value={height ?? "—"} />
-          </>
-        ) : (
-          <p className="panelnote">Typical values for this zone have not been recorded yet.</p>
         )}
       </div>
       <div className="sect">

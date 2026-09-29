@@ -3,9 +3,9 @@
 Key ``panel:{namespace}:{municipality}:{kind}:{id}:{version_id}:{token}``: ``version_id`` is the
 current publish version, ``token`` a short hash of its creation time and of everything that changes
 a panel outside a publish (documents' status / coverage switch / versions / files, the market
-assumptions that apply today in the municipality's time zone, current zone parameter sets), both
+assumptions that apply today in the municipality's time zone), both
 read by one cheap statement per request
-(``STAMP_SQL``). A publish, a rollback or an admin change therefore produces new keys: nothing is
+(``STAMP_SQL``). A publish or an admin change therefore produces new keys: nothing is
 ever invalidated by hand and nothing stale is served; old entries age out
 (``PANEL_CACHE_TTL_SECONDS``).
 The stamp is read before the data, so an entry can only be newer than its key, never older.
@@ -113,7 +113,7 @@ class PanelCache:
                 .mappings()
                 .one()
             )
-        keys = ("version_created", "links_computed", "documents", "market", "typical")
+        keys = ("version_created", "links_computed", "documents", "market")
         parts = "|".join(str(row.get(k)) for k in keys)
         token = hashlib.sha1(parts.encode("utf-8")).hexdigest()[:16]
         version_id = row["version_id"]

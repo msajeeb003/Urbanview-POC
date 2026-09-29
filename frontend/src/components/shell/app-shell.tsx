@@ -8,7 +8,7 @@
  *     .main
  *       .rail                      (206 px, collapsible)
  *       .mapwrap > #map + .mapchrome
- *       .panel                     (392 px; bottom sheet at ≤ 860 px)
+ *       .panel                     (392 px)
  *       .aifab / .aipanel          (anchored right 412 / bottom 20)
  *       .admin                     (overlay over the whole row: the /admin routes)
  *   #overlay (modal) · #toast
@@ -147,11 +147,6 @@ export function AppShell({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, []);
-
-  // Phones and tablets start with the rail collapsed (it opens as a drawer over the map).
-  useEffect(() => {
-    if (window.matchMedia("(max-width: 860px)").matches) useShell.getState().setRailOpen(false);
   }, []);
 
   return (

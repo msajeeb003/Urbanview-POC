@@ -35,7 +35,6 @@ dev = [
   "fakeredis>=2.23",
   "ruff>=0.5",
   "poethepoet>=0.27",
-  "flower>=2.0",
 ]
 # GIS track (core.gis): PDF drawing inspection / extraction and geometry sampling. GDAL's
 # ogrinfo (for DWG / DXF / SHP / GeoPackage) is a system binary: gdal-bin in the worker image,
@@ -65,7 +64,6 @@ filterwarnings = ["ignore::DeprecationWarning"]
 [tool.poe.tasks]
 run = "uvicorn api.main:app --reload --host 0.0.0.0 --port 8000"
 worker = "celery -A jobs.celery_app worker --loglevel=info -Q default,extraction,geo,publish,email"
-flower = "celery -A jobs.celery_app flower --port=5555"
 migrate = "alembic -c ../database/alembic.ini upgrade head"
 migration = "alembic -c ../database/alembic.ini revision --autogenerate -m"
 downgrade = "alembic -c ../database/alembic.ini downgrade -1"

@@ -34,9 +34,6 @@ class LayerFile:
     geometry_type: str  # polygon | line | point
     min_zoom: int
     max_zoom: int
-    # False: the data behind the layer is not loaded (not an empty "no such parcels" layer)
-    available: bool = True
-    unavailable_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

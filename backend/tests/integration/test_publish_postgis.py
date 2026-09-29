@@ -2,7 +2,7 @@
 builder and storage): refusal while items are pending (naming the document), an amended value
 reaching the serving table, the panel and the tile layer, heatmap cells and parcel links, staged
 geometry landing in the serving tables and the archive, the status screen with per-step
-progress, rollback as a pointer flip, idempotent enqueueing, retention."""
+progress, idempotent enqueueing, retention."""
 
 from __future__ import annotations
 
@@ -41,8 +41,7 @@ CLEANUP = (
     "DELETE FROM planning_parameter_values WHERE publish_version_id <> 1",
     "DELETE FROM pipeline_jobs WHERE municipality_id = 'podgorica'",
     "DELETE FROM publish_versions WHERE id <> 1",
-    "UPDATE publish_versions SET is_current = true, rolled_back_at = NULL, rolled_back_by = NULL, "
-    "archive_pruned_at = NULL WHERE id = 1",
+    "UPDATE publish_versions SET is_current = true, archive_pruned_at = NULL WHERE id = 1",
 )
 SQUARE = (
     "MULTIPOLYGON(((19.4400 42.5400, 19.4410 42.5400, 19.4410 42.5410, 19.4400 42.5410, "
@@ -305,7 +304,6 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     assert urban[1]["max_far"] == 3.5 and urban[1]["max_gfa_m2"] == pytest.approx(3358.6)
     assert urban[3]["max_far"] == 2.4 and urban[2]["max_far"] is None
     assert len(tiles.layers["zones"]) == 3 and len(tiles.layers["cadastral_parcels"]) >= 7
-    assert len(tiles.layers["public_ownership"]) >= 1 and len(tiles.layers["legal_burdens"]) >= 1
     assert "land_use" not in tiles.layers  # empty layers are left out of the build
 
     # the archive and the public pointer
@@ -413,88 +411,6 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     assert cadastral[1001]["primary_urban_parcel_id"] == next(
         link["urban_parcel_id"] for link in primaries if link["cadastral_parcel_id"] == 1001
     )
-
-
-# --- rollback -------------------------------------------------------------------------------------
-
-
-async def test_rollback_flips_the_pointer_without_recomputing(publish_env, tiles):
-    app = publish_env()
-    async with app.router.lifespan_context(app), make_client(app) as client:
-        nothing_earlier = await client.post("/v1/admin/publish/rollback", json={}, headers=auth())
-        await reject_seeded_pending_item(app)
-        first = await insert_item(
-            app, urban_parcel_id=1, field_key="max_far", value_number=3.5, source_page=13
-        )
-        assert (
-            await client.post(f"/v1/admin/review/{first}/approve", headers=auth())
-        ).status_code == 200
-        version_a = (await publish(client, "test-a"))["result"]
-        second = await insert_item(
-            app, urban_parcel_id=1, field_key="max_height_m", value_number=30, source_page=14
-        )
-        assert (
-            await client.post(f"/v1/admin/review/{second}/approve", headers=auth())
-        ).status_code == 200
-        version_b = (await publish(client, "test-b"))["result"]
-        fields_b, body_b = await fields_of(client, 1)
-        runs_before = len(tiles.runs)
-
-        rolled = await client.post("/v1/admin/publish/rollback", json={}, headers=auth())
-        fields_a, body_a = await fields_of(client, 1)
-        pointer_a = (await client.get("/v1/tiles/current")).json()
-        # the version before test-a is the seed, which never had map tiles
-        no_tiles = await client.post("/v1/admin/publish/rollback", json={}, headers=auth())
-        no_tiles_by_id = await client.post(
-            "/v1/admin/publish/rollback", json={"version_id": 1}, headers=auth()
-        )
-        forward = await client.post(
-            "/v1/admin/publish/rollback",
-            json={"version_id": version_b["version_id"]},
-            headers=auth(),
-        )
-        fields_b_again, _ = await fields_of(client, 1)
-        already = await client.post(
-            "/v1/admin/publish/rollback",
-            json={"version_id": version_b["version_id"]},
-            headers=auth(),
-        )
-        unknown = await client.post(
-            "/v1/admin/publish/rollback", json={"version_id": 999_999}, headers=auth()
-        )
-
-    assert nothing_earlier.status_code == 409
-    assert nothing_earlier.json()["error"]["details"]["reason"] == "no_previous_version"
-    assert fields_b["max_far"]["value"] == 3.5 and fields_b["max_height_m"]["value"] == 30
-    assert body_b["data_version"] == "test-b"
-    assert rolled.status_code == 200, rolled.text
-    assert rolled.json()["current"]["label"] == "test-a"
-    rolled_back = next(v for v in rolled.json()["versions"] if v["label"] == "test-b")
-    assert rolled_back["rolled_back_at"] and rolled_back["rolled_back_by"] == "vesna"
-    assert fields_a["max_far"]["value"] == 3.5 and fields_a["max_height_m"]["value"] == 27.5
-    assert body_a["data_version"] == "test-a"
-    assert (
-        pointer_a["data_version"] == "test-a"
-        and version_a["archive_key"] in pointer_a["archive_url"]
-    )
-    assert pointer_a["archive_key"] == version_a["archive_key"] and pointer_a["version_no"] == 2
-    assert len(tiles.runs) == runs_before  # nothing was rebuilt
-    for refused in (no_tiles, no_tiles_by_id):
-        assert refused.status_code == 409, refused.text
-        assert refused.json()["error"]["details"] == {"reason": "no_archive", "version_id": 1}
-    assert forward.status_code == 200 and forward.json()["current"]["label"] == "test-b"
-    assert fields_b_again["max_height_m"]["value"] == 30
-    assert already.status_code == 409 and unknown.status_code == 404
-    actions = await rows(
-        app,
-        "SELECT before, after FROM audit_log WHERE municipality_id = 'podgorica' "
-        "AND action = 'publish.rollback' AND entity_id IN (:a, :b) ORDER BY id",
-        a=version_a["version_id"],
-        b=version_b["version_id"],
-    )
-    a = {"current_version_id": version_a["version_id"], "current_label": "test-a"}
-    b = {"current_version_id": version_b["version_id"], "current_label": "test-b"}
-    assert [(row["before"], row["after"]) for row in actions] == [(b, a), (a, b)]
 
 
 async def test_a_failed_publish_leaves_no_archive_behind(publish_env, storage, monkeypatch):
@@ -629,7 +545,7 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
     cadastral = {f["id"]: f["properties"] for f in first_run["cadastral_parcels"]}
     assert cadastral[inserted["id"]]["has_urban_parcel"] is False
     assert cadastral[inserted["id"]]["primary_urban_parcel_id"] is None
-    assert inserted["id"] in {f["id"] for f in first_run["public_ownership"]}
+    assert cadastral[inserted["id"]]["public_ownership"] is True  # the flag rides on the parcel
     land_use = first_run["land_use"]
     assert len(land_use) == 1 and land_use[0]["properties"]["code"] == "S"
     assert land_use[0]["properties"]["feature_key"] == "lu-1"
@@ -681,9 +597,6 @@ async def test_retention_prunes_archives_beyond_keep_versions(publish_env, stora
         a = (await publish(client, "keep-a"))["result"]
         b = (await publish(client, "keep-b"))["result"]
         c = (await publish(client, "keep-c"))["result"]
-        pruned = await client.post(
-            "/v1/admin/publish/rollback", json={"version_id": a["version_id"]}, headers=auth()
-        )
         status = (await client.get("/v1/admin/publish", headers=auth())).json()
         links = await rows(
             app,
@@ -693,7 +606,6 @@ async def test_retention_prunes_archives_beyond_keep_versions(publish_env, stora
         {"version_id": a["version_id"], "label": "keep-a", "archive_key": a["archive_key"]}
     ]
     assert storage.deleted == [a["archive_key"]] and b["archive_key"] in storage.objects
-    assert pruned.status_code == 409 and pruned.json()["error"]["details"]["reason"] == "pruned"
     # every version is listed (the pruned one and the seed too), numbered in publish order
     assert [(v["version_no"], v["label"]) for v in status["versions"]] == [
         (4, "keep-c"),

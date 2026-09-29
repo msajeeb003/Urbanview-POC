@@ -1,6 +1,6 @@
-"""Admin configuration API (``/v1/admin/assumptions``, ``/zone-parameters``, ``/users``).
+"""Admin configuration API (``/v1/admin/assumptions``, ``/users``).
 
-Three sets of staff-maintained data, every write audited (``audit_log``) and role-gated (admin):
+Two sets of staff-maintained data, every write audited (``audit_log``) and role-gated (admin):
 
 - **Financial assumptions** per zone (or the municipality-wide row, ``zone_id`` null): the
   four rates the feasibility engine needs, the range factors, optional absolute low / high
@@ -17,14 +17,11 @@ Three sets of staff-maintained data, every write audited (``audit_log``) and rol
   supplies the range factors that single-figure market imports are widened with
   (``core.market``), never a zone's figures. Approved market inputs write versions through
   :func:`insert_assumptions_version` too.
-- **Zone parameter sets**: the typical planning values of a zone (land use, FAR, coverage,
-  height, floors) with a source document reference and a verification date; versioned the same
-  way; the current row is the zone panel's ``typical_parameters``.
 - **Staff users**: create, list, update role / name, deactivate (open sessions revoked) or
   reactivate. No passwords: the magic-link login (e-mail item) issues sessions.
 
-Field validation lives in ``api.schemas.admin_config``; referential checks (zone, document) and
-uniqueness (e-mail) here.
+Field validation lives in ``api.schemas.admin_config``; referential checks (zone) and uniqueness
+(e-mail) here.
 """
 
 from __future__ import annotations
@@ -45,19 +42,12 @@ from api.schemas.admin_config import (
     AssumptionsList,
     AssumptionsOut,
     AssumptionsUpdate,
-    PreviewParcel,
-    PreviewParcelList,
     RateIn,
     StaffMeOut,
     StaffUserIn,
     StaffUserList,
     StaffUserOut,
     StaffUserUpdate,
-    ZoneParametersIn,
-    ZoneParametersList,
-    ZoneParameterSource,
-    ZoneParametersOut,
-    ZoneParametersUpdate,
 )
 from api.schemas.panel import RateRange
 from api.services.audit import write_audit
@@ -181,84 +171,7 @@ INSERT_ASSUMPTIONS_SQL = text(
     RETURNING id, effective_from
     """
 )
-# Covered cadastral parcels of a zone to preview a draft set on: point on surface inside the
-# zone and inside an adopted, live, current document; parcels with a planned parcel first.
-PREVIEW_PARCELS_SQL = text(
-    """
-    WITH zone AS (SELECT geom FROM zones WHERE id = :zone_id AND municipality_id = :m),
-    version AS (SELECT id FROM publish_versions WHERE municipality_id = :m AND is_current)
-    SELECT c.id, c.ko_name, c.parcel_number, c.sub_number, c.area_m2,
-           u.urban_parcel_number, u.area_m2 AS planned_area_m2
-    FROM cadastral_parcels c
-    JOIN zone ON c.geom && zone.geom AND ST_Contains(zone.geom, ST_PointOnSurface(c.geom))
-    LEFT JOIN parcel_links l
-           ON l.cadastral_parcel_id = c.id AND l.rank = 1
-          AND l.publish_version_id = (SELECT id FROM version)
-    LEFT JOIN urban_parcels u ON u.id = l.urban_parcel_id
-    WHERE c.municipality_id = :m AND c.retired_at IS NULL
-      AND EXISTS (
-          SELECT 1 FROM planning_documents d
-          WHERE d.municipality_id = :m AND d.status = 'adopted' AND d.coverage_live
-            AND d.is_current_version AND d.coverage_geom && c.geom
-            AND ST_Contains(d.coverage_geom, ST_PointOnSurface(c.geom)))
-    ORDER BY (u.id IS NULL), c.id
-    LIMIT :limit
-    """
-)
-
-
-def _zone_parameters_sql(extra: str) -> str:
-    return f"""
-    SELECT p.id, p.zone_id, z.name AS zone_name, p.version, p.is_current, p.supersedes_id,
-           p.land_use, p.max_far, p.max_site_coverage_pct, p.max_height_m, p.max_floors, p.notes,
-           p.source_document_id, d.name AS source_document_name, d.source_url AS registry_url,
-           p.source_page, p.source_note, p.verified_on, p.verified_by,
-           p.created_by, p.created_at, p.retired_at, p.retired_by
-    FROM zone_parameter_sets p
-    LEFT JOIN zones z ON z.id = p.zone_id
-    LEFT JOIN planning_documents d ON d.id = p.source_document_id
-    WHERE p.municipality_id = :m {extra}
-    ORDER BY p.zone_id ASC, p.version DESC, p.id DESC
-    LIMIT :limit OFFSET :offset
-    """
-
-
-ZONE_PARAMETERS_BY_ID_SQL = text(_zone_parameters_sql("AND p.id = :id"))
-CURRENT_ZONE_PARAMETERS_SQL = text(
-    """
-    SELECT id, version, land_use, max_far, max_site_coverage_pct, max_height_m, max_floors,
-           notes, source_document_id, source_page, source_note, verified_on, verified_by
-    FROM zone_parameter_sets
-    WHERE municipality_id = :m AND is_current AND zone_id = :zone_id
-    """
-)
-SUPERSEDE_ZONE_PARAMETERS_SQL = text(
-    "UPDATE zone_parameter_sets SET is_current = false WHERE id = :id"
-)
-RETIRE_ZONE_PARAMETERS_SQL = text(
-    """
-    UPDATE zone_parameter_sets
-    SET is_current = false, retired_at = :at, retired_by = :by WHERE id = :id
-    """
-)
-INSERT_ZONE_PARAMETERS_SQL = text(
-    """
-    INSERT INTO zone_parameter_sets (
-        municipality_id, zone_id, version, supersedes_id, is_current, land_use, max_far,
-        max_site_coverage_pct, max_height_m, max_floors, notes, source_document_id, source_page,
-        source_note, verified_on, verified_by, created_by, dataset_version)
-    VALUES (
-        :m, :zone_id, :version, :supersedes_id, true, :land_use, :max_far,
-        :max_site_coverage_pct, :max_height_m, :max_floors, :notes, :source_document_id,
-        :source_page, :source_note, :verified_on, :verified_by, :created_by, NULL)
-    RETURNING id
-    """
-)
-
 ZONE_EXISTS_SQL = text("SELECT 1 FROM zones WHERE id = :id AND municipality_id = :m")
-DOCUMENT_EXISTS_SQL = text(
-    "SELECT 1 FROM planning_documents WHERE id = :id AND municipality_id = :m"
-)
 
 
 def _users_sql(extra: str) -> str:
@@ -323,39 +236,6 @@ def _assumptions_out(row: Mapping[str, Any]) -> AssumptionsOut:
         effective_from=row["effective_from"],
         applies_from=row["applies_from"],
         rate_sources=row["rate_sources"],
-        created_by=row["created_by"],
-        created_at=_utc(row["created_at"]),
-        retired_at=_utc(row["retired_at"]),
-        retired_by=row["retired_by"],
-    )
-
-
-def _zone_parameters_out(row: Mapping[str, Any]) -> ZoneParametersOut:
-    source = None
-    if row["source_document_id"] is not None:
-        source = ZoneParameterSource(
-            document_id=row["source_document_id"],
-            document_name=row["source_document_name"],
-            page=row["source_page"],
-            note=row["source_note"],
-            registry_url=row["registry_url"],
-        )
-    return ZoneParametersOut(
-        id=row["id"],
-        zone_id=row["zone_id"],
-        zone_name=row["zone_name"],
-        version=row["version"],
-        is_current=bool(row["is_current"]),
-        supersedes_id=row["supersedes_id"],
-        land_use=row["land_use"],
-        max_far=row["max_far"],
-        max_site_coverage_pct=row["max_site_coverage_pct"],
-        max_height_m=row["max_height_m"],
-        max_floors=row["max_floors"],
-        notes=row["notes"],
-        source=source,
-        verified_on=row["verified_on"],
-        verified_by=row["verified_by"],
         created_by=row["created_by"],
         created_at=_utc(row["created_at"]),
         retired_at=_utc(row["retired_at"]),
@@ -823,247 +703,6 @@ class AdminConfigService:
             await session.commit()
         await self._assumptions_changed()
         return await self.get_assumptions(assumptions_id)
-
-    async def preview_parcels(self, zone_id: int, *, limit: int = 12) -> PreviewParcelList:
-        """Covered parcels of the zone to try a draft set on, parcels with a planned parcel
-        first (the preview uses the same panel builders as the public map)."""
-        async with self.session_factory() as session:
-            if not await self._exists(session, ZONE_EXISTS_SQL, zone_id):
-                raise NotFoundError(f"No zone with id {zone_id}", details={"zone_id": zone_id})
-            rows = (
-                (
-                    await session.execute(
-                        PREVIEW_PARCELS_SQL,
-                        {"m": self.municipality_id, "zone_id": zone_id, "limit": limit},
-                    )
-                )
-                .mappings()
-                .all()
-            )
-        items = []
-        for r in rows:
-            number = r["parcel_number"] + (f"/{r['sub_number']}" if r["sub_number"] else "")
-            items.append(
-                PreviewParcel(
-                    parcel_id=r["id"],
-                    title=f"KO {r['ko_name']}, {number}",
-                    area_m2=round(float(r["area_m2"]), 1),
-                    urban_parcel_number=r["urban_parcel_number"],
-                    planned_area_m2=round(float(r["planned_area_m2"]), 1)
-                    if r["planned_area_m2"] is not None
-                    else None,
-                )
-            )
-        return PreviewParcelList(zone_id=zone_id, items=items)
-
-    # --- zone parameter sets ----------------------------------------------------------------------
-
-    async def list_zone_parameters(
-        self,
-        *,
-        zone_id: int | None = None,
-        include_history: bool = False,
-        limit: int = 100,
-        offset: int = 0,
-    ) -> ZoneParametersList:
-        params: dict[str, Any] = {"m": self.municipality_id, "limit": limit, "offset": offset}
-        clauses: list[str] = []
-        if zone_id is not None:
-            clauses.append("AND p.zone_id = :zone_id")
-            params["zone_id"] = zone_id
-        if not include_history:
-            clauses.append("AND p.is_current")
-        async with self.session_factory() as session:
-            rows = (
-                (await session.execute(text(_zone_parameters_sql(" ".join(clauses))), params))
-                .mappings()
-                .all()
-            )
-        return ZoneParametersList(items=[_zone_parameters_out(r) for r in rows])
-
-    async def get_zone_parameters(self, parameters_id: int) -> ZoneParametersOut:
-        async with self.session_factory() as session:
-            row = await self._zone_parameters_row(session, parameters_id)
-        return _zone_parameters_out(row)
-
-    async def _zone_parameters_row(self, session: AsyncSession, parameters_id: int) -> Mapping:
-        row = (
-            (
-                await session.execute(
-                    ZONE_PARAMETERS_BY_ID_SQL,
-                    {"m": self.municipality_id, "id": parameters_id, "limit": 1, "offset": 0},
-                )
-            )
-            .mappings()
-            .first()
-        )
-        if row is None:
-            raise NotFoundError(
-                f"No zone parameter set with id {parameters_id}",
-                details={"parameters_id": parameters_id},
-            )
-        return row
-
-    async def create_zone_parameters(
-        self, principal: Principal, payload: ZoneParametersIn
-    ) -> ZoneParametersOut:
-        async with self.session_factory() as session:
-            problems: list[dict[str, Any]] = []
-            if not await self._exists(session, ZONE_EXISTS_SQL, payload.zone_id):
-                problems.append({"loc": ["body", "zone_id"], "msg": "no such zone"})
-            if payload.source_document_id is not None and not await self._exists(
-                session, DOCUMENT_EXISTS_SQL, payload.source_document_id
-            ):
-                problems.append(
-                    {"loc": ["body", "source_document_id"], "msg": "no such planning document"}
-                )
-            if problems:
-                raise _validation_error(problems)
-            new_id = await self._insert_zone_parameters_version(
-                session, principal, payload, action="zone_parameters.create"
-            )
-            await session.commit()
-        return await self.get_zone_parameters(new_id)
-
-    async def update_zone_parameters(
-        self, principal: Principal, parameters_id: int, payload: ZoneParametersUpdate
-    ) -> ZoneParametersOut:
-        async with self.session_factory() as session:
-            row = await self._zone_parameters_row(session, parameters_id)
-            if not row["is_current"]:
-                raise ConflictError(
-                    "Only the current version can be updated; a new version is created from it",
-                    details={"parameters_id": parameters_id, "reason": "not_current"},
-                )
-            changes = payload.model_dump(exclude_unset=True)
-            if "source_document_id" in changes and changes["source_document_id"] is not None:
-                if not await self._exists(
-                    session, DOCUMENT_EXISTS_SQL, changes["source_document_id"]
-                ):
-                    raise _validation_error(
-                        [
-                            {
-                                "loc": ["body", "source_document_id"],
-                                "msg": "no such planning document",
-                            }
-                        ]
-                    )
-            base = {
-                name: row[name]
-                for name in (
-                    "land_use",
-                    "max_far",
-                    "max_site_coverage_pct",
-                    "max_height_m",
-                    "max_floors",
-                    "notes",
-                    "source_document_id",
-                    "source_page",
-                    "source_note",
-                    "verified_on",
-                    "verified_by",
-                )
-            }
-            base.update(changes)
-            merged = ZoneParametersIn(zone_id=row["zone_id"], **base)
-            new_id = await self._insert_zone_parameters_version(
-                session,
-                principal,
-                merged,
-                action="zone_parameters.update",
-                changed=sorted(changes),
-            )
-            await session.commit()
-        return await self.get_zone_parameters(new_id)
-
-    async def _insert_zone_parameters_version(
-        self,
-        session: AsyncSession,
-        principal: Principal,
-        payload: ZoneParametersIn,
-        *,
-        action: str,
-        changed: list[str] | None = None,
-    ) -> int:
-        current = (
-            (
-                await session.execute(
-                    CURRENT_ZONE_PARAMETERS_SQL,
-                    {"m": self.municipality_id, "zone_id": payload.zone_id},
-                )
-            )
-            .mappings()
-            .first()
-        )
-        version = int(current["version"]) + 1 if current is not None else 1
-        if current is not None:
-            await session.execute(SUPERSEDE_ZONE_PARAMETERS_SQL, {"id": current["id"]})
-        params = {
-            "m": self.municipality_id,
-            "zone_id": payload.zone_id,
-            "version": version,
-            "supersedes_id": current["id"] if current is not None else None,
-            "land_use": payload.land_use,
-            "max_far": payload.max_far,
-            "max_site_coverage_pct": payload.max_site_coverage_pct,
-            "max_height_m": payload.max_height_m,
-            "max_floors": payload.max_floors,
-            "notes": payload.notes,
-            "source_document_id": payload.source_document_id,
-            "source_page": payload.source_page,
-            "source_note": payload.source_note,
-            "verified_on": payload.verified_on,
-            "verified_by": payload.verified_by,
-            "created_by": principal.subject,
-        }
-        new_id = int((await session.execute(INSERT_ZONE_PARAMETERS_SQL, params)).scalar_one())
-        await self._audit(
-            session,
-            principal,
-            action,
-            "zone_parameter_set",
-            new_id,
-            {
-                "zone_id": payload.zone_id,
-                "version": version,
-                "supersedes_id": current["id"] if current is not None else None,
-                "changed": changed,
-                "source_document_id": payload.source_document_id,
-                "verified_on": payload.verified_on,
-            },
-            before=dict(current) if current is not None else None,
-            after={"id": new_id, "version": version, **payload.model_dump(mode="json")},
-        )
-        return new_id
-
-    async def retire_zone_parameters(
-        self, principal: Principal, parameters_id: int
-    ) -> ZoneParametersOut:
-        async with self.session_factory() as session:
-            row = await self._zone_parameters_row(session, parameters_id)
-            if not row["is_current"]:
-                raise ConflictError(
-                    "Only the current version can be retired",
-                    details={"parameters_id": parameters_id, "reason": "not_current"},
-                )
-            await session.execute(
-                RETIRE_ZONE_PARAMETERS_SQL,
-                {"id": parameters_id, "at": self.clock(), "by": principal.subject},
-            )
-            await self._audit(
-                session,
-                principal,
-                "zone_parameters.retire",
-                "zone_parameter_set",
-                parameters_id,
-                {"zone_id": row["zone_id"], "version": row["version"]},
-                before={"is_current": True},
-                after={"is_current": False, "retired_by": principal.subject},
-            )
-            await session.commit()
-        return await self.get_zone_parameters(parameters_id)
-
-    # --- staff users ------------------------------------------------------------------------------
 
     async def list_users(self) -> StaffUserList:
         async with self.session_factory() as session:

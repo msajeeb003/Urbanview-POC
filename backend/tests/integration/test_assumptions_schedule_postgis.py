@@ -1,9 +1,7 @@
-"""Effective-dated financial assumptions on PostGIS (the admin console's Financial assumptions and
-Calculation engine screens): a set saved for today reaches the public panels on the next load, a
-set dated later waits for its date (the panel cache key follows), the audit row holds the old and
-the new figures, the dates and figures are validated all or nothing, the preview computes Group 2
-with an unsaved set and writes nothing, engine proposals are recorded without touching the engine,
-and reviewers read the planning rules."""
+"""Effective-dated financial assumptions on PostGIS (the admin console's Financial assumptions
+screen): a set saved for today reaches the public panels on the next load, a set dated later waits
+for its date (the panel cache key follows), the audit row holds the old and the new figures, and
+the dates and figures are validated all or nothing."""
 
 from __future__ import annotations
 
@@ -22,7 +20,6 @@ CLEANUP = (
     "DELETE FROM financial_assumptions WHERE created_by <> 'seed'",
     "UPDATE financial_assumptions SET is_current = true, retired_at = NULL, retired_by = NULL, "
     "effective_from = (created_at AT TIME ZONE 'UTC')::date WHERE created_by = 'seed'",
-    "DELETE FROM engine_proposals",
 )
 PARCEL = 1001  # cadastral parcel in zone 1 (Centar), planned parcel UP 12 on top of it
 
@@ -309,115 +306,3 @@ async def test_dates_and_figures_are_validated_all_or_nothing(app):
     assert retire_scheduled.json()["error"]["details"]["reason"] == "not_live"
     written = await rows(app, "SELECT id FROM financial_assumptions WHERE created_by <> 'seed'")
     assert [r["id"] for r in written] == [scheduled["id"]]  # nothing of the refused batches
-
-
-async def test_the_preview_computes_group2_with_an_unsaved_set(app):
-    draft = {
-        "parcel_id": PARCEL,
-        "zone_id": 1,
-        "land_rate": {"expected": 1350},
-        "build_rate": {"expected": 1000},
-        "design_rate": {"expected": 90},
-        "sale_rate": {"expected": 3000, "low": 2800, "high": 3200},
-        "saleable_share": 0.8,
-    }
-    async with app.router.lifespan_context(app), make_client(app) as client:
-        parcels = await client.get(
-            "/v1/admin/assumptions/preview-parcels", params={"zone_id": 1}, headers=auth()
-        )
-        preview = await client.post("/v1/admin/assumptions/preview", json=draft, headers=auth())
-        elsewhere = await client.post(
-            "/v1/admin/assumptions/preview", json={**draft, "zone_id": 2}, headers=auth()
-        )
-        missing = await client.post(
-            "/v1/admin/assumptions/preview", json={**draft, "parcel_id": 999_999}, headers=auth()
-        )
-        public = (await client.get(f"/v1/parcels/{PARCEL}/panel")).json()
-
-    assert parcels.status_code == 200
-    items = parcels.json()["items"]
-    assert PARCEL in [p["parcel_id"] for p in items]
-    assert next(p for p in items if p["parcel_id"] == PARCEL)["urban_parcel_number"]
-
-    assert preview.status_code == 200, preview.text
-    body = preview.json()
-    assert body["covered"] is True and body["zone_mismatch"] is False
-    assert body["zone"]["id"] == 1 and body["title"].startswith("KO ")
-    current, draft_side = body["current"], body["draft"]
-    assert current["group2"] == public["group2"]  # today's panel, exactly
-    assert current["market"]["version"]["id"] == 1 and draft_side["market"]["version"] is None
-    share = next(i for i in draft_side["assumptions"]["items"] if i["key"] == "saleable_share")
-    assert share["value"] == 0.8
-    saleable = next(f for f in draft_side["group2"]["fields"] if f["key"] == "saleable_area_m2")
-    revenue = next(f for f in draft_side["group2"]["fields"] if f["key"] == "revenue_eur")
-    assert revenue["low"] == pytest.approx(saleable["expected"] * 2800, rel=1e-5)
-    assert revenue["high"] == pytest.approx(saleable["expected"] * 3200, rel=1e-5)
-    assert elsewhere.json()["zone_mismatch"] is True
-    assert missing.status_code == 404
-    written = await rows(app, "SELECT id FROM financial_assumptions WHERE created_by <> 'seed'")
-    assert written == []
-
-
-async def test_engine_proposals_are_recorded_and_audited(app):
-    async with app.router.lifespan_context(app), make_client(app) as client:
-        formula = await client.post(
-            "/v1/admin/engine/proposals",
-            json={
-                "kind": "formula",
-                "name": "Parking spaces required",
-                "expression": "GFA ÷ 60",
-                "source": "adopted plan",
-            },
-            headers=auth(),
-        )
-        dataset = await client.post(
-            "/v1/admin/engine/proposals",
-            json={
-                "kind": "data_input",
-                "name": "Utility connection costs",
-                "provides": "per-parcel water, sewage & power hookup rates",
-            },
-            headers=auth(),
-        )
-        incomplete = await client.post(
-            "/v1/admin/engine/proposals",
-            json={"kind": "formula", "name": "Something"},
-            headers=auth(),
-        )
-        listed = (await client.get("/v1/admin/engine/proposals", headers=auth())).json()
-        reviewer = await client.get("/v1/admin/engine/proposals", headers=auth(REVIEWER))
-
-    assert formula.status_code == 201 and formula.json()["status"] == "new"
-    assert dataset.status_code == 201 and dataset.json()["status"] == "pending"
-    assert dataset.json()["expression"] is None
-    assert incomplete.status_code == 422 and "expression" in incomplete.text
-    assert [p["name"] for p in listed["items"]] == [
-        "Parking spaces required",
-        "Utility connection costs",
-    ]
-    assert reviewer.status_code == 403
-    audit = await rows(
-        app,
-        "SELECT action, actor, details FROM audit_log WHERE entity_type = 'engine_proposal' "
-        "AND entity_id = ANY(:ids) ORDER BY id",
-        ids=[formula.json()["id"], dataset.json()["id"]],
-    )
-    assert [(a["action"], a["actor"]) for a in audit] == [
-        ("engine.proposal", "ops"),
-        ("engine.proposal", "ops"),
-    ]
-    assert audit[0]["details"]["engine_changed"] is False
-
-
-async def test_reviewers_read_the_planning_rules(app):
-    async with app.router.lifespan_context(app), make_client(app) as client:
-        listed = await client.get("/v1/admin/zone-parameters", headers=auth(REVIEWER))
-        one = await client.get("/v1/admin/zone-parameters/1", headers=auth(REVIEWER))
-        write = await client.post(
-            "/v1/admin/zone-parameters",
-            json={"zone_id": 2, "max_far": 1.5},
-            headers=auth(REVIEWER),
-        )
-    assert listed.status_code == 200 and listed.json()["items"]
-    assert one.status_code == 200
-    assert write.status_code == 403

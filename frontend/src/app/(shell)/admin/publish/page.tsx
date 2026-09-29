@@ -5,7 +5,7 @@ import { guard } from "@/lib/admin/guard";
 import type { PublishStatus } from "@/lib/api/types";
 
 // Publish (admins and reviewers; the pilot scope's A4): the data version the map serves, the
-// publish button with its blockers and progress, and the kept versions with rollback, from
+// publish button with its blockers and progress, and the kept versions, from
 // GET /v1/admin/publish.
 export default async function PublishPage() {
   const access = await guard("publish");

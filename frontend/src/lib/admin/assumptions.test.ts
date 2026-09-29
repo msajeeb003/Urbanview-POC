@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AssumptionSet, AssumptionsPreview } from "@/lib/api/types";
+import type { AssumptionSet } from "@/lib/api/types";
 
 import {
   applyNote,
@@ -11,8 +11,6 @@ import {
   emptyDraft,
   isChanged,
   parseNumber,
-  plannedLabel,
-  previewRows,
   previousVersion,
   rangeText,
   zoneRows,
@@ -145,51 +143,5 @@ describe("history", () => {
       { label: "Saleable share", before: "70% (default)", after: "75%" },
       { label: "Applies from", before: "20 Sep 2026", after: "26 Sep 2026" },
     ]);
-  });
-});
-
-describe("preview", () => {
-  it("compares Group 2 today with the draft, figure by figure", () => {
-    const field = (key: string, unit: string, expected: number, range = true) => ({
-      key,
-      engine_key: key,
-      label_en: key,
-      label_me: key,
-      unit,
-      status: "ok" as const,
-      range_kind: range ? ("range" as const) : ("deterministic" as const),
-      low: range ? expected * 0.9 : expected,
-      expected,
-      high: range ? expected * 1.1 : expected,
-    });
-    const group2 = (fields: ReturnType<typeof field>[]) => ({ fields }) as unknown as NonNullable<AssumptionsPreview["current"]["group2"]>;
-    const preview = {
-      current: { group2: group2([field("revenue_eur", "€", 1000), field("saleable_area_m2", "m²", 700, false)]) },
-      draft: { group2: group2([field("revenue_eur", "€", 1200), field("saleable_area_m2", "m²", 700, false)]) },
-    } as unknown as AssumptionsPreview;
-    expect(previewRows(preview)).toEqual([
-      {
-        key: "revenue_eur",
-        label: "revenue_eur",
-        now: { main: "€1,000", range: "€900 – €1,100" },
-        draft: { main: "€1,200", range: "€1,080 – €1,320" },
-        changed: true,
-      },
-      {
-        key: "saleable_area_m2",
-        label: "saleable_area_m2",
-        now: { main: "700 m²", range: null },
-        draft: { main: "700 m²", range: null },
-        changed: false,
-      },
-    ]);
-    const loss = { ...field("profit_eur", "€", -1000), low: -2500.4, high: 300 };
-    const [profit] = previewRows({
-      current: { group2: group2([loss]) },
-      draft: { group2: group2([loss]) },
-    } as unknown as AssumptionsPreview);
-    expect(profit?.draft).toEqual({ main: "−€1,000", range: "−€2,500 – €300" });
-    expect(plannedLabel("UP 12")).toBe("UP 12");
-    expect(plannedLabel("12")).toBe("UP 12");
   });
 });

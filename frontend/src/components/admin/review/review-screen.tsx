@@ -3,7 +3,7 @@
 /**
  * The AI review queue (`/admin/review`, wireframe `adminReview`): the card "AI extraction — review
  * queue" with the pending count, the progress header (reviewed / total for the document in view,
- * Publish, rollback), the filters, and a split screen: the queue (left), the item (middle: value,
+ * Publish), the filters, and a split screen: the queue (left), the item (middle: value,
  * facts, decision) and the cited PDF page with the value's box (right).
  *
  * Built for hundreds of items per document, keyboard first: j / k (or ↓ / ↑) move, Enter

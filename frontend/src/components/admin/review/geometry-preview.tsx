@@ -3,9 +3,9 @@
 /**
  * The geometry a reviewer decides on (the right pane of the geometry review): the batch's
  * features drawn as an SVG, north up, fitted to the pane, with the features an issue names
- * outlined in the danger colour and each gap marked where it is. Hovering a feature names it
- * (label, area, issues). Simplified by the API for the preview; at most 3 000 features are drawn
- * and the pane says when a batch has more.
+ * outlined in the danger colour. Hovering a feature names it (label, area, issues). Simplified by
+ * the API for the preview; at most 3 000 features are drawn and the pane says when a batch has
+ * more.
  */
 import { useEffect, useMemo, useState } from "react";
 
@@ -51,12 +51,6 @@ export function GeometryPreview({ batchId, label }: { batchId: number; label: st
         </span>
         <span className="gvlegend">
           <i className="gvkey ok" /> drawn <i className="gvkey bad" /> named by an issue ({flagged})
-          {drawn.gaps.length > 0 && (
-            <>
-              {" "}
-              <i className="gvkey gap" /> gap ({drawn.gaps.length})
-            </>
-          )}
         </span>
       </div>
       <svg className="gvsvg" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={`${label}: the staged geometry`}>
@@ -74,11 +68,6 @@ export function GeometryPreview({ batchId, label }: { batchId: number; label: st
               {s.issues.length ? ` · ${s.issues.map(issueName).join(", ")}` : ""}
             </title>
           </path>
-        ))}
-        {drawn.gaps.map((g, i) => (
-          <circle key={i} cx={g.x} cy={g.y} r={7} className="gvgap">
-            <title>{`Gap of ${g.m2.toLocaleString("en-US")} m²`}</title>
-          </circle>
         ))}
       </svg>
       <div className="gvhover mono" aria-live="polite">

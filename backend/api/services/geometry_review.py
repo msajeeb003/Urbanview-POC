@@ -3,8 +3,9 @@ before the publish job applies it (the pilot technical scope's ``staging.geometr
 origin, QA status and issues; A2 "100% of items reviewed").
 
 A draft is one staged batch: one layer of one producing run (a georeferenced plan or GIS drawing,
-a zone import, a cadastral import), with its topology QA (``core.geometry_qa``, computed when it
-was staged; a batch staged before 0033 is checked when first approved). *Approve* marks it for the
+a zone import, a cadastral import), with its validity QA (``core.geometry_qa``: invalid or empty
+features plus the producing run's own warnings, computed when it was staged; a batch staged before
+0033 is checked when first approved). *Approve* marks it for the
 next publish; a batch whose QA fails cannot be approved. *Reject* (a reason required) takes it out
 of the staged pool for good: the geometry is fixed and staged again, which makes a new batch
 (a rejected batch never returns, so the land-use layer's carry-forward can never pick it up).
@@ -349,11 +350,9 @@ class GeometryReviewService:
                 .all()
             )
         marked: dict[str, list[str]] = {}
-        gaps: list[list[float]] = []
         for issue in draft.get("qa_issues") or []:
             for key in issue.get("keys") or []:
                 marked.setdefault(key, []).append(issue["code"])
-            gaps += [list(p) for p in issue.get("locations") or []]
         features = [
             {
                 "type": "Feature",
@@ -379,7 +378,6 @@ class GeometryReviewService:
             total=total,
             truncated=total > len(features),
             features={"type": "FeatureCollection", "features": features},
-            gaps=gaps,
         )
 
     # --- decisions -------------------------------------------------------------------------------

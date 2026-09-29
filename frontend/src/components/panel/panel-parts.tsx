@@ -9,8 +9,8 @@
 import { Fragment, useEffect, type ReactNode } from "react";
 
 import { useTrack } from "@/lib/analytics/react";
-import type { DocumentPanel, MunicipalityProfile, ZonePanel } from "@/lib/api/types";
-import { formatDate, formatFigure } from "@/lib/format";
+import type { MunicipalityProfile, ZonePanel } from "@/lib/api/types";
+import { formatDate } from "@/lib/format";
 import { useShell } from "@/lib/store";
 
 import { Cta } from "../ui/cta";
@@ -45,16 +45,7 @@ export function docTypeLabel(type: string | null | undefined, profile: Municipal
   return name ? `${type} — ${name}` : type;
 }
 
-/** `24 m · 7 floors`, `7 floors`, `24 m`; null when neither is known. */
-export function heightText(t: { max_height_m?: number | null; max_floors?: number | null }): string | null {
-  const parts: string[] = [];
-  if (t.max_height_m != null) parts.push(`${formatFigure(t.max_height_m, 1)} m`);
-  if (t.max_floors != null) parts.push(`${t.max_floors} ${t.max_floors === 1 ? "floor" : "floors"}`);
-  return parts.length ? parts.join(" · ") : null;
-}
-
 export type ZoneDoc = ZonePanel["planning_documents"][number];
-export type DocZone = DocumentPanel["zones"][number];
 
 /** One part of a document's meta line; `source` marks the registry name (a link when it has one). */
 export interface MetaPart {
@@ -114,17 +105,6 @@ export function dataVersionText(version: string, date?: string | null): string {
 
 export function DataVersionLine({ version, date }: { version: string; date?: string | null }) {
   return <p className="dataversion">{dataVersionText(version, date)}</p>;
-}
-
-/** A zone the document spans: `24 m · FAR 3.2` from its typical values (height, else floors). */
-export function zoneTypicalLine(z: DocZone): string {
-  const t = z.typical;
-  if (!t) return "—";
-  const parts: string[] = [];
-  const height = t.max_height_m != null ? `${formatFigure(t.max_height_m, 1)} m` : heightText({ max_floors: t.max_floors });
-  if (height) parts.push(height);
-  if (t.max_far != null) parts.push(`FAR ${formatFigure(t.max_far, 1)}`);
-  return parts.length ? parts.join(" · ") : "—";
 }
 
 /** Sticky panel header: ✕ (clears the selection and its map highlight), eyebrow, title, sub-line. */

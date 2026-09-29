@@ -69,25 +69,6 @@ export function sourceRows(sources: readonly DataSource[] | null | undefined): S
   }));
 }
 
-const INTEGRATION_RANK: readonly Integration[] = [
-  "linked",
-  "access_confirmed",
-  "file_import",
-  "manual_upload",
-  "reference_copy",
-  "access_pending",
-  "not_connected",
-];
-
-/** The status of a kind of input (the Calculation engine's rows): its best-connected source. */
-export function kindIntegration(
-  sources: readonly DataSource[] | null | undefined,
-  kind: DataSource["kind"],
-): Integration {
-  const found = (sources ?? []).filter((s) => s.kind === kind).map((s) => s.integration ?? "not_connected");
-  return INTEGRATION_RANK.find((i) => found.includes(i)) ?? "not_connected";
-}
-
 // --- uploads ------------------------------------------------------------------------------------
 
 export type UploadKind = "planning_document" | "gis" | "cadastral_extract";

@@ -950,10 +950,8 @@ async def import_dataset(
             },
         )
     ).scalar_one()
-    # topology QA of both batches: the reviewer decides on it before a publish applies them
-    await run_batches_qa(
-        session, [parcels_batch, ko_batch], municipality_id=municipality_id, srid=area_srid
-    )
+    # validity QA of both batches: the reviewer decides on it before a publish applies them
+    await run_batches_qa(session, [parcels_batch, ko_batch], municipality_id=municipality_id)
     return ImportOutcome(
         dataset_id,
         label,

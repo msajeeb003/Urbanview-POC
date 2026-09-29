@@ -18,9 +18,7 @@ describe("admin sections", () => {
     expect(labels("admin")).toEqual([
       "Overview",
       "AI review queue",
-      "Planning rules",
       "Financial assumptions",
-      "Calculation engine",
       "Orders",
       "Data sources",
       "Publish",
@@ -31,15 +29,14 @@ describe("admin sections", () => {
   });
 
   it("gives a reviewer the review queue, publishing and read-only documents (pilot scope)", () => {
-    expect(labels("reviewer")).toEqual(["Overview", "AI review queue", "Planning rules", "Data sources", "Publish"]);
+    expect(labels("reviewer")).toEqual(["Overview", "AI review queue", "Data sources", "Publish"]);
     expect(barLinks("reviewer")).toEqual([]);
     expect(canOpen("reviewer", "orders")).toBe(false);
     expect(canOpen("reviewer", "users")).toBe(false);
     expect(canOpen("reviewer", "assumptions")).toBe(false);
     expect(canOpen("reviewer", "audit")).toBe(false);
-    expect(isReadOnly("reviewer", "rules")).toBe(true);
     expect(isReadOnly("reviewer", "data")).toBe(true);
-    expect(isReadOnly("admin", "rules") || isReadOnly("admin", "data")).toBe(false);
+    expect(isReadOnly("admin", "data")).toBe(false);
   });
 
   it("gives an expert the order queue only", () => {

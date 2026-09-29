@@ -42,12 +42,6 @@ class EmailLogList(BaseModel):
     offset: int
 
 
-class BounceIn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    reason: str = Field(min_length=1, max_length=2000, description="What the provider reported")
-
-
 class MagicLinkRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

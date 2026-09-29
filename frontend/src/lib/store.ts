@@ -2,7 +2,7 @@
 
 /**
  * Shell state: what the wireframe's global `STATE` held (rail, layers, selection pin, AI panel,
- * admin view, modal, toast) plus the phone bottom-sheet position. Components read slices with
+ * admin view, modal, toast). Components read slices with
  * selectors; the map registers a small controller so chrome buttons can drive the camera.
  */
 import type { ReactNode } from "react";
@@ -42,13 +42,6 @@ export type Selection =
       linkedUrbanId: number | null;
       via: "click" | "search" | "link";
     };
-
-export type SheetState = "peek" | "half" | "full";
-
-/** The next bottom-sheet position when its handle is tapped: peek → half → full → peek. */
-export function nextSheet(sheet: SheetState): SheetState {
-  return sheet === "peek" ? "half" : sheet === "half" ? "full" : "peek";
-}
 
 /** Why the "Outside current coverage" pill is showing. */
 export type UncoveredReason = "no_adopted_plan" | "outside_municipality";
@@ -126,8 +119,6 @@ interface ShellState {
 
   /** Panel removed from the layout (outside-coverage state). */
   panelHidden: boolean;
-  /** Phone / tablet bottom sheet: its header only, half the screen (where a selection opens), or expanded. */
-  sheet: SheetState;
 
   selection: Selection | null;
   pin: LngLat | null;
@@ -164,7 +155,6 @@ interface ShellState {
   setOrderDraft(patch: Partial<OrderDraft>): void;
   clearOrderDraft(): void;
   setPanelHidden(hidden: boolean): void;
-  setSheet(sheet: SheetState): void;
   setSelection(selection: Selection | null): void;
   dropPin(point: LngLat | null): void;
   setCoords(point: LngLat | null): void;
@@ -198,7 +188,6 @@ export const useShell = create<ShellState>()((set) => ({
   view: "map",
 
   panelHidden: false,
-  sheet: "peek",
 
   selection: null,
   pin: null,
@@ -233,7 +222,6 @@ export const useShell = create<ShellState>()((set) => ({
   setOrderDraft: (patch) => set((s) => ({ orderDraft: { ...s.orderDraft, ...patch } })),
   clearOrderDraft: () => set({ orderDraft: EMPTY_DRAFT }),
   setPanelHidden: (panelHidden) => set({ panelHidden }),
-  setSheet: (sheet) => set({ sheet }),
   setSelection: (selection) => set({ selection }),
   dropPin: (pin) => set((s) => ({ pin, coords: pin ?? s.coords })),
   setCoords: (coords) => set({ coords }),
@@ -263,6 +251,6 @@ export const useShell = create<ShellState>()((set) => ({
   clearSelection: () => {
     if (uncoveredTimer) clearTimeout(uncoveredTimer);
     uncoveredTimer = null;
-    set({ selection: null, pin: null, coverWarn: false, panelHidden: false, sheet: "peek" });
+    set({ selection: null, pin: null, coverWarn: false, panelHidden: false });
   },
 }));

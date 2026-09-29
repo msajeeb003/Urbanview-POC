@@ -15,8 +15,6 @@ from api.schemas.admin_config import (
     RateIn,
     StaffUserIn,
     StaffUserUpdate,
-    ZoneParametersIn,
-    ZoneParametersUpdate,
 )
 from core.engine.feasibility import Assumptions, MarketInputs, compute_feasibility
 
@@ -93,53 +91,6 @@ def test_assumption_updates_need_a_change():
         AssumptionsUpdate()
     assert AssumptionsUpdate(sale_rate=rate()).sale_rate.expected == 1000
     assert "notes" in AssumptionsUpdate(notes=None).model_fields_set  # explicit null counts
-
-
-@pytest.mark.parametrize(
-    "bad",
-    [
-        {"zone_id": 1},
-        {"zone_id": 1, "notes": "only a note"},
-        {"zone_id": 1, "max_site_coverage_pct": 101},
-        {"zone_id": 1, "max_far": -1},
-        {"zone_id": 1, "max_floors": 101},
-        {"zone_id": 1, "max_height_m": -2},
-        {"zone_id": 1, "max_far": 2, "source_page": 3},
-        {"zone_id": 1, "max_far": 2, "verified_on": str(date.today() + timedelta(days=3))},
-        {"zone_id": 0, "max_far": 2},
-        {"zone_id": 1, "max_far": 2, "extra": True},
-    ],
-    ids=[
-        "no values",
-        "note only",
-        "coverage over 100",
-        "negative FAR",
-        "too many floors",
-        "negative height",
-        "page without document",
-        "verified in the future",
-        "bad zone id",
-        "unknown key",
-    ],
-)
-def test_zone_parameters_validation(bad):
-    with pytest.raises(ValidationError):
-        ZoneParametersIn(**bad)
-
-
-def test_zone_parameters_accept_a_partial_set_with_a_source():
-    ok = ZoneParametersIn(
-        zone_id=2,
-        max_far=1.5,
-        max_site_coverage_pct=40,
-        source_document_id=4,
-        source_page=5,
-        verified_on=date.today(),
-    )
-    assert ok.land_use is None and ok.max_far == 1.5
-    with pytest.raises(ValidationError):
-        ZoneParametersUpdate()
-    assert ZoneParametersUpdate(max_floors=4).max_floors == 4
 
 
 def test_staff_user_validation():

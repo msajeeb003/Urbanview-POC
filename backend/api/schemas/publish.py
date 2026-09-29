@@ -33,14 +33,6 @@ class LayerInfo(BaseModel):
     min_zoom: int
     max_zoom: int
     features: int
-    available: bool = Field(
-        default=True,
-        description="false: the data behind the layer is not loaded (the public ownership and "
-        "restitution layers until a confirmed eKatastar extract): not an empty result",
-    )
-    unavailable_reason: str | None = Field(
-        default=None, description="why the layer is unavailable (ownership_data_not_loaded)"
-    )
 
 
 class PublishVersionOut(BaseModel):
@@ -64,8 +56,6 @@ class PublishVersionOut(BaseModel):
     duration_ms: int | None = None
     min_zoom: int | None = None
     max_zoom: int | None = None
-    rolled_back_at: datetime | None = None
-    rolled_back_by: str | None = None
 
 
 class PublishStatus(BaseModel):
@@ -79,13 +69,7 @@ class PublishStatus(BaseModel):
         default_factory=list,
         description="Staged geometry batches waiting for the reviewer's decision",
     )
-    keep_versions: int = Field(description="Archives kept for rollback (retention)")
-
-
-class RollbackRequest(BaseModel):
-    version_id: int | None = Field(
-        default=None, gt=0, description="Default: the version before the current one"
-    )
+    keep_versions: int = Field(description="Archives kept (retention)")
 
 
 class MetricClasses(BaseModel):

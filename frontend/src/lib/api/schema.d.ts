@@ -484,24 +484,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/engine/proposals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Proposed formulas and data inputs, oldest first */
-        get: operations["list_proposals_v1_admin_engine_proposals_get"];
-        put?: never;
-        /** Record a proposed formula or data input (audited; the engine is unchanged) */
-        post: operations["create_proposal_v1_admin_engine_proposals_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/admin/jobs": {
         parameters: {
             query?: never;
@@ -588,23 +570,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/publish/rollback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Roll the map back to an earlier version */
-        post: operations["rollback_v1_admin_publish_rollback_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/tiles/current": {
         parameters: {
             query?: never;
@@ -657,40 +622,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/assumptions/preview-parcels": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Covered parcels of a zone to preview a draft set on */
-        get: operations["list_preview_parcels_v1_admin_assumptions_preview_parcels_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/assumptions/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** A parcel's Group 2 today and with an unsaved set (nothing is written) */
-        post: operations["preview_v1_admin_assumptions_preview_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/admin/assumptions/{assumptions_id}": {
         parameters: {
             query?: never;
@@ -705,43 +636,6 @@ export interface paths {
         post?: never;
         /** Retire the live version (the zone has no market figures until a later set) */
         delete: operations["retire_assumptions_v1_admin_assumptions__assumptions_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/zone-parameters": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Typical planning values per zone: current versions, or the history */
-        get: operations["list_zone_parameters_v1_admin_zone_parameters_get"];
-        put?: never;
-        /** Publish a new version of a zone's typical planning values */
-        post: operations["create_zone_parameters_v1_admin_zone_parameters_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/zone-parameters/{parameters_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Zone Parameters */
-        get: operations["get_zone_parameters_v1_admin_zone_parameters__parameters_id__get"];
-        /** Create the next version from the current one with the given changes */
-        put: operations["update_zone_parameters_v1_admin_zone_parameters__parameters_id__put"];
-        post?: never;
-        /** Retire the current version (the zone panel shows no typical values) */
-        delete: operations["retire_zone_parameters_v1_admin_zone_parameters__parameters_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1481,23 +1375,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/email-log/{log_id}/bounce": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Record a bounce */
-        post: operations["record_bounce_v1_admin_email_log__log_id__bounce_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1703,12 +1580,6 @@ export interface components {
         };
         /** AssumptionsBlock */
         AssumptionsBlock: {
-            /**
-             * Tier
-             * @default paid
-             * @constant
-             */
-            tier: "paid";
             /** Saleable Share */
             saleable_share: number;
             /** Construction Cost Eur M2 */
@@ -1878,71 +1749,6 @@ export interface components {
             retired_by?: string | null;
         };
         /**
-         * AssumptionsPreviewIn
-         * @description An unsaved set tried on one parcel: the figures are computed, nothing is written.
-         */
-        AssumptionsPreviewIn: {
-            /**
-             * Parcel Id
-             * @description The cadastral parcel (Parcel ID) to preview on
-             */
-            parcel_id: number;
-            /**
-             * Zone Id
-             * @description The zone the draft is for (flags a parcel elsewhere)
-             */
-            zone_id?: number | null;
-            land_rate: components["schemas"]["RateIn"];
-            build_rate: components["schemas"]["RateIn"];
-            design_rate: components["schemas"]["RateIn"];
-            sale_rate: components["schemas"]["RateIn"];
-            /**
-             * Range Low Factor
-             * @default 0.86
-             */
-            range_low_factor: number;
-            /**
-             * Range High Factor
-             * @default 1.15
-             */
-            range_high_factor: number;
-            /** Saleable Share */
-            saleable_share?: number | null;
-        };
-        /** AssumptionsPreviewOut */
-        AssumptionsPreviewOut: {
-            /** Parcel Id */
-            parcel_id: number;
-            /**
-             * Title
-             * @description KO and parcel number
-             */
-            title: string;
-            zone?: components["schemas"]["ZoneRef"] | null;
-            /**
-             * Zone Mismatch
-             * @description The parcel lies outside the draft's zone
-             */
-            zone_mismatch: boolean;
-            /** Covered */
-            covered: boolean;
-            /** Coverage Note En */
-            coverage_note_en?: string | null;
-            /**
-             * Calculation Basis
-             * @enum {string}
-             */
-            calculation_basis: "urban" | "cadastral";
-            /** Basis Area M2 */
-            basis_area_m2: number;
-            /** Formula Version */
-            formula_version: string;
-            /** @description As the public panel shows it today */
-            current: components["schemas"]["PreviewSide"];
-            /** @description With the draft set in place of the live one */
-            draft: components["schemas"]["PreviewSide"];
-        };
-        /**
          * AssumptionsUpdate
          * @description Fields of a new version based on the current row; omitted fields are carried over.
          */
@@ -1991,12 +1797,6 @@ export interface components {
         };
         /** AssumptionsView */
         AssumptionsView: {
-            /**
-             * Tier
-             * @default paid
-             * @constant
-             */
-            tier: "paid";
             /** Title En */
             title_en: string;
             /** Title Me */
@@ -2086,14 +1886,6 @@ export interface components {
             file: string;
             /** Note */
             note?: string | null;
-        };
-        /** BounceIn */
-        BounceIn: {
-            /**
-             * Reason
-             * @description What the provider reported
-             */
-            reason: string;
         };
         /**
          * BulkApproveIn
@@ -3095,7 +2887,7 @@ export interface components {
         };
         /**
          * DocumentZone
-         * @description A zone the document's coverage spans, with its type and typical values (if any).
+         * @description A zone the document's coverage spans, with its type.
          */
         DocumentZone: {
             /** Id */
@@ -3104,8 +2896,6 @@ export interface components {
             name: string;
             /** Zone Type */
             zone_type?: string | null;
-            /** @description The zone's current parameter set, or null */
-            typical?: components["schemas"]["ZoneTypicalSummary"] | null;
         };
         /**
          * EditedAssumptions
@@ -3193,74 +2983,6 @@ export interface components {
             bounced_at?: string | null;
             /** Updated At */
             updated_at?: string | null;
-        };
-        /** EngineProposalIn */
-        EngineProposalIn: {
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "formula" | "data_input";
-            /**
-             * Name
-             * @description Output name (formula) or dataset name
-             */
-            name: string;
-            /**
-             * Expression
-             * @description Formula: e.g. GFA ÷ 60 (required)
-             */
-            expression?: string | null;
-            /**
-             * Source
-             * @description Formula: where its inputs come from
-             */
-            source?: string | null;
-            /**
-             * Provides
-             * @description Data input: what it provides (required)
-             */
-            provides?: string | null;
-            /** Note */
-            note?: string | null;
-        };
-        /** EngineProposalList */
-        EngineProposalList: {
-            /** Items */
-            items: components["schemas"]["EngineProposalOut"][];
-        };
-        /** EngineProposalOut */
-        EngineProposalOut: {
-            /** Id */
-            id: number;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "formula" | "data_input";
-            /** Name */
-            name: string;
-            /** Expression */
-            expression?: string | null;
-            /** Source */
-            source?: string | null;
-            /** Provides */
-            provides?: string | null;
-            /**
-             * Status
-             * @description new (a formula) / pending (a data input) until the client decides
-             * @enum {string}
-             */
-            status: "new" | "pending" | "accepted" | "declined";
-            /** Note */
-            note?: string | null;
-            /** Created By */
-            created_by: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
         };
         /** EventBatch */
         EventBatch: {
@@ -3433,12 +3155,6 @@ export interface components {
         };
         /** FeasibilityBlock */
         FeasibilityBlock: {
-            /**
-             * Tier
-             * @default paid
-             * @constant
-             */
-            tier: "paid";
             /**
              * Calculation Basis
              * @enum {string}
@@ -3871,7 +3587,7 @@ export interface components {
         /**
          * GeometryFeatures
          * @description The batch's features for the review preview: simplified geometry, a label, the issue codes
-         *     that name them; plus the gap locations of its QA.
+         *     that name them.
          */
         GeometryFeatures: {
             /** Batch Id */
@@ -3891,11 +3607,6 @@ export interface components {
             features: {
                 [key: string]: unknown;
             };
-            /**
-             * Gaps
-             * @description [lng, lat, m²]
-             */
-            gaps?: number[][];
         };
         /** GeometryPage */
         GeometryPage: {
@@ -4024,12 +3735,6 @@ export interface components {
         };
         /** Group1 */
         Group1: {
-            /**
-             * Tier
-             * @default free
-             * @constant
-             */
-            tier: "free";
             /** Title En */
             title_en: string;
             /** Title Me */
@@ -4095,12 +3800,6 @@ export interface components {
         };
         /** Group2 */
         Group2: {
-            /**
-             * Tier
-             * @default paid
-             * @constant
-             */
-            tier: "paid";
             /** Title En */
             title_en: string;
             /** Title Me */
@@ -4569,17 +4268,6 @@ export interface components {
             max_zoom: number;
             /** Features */
             features: number;
-            /**
-             * Available
-             * @description false: the data behind the layer is not loaded (the public ownership and restitution layers until a confirmed eKatastar extract): not an empty result
-             * @default true
-             */
-            available: boolean;
-            /**
-             * Unavailable Reason
-             * @description why the layer is unavailable (ownership_data_not_loaded)
-             */
-            unavailable_reason?: string | null;
         };
         /** LinkedPlannedParcel */
         LinkedPlannedParcel: {
@@ -4879,12 +4567,6 @@ export interface components {
         };
         /** MarketInputsBlock */
         MarketInputsBlock: {
-            /**
-             * Tier
-             * @default paid
-             * @constant
-             */
-            tier: "paid";
             /** Available */
             available: boolean;
             /** Reason Code */
@@ -5050,12 +4732,6 @@ export interface components {
         };
         /** MarketView */
         MarketView: {
-            /**
-             * Tier
-             * @default paid
-             * @constant
-             */
-            tier: "paid";
             /** Title En */
             title_en: string;
             /** Title Me */
@@ -6028,12 +5704,6 @@ export interface components {
         /** PlanningBlock */
         PlanningBlock: {
             /**
-             * Tier
-             * @default free
-             * @constant
-             */
-            tier: "free";
-            /**
              * Calculation Basis
              * @enum {string}
              */
@@ -6213,35 +5883,6 @@ export interface components {
              */
             page_images?: number[];
         };
-        /** PreviewParcel */
-        PreviewParcel: {
-            /** Parcel Id */
-            parcel_id: number;
-            /**
-             * Title
-             * @description KO and parcel number
-             */
-            title: string;
-            /** Area M2 */
-            area_m2: number;
-            /** Urban Parcel Number */
-            urban_parcel_number?: string | null;
-            /** Planned Area M2 */
-            planned_area_m2?: number | null;
-        };
-        /** PreviewParcelList */
-        PreviewParcelList: {
-            /** Zone Id */
-            zone_id: number;
-            /** Items */
-            items: components["schemas"]["PreviewParcel"][];
-        };
-        /** PreviewSide */
-        PreviewSide: {
-            market?: components["schemas"]["MarketView"] | null;
-            assumptions?: components["schemas"]["AssumptionsView"] | null;
-            group2?: components["schemas"]["Group2"] | null;
-        };
         /** PriceTierOut */
         PriceTierOut: {
             /**
@@ -6323,7 +5964,7 @@ export interface components {
             geometry_blockers?: components["schemas"]["GeometryBlocker"][];
             /**
              * Keep Versions
-             * @description Archives kept for rollback (retention)
+             * @description Archives kept (retention)
              */
             keep_versions: number;
         };
@@ -6383,16 +6024,12 @@ export interface components {
             min_zoom?: number | null;
             /** Max Zoom */
             max_zoom?: number | null;
-            /** Rolled Back At */
-            rolled_back_at?: string | null;
-            /** Rolled Back By */
-            rolled_back_by?: string | null;
         };
         /** QaIssueOut */
         QaIssueOut: {
             /**
              * Code
-             * @description invalid_geometry | empty_geometry (errors), overlap | gap | area_deviation (warnings), or the producing dataset's warning as <kind>.<code>
+             * @description invalid_geometry | empty_geometry (errors), or the producing dataset's own warning as <kind>.<code> (georef.* | zones.* | cadastre.*)
              */
             code: string;
             /**
@@ -6409,7 +6046,7 @@ export interface components {
             count: number;
             /**
              * Features
-             * @description What to look at: feature keys, pairs, parcel lines
+             * @description What to look at: the feature keys
              */
             features?: string[];
             /**
@@ -6417,11 +6054,6 @@ export interface components {
              * @description The feature keys concerned
              */
             keys?: string[];
-            /**
-             * Locations
-             * @description [lng, lat, m²] of each gap listed
-             */
-            locations?: number[][];
             /** Area M2 */
             area_m2?: number | null;
         };
@@ -6953,14 +6585,6 @@ export interface components {
          * @enum {string}
          */
         Role: "admin" | "reviewer" | "expert";
-        /** RollbackRequest */
-        RollbackRequest: {
-            /**
-             * Version Id
-             * @description Default: the version before the current one
-             */
-            version_id?: number | null;
-        };
         /** SessionOut */
         SessionOut: {
             /**
@@ -7790,8 +7414,6 @@ export interface components {
              */
             planning_documents: components["schemas"]["ZonePlanningDocument"][];
             counts: components["schemas"]["DocumentCounts"];
-            /** @description The zone's current parameter set, or null */
-            typical_parameters?: components["schemas"]["ZoneTypicalParameters"] | null;
         };
         /** ZonePanelView */
         ZonePanelView: {
@@ -7833,135 +7455,6 @@ export interface components {
              */
             documents: components["schemas"]["ZoneDocument"][];
             counts: components["schemas"]["DocumentCounts"];
-            typical_parameters?: components["schemas"]["ZoneTypicalParameters"] | null;
-        };
-        /** ZoneParameterSource */
-        ZoneParameterSource: {
-            /** Document Id */
-            document_id: number;
-            /** Document Name */
-            document_name?: string | null;
-            /** Page */
-            page?: number | null;
-            /** Note */
-            note?: string | null;
-            /** Registry Url */
-            registry_url?: string | null;
-        };
-        /** ZoneParametersIn */
-        ZoneParametersIn: {
-            /** Land Use */
-            land_use?: string | null;
-            /**
-             * Max Far
-             * @description II, typical
-             */
-            max_far?: number | null;
-            /**
-             * Max Site Coverage Pct
-             * @description IZ %
-             */
-            max_site_coverage_pct?: number | null;
-            /** Max Height M */
-            max_height_m?: number | null;
-            /** Max Floors */
-            max_floors?: number | null;
-            /** Notes */
-            notes?: string | null;
-            /** Source Document Id */
-            source_document_id?: number | null;
-            /** Source Page */
-            source_page?: number | null;
-            /** Source Note */
-            source_note?: string | null;
-            /** Verified On */
-            verified_on?: string | null;
-            /** Verified By */
-            verified_by?: string | null;
-            /** Zone Id */
-            zone_id: number;
-        };
-        /** ZoneParametersList */
-        ZoneParametersList: {
-            /** Items */
-            items: components["schemas"]["ZoneParametersOut"][];
-        };
-        /** ZoneParametersOut */
-        ZoneParametersOut: {
-            /** Id */
-            id: number;
-            /** Zone Id */
-            zone_id: number;
-            /** Zone Name */
-            zone_name?: string | null;
-            /** Version */
-            version: number;
-            /** Is Current */
-            is_current: boolean;
-            /** Supersedes Id */
-            supersedes_id?: number | null;
-            /** Land Use */
-            land_use?: string | null;
-            /** Max Far */
-            max_far?: number | null;
-            /** Max Site Coverage Pct */
-            max_site_coverage_pct?: number | null;
-            /** Max Height M */
-            max_height_m?: number | null;
-            /** Max Floors */
-            max_floors?: number | null;
-            /** Notes */
-            notes?: string | null;
-            source?: components["schemas"]["ZoneParameterSource"] | null;
-            /** Verified On */
-            verified_on?: string | null;
-            /** Verified By */
-            verified_by?: string | null;
-            /** Created By */
-            created_by: string;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Retired At */
-            retired_at?: string | null;
-            /** Retired By */
-            retired_by?: string | null;
-        };
-        /**
-         * ZoneParametersUpdate
-         * @description Fields of a new version based on the current row; omitted fields are carried over.
-         */
-        ZoneParametersUpdate: {
-            /** Land Use */
-            land_use?: string | null;
-            /**
-             * Max Far
-             * @description II, typical
-             */
-            max_far?: number | null;
-            /**
-             * Max Site Coverage Pct
-             * @description IZ %
-             */
-            max_site_coverage_pct?: number | null;
-            /** Max Height M */
-            max_height_m?: number | null;
-            /** Max Floors */
-            max_floors?: number | null;
-            /** Notes */
-            notes?: string | null;
-            /** Source Document Id */
-            source_document_id?: number | null;
-            /** Source Page */
-            source_page?: number | null;
-            /** Source Note */
-            source_note?: string | null;
-            /** Verified On */
-            verified_on?: string | null;
-            /** Verified By */
-            verified_by?: string | null;
         };
         /**
          * ZonePlanningDocument
@@ -8041,64 +7534,6 @@ export interface components {
              * @description All documents grouped under the zone, any status
              */
             planning_documents?: components["schemas"]["api__schemas__locate__DocumentRef"][];
-        };
-        /**
-         * ZoneTypicalParameters
-         * @description The zone's typical planning values (staff-maintained, versioned): fallback figures for
-         *     the zone panel; a parcel's own document values always take precedence.
-         */
-        ZoneTypicalParameters: {
-            /** Id */
-            id: number;
-            /** Version */
-            version: number;
-            /** Land Use */
-            land_use?: string | null;
-            /** Max Far */
-            max_far?: number | null;
-            /** Max Site Coverage Pct */
-            max_site_coverage_pct?: number | null;
-            /** Max Height M */
-            max_height_m?: number | null;
-            /** Max Floors */
-            max_floors?: number | null;
-            /** Notes */
-            notes?: string | null;
-            source?: components["schemas"]["ZoneTypicalSource"] | null;
-            /** Verified On */
-            verified_on?: string | null;
-            /** Verified By */
-            verified_by?: string | null;
-            /** Note En */
-            note_en: string;
-            /** Note Me */
-            note_me: string;
-        };
-        /** ZoneTypicalSource */
-        ZoneTypicalSource: {
-            /** Document Id */
-            document_id: number;
-            /** Document Name */
-            document_name?: string | null;
-            /** Page */
-            page?: number | null;
-            /** Note */
-            note?: string | null;
-            /** Registry Url */
-            registry_url?: string | null;
-        };
-        /** ZoneTypicalSummary */
-        ZoneTypicalSummary: {
-            /** Land Use */
-            land_use?: string | null;
-            /** Max Far */
-            max_far?: number | null;
-            /** Max Site Coverage Pct */
-            max_site_coverage_pct?: number | null;
-            /** Max Height M */
-            max_height_m?: number | null;
-            /** Max Floors */
-            max_floors?: number | null;
         };
         /**
          * ItemCounts
@@ -9896,96 +9331,6 @@ export interface operations {
             };
         };
     };
-    list_proposals_v1_admin_engine_proposals_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EngineProposalList"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role is not admin (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A formula needs an expression, a data input what it provides */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    create_proposal_v1_admin_engine_proposals_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EngineProposalIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EngineProposalOut"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role is not admin (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A formula needs an expression, a data input what it provides */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     list_jobs_v1_admin_jobs_get: {
         parameters: {
             query?: {
@@ -10334,69 +9679,6 @@ export interface operations {
             };
         };
     };
-    rollback_v1_admin_publish_rollback_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["RollbackRequest"] | null;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PublishStatus"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Role not allowed */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such version */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Nothing to roll back to, already current, or pruned */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     current_tiles_v1_tiles_current_get: {
         parameters: {
             query?: never;
@@ -10570,126 +9852,6 @@ export interface operations {
             };
         };
     };
-    list_preview_parcels_v1_admin_assumptions_preview_parcels_get: {
-        parameters: {
-            query: {
-                zone_id: number;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PreviewParcelList"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role is not admin (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not the current version, duplicate e-mail, or a self-change (`conflict`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    preview_v1_admin_assumptions_preview_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssumptionsPreviewIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssumptionsPreviewOut"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role is not admin (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No cadastral parcel with this id (`not_found`) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not the current version, duplicate e-mail, or a self-change (`conflict`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No planning database (`service_unavailable`) */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     get_assumptions_v1_admin_assumptions__assumptions_id__get: {
         parameters: {
             query?: never;
@@ -10818,256 +9980,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssumptionsOut"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role is not admin (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not the current version, duplicate e-mail, or a self-change (`conflict`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    list_zone_parameters_v1_admin_zone_parameters_get: {
-        parameters: {
-            query?: {
-                zone_id?: number | null;
-                include_history?: boolean;
-                limit?: number;
-                offset?: number;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ZoneParametersList"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_zone_parameters_v1_admin_zone_parameters_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ZoneParametersIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ZoneParametersOut"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role is not admin (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not the current version, duplicate e-mail, or a self-change (`conflict`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    get_zone_parameters_v1_admin_zone_parameters__parameters_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                parameters_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ZoneParametersOut"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role is not admin (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not the current version, duplicate e-mail, or a self-change (`conflict`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    update_zone_parameters_v1_admin_zone_parameters__parameters_id__put: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                parameters_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ZoneParametersUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ZoneParametersOut"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role is not admin (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not the current version, duplicate e-mail, or a self-change (`conflict`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    retire_zone_parameters_v1_admin_zone_parameters__parameters_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                parameters_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ZoneParametersOut"];
                 };
             };
             /** @description Missing or unknown bearer token (`unauthorized`) */
@@ -13538,71 +12450,6 @@ export interface operations {
             };
             /** @description No such entry */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    record_bounce_v1_admin_email_log__log_id__bounce_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                log_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BounceIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EmailLogOut"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Role not allowed */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such entry */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Only a sent e-mail can bounce */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };

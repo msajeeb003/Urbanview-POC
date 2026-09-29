@@ -3,7 +3,7 @@
 #   bash deploy/server-setup.sh
 # Installs Docker Engine + the compose plugin (Docker's own apt repository), adds swap (the image
 # builds need more than 4 GB at peak), opens only SSH / HTTP / HTTPS, turns on automatic security
-# updates and creates the backup folder. Safe to run again.
+# updates. Safe to run again.
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then
@@ -47,7 +47,6 @@ ufw --force enable
 # automatic security updates
 dpkg-reconfigure -f noninteractive unattended-upgrades
 
-mkdir -p /opt/urbanview-backups
 docker --version
 docker compose version
 echo "server ready: clone the repository to /opt/urbanview next (deploy/README.md, step 4)"

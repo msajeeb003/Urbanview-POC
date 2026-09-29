@@ -18,10 +18,9 @@ wireframe, brand SVGs, specs; the client's planning PDFs in `docs/gis/source/`).
 |---|---|
 | `backend/` | FastAPI app (`api/`: app factory, routers under `/v1`, schemas, services), `core/` (settings, logging, errors, middleware, db, models, `engine/` feasibility formulas, `geocode/` geocoding providers, `gis/` geometry assessment, `cadastre/` cadastral base loader, `extraction/` the AI extraction contract, redis, storage, mail, municipality profiles, seeds loader), `jobs/` (Celery: ingestion, extraction, publish), `municipalities/<id>.toml`, `tests/` (unit) and `tests/integration/` (PostGIS). Python venv: `backend/.venv`. |
 | `database/` | Alembic (`alembic.ini`, `migrations/`), seed datasets (`seeds/podgorica_sample/*.geojson` for the geometry tables, `*.json` for the panel tables), compose init SQL (`docker/initdb/`), `scripts/dev_postgis.py` (portable PostGIS for Docker-less machines). |
-| `frontend/` | Public map: Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Radix) + Mapbox GL JS + TanStack Query, npm workspace `@urbanview/frontend`. Its own `frontend/CLAUDE.md` holds the tokens, dimensions, layer list, panel field lists and frontend rules. |
-| `admin/` | Reserved; the staff tool is built into `frontend/` as the admin console (`/admin/*`, Auth.js magic links, roles admin / reviewer / expert). |
+| `frontend/` | Public map and the staff console (`/admin/*`, Auth.js magic links, roles admin / reviewer / expert): Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Radix) + Mapbox GL JS + TanStack Query, npm workspace `@urbanview/frontend`. Its own `frontend/CLAUDE.md` holds the tokens, dimensions, layer list, panel field lists and frontend rules. |
 | `packages/` | `feasibility-engine/`: the shared TypeScript feasibility engine (npm workspace of the root `package.json`) and `fixtures/feasibility-cases.json`, the fixture file both engines are held to. |
-| `deploy/` | Production on one server (Hetzner Cloud): `compose.yml` (Caddy HTTPS → web / api / MinIO; worker, PostGIS, Redis internal), `Caddyfile`, `.env.example`, `server-setup.sh`, `deploy.sh` (pull + rebuild + migrate), `backup.sh`, `README.md` (step by step). |
+| `deploy/` | Production on one server (Hetzner Cloud): `compose.yml` (Caddy HTTPS → web / api / MinIO; worker, PostGIS, Redis internal), `Caddyfile`, `.env.example`, `server-setup.sh`, `deploy.sh` (pull + rebuild + migrate), `README.md` (step by step). |
 | root | `docker-compose.yml`, `Makefile`, `ruff.toml`, `package.json` (npm workspaces: `packages/*`, `frontend`), `README.md`, this file. |
 
 New code goes in the folder of its tier. Python runs from `backend/` (that is where `.env` is read);
@@ -106,21 +105,29 @@ the POC check of Group 2 asked for it).
   intent button "Unlock full market data" records `market_data_interest` and unlocks nothing: the
   pilot scope's two intent buttons, intent check 2026-09-28); hosted card checkout
   (bank transfer only); a zone editor (zones are drawn in QGIS, `core/zones`); ownership /
-  restitution flags without confirmed bulk cadastral access (no map toggles; the backend layers
-  stay `available: false` until a confirmed eKatastar extract loads flags); the planned-traffic
+  restitution map layers (no toggles, no tile layers; the cadastral flags stay null until a
+  confirmed eKatastar extract loads them); the planned-traffic
   layer (extraction may read the drawing layer, but it is not staged, published or drawn); 3D / AR.
 - **Accepted deviations from the plan's stack:** one `public` schema, staging and serving told
   apart by table (`planning_parameter_extractions`, `staging_geometry`, `geometry_batches`,
   `staging_zone_documents` vs `planning_parameter_values`, `parcel_links`, `layer_features`,
-  `choropleth_cells`); serving data is per `publish_versions` row and a rollback is a pointer flip,
-  but entity geometry is upserted in place, the current version's heatmap cells and links can be
+  `choropleth_cells`); serving data is per `publish_versions` row (earlier versions are kept for a
+  manual pointer flip by an operator; there is no rollback endpoint), but entity geometry is
+  upserted in place, the current version's heatmap cells and links can be
   recomputed in place, and only `audit_log` and `analytics_events` (0030) are append-only at the
   database level (published planning values refuse UPDATE, 0034). The server runs
   the Python copy of the engine, held byte-identical to the TypeScript package's fixtures. PMTiles
   come from the private MinIO bucket through Caddy with signed links, no CDN. Auth.js signs staff
-  in through a Credentials provider over the backend's magic-link tokens. The tablet / phone layout
-  (≤ 860 px drawer + bottom sheet, setup ticket) stays as built; it gets no further work. Group 1
-  keeps the wireframe's "Free" badge (not a lock or paywall).
+  in through a Credentials provider over the backend's magic-link tokens.
+- **Removed by the POC conformance pass (2026-09-29, the 220 h plan's funded rows are the
+  scope):** the tablet / phone layout, the "Free" badge and the `tier` markers, the legal pages,
+  the publish rollback endpoint and buttons, the Calculation engine tab (engine proposals) and
+  the Planning rules tab (zone parameter sets, the zone panel's typical parameters), the
+  assumptions preview, the ownership / legal-burden map layers, topology QA beyond geometry
+  validity, the e-mail bounce endpoint and the card-provider payment seam, Flower, the backup
+  script and the CI workflow; the analytics page is plain tables (funnel, districts, intent
+  counts). Migration 0035 drops `engine_proposals`, `zone_parameter_sets` and the
+  `rolled_back_*` columns.
 - **Open (S3 check):** a separate `land_use_code` in Group 1 and a `sample_size` per market
   input: neither is in the data yet (`docs/specs/frontend-design.md` §10 item 22).
 
@@ -164,7 +171,7 @@ the POC check of Group 2 asked for it).
   Only the publish job (`jobs.tasks.publish.publish_approved`, see "Publish pipeline") copies
   approved rows across, one complete serving set per `publish_versions` row; the panel reads
   the rows of the **current** version only (`_values` filters on `publish_version_id`), so a
-  rollback is a pointer flip and with no current version nothing is served. The sample's
+  the pointer decides what is served and with no current version nothing is served. The sample's
   serving rows are version 1 from the seed loader.
 - One PostGIS statement per panel type (`panel_sql.PANEL_SQL`, CTEs + `jsonb_build_object`,
   locate's style), nothing cached between requests. The governing document is locate's rule;
@@ -267,8 +274,7 @@ the POC check of Group 2 asked for it).
   coverage: the rule of locate and the tiles), `file_available` (PDF stored) and `parcel_count`
   (cadastral parcels whose point on surface is in the coverage; null when not covered); `zone`
   carries `zone_type`, `counts.covered` the covered documents. The document panel's `document`
-  carries `file_available`; its `zones` carry `zone_type` and `typical` (land use, FAR,
-  coverage, height, floors of the zone's current parameter set, or null). Every `DocumentRef`
+  carries `file_available`; its `zones` carry `zone_type`. Every `DocumentRef`
   carries `adopted_on` (migration 0016, nullable, entered at registration: `DocumentIn.adopted_on`,
   not in the future; the sample has none). The profile's `terminology.document_types_en`
   gives the English type names the map shows (`DUP — Detailed urban plan`).
@@ -278,9 +284,6 @@ the POC check of Group 2 asked for it).
 - **Disclaimer** (`feasibility.disclaimer_en` / `_me`, `panel_text.DISCLAIMER`):
   `disclaimer_status = "placeholder"` until the lawyer signs the wording off
   (`client_approved`), `disclaimer_version = "poc-1"`.
-- **Tier markers.** `planning.tier = "free"`; `market_inputs`, `assumptions` and `feasibility`
-  carry `tier = "paid"`. The POC serves the paid blocks without entitlement checks and the public
-  map shows them to everyone; the marker is the boundary a later gate uses.
 - Numbers are raw JSON numbers, never formatted strings (`_pct` 0–100, `_share` 0–1, areas
   1 decimal, euros whole); the client formats per language. Code: router
   `api/routers/v1/panel.py`, dependency `api/deps.py` (`PanelServiceDep`), models
@@ -324,7 +327,7 @@ the POC check of Group 2 asked for it).
   Python copy are held to the shared fixtures; the integration test runs the built TS bundle).
 - `GET /v1/zones/{zone_id}/panel`: title, subtitle, summary (as stored) with its label, the
   zone's current document versions with status labels, profile type name, `covered`,
-  `file_available`, counts, typical parameters.
+  `file_available`, counts.
 - **Cache** (`PanelCache`, Redis, `PANEL_CACHE_TTL_SECONDS`, 0 = off): one entry per entity per
   data state, key `panel:{app_version}+{PANEL_PAYLOAD_FORMAT}:{m}:{kind}:{id}:{version_id}:{token}`
   (`PANEL_PAYLOAD_FORMAT` in `panel_cache.py`: bump it when a body changes for the same data, so a
@@ -332,9 +335,9 @@ the POC check of Group 2 asked for it).
   hashes the current version's creation time, its links' computation time (a standalone
   recompute) and the state that changes panels outside a publish
   (documents' status / live / version / file columns, the market versions that apply today in the
-  municipality's time zone — a scheduled version taking effect changes the key at local midnight —
-  current zone parameter sets), read by `STAMP_SQL` before the data (an entry can only be newer
-  than its key). Market and zone parameter rows are immutable versions, so their ids fingerprint
+  municipality's time zone — a scheduled version taking effect changes the key at local midnight),
+  read by `STAMP_SQL` before the data (an entry can only be newer
+  than its key). Market rows are immutable versions, so their ids fingerprint
   them. Strong `ETag`
   from the key; `If-None-Match` → 304 without Redis; `Cache-Control: no-cache`;
   `X-Panel-Cache` hit | miss | bypass | revalidated (CORS-exposed with `ETag`). Redis trouble →
@@ -364,7 +367,7 @@ the POC check of Group 2 asked for it).
   (`cadastral_area_m2`, `urban_area_m2`), `area_delta_m2`, `relation`, `reduction_pct`, `rank`,
   `dataset_version` (the version's label); a cadastral parcel with no planned parcel has one
   `none` row (`urban_parcel_id` null, rank 1: the map's `no_urban_parcel`, the panel's "Not
-  defined"). Per version, so a rollback flips them with the pointer.
+  defined"). Per version, so they follow the pointer.
 - **Relation** of a cadastral parcel, on each of its rows, first match: `none`; `split` (two or
   more planned parcels each cover `LINK_SPLIT_MIN_FRACTION` 10 % of it); `merged` (its planned
   parcel covers that share of two or more cadastral parcels); `reduced` (its planned parcel
@@ -486,9 +489,8 @@ the POC check of Group 2 asked for it).
 
 - **Roles (the pilot technical scope's, auth check 2026-09-29; `api/deps.py`, every `/v1/admin/*`
   route through `require_role`):** `admin` = everything; `reviewer` ("planning expert approving
-  extractions") = the review queue (A2: read, approve, amend, reject, market inputs), publish and
-  rollback (A4), read-only documents / files / jobs, the overview, zone parameters (read) and the
-  audit trail (read); `expert` ("produces paid reports") = the orders assigned to them and the
+  extractions") = the review queue (A2: read, approve, amend, reject, market inputs), publish (A4),
+  read-only documents / files / jobs, the overview and the audit trail (read); `expert` ("produces paid reports") = the orders assigned to them and the
   report upload (A6), `users/me`. Reviewers have no order access; experts none to the review
   queue or the pipeline.
 - **Principals** (writes on the routes below: role `admin`, `PipelinePrincipal`; the listings and
@@ -613,32 +615,11 @@ the POC check of Group 2 asked for it).
   `not_live`; the zone then has no market figures until a later version applies — nothing is
   deleted). Each version writes `audit_log` with `before` = the previous version and `after` = the
   new one in the same flat column shape (the audit log lists exactly the figures that changed).
-  `POST /assumptions/preview {parcel_id, zone_id, rates, factors, saleable_share}` answers the
-  parcel's Group 2, market and assumptions views today and with the unsaved set in place of the
-  live version (`api/services/assumptions_preview.py`: the parcel panel's own statement row,
-  builders and the shared engine; nothing written or cached; `zone_mismatch` flags a parcel
-  outside the draft's zone; 404 unknown parcel); `GET /assumptions/preview-parcels?zone_id=` lists
-  up to 12 covered cadastral parcels of the zone (those with a planned parcel first). The engine
+  The engine
   adapter turns absolute bounds into `absolute` engine bounds for that rate
   (`core/engine/feasibility.py`). Tests: `tests/integration/test_assumptions_schedule_postgis.py`
   (today's set on the next load, a future set waiting for its date and the cache key following,
-  audit old / new values, validation all or nothing, the preview, proposals, reviewer reads).
-- **Calculation engine proposals** (`/v1/admin/engine/proposals`, `api/services/engine_proposals.py`,
-  table `engine_proposals`, migration 0023; role admin): the console's "+ Add formula" (name,
-  expression, source) and "+ Add data input" (name, what it provides) record a proposal with status
-  `new` (formula) / `pending` (data input) and an `engine.proposal` audit row (`engine_changed:
-  false`). Nothing calculates with them: the engine changes only with a new `FORMULA_VERSION` and
-  fixtures the client validated. GET lists them oldest first.
-- **Zone parameter sets** (`/v1/admin/zone-parameters`, table `zone_parameter_sets`; GET for
-  admins and reviewers, `ConfigReaderPrincipal`, the console's read-only Planning rules; writes
-  admin only): the
-  typical planning values of a zone (`land_use`, `max_far`, `max_site_coverage_pct` 0–100,
-  `max_height_m`, `max_floors`; at least one) with a source document reference
-  (`source_document_id` must exist, `source_page` needs it, `source_note`), `verified_on` (not
-  in the future) and `verified_by`. Same versioning (POST / PUT / DELETE, one current per zone).
-  The current row is the zone panel's `typical_parameters` (with the source document name and
-  registry link and a bilingual note that a parcel's own document values take precedence);
-  the sample seeds one for zone Centar (`zone_parameter_sets.json`).
+  audit old / new values, validation all or nothing).
 - **Staff users** (`/v1/admin/users`): create (e-mail normalised to lower case, unique per
   municipality → 409; roles admin | reviewer | expert, the client's "expert reviewer" is
   `reviewer`), list with open session counts, PATCH role / display name / `is_active`
@@ -646,7 +627,7 @@ the POC check of Group 2 asked for it).
   409). No passwords anywhere: the magic-link login item issues sessions.
 - Tests: `tests/test_admin_config_unit.py` (payload validation, adapter with absolute bounds)
   and `tests/integration/test_admin_config_postgis.py` (versions on the panel and the
-  feasibility route, bounds in the ranges, zone panel, users with session revocation, audit).
+  feasibility route, bounds in the ranges, users with session revocation, audit).
 
 ## Expert review and the audit trail (`api/services/review.py`, `api/routers/v1/admin_review.py`)
 
@@ -703,7 +684,7 @@ the POC check of Group 2 asked for it).
   UPDATE, DELETE and TRUNCATE for every role). Columns: actor (+ user id), action, entity type
   and id, `before` / `after` (entity-specific summaries), `note`, `details`, request id,
   created_at. Every review decision and every admin change writes a row through
-  `api.services.audit.write_audit` (assumptions and zone parameter versions with the previous
+  `api.services.audit.write_audit` (assumption versions with the previous
   and new figures, users, documents, coverage, jobs, files; order status joins when the
   payment item lands). `GET /v1/admin/audit` (admin, reviewer) filters by entity type / id,
   actor, action prefix and time. Test fixtures never delete audit rows.
@@ -712,17 +693,15 @@ the POC check of Group 2 asked for it).
   2026-09-29): staged geometry is reviewed like the values before the publish job may apply it.
   A draft is one staged batch (one layer of one producing run) with its `origin` (`vector_pdf`
   georeferenced sheets, `manual_qgis` QGIS redraws and the zones, `official_gis` a supplied GIS
-  drawing and the cadastre), `document_id`, `dataset_version`, and topology QA computed when it is
-  staged (georeferencing, zone and cadastral staging call `run_batch_qa`): errors
-  `invalid_geometry` / `empty_geometry` (`qa_status` fail: it cannot be approved), warnings
-  `overlap` (pairs sharing ≥ 1 m², the locate threshold), `gap` (holes of the union below
-  `GAP_MAX_M2` 50 m²: slivers), `area_deviation` (planned parcels whose drawn area differs from the
-  plan's stated area by > 5 %: the document's staged item, else the served value) and the run's own
-  warnings (`georef.*`, `zones.*`, `cadastre.*`); `qa_issues` carry a sentence, counts, the feature
-  keys and gap locations. `GET /v1/admin/geometry` (admins, reviewers; filters status, origin,
+  drawing and the cadastre), `document_id`, `dataset_version`, and validity QA computed when it is
+  staged (georeferencing, zone and cadastral staging call `run_batch_qa`; the POC plan funds
+  geometry validity only, no topology QA): errors `invalid_geometry` / `empty_geometry`
+  (`qa_status` fail: it cannot be approved) and the producing run's own warnings (`georef.*`,
+  `zones.*`, `cadastre.*`); `qa_issues` carry a sentence, counts and the feature keys.
+  `GET /v1/admin/geometry` (admins, reviewers; filters status, origin,
   layer, document, dataset, QA; `include_history`; `counts` pending / approved / rejected /
   failing), `GET .../{id}`, `GET .../{id}/features` (simplified GeoJSON for the console's preview,
-  each feature with the issue codes naming it, the gaps), `POST .../{id}/approve` (409
+  each feature with the issue codes naming it), `POST .../{id}/approve` (409
   `qa_failed`; a batch staged before 0033 is checked on its first approval), `POST
   .../{id}/reject {note}` (final: status `rejected`, never published or carried; fix and stage
   again), `POST .../bulk-approve {dataset_version | document_id | batch_ids}` (skips failing
@@ -734,8 +713,8 @@ the POC check of Group 2 asked for it).
   `tests/integration/test_review_postgis.py` (queue payload, transitions with audit before /
   after, the contract's rules through the API, bulk approval, counters, append-only enforcement,
   audit listing, contract rows with flags and the flag filter),
-  `tests/integration/test_geometry_review_postgis.py` (QA of overlaps, gaps, area deviation and
-  invalid geometry, the queue and preview, decisions with audit and roles, publish waiting for and
+  `tests/integration/test_geometry_review_postgis.py` (QA of invalid geometry and the run's own
+  warnings, the queue and preview, decisions with audit and roles, publish waiting for and
   applying approved geometry only, bulk approval).
 
 ## AI extraction contract (`backend/core/extraction/`, `docs/specs/extraction-contract.md`)
@@ -941,9 +920,7 @@ the POC check of Group 2 asked for it).
   versions, git revision, model, effort, pages, scores, note) and rebuilds `RESULTS.md`; the full
   report with error examples goes to the cache folder. `corpus baseline` accepts a full run as
   `tests/corpus/baseline.json`; `corpus check` / `eval --check` fail on any hallucination, a new
-  wrong page or accuracy half a point below the baseline. CI:
-  `.github/workflows/extraction-eval.yml` on changes to `core/extraction/`, the profiles or the
-  corpus (secrets `ANTHROPIC_API_KEY`, `CORPUS_ARCHIVE_URL`).
+  wrong page or accuracy half a point below the baseline.
 - Results so far (Sonnet 5, effort high, prompt 1.1): Novi Grad 100 % of 609 stated cells, Stara
   Varoš pages 1-23 100 % of 1 386, no hallucinated value, no wrong page or cell. Pages 24-57 of
   Stara Varoš were not read (the API account ran out of credit); no baseline yet.
@@ -1012,13 +989,12 @@ the POC check of Group 2 asked for it).
   the compact variant (status, location and turnaround only).
 - **The public map's flow** (`frontend/src/components/order/`): S4 order modal from the parcel
   panel (location carried through with the planned parcel and the data version, fee and
-  turnaround from `GET /v1/orders/pricing`, inline validation with the API's rules, links to
-  `/legal/terms`, `/legal/refund`, `/legal/privacy`), `POST /v1/orders`, S5 confirmation with the
+  turnaround from `GET /v1/orders/pricing`, inline validation with the API's rules),
+  `POST /v1/orders`, S5 confirmation with the
   bank-transfer instructions on screen and `?order=<reference>` in the address bar (a reload
   shows it again from `GET /v1/orders/{reference}`); `order_started` / `checkout_completed
-  {order_id: <reference>, amount_eur}`. The legal pages (`/legal/terms | privacy | refund |
-  disclaimer`, `frontend/src/lib/legal.ts`) carry draft wording until the client's lawyer
-  supplies it (pilot scope: legal copy is the client's, "launch, not build").
+  {order_id: <reference>, amount_eur}`. Legal pages are not in the POC plan: none is built (the
+  client's lawyer supplies the copy).
 - **Pricing for the panel** `GET /v1/orders/pricing` (public, configuration only, `Cache-Control:
   public, max-age=300`): `{currency, tiers: [{up_to_m2, price_eur}], turnaround_business_days}`;
   the public map shows a parcel's price by applying `core.pricing.price_for`'s rule to the panel's
@@ -1028,10 +1004,9 @@ the POC check of Group 2 asked for it).
   e-mail"); the reply's `email_status` is `queued` (or the final state when the job already
   ran); a queue outage marks the `email_log` row failed and the order stands. The staff order
   detail lists `emails` and the queue shows `email_alerts` (bounced / failed).
-- **Payments**: `core/payments.py` is the provider seam. The POC ships `BankTransferProvider`
-  (instructions from `ORDER_BANK_*`, no online step); a card provider (Stripe vs Paddle is
-  unverified in the BRD) implements `PaymentProvider` (checkout URL + webhook → `PaymentEvent`).
-  No card data anywhere. `customers` and `orders` are the only tables with personal data.
+- **Payments**: `core/payments.py` holds `BankTransferProvider` (instructions from `ORDER_BANK_*`,
+  no online step; hosted checkout, card providers and webhooks are not in the POC plan, so there
+  is no provider seam). No card data anywhere. `customers` and `orders` are the only tables with personal data.
 - Tests: `tests/test_orders_unit.py` (tiers, turnaround, references, transitions, form
   validation, e-mail templates) and `tests/integration/test_orders_postgis.py` (creation with
   snapshot and e-mail, pricing from config, the status flow with guards, expert scope, report
@@ -1068,11 +1043,9 @@ the POC check of Group 2 asked for it).
   `urbanview-mail`) with `SMTP_USE_TLS=false`. Deliverability check:
   `python -m core.mail.testsend --template payment_instructions --to you@…` sends fixture data
   through the real provider (DKIM / SPF / DMARC are the provider account's job).
-- **Log and bounces**: `GET /v1/admin/email-log` (admin; filters `order_id`,
-  `user_id`, `status`, `template`), `GET /v1/admin/email-log/{id}`,
-  `POST /v1/admin/email-log/{id}/bounce {reason}` (sent → bounced, audited `email.bounce`; the
-  provider's bounce webhook will call the same method). Orders show `email_alerts` in the queue
-  and `emails` in the detail.
+- **Log**: `GET /v1/admin/email-log` (admin; filters `order_id`, `user_id`, `status`,
+  `template`), `GET /v1/admin/email-log/{id}`. Orders show `email_alerts` in the queue and
+  `emails` in the detail (no bounce endpoint: provider webhooks are not in the POC plan).
 - **Magic-link login** (`api/routers/v1/auth.py`, public): `POST /v1/auth/magic-link {email}`
   always answers 202 with the same neutral message, **before** anything is looked up: the lookup,
   the audit row and the e-mail job run after the response (Starlette background task; a failure
@@ -1102,7 +1075,7 @@ the POC check of Group 2 asked for it).
 - Tests: `tests/test_mail_unit.py` (every template against fixture data, policy, MIME, provider
   ids, the job body on the in-memory repository) and `tests/integration/test_mail_postgis.py`
   (through the API with eager Celery and a transport double: log rows with provider ids, jobs,
-  magic-link round trip, staging allow-list, bounces on the order, retries then failure).
+  magic-link round trip, staging allow-list, retries then failure).
 
 ## Analytics (`api/services/analytics.py`, `api/routers/v1/events.py`, `admin_analytics.py`)
 
@@ -1210,8 +1183,7 @@ the POC check of Group 2 asked for it).
   queued, attempts reset, `manual_retries` + 1, audited `job.retry`, re-dispatched; 409 when not
   retryable or while a job for the same key is active). Every `JobOut` carries a `cost` block.
 - **Run it.** `make worker` / `poe worker` (`-Q default,extraction,geo,publish,email`),
-  `make flower` / `docker compose --profile monitoring up flower` (http://localhost:5555; set
-  `FLOWER_BASIC_AUTH` before exposing it), compose `worker` service from
+  compose `worker` service from
   `backend/Dockerfile.worker`. Tests: `tests/test_jobs_unit.py` (backoff, cost, keys, lifecycle
   on the memory store, a real task in eager mode) and `tests/integration/test_jobs_postgis.py`
   (SQL store, idempotent API, listing, retry, costs, eager task through the API).
@@ -1267,8 +1239,7 @@ the POC check of Group 2 asked for it).
   `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`, the
   `zone_id` / `zone_type` of the zone containing the parcel's point on surface, and `covered` =
   that point lies in a live coverage, locate's rule: the map draws covered parcels only),
-  `public_ownership`, `legal_burdens` (cadastral flags as their own layers, available only with
-  loaded flags; not on the POC map), `land_use` (generic `layer_features`), `heat_coverage`,
+  `land_use` (generic `layer_features`), `heat_coverage`,
   `heat_far`, `heat_height`,
   `heat_gfa` (every covered urban block), `heat_sale_price` (every covered zone): the heatmaps;
   outside coverage the archive carries no cell (S6: the base map alone). Empty
@@ -1288,14 +1259,12 @@ the POC check of Group 2 asked for it).
   never staged) is copied into `layer_features` for the version (the newest staged batch wins, older ones `superseded`;
   layers without a new batch are carried forward). Batches end `published` with
   `published_version_id`.
-- **Versions and rollback.** Values, `layer_features`, `parcel_links`, `choropleth_cells` /
+- **Versions.** Values, `layer_features`, `parcel_links`, `choropleth_cells` /
   `choropleth_classes` and the
   archive are per version; entity geometry is upserted in place (a geometry rollback needs a
-  re-ingest: documented limitation). `POST /v1/admin/publish/rollback {version_id?}` flips
-  `is_current` to the given version (default the one before the current), audited
-  `publish.rollback` (before / after: the version id and label, as `publish.complete`);
-  409 when nothing is earlier, the target is current, its archive was pruned or it never had one
-  (`no_archive`: the seeded version); 404 for an unknown id. Published values never change:
+  re-ingest: documented limitation). There is no rollback endpoint or button (not in the POC
+  plan): earlier versions keep their rows and archive so an operator can point `is_current` at
+  one by hand. Published values never change:
   a trigger refuses UPDATE on `planning_parameter_values` (0034). Retention
   `PUBLISH_KEEP_VERSIONS` (3, ≥ 2): after a publish, versions beyond the newest N lose their
   archive object and derived rows (`archive_pruned_at`); version rows and values stay for history.
@@ -1313,7 +1282,7 @@ the POC check of Group 2 asked for it).
   (catalogue, the heatmap layers, labels, tippecanoe commands) and
   `tests/integration/test_publish_postgis.py` (through the API with eager Celery, a fake tile
   builder and storage: refusal naming the document, the amended value in the panel and the tile
-  layer, cells and links, staged geometry, rollback, idempotency, retention). Tests wanting a
+  layer, cells and links, staged geometry, idempotency, retention). Tests wanting a
   clean pointer reset version 1 to current and delete newer versions.
 
 ## Heatmaps (`backend/core/choropleth.py`, migration 0027)
@@ -1408,7 +1377,7 @@ the POC check of Group 2 asked for it).
   `zone_documents.csv` to version (in the private data repository: `.gitignore` keeps `data/`
   out of this public one).
 - **Publish:** once a reviewer approved the zones batch in the geometry review (origin
-  `manual_qgis`, QA validity, overlaps, gaps), the publish job's `geometry` step upserts zones by
+  `manual_qgis`, QA validity), the publish job's `geometry` step upserts zones by
   `zone_key` (new column; a legacy
   row with the same name takes the key once; the dataset's attributes replace the zone's) and then
   `apply_zone_datasets` updates matched documents (zone, status, type, source, registry id,
@@ -1451,7 +1420,7 @@ the POC check of Group 2 asked for it).
   and batches are never deleted. Reports `report.md` / `report.json` / `diff.csv` in
   `data/cadastre/<m>/<version>/`.
 - **Publish** applies it once a reviewer approved its two batches in the geometry review
-  (origin `official_gis`, QA validity + overlaps) (`UPSERT_SQL`,
+  (origin `official_gis`, QA validity) (`UPSERT_SQL`,
   `dataset.apply_cadastral_datasets`): parcels upserted by
   (KO, number, sub-number), stable ids; parcels of the dataset's KOs missing from it get
   `retired_at` / `retired_dataset_version` (kept for references, never served: locate, tiles,
@@ -1459,9 +1428,8 @@ the POC check of Group 2 asked for it).
   dataset published, the previous one superseded.
 - **Ownership flags** `public_ownership` / `restitution_or_legal_burden` are nullable: null = not
   loaded (only a confirmed eKatastar extract sets them, from explicit values; never derived). The
-  API answers null (`bool | None`), and while no served parcel has a flag the publish manifest marks
-  `public_ownership` / `legal_burdens` `available: false`, `unavailable_reason:
-  "ownership_data_not_loaded"` (`LayerSpec.requires_flag`, `LayerInfo`). The seeded sample states
+  API answers null (`bool | None`); the flags travel as properties of the `cadastral_parcels` tile
+  layer and there are no ownership map layers (not in the POC plan). The seeded sample states
   its flags. Flags belong to the dataset that loaded them.
 - **KOs** `cadastral_municipalities` (name, code, boundary `delivered | derived_from_parcels`,
   parcel count; unique per municipality on `lower(ko_name)`); `GET /v1/cadastral-municipalities`
@@ -1590,8 +1558,8 @@ the POC check of Group 2 asked for it).
   planning fields, each with its `source` chip); market data shown to everyone (no LOCKED
   chips, no "Choose your access" modal: the POC has no subscription); no planned-traffic,
   ownership or restitution cards; no AI assistant (the intent button "Ask about this site");
-  no card fields; bilingual text; at ≤ 860 px the rail collapses into a drawer and the panel
-  becomes a bottom sheet. The admin view is the wireframe's overlay inside the frontend
+  no card fields; bilingual text; no tablet / phone layout (not in the POC plan). The admin view
+  is the wireframe's overlay inside the frontend
   (the admin console: every tab is built, see `frontend/CLAUDE.md`). Anything else is an open item
   (spec §10), not a redesign.
 - Scope is unsettled: `docs/UrbanView_POC_Exclusions.docx.md` (265 h POC) excludes screens that

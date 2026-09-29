@@ -1,7 +1,7 @@
 """Schemas for the geometry review (``/v1/admin/geometry``): the staged geometry batches the pilot
 technical scope calls ``staging.geometry_draft`` (origin vector_pdf / manual_qgis / official_gis,
-``qa_status`` / ``qa_issues``: overlaps, gaps, area deviation, ``review_status``), reviewed like
-the extracted values before the publish job may apply them."""
+``qa_status`` / ``qa_issues``: validity and the producing run's own warnings, ``review_status``),
+reviewed like the extracted values before the publish job may apply them."""
 
 from __future__ import annotations
 
@@ -20,20 +20,17 @@ QaStatus = Literal["pass", "warn", "fail"]
 class QaIssueOut(BaseModel):
     code: str = Field(
         description=(
-            "invalid_geometry | empty_geometry (errors), overlap | gap | area_deviation "
-            "(warnings), or the producing dataset's warning as <kind>.<code>"
+            "invalid_geometry | empty_geometry (errors), or the producing dataset's own warning "
+            "as <kind>.<code> (georef.* | zones.* | cadastre.*)"
         )
     )
     severity: Literal["error", "warning"]
     message: str = Field(description="One sentence for the console (English)")
     count: int
     features: list[str] = Field(
-        default_factory=list, description="What to look at: feature keys, pairs, parcel lines"
+        default_factory=list, description="What to look at: the feature keys"
     )
     keys: list[str] = Field(default_factory=list, description="The feature keys concerned")
-    locations: list[list[float]] = Field(
-        default_factory=list, description="[lng, lat, m²] of each gap listed"
-    )
     area_m2: float | None = None
 
 
@@ -112,7 +109,7 @@ class GeometryPage(BaseModel):
 
 class GeometryFeatures(BaseModel):
     """The batch's features for the review preview: simplified geometry, a label, the issue codes
-    that name them; plus the gap locations of its QA."""
+    that name them."""
 
     batch_id: int
     layer_id: str
@@ -120,7 +117,6 @@ class GeometryFeatures(BaseModel):
     total: int
     truncated: bool
     features: dict[str, Any] = Field(description="GeoJSON FeatureCollection (EPSG:4326)")
-    gaps: list[list[float]] = Field(default_factory=list, description="[lng, lat, m²]")
 
 
 def _trim(value: Any) -> Any:

@@ -1,4 +1,4 @@
-import { AdminCard, AdminUnavailable, DataTable, StatCard, StatusChip } from "@/components/admin/parts";
+import { AdminCard, AdminUnavailable, DataTable, StatusChip } from "@/components/admin/parts";
 import {
   DEFAULT_DAYS,
   count,
@@ -17,16 +17,13 @@ import {
 import { AdminAccessDenied, adminGet } from "@/lib/admin/api";
 import { guard } from "@/lib/admin/guard";
 import type { AnalyticsDashboard } from "@/lib/api/types";
-import { formatEur } from "@/lib/format";
 
-// Analytics (admins; the pilot technical scope's A7 "Analytics and audit": funnel, orders,
-// districts, repeat usage, intent counts), from GET /v1/admin/analytics. No mock screen: the
-// wireframe's admin cards, tables and stat cards. The dates are a plain GET form, so a view is a
+// Analytics (admins; the POC plan's aggregates: funnel, districts, intent counts, from
+// GET /v1/admin/analytics) as plain tables, no dashboard. The dates are a plain GET form, so a view is a
 // link. Most-searched districts include searches outside coverage, placed by their point (S6
 // demand: where people look for plans that are not published yet).
 
 type Params = Record<string, string | string[] | undefined>;
-type Product = AnalyticsDashboard["orders"]["by_product"][number];
 
 const int = (n: number) => n.toLocaleString("en-US");
 
@@ -42,7 +39,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     if (err instanceof AdminAccessDenied) return null;
     return <AdminUnavailable what="Analytics" />;
   }
-  const { totals, funnel, orders, repeat_usage: repeat, interest, panel_to_financials: panels } = data;
+  const { totals, funnel, repeat_usage: repeat, interest, panel_to_financials: panels } = data;
   const demand = uncoveredDemand(data.districts);
 
   return (
@@ -65,27 +62,6 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           </form>
         }
       >
-        <div className="astat-grid">
-          <StatCard label="Sessions" value={int(totals.sessions)} note={count(totals.clients, "browser")} />
-          <StatCard
-            label="Searches"
-            value={int(totals.by_name.search_performed ?? 0)}
-            note={`${int(demand.searches)} outside coverage`}
-            noteTone={demand.searches ? "warn" : undefined}
-          />
-          <StatCard
-            label="Orders placed"
-            value={int(orders.orders_completed)}
-            small={`· ${formatEur(orders.revenue_eur)}`}
-            note={`${int(orders.orders_started)} started · ${pctText(orders.completion_pct)} completed`}
-          />
-          <StatCard
-            label="Repeat usage"
-            value={pctText(repeat.repeat_usage_rate_pct)}
-            note={`${count(repeat.clients_at_target, "browser")} at ${repeat.target_sessions_per_user}+ sessions`}
-            noteTone="up"
-          />
-        </div>
       </AdminCard>
 
       <AdminCard title="Funnel" sub={`Sessions reaching each step · overall ${pctText(funnel.overall_conversion_pct)}`}>
@@ -132,23 +108,6 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
             { key: "share", label: "Share", mono: true, render: (d) => pctText(d.share_pct) },
           ]}
         />
-      </AdminCard>
-
-      <AdminCard title="Orders and revenue" sub="From the order events (bank transfer; the order queue is the record)">
-        <DataTable<Product>
-          rows={orders.by_product}
-          rowKey={(p) => p.product}
-          empty="No orders placed in this range."
-          columns={[
-            { key: "product", label: "Product", render: (p) => (p.product === "expert_report" ? "Expert analysis" : p.product) },
-            { key: "orders", label: "Orders", mono: true, render: (p) => int(p.orders) },
-            { key: "revenue", label: "Revenue", mono: true, render: (p) => formatEur(p.revenue_eur) },
-          ]}
-        />
-        <div className="admin-note">
-          Average order {orders.average_order_eur != null ? formatEur(orders.average_order_eur) : "—"} ·{" "}
-          {count(orders.order_started_events, "order form")} opened
-        </div>
       </AdminCard>
 
       <AdminCard title="Repeat usage and interest" sub="Validation signals of the pilot">

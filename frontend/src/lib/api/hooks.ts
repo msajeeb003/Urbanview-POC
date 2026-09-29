@@ -156,7 +156,7 @@ export function useSourcePage(documentId: number | null, page: number | null) {
   });
 }
 
-/** A publish or rollback reaches maps already open within this time (a reload at once). */
+/** A publish reaches maps already open within this time (a reload at once). */
 const POINTER_REFRESH_MS = 5 * 60_000;
 
 /** When to read the tile pointer again: before the signed archive URL expires, at most 5 min. */

@@ -10,7 +10,7 @@
  *   pitch. 1.0× is the city framing of the map's box; the zoom goes from 0.4× to parcel detail, and
  *   the camera stays inside the field the 0.4× view shows, centred on the city, so zooming all the
  *   way out ends on the whole city, centred (the wireframe's rule). Framing, zoom range and field
- *   are measured again whenever the box changes (rail, panel, window, phone sheet).
+ *   are measured again whenever the box changes (rail, panel, window).
  * - `/v1/tiles/current` names the published archive; the PMTiles provider module
  *   (`lib/map/pmtiles-provider.ts`, registered with `mapboxgl.addTileProvider`) reads it in the
  *   map workers. A new `version_id` recreates the source, so a publish swaps the tiles without a
@@ -301,7 +301,7 @@ export function MapView({
       updateCamera();
 
       // Mapbox only follows window resizes; the map's box also changes when the rail collapses or
-      // opens, the panel hides (outside coverage) or the bottom sheet moves: redraw at the new size.
+      // opens or the panel hides (outside coverage): redraw at the new size.
       // Resizing wipes the drawing surface and Mapbox repaints a frame later, which shows as a
       // blink; paint the new size in the same frame (Mapbox's own frame function, when present).
       const paintNow = (map as unknown as { _render?: (now: number) => void })._render;

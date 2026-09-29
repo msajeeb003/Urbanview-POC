@@ -76,8 +76,6 @@ from api.schemas.panel import (
     ZonePanel,
     ZonePlanningDocument,
     ZoneRef,
-    ZoneTypicalParameters,
-    ZoneTypicalSource,
 )
 from api.services import panel_text
 from api.services.panel_sql import CADASTRAL_SQL, DOCUMENT_SQL, URBAN_SQL, ZONE_SQL
@@ -370,35 +368,6 @@ def _assumptions_version(raw: Mapping[str, Any] | None) -> AssumptionsVersion | 
     )
 
 
-def _typical_parameters(raw: Mapping[str, Any] | None) -> ZoneTypicalParameters | None:
-    if raw is None:
-        return None
-    source = None
-    if raw.get("source_document_id") is not None:
-        source = ZoneTypicalSource(
-            document_id=raw["source_document_id"],
-            document_name=raw.get("document_name"),
-            page=raw.get("source_page"),
-            note=raw.get("source_note"),
-            registry_url=raw.get("registry_url"),
-        )
-    return ZoneTypicalParameters(
-        id=raw["id"],
-        version=raw["version"],
-        land_use=raw.get("land_use"),
-        max_far=raw.get("max_far"),
-        max_site_coverage_pct=raw.get("max_site_coverage_pct"),
-        max_height_m=raw.get("max_height_m"),
-        max_floors=raw.get("max_floors"),
-        notes=raw.get("notes"),
-        source=source,
-        verified_on=_iso(raw.get("verified_on")),
-        verified_by=raw.get("verified_by"),
-        note_en=panel_text.ZONE_TYPICAL_NOTE.en,
-        note_me=panel_text.ZONE_TYPICAL_NOTE.me,
-    )
-
-
 def _market_reason(zone: ZoneRef | None) -> tuple[str, dict[str, Any]]:
     if zone is None:
         return "no_market_data_zone_unknown", {}
@@ -662,7 +631,6 @@ class PanelService:
             ),
             planning_documents=[_zone_document(d) for d in _as_json(row["documents"]) or []],
             counts=DocumentCounts(**_as_json(row["counts"])),
-            typical_parameters=_typical_parameters(_as_json(row["typical_parameters"])),
         )
 
     async def document_panel(self, document_id: int) -> DocumentPanel:

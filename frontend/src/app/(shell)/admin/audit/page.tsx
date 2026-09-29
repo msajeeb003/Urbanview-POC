@@ -15,7 +15,6 @@ const ENTITY_TYPES = [
   "extraction_run",
   "planning_parameter_extraction",
   "financial_assumptions",
-  "zone_parameter_set",
   "publish_version",
   "order",
   "email",

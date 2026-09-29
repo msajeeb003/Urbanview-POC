@@ -52,151 +52,6 @@
   right: 8px;
 }
 
-/* 4. Bottom-sheet handle: only exists on phones and tablets. */
-.sheethandle {
-  display: none;
-}
-
-/* 5. Tablet and phone (≤ 860 px). The mock hides the rail and turns the panel into a right-hand
-      overlay; the approved behaviour for this build is: rail collapses (drawer over the map),
-      panel becomes a bottom sheet (peek / full), floating chrome sits above the sheet. */
-@media (max-width: 860px) {
-  .searchwrap .kbd,
-  .topnav .navlbl {
-    display: none;
-  }
-  .topnav button:not(.pill) {
-    padding: 8px 9px;
-  }
-
-  .main {
-    --sheet-offset: 0px;
-  }
-  .main:has(.panel:not(.hidden).sheet-peek) {
-    --sheet-offset: 148px;
-  }
-  .main:has(.panel:not(.hidden).sheet-half) {
-    --sheet-offset: min(50vh, 440px);
-  }
-
-  .rail {
-    display: flex;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 66;
-    box-shadow: var(--shadow-lg);
-  }
-  .rail.collapsed {
-    top: 12px;
-    left: 12px;
-    bottom: auto;
-    width: auto;
-    flex: none;
-    padding: 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-  }
-  .rail.collapsed .railopen {
-    box-shadow: var(--shadow);
-  }
-
-  .panel {
-    position: absolute;
-    top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    max-width: none;
-    height: min(78vh, 680px);
-    border-left: none;
-    border-top: 1px solid var(--line);
-    border-radius: 12px 12px 0 0;
-    box-shadow: var(--shadow-lg);
-    z-index: 62;
-    transition: height 0.2s ease;
-  }
-  .panel.sheet-peek {
-    height: 148px;
-    overflow: hidden;
-  }
-  .panel.sheet-half {
-    height: min(50vh, 440px);
-  }
-  .sheethandle {
-    display: block;
-    flex: 0 0 22px;
-    width: 100%;
-    position: relative;
-    cursor: pointer;
-  }
-  .sheethandle::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 9px;
-    width: 40px;
-    height: 4px;
-    margin-left: -20px;
-    border-radius: 999px;
-    background: var(--line);
-  }
-  .panel.sheet-peek .pempty {
-    justify-content: flex-start;
-    padding: 6px 24px 16px;
-    gap: 10px;
-  }
-  .panel.sheet-peek .pempty .ill,
-  .panel.sheet-peek .pempty .hintrow {
-    display: none;
-  }
-  .panel.sheet-peek .pempty p {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .maptools {
-    bottom: calc(var(--sheet-offset) + 88px);
-  }
-  .scalebar {
-    bottom: calc(var(--sheet-offset) + 52px);
-  }
-  .coords {
-    bottom: calc(var(--sheet-offset) + 16px);
-  }
-  .main:has(.panel.sheet-full:not(.hidden)) .maptools,
-  .main:has(.panel.sheet-full:not(.hidden)) .scalebar,
-  .main:has(.panel.sheet-full:not(.hidden)) .coords {
-    display: none;
-  }
-}
-
-/* 6. Phone (≤ 760 px): the topbar keeps logo, search and icon-only nav. */
-@media (max-width: 760px) {
-  .topbar {
-    padding: 0 12px;
-    gap: 10px;
-  }
-  .brand .logo {
-    height: 26px;
-  }
-  .topnav .pill {
-    display: none;
-  }
-  .frow {
-    grid-template-columns: 1fr;
-  }
-  .coverwarn {
-    white-space: nowrap;
-    max-width: calc(100% - 32px);
-  }
-}
-
 /* 7. Layer rail additions for the data layers (not in the mock):
       - the field selector under an active choropleth card (FAR / Coverage / Height / GFA, or
         Low / Expected / High), in the rail's card width, built from the wireframe's `.chiphint`;
@@ -235,8 +90,7 @@
 /* 8. Search (S2) additions to the wireframe's `.searchsug` (not in the mock, which had fixed rows):
       - the cadastral-municipality picker under a parcel-number row: chips in the rail's field
         selector style, aligned with the row text (14 px padding + 26 px icon + 11 px gap);
-      - the inline "No parcel … in …" note: a row like the others, neutral, not clickable;
-      - Cancel button and hint: only in the phone sheet (block 9). */
+      - the inline "No parcel … in …" note: a row like the others, neutral, not clickable. */
 .searchsug .kopick {
   display: flex;
   flex-wrap: wrap;
@@ -291,79 +145,6 @@
   font-size: 14.5px;
   border-bottom: 1px solid var(--paper-2);
 }
-.searchcancel,
-.searchhint {
-  display: none;
-}
-
-/* 9. Phone (≤ 760 px): a focused search opens as a full-screen sheet over the app (input on
-      top, suggestions filling the screen, Cancel to leave); picking a row closes it. The topbar
-      is its own stacking context (z 60, under the bottom sheet's 62), so it rises while the
-      sheet is open; the magnifier's light stroke (made for the dark bar) turns ink. */
-@media (max-width: 760px) {
-  .topbar:has(.searchwrap.searching) {
-    z-index: 95;
-  }
-  .searchwrap.searching .mag svg * {
-    stroke: var(--ink-2);
-  }
-  .searchwrap.searching {
-    position: fixed;
-    inset: 0;
-    z-index: 90;
-    margin: 0;
-    padding: 12px 12px 0;
-    display: flex;
-    flex-direction: column;
-    background: var(--white);
-    color: var(--ink);
-  }
-  .searchwrap.searching input {
-    flex: 0 0 40px;
-    padding-right: 84px;
-    color: var(--ink);
-    background: var(--paper);
-    border-color: var(--line);
-  }
-  .searchwrap.searching input:focus {
-    border-color: var(--brand);
-  }
-  .searchwrap.searching input::placeholder {
-    color: var(--ink-3);
-  }
-  .searchwrap.searching .mag {
-    top: 32px;
-    left: 23px;
-  }
-  .searchwrap.searching .searchcancel {
-    display: block;
-    position: absolute;
-    top: 17px;
-    right: 18px;
-    padding: 6px 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--brand-dark);
-  }
-  .searchwrap.searching .searchsug {
-    position: static;
-    display: block;
-    flex: 1;
-    margin: 10px -12px 0;
-    border: none;
-    border-top: 1px solid var(--line);
-    border-radius: 0;
-    box-shadow: none;
-    overflow-y: auto;
-  }
-  .searchwrap.searching .searchhint {
-    display: block;
-    padding: 16px 14px;
-    font-size: 13px;
-    color: var(--ink-2);
-  }
-}
-
 /* 10. Information panel (S3) additions for the zone and planning-document variants:
        - a superseded plan's status chip (the mock only knew adopted / in progress);
        - document items: a covered one opens the document panel (its name is the button, the row
@@ -655,24 +436,6 @@
   font-size: 14px;
   color: var(--ink-2);
 }
-@media (max-width: 760px) {
-  .overlay:has(.modal.srcmodal) {
-    padding: 0;
-  }
-  .modal.srcmodal[class][class][class] {
-    max-width: none;
-    height: 100%;
-    max-height: none;
-    border-radius: 0;
-  }
-  .srctools {
-    padding: 8px 12px;
-    flex-wrap: wrap;
-  }
-  .srcpage {
-    padding: 10px;
-  }
-}
 
 /* 14. Orders (S4 order form, S5 confirmation, the public order page `/orders/<reference>`):
       - inline field messages and the one-sentence failure note of the form (the mock has no
@@ -681,60 +444,13 @@
         `.fieldlab`): long IBANs wrap, "Copy" buttons, the note under it;
       - the order page (no mock screen): the topbar alone, then a card in the modal's style that
         scrolls with the page (the body itself never scrolls);
-      - the form's context strip names the data version on a line of its own, and the line with
-        the terms / refund / privacy links sits under the guest-checkout note (not in the mock);
-      - the legal pages (`/legal/*`, no mock screen) are the order page's card with plain text. */
+      - the form's context strip names the data version on a line of its own. */
 .ctx .cd .ctxver {
   display: block;
   margin-top: 2px;
   font-family: var(--mono);
   font-size: 11.5px;
   color: var(--ink-3);
-}
-.orderlegal {
-  margin-top: 6px;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--ink-2);
-}
-.orderlegal a,
-.legaltext a {
-  color: var(--brand);
-  font-weight: 600;
-}
-.legalnote {
-  margin-bottom: 14px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  background: var(--paper);
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--ink-2);
-}
-.legaltext h3 {
-  margin: 16px 0 6px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.legaltext p,
-.legaltext li {
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--ink-2);
-}
-.legaltext ul {
-  margin: 4px 0 8px 18px;
-  list-style: disc;
-}
-.legaltext p + p {
-  margin-top: 8px;
-}
-.legalnav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  font-size: 12px;
 }
 .field.err input {
   border-color: var(--danger);
@@ -1325,7 +1041,7 @@
 
 /* 18. AI review queue (`/admin/review`; the mock has the card and its `.review-item` rows): the
       page fills the admin body — the card with the progress header (reviewed / total, Publish,
-      rollback, the data version on the map) and the filters, then three panes that scroll on
+      the data version on the map) and the filters, then three panes that scroll on
       their own: the queue (the mock's rows, the selected one tinted), the item (value, AI value
       struck through once amended, facts, decision, editors) and the cited page (`PdfPageView`
       on the source viewer's styles). Hints and refusals are ink / gold, never red. */
@@ -1680,12 +1396,6 @@ textarea.rinput {
   justify-content: flex-end;
   gap: 8px;
 }
-.rconfirm {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
 .rprog-status {
   grid-column: 1 / -1;
   font-size: 12.5px;
@@ -1938,21 +1648,10 @@ textarea.rinput {
 .otbl td.mono {
   overflow-wrap: anywhere;
 }
-@media (max-width: 760px) {
-  .ofields {
-    grid-template-columns: 1fr;
-  }
-  .orows {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 20. Financial assumptions, calculation engine, planning rules (`/admin/assumptions`,
-   `/admin/engine`, `/admin/rules`; the mock has each card and its table). Not in the mock: the
-   figures are inputs with their bounds under them, the "Applies from" bar and the confirmation, a
-   detail row per district (bounds and notes, the Group 2 preview, the version history with diffs),
-   the engine's footer line and changelog, and the rule editor row. Inputs reuse the review queue's
-   `.rinput`. */
+/* 20. Financial assumptions (`/admin/assumptions`; the mock has the card and its table). Not in
+   the mock: the figures are inputs with their bounds under them, the "Applies from" bar and the
+   confirmation, a detail row per district (bounds and notes, the Group 2 preview, the version
+   history with diffs). Inputs reuse the review queue's `.rinput`. */
 .finbar {
   display: flex;
   flex-wrap: wrap;
@@ -2000,8 +1699,7 @@ textarea.rinput {
 .fintbl tr.dirty td:first-child {
   box-shadow: inset 3px 0 0 var(--brand);
 }
-.fintbl tr.findetail:hover td,
-.ruletbl tr.findetail:hover td {
+.fintbl tr.findetail:hover td {
   background: var(--paper);
 }
 .fcell {
@@ -2100,32 +1798,7 @@ textarea.rinput {
   width: 100%;
   min-width: 70px;
 }
-.fpreview {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.fprev td,
-.fprev th {
-  padding: 6px 10px;
-  font-size: 12.5px;
-}
-.fprev th {
-  font-size: 11px;
-}
-.fprev td:first-child {
-  width: 30%;
-}
-.fprev tr.changed td:last-child {
-  color: var(--brand-dark);
-  font-weight: 700;
-}
-.fprev .fmeta {
-  font-weight: 400;
-  white-space: nowrap;
-}
-.fhistory,
-.englog {
+.fhistory {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -2166,94 +1839,11 @@ textarea.rinput {
   color: var(--ink-2);
   border-top: 1px solid var(--paper-2);
 }
-.eprop td {
-  background: var(--paid-tint);
-}
-.engfoot {
-  font-size: 12px;
-  color: var(--ink-2);
-  opacity: 0.85;
-  margin: 2px 0 18px;
-}
-.engchangelog {
-  scroll-margin-top: 80px;
-}
-.englog {
-  padding: 14px 18px 16px;
-}
-.englog ul {
-  margin: 6px 0 0;
-  padding-left: 18px;
-  font-size: 13px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.ruletbl tr.sel td {
-  background: var(--brand-tint);
-}
-.ruleform {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.rulegrid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px 12px;
-  align-items: start;
-}
-.rulegrid label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.rulegrid .wide {
-  grid-column: span 2;
-}
-.rulegrid .full {
-  grid-column: 1 / -1;
-}
-.rulegrid .fieldlab {
-  margin: 0;
-}
-.rulegrid .rinput {
-  width: 100%;
-}
-.rulegrid .oselect {
-  min-width: 0;
-}
-.rzone {
-  line-height: 36px;
-}
-.rverify {
-  grid-column: span 2;
-  display: flex;
-  align-items: flex-end;
-  min-height: 58px;
-}
 @media (max-width: 1100px) {
   .fingrid {
     grid-template-columns: 1fr;
   }
-  .rulegrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
-@media (max-width: 760px) {
-  .finbar .fright {
-    margin-left: 0;
-  }
-  .rulegrid {
-    grid-template-columns: 1fr;
-  }
-  .rulegrid .wide,
-  .rverify {
-    grid-column: auto;
-  }
-}
-
 /* 21. Publish and Users (`/admin/publish`, `/admin/users`; the pilot scope's A4 and "Staff and
       roles", no mock screens): the wireframe's cards and tables; the publish line and the
       add-staff line reuse the audit log's filter row, the role select the data sources' select. */
@@ -2485,12 +2075,6 @@ textarea.rinput {
   border-color: var(--danger);
   background: rgba(162, 74, 50, 0.16);
 }
-.gvkey.gap {
-  width: 10px;
-  border-color: var(--danger);
-  border-radius: 50%;
-  background: none;
-}
 .gvsvg {
   flex: 1;
   min-height: 0;
@@ -2510,12 +2094,6 @@ textarea.rinput {
 }
 .gvf.on {
   stroke-width: 2.4;
-}
-.gvgap {
-  fill: none;
-  stroke: var(--danger);
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
 }
 .gvhover {
   padding: 7px 12px;

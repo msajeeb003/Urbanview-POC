@@ -20,7 +20,6 @@ import { useSelection } from "@/lib/selection";
 import { useOpenSource } from "@/lib/source";
 import { useShell } from "@/lib/store";
 
-import { Badge } from "../ui/badge";
 import { IdGrid } from "../ui/id-grid";
 import { PanelRow } from "../ui/panel-row";
 import { SourceRef } from "../ui/source-ref";
@@ -280,7 +279,7 @@ export function UrbanPanel({ urbanParcelId }: { urbanParcelId: number }) {
         <div className="sect">
           <div className="secthead">
             <span className="lbl">
-              Planning parameters <Badge tone="free" />
+              Planning parameters
             </span>
             <SourceRef
               title={firstCited ? `${firstCited.document_name}${firstCited.page ? `, page ${firstCited.page}` : ""}` : undefined}
