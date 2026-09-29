@@ -81,8 +81,8 @@ PDFs only; there is no separate trigger since 2026-09-30). The stage:
    with `PREPROCESS_SERVE_PAGE_IMAGES=true`: the public source viewer highlights a cited value on
    the PDF, not on an image.
 
-`GET /v1/admin/files/{id}` and `GET /v1/admin/documents/{id}` carry `preprocessing` (the summary),
-so a document lists its scanned pages. The extraction job starts from the manifest
+The upload reply (`POST /v1/admin/files`) and `GET /v1/admin/documents/{id}` carry
+`preprocessing` (the summary), so a document lists its scanned pages. The extraction job starts from the manifest
 (`jobs.preprocessing.load_document_pages` + `chunk_pages`).
 
 ## 4. Measured on the POC documents

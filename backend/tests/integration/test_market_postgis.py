@@ -1,8 +1,8 @@
 """Market-data imports on PostGIS, through the API with eager Celery and fake storage: a client
 range sheet uploaded, imported and normalised into pending inputs (nothing on the panel yet);
 approve / amend / reject writing assumption versions with provenance and effective dates; a
-zone without assumptions waiting for all four metrics; the range refusals; pasted listings; the
-coverage table; the audit trail. The LLM stays off (``MARKET_NORMALISE_LLM=never``): the
+zone without assumptions waiting for all four metrics; the range refusals; the audit trail.
+The LLM stays off (``MARKET_NORMALISE_LLM=never``): the
 rules path is what runs here, the LLM step is covered with a scripted model in
 ``tests/test_market_import.py``."""
 
@@ -125,7 +125,6 @@ def market_app(postgis_url, monkeypatch):
         rate_limit_requests=100_000,
         admin_api_tokens=f"{TOKEN}:admin:ops,{REVIEWER}:reviewer:rev",
         market_normalise_llm="never",
-        market_min_listings=3,
     )
     configure_market(database_url=postgis_url, settings=settings)
     storage = MarketStorage()
@@ -367,18 +366,14 @@ async def test_a_zone_without_assumptions_waits_for_all_four_metrics(market_app)
         high_ratio = round(max(r["high"] / r["expected"] for r in ranges), 4)
         factors = (version["range_low_factor"], version["range_high_factor"])
         assert factors == (low_ratio, high_ratio) and factors != (0.86, 1.15)
-        coverage = (await client.get("/v1/admin/market/coverage", headers=auth(REVIEWER))).json()
-        zone2 = next(z for z in coverage["zones"] if z["zone_id"] == 2)
-        assert zone2["market_data"] is True and zone2["sale_price_reviewed"] is True
-        assert zone2["sale_price_eur_m2"] == {"low": 1480.0, "expected": 1680.0, "high": 1920.0}
-        assert zone2["sale_price_source"] == SOURCE
-        assert zone2["sale_price_source_date"] == "2026-08-31"
-        assert all(rate["status"] == "current" for rate in zone2["rates"])
-        zone1 = next(z for z in coverage["zones"] if z["zone_id"] == 1)
-        assert zone1["sale_price_reviewed"] is False  # still the seeded figures
-        assert {r["status"] for r in zone1["rates"]} == {"current"}
-        assert all(r["pending_item_ids"] for r in zone1["rates"])
-        assert coverage["zones_with_market_data"] == 2 and coverage["pending_items"] == 4
+        # zone 2's version holds the reviewed sale price with its provenance
+        sale = version["sale_rate"]
+        assert (sale["low"], sale["expected"], sale["high"]) == (1480.0, 1680.0, 1920.0)
+        provenance = version["rate_sources"]["sale_rate"]
+        assert provenance["source"] == SOURCE and provenance["source_date"] == "2026-08-31"
+        # zone 1 keeps its seeded figures: its four inputs still wait for review
+        pending = await items(client, status="pending")
+        assert pending["total"] == 4 and {i["zone_id"] for i in pending["items"]} == {1}
         panel = (await client.get("/v1/panel", params={"type": "urban", "id": 3})).json()
         assert panel["market_inputs"]["sale_rate_eur_m2"] == 1680
 
@@ -427,49 +422,6 @@ async def test_single_figures_need_a_range_before_approval(market_app):
         )
         assert future.status_code == 422
         flagged = await items(client, flag="municipality_level")
-        zones = (await client.get("/v1/admin/market/coverage", headers=auth())).json()
+        zones = (await client.get("/v1/zones")).json()["zones"]
         # a municipality-wide figure is offered to every zone, each for its own review
-        assert flagged["total"] == 2 * zones["zones_total"]
-
-
-async def test_pasted_listings_become_one_input_per_zone(market_app):
-    app = market_app
-    listings = "\n".join(
-        [
-            "Centar; 2.400; 02.09.2026",
-            "Centar grada; 2.100; 05.09.2026",
-            "Centar, Njegoševa; 2.650; 06.09.2026",
-            "Stari Aerodrom; 1.700; 11.09.2026",
-            "Negdje; 1.500; 12.09.2026",
-        ]
-    )
-    async with app.router.lifespan_context(app), make_client(app) as client:
-        response = await client.post(
-            "/v1/admin/market/listings",
-            json={"source": "Realitica", "retrieved_on": "2026-09-24", "listings": listings},
-            headers=auth(),
-        )
-        assert response.status_code == 202, response.text
-        detail = (
-            await client.get(
-                f"/v1/admin/market/imports/{response.json()['market_import']['id']}",
-                headers=auth(),
-            )
-        ).json()
-        assert detail["kind"] == "listings" and detail["items"]["pending"] == 1
-        skipped = detail["report"]["skipped_by_reason"]
-        assert skipped == {"too_few_listings": 1, "no_zone_match": 1}
-        (item,) = (await items(client, import_id=detail["id"]))["items"]
-        assert (item["zone_id"], item["metric"], item["range_basis"]) == (
-            1,
-            "sale_rate",
-            "listings",
-        )
-        assert item["imported"] == {"low": 2250.0, "expected": 2400.0, "high": 2525.0}
-        assert "asking_prices" in item["flags"] and item["source"] == "Realitica"
-        empty = await client.post(
-            "/v1/admin/market/listings",
-            json={"source": "Realitica", "retrieved_on": "2026-09-24", "listings": "\n\n"},
-            headers=auth(),
-        )
-        assert empty.status_code == 422
+        assert flagged["total"] == 2 * len(zones)

@@ -285,8 +285,8 @@ PUBLIC_ORDER_SQL = text(
 )
 _ORDER_COLUMNS = """
     SELECT o.id, o.reference, o.status, o.purchaser_type, o.first_name, o.last_name, o.email,
-           o.telephone, o.company_name, o.tax_number, o.contact_person, o.registered_address,
-           o.message, o.parcel_type, o.parcel_id, o.cadastral_parcel_id, o.urban_parcel_id,
+           o.telephone, o.company_name, o.tax_number, o.message, o.parcel_type, o.parcel_id,
+           o.cadastral_parcel_id, o.urban_parcel_id,
            o.parcel_label, o.document_name, o.zone_id, o.zone_name, o.basis_area_m2,
            CASE WHEN o.parcel_type = 'urban' THEN o.parcel_label
                 ELSE o.snapshot -> 'urban_parcel' ->> 'urban_parcel_number' END AS planned_parcel,
@@ -821,8 +821,6 @@ class OrderService:
             last_name=row["last_name"],
             telephone=row["telephone"],
             tax_number=row["tax_number"],
-            contact_person=row["contact_person"],
-            registered_address=row["registered_address"],
             customer_id=row["customer_id"],
             message=row["message"],
             assumption_edits=row["assumption_edits"] or {},

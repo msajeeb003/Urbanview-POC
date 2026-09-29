@@ -336,9 +336,6 @@ export function OrderDrawer({
                       ["Company", order.company_name ?? ""],
                       ["PIB", order.tax_number ? <span className="mono" key="t">{order.tax_number}</span> : ""],
                       ["Name", order.customer_name],
-                      // asked by the first order form only (orders before migration 0031)
-                      ["Contact person", order.contact_person ?? ""],
-                      ["Registered address", order.registered_address ?? ""],
                       ["E-mail", order.email],
                       ["Telephone", <span className="mono" key="p">{order.telephone}</span>],
                       ["Customer", order.customer_id != null ? <span className="mono" key="c">#{order.customer_id}</span> : ""],

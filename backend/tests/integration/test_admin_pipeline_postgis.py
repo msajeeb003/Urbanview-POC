@@ -150,7 +150,6 @@ async def test_uploads_are_deduplicated_by_checksum(admin_app, storage):
     async with app.router.lifespan_context(app), make_client(app) as client:
         first = await upload(client, PDF_A, "DUP Test A.pdf")
         second = await upload(client, PDF_A, "same-bytes-other-name.pdf")
-        listed = await client.get("/v1/admin/files", headers=auth())
         rejected = await upload(client, b"<html>", "not-a.pdf")
     assert first.status_code == 201, first.text
     body = first.json()
@@ -173,8 +172,6 @@ async def test_uploads_are_deduplicated_by_checksum(admin_app, storage):
     assert second.json()["file"]["id"] == file["id"]
     assert len(storage.objects) == 1  # nothing stored twice
 
-    assert listed.status_code == 200
-    assert file["id"] in [item["id"] for item in listed.json()["items"]]
     assert rejected.status_code == 422
 
     actions = await audit_actions(app, "stored_file", file["id"])
@@ -280,7 +277,9 @@ async def test_jobs_are_enqueued_with_celery_mocked(admin_app, dispatcher):
         doc_listing = await client.get(f"/v1/admin/documents/{doc['id']}", headers=auth())
         gis = (await upload(client, ZIP, "layers.zip", kind="gis", mime="application/zip")).json()
         geo = await client.post(f"/v1/admin/files/{gis['file']['id']}/jobs/geo", headers=auth())
-        file_listing = await client.get(f"/v1/admin/files/{gis['file']['id']}", headers=auth())
+        file_jobs = await client.get(
+            "/v1/admin/jobs", params={"file_id": gis["file"]["id"]}, headers=auth()
+        )
         no_file_doc = await client.post("/v1/admin/documents/3/jobs/extract", headers=auth())
         csv = (
             await upload(
@@ -305,7 +304,7 @@ async def test_jobs_are_enqueued_with_celery_mocked(admin_app, dispatcher):
     assert geo.status_code == 202, geo.text
     assert geo.json()["kind"] == "geo" and geo.json()["file_id"] == gis["file"]["id"]
     assert dispatcher.calls[1] == ("process_geometry", geo.json()["id"], "podgorica")
-    assert [j["id"] for j in file_listing.json()["jobs"]] == [geo.json()["id"]]
+    assert [j["id"] for j in file_jobs.json()["items"]] == [geo.json()["id"]]
 
     assert no_file_doc.status_code == 409  # seeded document 3 has no stored file
     assert wrong_kind.status_code == 409
@@ -388,14 +387,14 @@ async def test_staff_sessions_are_principals(admin_app):
         expired = await issue_session(
             factory, municipality_id="podgorica", email="ana@example.com", ttl=timedelta(seconds=-1)
         )
-        as_ana = await client.get("/v1/admin/files", headers=auth(ana))
+        as_ana = await client.get("/v1/admin/documents", headers=auth(ana))
         uploaded = await upload(client, PDF_STAFF, "staff.pdf", token=ana)
-        as_bob = await client.get("/v1/admin/files", headers=auth(bob))
-        as_expired = await client.get("/v1/admin/files", headers=auth(expired))
+        as_bob = await client.get("/v1/admin/documents", headers=auth(bob))
+        as_expired = await client.get("/v1/admin/documents", headers=auth(expired))
         revoked = await revoke_sessions(
             factory, municipality_id="podgorica", email="ana@example.com"
         )
-        after_revoke = await client.get("/v1/admin/files", headers=auth(ana))
+        after_revoke = await client.get("/v1/admin/documents", headers=auth(ana))
         async with factory() as session:
             uploader = (
                 await session.execute(

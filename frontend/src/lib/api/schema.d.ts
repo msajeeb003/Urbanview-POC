@@ -249,28 +249,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stored files with their job history */
-        get: operations["list_files_v1_admin_files_get"];
+        get?: never;
         put?: never;
         /** Upload a planning document PDF, GIS file or cadastral extract (de-duplicated) */
         post: operations["upload_file_v1_admin_files_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/files/{file_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get File */
-        get: operations["get_file_v1_admin_files__file_id__get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -644,23 +626,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/market/listings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Import asking prices pasted from a listings portal */
-        post: operations["create_listings_v1_admin_market_listings_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/admin/market/imports/{import_id}": {
         parameters: {
             query?: never;
@@ -678,23 +643,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/market/coverage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Per zone: the sale price per m² with source and date, and what is missing */
-        get: operations["coverage_v1_admin_market_coverage_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/admin/review/market-inputs": {
         parameters: {
             query?: never;
@@ -704,23 +652,6 @@ export interface paths {
         };
         /** The review queue of market inputs (pending first) */
         get: operations["list_market_inputs_v1_admin_review_market_inputs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/review/market-inputs/{item_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Market Input */
-        get: operations["get_market_input_v1_admin_review_market_inputs__item_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2051,39 +1982,6 @@ export interface components {
             /** Live */
             live: boolean;
         };
-        /** CoverageRate */
-        CoverageRate: {
-            /**
-             * Metric
-             * @enum {string}
-             */
-            metric: "land_rate" | "build_rate" | "design_rate" | "sale_rate";
-            /**
-             * Status
-             * @description current: in the zone's current assumptions; approved_waiting: approved, waiting for the other metrics of the zone's first version; pending: awaiting review; missing
-             * @enum {string}
-             */
-            status: "current" | "approved_waiting" | "pending" | "missing";
-            /** Low */
-            low?: number | null;
-            /** Expected */
-            expected?: number | null;
-            /** High */
-            high?: number | null;
-            /** Source */
-            source?: string | null;
-            /** Source Date */
-            source_date?: string | null;
-            /**
-             * Market Data Id
-             * @description The reviewed market input that set the current value
-             */
-            market_data_id?: number | null;
-            /** Pending Item Ids */
-            pending_item_ids?: number[];
-            /** Approved Item Ids */
-            approved_item_ids?: number[];
-        };
         /**
          * CoverageReason
          * @enum {string}
@@ -3003,15 +2901,6 @@ export interface components {
          * @enum {string}
          */
         FileKind: "planning_document" | "gis" | "cadastral_extract" | "expert_report" | "market_data";
-        /** FileList */
-        FileList: {
-            /** Items */
-            items: components["schemas"]["StoredFileOut"][];
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-        };
         /** FileSummary */
         FileSummary: {
             /** Id */
@@ -3986,33 +3875,6 @@ export interface components {
             /** Primary */
             primary: boolean;
         };
-        /**
-         * ListingsImportIn
-         * @description Asking prices pasted from a portal: one listing per line, ``location, EUR/m², date``.
-         */
-        ListingsImportIn: {
-            /**
-             * Source
-             * @description e.g. Realitica, Estitor
-             */
-            source: string;
-            /**
-             * Retrieved On
-             * Format: date
-             */
-            retrieved_on: string;
-            /**
-             * Metric
-             * @description sale_rate: dwellings (EUR per m² of floor); land_rate: plots (per m² of land)
-             * @default sale_rate
-             * @enum {string}
-             */
-            metric: "sale_rate" | "land_rate";
-            /** Listings */
-            listings: string;
-            /** Notes */
-            notes?: string | null;
-        };
         /** LocateQuery */
         LocateQuery: {
             /**
@@ -4114,21 +3976,6 @@ export interface components {
             /** Note */
             note?: string | null;
         };
-        /** MarketCoverage */
-        MarketCoverage: {
-            /** Zones */
-            zones: components["schemas"]["ZoneCoverage"][];
-            /** Zones Total */
-            zones_total: number;
-            /** Zones With Market Data */
-            zones_with_market_data: number;
-            /** Zones With Reviewed Sale Price */
-            zones_with_reviewed_sale_price: number;
-            /** Zones Without Market Data */
-            zones_without_market_data: string[];
-            /** Pending Items */
-            pending_items: number;
-        };
         /** MarketImportAccepted */
         MarketImportAccepted: {
             market_import: components["schemas"]["MarketImportOut"];
@@ -4184,7 +4031,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "statistics" | "client_ranges" | "listings";
+            kind: "statistics" | "client_ranges";
             /** Source */
             source: string;
             /**
@@ -4293,7 +4140,7 @@ export interface components {
              * Import Kind
              * @enum {string}
              */
-            import_kind: "statistics" | "client_ranges" | "listings";
+            import_kind: "statistics" | "client_ranges";
             /** Zone Id */
             zone_id: number;
             /** Zone Name */
@@ -4317,7 +4164,7 @@ export interface components {
              * Range Basis
              * @enum {string}
              */
-            range_basis: "stated" | "derived" | "listings" | "unavailable";
+            range_basis: "stated" | "derived" | "unavailable";
             /** Source */
             source: string;
             /** Source Date */
@@ -4799,16 +4646,6 @@ export interface components {
             telephone: string;
             /** Tax Number */
             tax_number?: string | null;
-            /**
-             * Contact Person
-             * @description Orders placed before 0031 only (no longer collected)
-             */
-            contact_person?: string | null;
-            /**
-             * Registered Address
-             * @description Orders placed before 0031 only (no longer collected)
-             */
-            registered_address?: string | null;
             /**
              * Customer Id
              * @description customers.id (the guest purchaser)
@@ -6184,7 +6021,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "urban_parcel" | "zone" | "block" | "document" | "market_data";
+            entity_type: "urban_parcel" | "zone" | "block" | "document";
             /** Urban Parcel Id */
             urban_parcel_id?: number | null;
             /** Urban Parcel Number */
@@ -6849,39 +6686,6 @@ export interface components {
              * @default 0
              */
             file_count: number;
-        };
-        /** ZoneCoverage */
-        ZoneCoverage: {
-            /** Zone Id */
-            zone_id: number;
-            /** Zone Name */
-            zone_name: string;
-            /** Zone Type */
-            zone_type?: string | null;
-            /**
-             * Market Data
-             * @description The zone has current assumptions: the panel shows its figures
-             */
-            market_data: boolean;
-            /** Assumptions Id */
-            assumptions_id?: number | null;
-            /** Assumptions Version */
-            assumptions_version?: number | null;
-            /** Effective From */
-            effective_from?: string | null;
-            /** @description The current sale price per m² (null: not covered) */
-            sale_price_eur_m2?: components["schemas"]["MarketRange"] | null;
-            /** Sale Price Source */
-            sale_price_source?: string | null;
-            /** Sale Price Source Date */
-            sale_price_source_date?: string | null;
-            /**
-             * Sale Price Reviewed
-             * @description The current sale price was set by an approved market input
-             */
-            sale_price_reviewed: boolean;
-            /** Rates */
-            rates: components["schemas"]["CoverageRate"][];
         };
         /** ZoneDetail */
         ZoneDetail: {
@@ -7794,41 +7598,6 @@ export interface operations {
             };
         };
     };
-    list_files_v1_admin_files_get: {
-        parameters: {
-            query?: {
-                kind?: components["schemas"]["FileKind"] | null;
-                limit?: number;
-                offset?: number;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FileList"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     upload_file_v1_admin_files_post: {
         parameters: {
             query?: never;
@@ -7849,7 +7618,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["UploadResult"];
+                };
             };
             /** @description Successful Response */
             201: {
@@ -7897,60 +7668,6 @@ export interface operations {
             };
         };
     };
-    get_file_v1_admin_files__file_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                file_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StoredFileOut"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal is neither admin nor reviewer (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Database, object storage or job queue unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     enqueue_geo_job_v1_admin_files__file_id__jobs_geo_post: {
         parameters: {
             query?: never;
@@ -7969,7 +7686,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
             };
             /** @description Successful Response */
             202: {
@@ -8277,7 +7996,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
             };
             /** @description Successful Response */
             201: {
@@ -8560,7 +8281,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
             };
             /** @description Successful Response */
             202: {
@@ -8637,7 +8360,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
             };
             /** @description Successful Response */
             202: {
@@ -9595,7 +9320,7 @@ export interface operations {
     list_imports_v1_admin_market_imports_get: {
         parameters: {
             query?: {
-                kind?: ("statistics" | "client_ranges" | "listings") | null;
+                kind?: ("statistics" | "client_ranges") | null;
                 status?: ("received" | "normalised" | "failed") | null;
                 limit?: number;
                 offset?: number;
@@ -9662,68 +9387,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
-            };
-            /** @description Recorded; normalisation queued (the job's status_url) */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
                 content: {
                     "application/json": components["schemas"]["MarketImportAccepted"];
                 };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role may not do this (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not a readable market table, wrong file kind, or bad fields */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The stored file or the job queue is unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    create_listings_v1_admin_market_listings_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ListingsImportIn"];
-            };
-        };
-        responses: {
-            /** @description Already imported and normalised */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Recorded; normalisation queued (the job's status_url) */
             202: {
@@ -9818,51 +9484,6 @@ export interface operations {
             };
         };
     };
-    coverage_v1_admin_market_coverage_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MarketCoverage"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role may not do this (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_market_inputs_v1_admin_review_market_inputs_get: {
         parameters: {
             query?: {
@@ -9901,60 +9522,6 @@ export interface operations {
             };
             /** @description The principal's role may not do this (`forbidden`) */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_market_input_v1_admin_review_market_inputs__item_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                item_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MarketItemOut"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role may not do this (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such market input (`not_found`) */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10172,7 +9739,7 @@ export interface operations {
                 document_id?: number | null;
                 zone_id?: number | null;
                 status?: ("pending" | "approved" | "amended" | "rejected") | null;
-                entity_type?: ("urban_parcel" | "zone" | "block" | "document" | "market_data") | null;
+                entity_type?: ("urban_parcel" | "zone" | "block" | "document") | null;
                 urban_parcel_id?: number | null;
                 source_page?: number | null;
                 /** @description Items carrying this flag, e.g. low_confidence, target_unmatched, repeated_in_run */

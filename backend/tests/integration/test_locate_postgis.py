@@ -202,6 +202,34 @@ async def test_superseded_documents_never_govern(pg_client):
     assert cmp["differs"] is False and abs(cmp["delta_pct"]) < 0.5
 
 
+async def test_zone_documents_are_current_versions_only(pg_conn, pg_client):
+    """A document's earlier versions (retired by a new version) stay in the table for history but
+    never reach the zone list of either lookup (API check 2026-09-30: current data only)."""
+    async with pg_conn.begin():
+        retired = (
+            await pg_conn.execute(
+                text(
+                    "INSERT INTO planning_documents (municipality_id, name, type, status, zone_id, "
+                    "lineage_id, version, is_current_version, coverage_live, page_images_rendered) "
+                    "SELECT municipality_id, name || ' (earlier version)', type, status, zone_id, "
+                    "id, 0, false, false, false FROM planning_documents WHERE id = 2 RETURNING id"
+                )
+            )
+        ).scalar_one()
+    try:
+        point = await _get(pg_client, LOCATE, INSIDE_1042_AND_UP12)
+        parcel = await _get(pg_client, PARCEL, {"ko": "Podgorica I", "number": "1042"})
+    finally:
+        async with pg_conn.begin():
+            await pg_conn.execute(
+                text("DELETE FROM planning_documents WHERE id = :id"), {"id": retired}
+            )
+    for body in (point, parcel):
+        names = [d["name"] for d in body["zone"]["planning_documents"]]
+        assert "DUP Centar – Zona C2" in names
+        assert "DUP Centar – Zona C2 (earlier version)" not in names
+
+
 # --- GET /v1/locate/parcel ---------------------------------------------------------------------
 
 

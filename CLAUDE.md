@@ -148,6 +148,26 @@ the POC check of Group 2 asked for it).
   the Anthropic key saved on 2026-09-28, encrypted, read by nothing) goes once the key is in the
   server's settings (`ANTHROPIC_API_KEY`). The nav is Documents, AI review queue, Publish, Financial
   assumptions, Orders, Analytics, Audit log (+ Users in the account menu, back to the map).
+- **API surface and schema check (2026-09-30):** `tests/test_api_surface.py` holds the exact
+  route list, each route with the plan item that needs it (a route outside it fails the
+  suite). Removed: `GET /v1/admin/files` and `/files/{id}` (no screen read them; the upload
+  reply, the document detail and `GET /v1/admin/jobs?file_id=` carry the same facts), the
+  pasted portal listings import (`POST /v1/admin/market/listings`, `core/market/listings.py`,
+  the `listings` import kind and range basis, `MARKET_MIN_LISTINGS` / `MARKET_LISTINGS_*`:
+  v2 funds Monstat and the client's ranges, portal listings are the pilot's), `GET
+  /v1/admin/market/coverage` (+ `python -m core.market coverage`), `GET
+  /v1/admin/review/market-inputs/{id}` (the list carries every field, a decision answers the
+  item), the review queue's dead `market_data` entity, the first order form's
+  `contact_person` / `registered_address` columns, and the PostGIS image's extra extensions
+  (`postgis_tiger_geocoder`, `postgis_topology`, `fuzzystrmatch`): migration 0037. Fixed:
+  locate's zone list shows current document versions only; `GET /v1/source/value/{id}`
+  serves the current version's values only (an earlier version's id is a 404). Accepted
+  deviations, deferred (a redesign or a client decision, not a smallest diff): the entity
+  tables (`zones`, `planning_documents`, `urban_blocks`, `urban_parcels`, `cadastral_parcels`)
+  carry no version (upserted in place, above); planning values attach to parcels, blocks,
+  zones or documents because the client's plans state them per urban parcel (the pilot's
+  `parameter_set` is per block); blocks carry no `document_id` (matched by label and
+  overlap); no `sample_size` per market input.
 - **Open (S3 check):** a separate `land_use_code` in Group 1 and a `sample_size` per market
   input: neither is in the data yet (`docs/specs/frontend-design.md` §10 item 22).
 
@@ -158,8 +178,9 @@ the POC check of Group 2 asked for it).
   cadastral parcel (with geometry + centroid), primary planned urban parcel and all matching
   ones, urban block, zone (with its document list), governing document, `calculation_basis`,
   `area_comparison`, `centroid`.
-- Governing document = the **adopted** document whose coverage contains the point; when several
-  do (a DUP inside a PUP) the **most specific** (smallest coverage) wins.
+- Governing document = the **adopted** (live, current-version) document whose coverage contains
+  the point; when several do (a DUP inside a PUP) the **most specific** (smallest coverage)
+  wins. The zone's document list holds the current versions only.
 - Planned urban parcels = those containing the point, plus those overlapping the cadastral parcel
   by ≥ `LOCATE_MIN_OVERLAP_M2` (1 m²) and ≥ `LOCATE_MIN_OVERLAP_FRACTION` (2%) of its area, so the
   correspondence is shown even when the click lands in land the plan takes for roads, and
@@ -427,7 +448,8 @@ the POC check of Group 2 asked for it).
   unknown: any page ≥ 1 of the PDF is served; page images need a known count),
   `page_images_rendered`. 404 `not_found` only when the document, value or page truly does not
   exist (`details.reason = not_stored` for a document without a file); storage or credential
-  trouble is 503 `service_unavailable`. Values are read from the serving table only.
+  trouble is 503 `service_unavailable`. Values are read from the serving table only, the
+  current version's (an earlier version's value id is a 404).
 - The client emits `source_reference_opened` itself; `document_id` and `page` are in every
   response for that. The server does not emit analytics here.
 - The pilot technical scope's `GET /api/documents/{id}/source?page=n` is
@@ -528,7 +550,8 @@ the POC check of Group 2 asked for it).
   size (`ADMIN_UPLOAD_MAX_MB`), hashes while reading and stores the object at
   `{municipality}/uploads/{kind}/{sha256}/{safe filename}`. A known checksum answers 200 with the
   existing `stored_files` record and stores nothing (`created: false`); a new file is 201.
-  PDFs get a `page_count` (pypdf). Listings carry `document_ids` and recent `jobs`.
+  PDFs get a `page_count` (pypdf). The reply carries `document_ids` and recent `jobs`; there
+  is no file listing (removed 2026-09-30: the document detail lists each file with its jobs).
 - **Documents are versioned.** `POST /v1/admin/documents` inserts one `planning_documents` row
   per version: `lineage_id` (first version's id; legacy rows: null = itself), `version`,
   `is_current_version` (partial unique index: one current per lineage). `replaces_document_id`
@@ -664,8 +687,9 @@ the POC check of Group 2 asked for it).
 - 100% of AI-extracted planning information is reviewed before publication; textual accuracy
   matters as much as numerical. `GET /v1/admin/review` (roles admin and reviewer) pages
   STAGING (`planning_parameter_extractions`, migration 0008 added `entity_type`
-  urban_parcel | zone | block | document | market_data, `zone_id` / `block_id`, `parameter_key`
-  (planning field key, or a market rate key with `field_key` null), `raw_text`, `confidence`,
+  urban_parcel | zone | block | document (0037 dropped `market_data`: market inputs have their
+  own queue), `zone_id` / `block_id`, `parameter_key` (the planning field key), `raw_text`,
+  `confidence`,
   the reviewer's `amended_value_*` and `reviewed_by_user_id`). Filters: document, zone, status
   (`pending` = `pending_review`, approved, amended, rejected), entity, urban parcel, page. Each
   item: parameter labels and type, `extracted` (the AI value with unit), `amended`, `effective`
@@ -964,8 +988,9 @@ the POC check of Group 2 asked for it).
   takes the location the panel showed (`{parcel_type, parcel_id}`), the pilot scope's guest form
   (first name, e-mail and telephone required for everyone, validated; last name optional; the
   purchaser type `individual` | `legal_entity`, whose company name and PIB `tax_number` are both
-  optional and dropped for an individual; `contact_person` / `registered_address` of the first
-  form are refused since 0031), the assumptions the visitor edited, and an optional message. It
+  optional and dropped for an individual; the first form's `contact_person` /
+  `registered_address` are refused since 0031 and their columns dropped in 0037), the
+  assumptions the visitor edited, and an optional message. It
   answers 201 with the reference, the price, the turnaround, the bank-transfer instructions,
   `data_version`, `location.cadastral_parcel_id` and the public status URL
   (`ORDER_PUBLIC_BASE_URL` + `/orders/{reference}`, the public map's order page). Capped per e-mail
@@ -1243,8 +1268,8 @@ the POC check of Group 2 asked for it).
   forward for current document versions, overridden by approved / amended items: amended value
   wins, unit `COALESCE(amended, extracted)`, every row cites the item's page; items closed with
   `published_value_id` and `published_version_id`; items without a page / value or with a
-  parcel–document mismatch are listed in `result.skipped_items` and stay open; `market_data`
-  items are not published yet; expert-rejected fields that nothing replaced become
+  parcel–document mismatch are listed in `result.skipped_items` and stay open;
+  expert-rejected fields that nothing replaced become
   `planning_value_gaps` rows of the version, counted as `values_rejected`, so the parcel panel can
   say `rejected` without reading staging)
   → `geometry` (the staged batches a reviewer approved, see below) → `links` (`parcel_links`:

@@ -127,16 +127,16 @@ async def test_staff_sessions_pass_the_role_gate():
     app = make_app(make_settings(rate_limit_requests=100), make_redis(), staff_authenticator=staff)
     async with app.router.lifespan_context(app), make_client(app) as client:
         admin = await client.get(
-            "/v1/admin/files", headers={"Authorization": "Bearer sess-admin-0001"}
+            "/v1/admin/documents", headers={"Authorization": "Bearer sess-admin-0001"}
         )
         reviewer = await client.get(
-            "/v1/admin/files", headers={"Authorization": "Bearer sess-review-001"}
+            "/v1/admin/documents", headers={"Authorization": "Bearer sess-review-001"}
         )
         expert = await client.get(
-            "/v1/admin/files", headers={"Authorization": "Bearer sess-expert-001"}
+            "/v1/admin/documents", headers={"Authorization": "Bearer sess-expert-001"}
         )
-        unknown = await client.get("/v1/admin/files", headers={"Authorization": "Bearer nope"})
-        anonymous = await client.get("/v1/admin/files")
+        unknown = await client.get("/v1/admin/documents", headers={"Authorization": "Bearer nope"})
+        anonymous = await client.get("/v1/admin/documents")
     # the gate passed for the admin and reviewer sessions (the Data sources screen is theirs);
     # the staff API itself needs PostGIS (503 in nodata)
     assert admin.status_code == 503

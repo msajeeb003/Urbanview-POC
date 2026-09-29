@@ -1,6 +1,5 @@
-"""Schemas of the market-data API: imports (``/v1/admin/market``), the market-input review queue
-(``/v1/admin/review/market-inputs``) and the coverage table (one row per zone: the sale price per
-m² low / expected / high with its source and date, and what is still missing)."""
+"""Schemas of the market-data API: imports (``/v1/admin/market``) and the market-input review
+queue (``/v1/admin/review/market-inputs``)."""
 
 from __future__ import annotations
 
@@ -11,10 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 MarketMetric = Literal["land_rate", "build_rate", "design_rate", "sale_rate"]
 TableKind = Literal["statistics", "client_ranges"]
-ImportKind = Literal["statistics", "client_ranges", "listings"]
+ImportKind = Literal["statistics", "client_ranges"]
 ImportStatus = Literal["received", "normalised", "failed"]
 MarketReviewStatus = Literal["pending", "approved", "amended", "rejected"]
-RangeBasis = Literal["stated", "derived", "listings", "unavailable"]
+RangeBasis = Literal["stated", "derived", "unavailable"]
 
 
 def _not_future(value: date | None) -> date | None:
@@ -54,26 +53,6 @@ class MarketImportIn(BaseModel):
         if self.kind == "client_ranges" and not self.source:
             raise ValueError("source is required for client_ranges (who sent the sheet)")
         return self
-
-
-class ListingsImportIn(BaseModel):
-    """Asking prices pasted from a portal: one listing per line, ``location, EUR/m², date``."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    source: str = Field(min_length=1, max_length=200, description="e.g. Realitica, Estitor")
-    retrieved_on: date
-    metric: Literal["sale_rate", "land_rate"] = Field(
-        default="sale_rate",
-        description="sale_rate: dwellings (EUR per m² of floor); land_rate: plots (per m² of land)",
-    )
-    listings: str = Field(min_length=1, max_length=200_000)
-    notes: str | None = Field(default=None, max_length=2000)
-
-    @field_validator("retrieved_on")
-    @classmethod
-    def _not_in_the_future(cls, value: date | None) -> date | None:
-        return _not_future(value)
 
 
 class ItemCounts(BaseModel):
@@ -241,56 +220,3 @@ class MarketRejectIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     note: str = Field(min_length=1, max_length=2000, description="Why the figure is rejected")
-
-
-# --- coverage -------------------------------------------------------------------------------------
-
-
-class CoverageRate(BaseModel):
-    metric: MarketMetric
-    status: Literal["current", "approved_waiting", "pending", "missing"] = Field(
-        description=(
-            "current: in the zone's current assumptions; approved_waiting: approved, waiting for "
-            "the other metrics of the zone's first version; pending: awaiting review; missing"
-        )
-    )
-    low: float | None = None
-    expected: float | None = None
-    high: float | None = None
-    source: str | None = None
-    source_date: date | None = None
-    market_data_id: int | None = Field(
-        default=None, description="The reviewed market input that set the current value"
-    )
-    pending_item_ids: list[int] = Field(default_factory=list)
-    approved_item_ids: list[int] = Field(default_factory=list)
-
-
-class ZoneCoverage(BaseModel):
-    zone_id: int
-    zone_name: str
-    zone_type: str | None = None
-    market_data: bool = Field(
-        description="The zone has current assumptions: the panel shows its figures"
-    )
-    assumptions_id: int | None = None
-    assumptions_version: int | None = None
-    effective_from: date | None = None
-    sale_price_eur_m2: MarketRange | None = Field(
-        default=None, description="The current sale price per m² (null: not covered)"
-    )
-    sale_price_source: str | None = None
-    sale_price_source_date: date | None = None
-    sale_price_reviewed: bool = Field(
-        description="The current sale price was set by an approved market input"
-    )
-    rates: list[CoverageRate]
-
-
-class MarketCoverage(BaseModel):
-    zones: list[ZoneCoverage]
-    zones_total: int
-    zones_with_market_data: int
-    zones_with_reviewed_sale_price: int
-    zones_without_market_data: list[str]
-    pending_items: int

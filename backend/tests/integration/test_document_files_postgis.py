@@ -169,9 +169,6 @@ async def test_a_version_with_several_files(admin_app):
             json={"role": "both"},
             headers=auth(),
         )
-        file_record = (
-            await client.get(f"/v1/admin/files/{annex_pdf['id']}", headers=auth())
-        ).json()
         superseded = (
             await sql(
                 app,
@@ -241,7 +238,7 @@ async def test_a_version_with_several_files(admin_app):
     # roles: PDFs any role, GIS files drawings only
     assert role.status_code == 200 and by_file(role.json())[sheet_pdf["id"]]["role"] == "both"
     assert gis_role.status_code == 422
-    assert file_record["document_ids"] == [doc_id]
+    assert annex_pdf["id"] in by_file(after)
 
     actions = [a["action"] for a in await audit_actions(app, "planning_document", doc_id)]
     for action in ("document.register", "document.file_attach", "document.file_detach"):
@@ -290,7 +287,6 @@ async def test_reviewers_read_documents_admins_change_them(postgis_url, storage,
         document = await client.get(
             f"/v1/admin/documents/{document_id}", headers=auth("reviewer-tok-1234")
         )
-        files = await client.get("/v1/admin/files", headers=auth("reviewer-tok-1234"))
         jobs = await client.get("/v1/admin/jobs", headers=auth("reviewer-tok-1234"))
         expert = await client.get("/v1/admin/documents", headers=auth("expert-token-12345"))
     assert refused_upload.status_code == 403, refused_upload.text
@@ -301,5 +297,5 @@ async def test_reviewers_read_documents_admins_change_them(postgis_url, storage,
     assert registered.status_code == 201, registered.text
     assert registered.json()["registered_by"] == "ops"
     assert documents.status_code == 200 and document.status_code == 200
-    assert files.status_code == 200 and jobs.status_code == 200
+    assert jobs.status_code == 200
     assert expert.status_code == 403

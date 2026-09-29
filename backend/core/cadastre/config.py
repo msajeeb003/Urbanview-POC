@@ -125,7 +125,7 @@ class SourceConfig(_Model):
 class CadastreProfile(_Model):
     source: str  # the parcel source the import uses unless told otherwise
     ownership_source: str | None = None
-    area_crs_epsg: int = 25834  # area_m2 is computed in this projected CRS
+    area_crs_epsg: int  # area_m2 is computed in this projected CRS (place data: no default)
     dataset_prefix: str = "cad"
     on_duplicate: Literal["error", "merge"] = "error"  # merge = union the parts of one parcel
     # a new version removing more than this share of the previous version's parcels (in the KOs

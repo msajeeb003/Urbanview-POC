@@ -45,7 +45,6 @@ from api.schemas.review import (
     ReviewTarget,
     ReviewValue,
 )
-from api.services import panel_text
 from api.services.audit import write_audit
 from api.services.source import signed_page_link
 from core.auth import Principal
@@ -63,7 +62,6 @@ STATUS_TO_DB: dict[str, str] = {
     "rejected": "rejected",
 }
 DB_TO_STATUS = {db: api for api, db in STATUS_TO_DB.items()}
-MARKET_KEYS = ("land_rate_eur_m2", "build_rate_eur_m2", "design_rate_eur_m2", "sale_rate_eur_m2")
 
 
 def _validation_error(problems: list[dict[str, Any]]) -> AppError:
@@ -226,12 +224,7 @@ def _value(text_value: str | None, number: float | None, unit: str | None) -> Re
 
 
 def _labels(row: Mapping[str, Any]) -> tuple[str, str, str]:
-    if row["field_key"] is not None:
-        return row["label_en"], row["label_me"], row["value_type"]
-    label = panel_text.MARKET_PARAMETER_LABELS.get(row["parameter_key"])
-    if label is None:
-        return row["parameter_key"], row["parameter_key"], "number"
-    return label.en, label.me, "number"
+    return row["label_en"], row["label_me"], row["value_type"]
 
 
 def _payload_out(row: Mapping[str, Any]) -> ReviewPayload | None:

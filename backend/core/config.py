@@ -120,11 +120,6 @@ class Settings(BaseSettings):
     market_llm_max_rows: int = Field(default=150, ge=5, le=2000)  # rows of a sheet shown
     market_low_confidence: float = Field(default=0.7, ge=0, le=1)
     market_max_rows: int = Field(default=5000, ge=1)  # per sheet, larger tables are refused
-    # pasted listings: fewer than this per zone and metric give no figure; the range is the
-    # interquartile range around the median unless configured otherwise
-    market_min_listings: int = Field(default=5, ge=1)
-    market_listings_low_percentile: float = Field(default=25, gt=0, lt=50)
-    market_listings_high_percentile: float = Field(default=75, gt=50, lt=100)
 
     # S3-compatible private object storage
     s3_endpoint_url: str | None = None

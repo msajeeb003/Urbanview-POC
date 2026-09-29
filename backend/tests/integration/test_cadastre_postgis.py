@@ -46,6 +46,7 @@ PROFILE = CadastreProfile.model_validate(
     {
         "source": "uzn_geoportal",
         "ownership_source": "ekatastar",
+        "area_crs_epsg": 25834,
         "coverage_cell_m": 2000,
         "sources": {
             "uzn_geoportal": {

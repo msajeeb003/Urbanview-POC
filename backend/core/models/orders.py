@@ -40,8 +40,6 @@ ORDER_STATUSES: tuple[str, ...] = (
     "delivered",
     "refunded",
 )
-# the legal entity's contact person and invoice address of the first order form
-LEGACY = "no longer collected (0031); kept for older orders"
 
 
 def _ts(**kwargs: Any) -> Mapped[Any]:
@@ -90,8 +88,6 @@ class Order(Base):
     telephone: Mapped[str] = mapped_column(Text, nullable=False)
     company_name: Mapped[str | None] = mapped_column(Text)
     tax_number: Mapped[str | None] = mapped_column(Text, comment="PIB / VAT number")
-    contact_person: Mapped[str | None] = mapped_column(Text, comment=LEGACY)
-    registered_address: Mapped[str | None] = mapped_column(Text, comment=LEGACY)
     message: Mapped[str | None] = mapped_column(Text)
     parcel_type: Mapped[str] = mapped_column(Text, nullable=False, comment="cadastral | urban")
     parcel_id: Mapped[int] = mapped_column(BigInteger, nullable=False, comment="id of that type")

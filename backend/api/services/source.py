@@ -9,8 +9,9 @@ API: object keys stay internal, the bucket stays private and the URL dies after
 What exists is decided by the database, never by probing storage: ``planning_documents.file_key``
 (null = not stored), ``page_count`` (null = unknown, so any page >= 1 of the PDF is served) and
 ``page_images_rendered`` (page images only for a page within a known page count). A value is
-looked up in the serving table only; its page is the page it cites. 404 ``not_found`` is for a
-document, value or page that truly does not exist; storage trouble is 503
+looked up in the serving table only, among the current version's values; its page is the page
+it cites. 404 ``not_found`` is for a document, value or page that truly does not exist (a
+value of an earlier version included); storage trouble is 503
 ``service_unavailable``. The client emits ``source_reference_opened`` itself: ``document_id`` and
 ``page`` are in every response for that.
 """
@@ -105,6 +106,9 @@ VALUE_SQL = text(
     JOIN planning_fields f ON f.key = v.field_key
     LEFT JOIN stored_files sf ON sf.id = v.source_file_id
     WHERE v.id = :value_id AND v.municipality_id = :municipality_id
+      AND v.publish_version_id = (SELECT p.id FROM publish_versions p
+                                  WHERE p.municipality_id = :municipality_id
+                                    AND p.is_current)
     """
 )
 

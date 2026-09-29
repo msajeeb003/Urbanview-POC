@@ -855,167 +855,20 @@
             "description": "Database, object storage or job queue unavailable"
           },
           "200": {
-            "description": "The checksum was already known: the existing record"
+            "description": "The checksum was already known: the existing record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResult"
+                }
+              }
+            }
           },
           "413": {
             "description": "Larger than ADMIN_UPLOAD_MAX_MB (`payload_too_large`)"
           },
           "422": {
             "description": "Extension, content type or signature not accepted for the kind"
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Stored files with their job history",
-        "operationId": "list_files_v1_admin_files_get",
-        "parameters": [
-          {
-            "name": "kind",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/FileKind"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Kind"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileList"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/admin/files/{file_id}": {
-      "get": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Get File",
-        "operationId": "get_file_v1_admin_files__file_id__get",
-        "parameters": [
-          {
-            "name": "file_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "exclusiveMinimum": 0,
-              "title": "File Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StoredFileOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or unknown bearer token (`unauthorized`)"
-          },
-          "403": {
-            "description": "The principal is neither admin nor reviewer (`forbidden`)"
-          },
-          "503": {
-            "description": "Database, object storage or job queue unavailable"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
         }
       }
@@ -1076,7 +929,14 @@
             "description": "Database, object storage or job queue unavailable"
           },
           "200": {
-            "description": "An identical job is already queued or running; returned as is"
+            "description": "An identical job is already queued or running; returned as is",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
           },
           "409": {
             "description": "The file kind has no geometry job"
@@ -1575,7 +1435,14 @@
             "description": "Database, object storage or job queue unavailable"
           },
           "200": {
-            "description": "Every file was already on the version; nothing changed"
+            "description": "Every file was already on the version; nothing changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentOut"
+                }
+              }
+            }
           },
           "404": {
             "description": "No such document"
@@ -1926,7 +1793,14 @@
             "description": "Database, object storage or job queue unavailable"
           },
           "200": {
-            "description": "Nothing new to do: the same file was already read with the same model, prompt and schema versions (that run's job, with its summary), or an identical job is queued or running (returned as is)"
+            "description": "Nothing new to do: the same file was already read with the same model, prompt and schema versions (that run's job, with its summary), or an identical job is queued or running (returned as is)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
           },
           "404": {
             "description": "No such document, or `file_id` is not one of its files"
@@ -2003,7 +1877,14 @@
             "description": "Database, object storage or job queue unavailable"
           },
           "200": {
-            "description": "The same import of the same file is already queued or running"
+            "description": "The same import of the same file is already queued or running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
           },
           "404": {
             "description": "No such stored file"
@@ -3325,7 +3206,14 @@
             "description": "The stored file or the job queue is unavailable"
           },
           "200": {
-            "description": "Already imported and normalised"
+            "description": "Already imported and normalised",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketImportAccepted"
+                }
+              }
+            }
           }
         }
       },
@@ -3345,8 +3233,7 @@
                 {
                   "enum": [
                     "statistics",
-                    "client_ranges",
-                    "listings"
+                    "client_ranges"
                   ],
                   "type": "string"
                 },
@@ -3448,70 +3335,6 @@
         }
       }
     },
-    "/v1/admin/market/listings": {
-      "post": {
-        "tags": [
-          "market data"
-        ],
-        "summary": "Import asking prices pasted from a listings portal",
-        "operationId": "create_listings_v1_admin_market_listings_post",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ListingsImportIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Recorded; normalisation queued (the job's status_url)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MarketImportAccepted"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or unknown bearer token (`unauthorized`)"
-          },
-          "403": {
-            "description": "The principal's role may not do this (`forbidden`)"
-          },
-          "422": {
-            "description": "Not a readable market table, wrong file kind, or bad fields"
-          },
-          "503": {
-            "description": "The stored file or the job queue is unavailable"
-          },
-          "200": {
-            "description": "Already imported and normalised"
-          }
-        }
-      }
-    },
     "/v1/admin/market/imports/{import_id}": {
       "get": {
         "tags": [
@@ -3566,61 +3389,6 @@
           },
           "404": {
             "description": "No such import (`not_found`)"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/admin/market/coverage": {
-      "get": {
-        "tags": [
-          "market data"
-        ],
-        "summary": "Per zone: the sale price per m² with source and date, and what is missing",
-        "operationId": "coverage_v1_admin_market_coverage_get",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MarketCoverage"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or unknown bearer token (`unauthorized`)"
-          },
-          "403": {
-            "description": "The principal's role may not do this (`forbidden`)"
           },
           "422": {
             "description": "Validation Error",
@@ -3798,75 +3566,6 @@
           },
           "403": {
             "description": "The principal's role may not do this (`forbidden`)"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/admin/review/market-inputs/{item_id}": {
-      "get": {
-        "tags": [
-          "market data",
-          "review"
-        ],
-        "summary": "Get Market Input",
-        "operationId": "get_market_input_v1_admin_review_market_inputs__item_id__get",
-        "parameters": [
-          {
-            "name": "item_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "exclusiveMinimum": 0,
-              "title": "Item Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MarketItemOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or unknown bearer token (`unauthorized`)"
-          },
-          "403": {
-            "description": "The principal's role may not do this (`forbidden`)"
-          },
-          "404": {
-            "description": "No such market input (`not_found`)"
           },
           "422": {
             "description": "Validation Error",
@@ -4209,8 +3908,7 @@
                     "urban_parcel",
                     "zone",
                     "block",
-                    "document",
-                    "market_data"
+                    "document"
                   ],
                   "type": "string"
                 },
@@ -8765,119 +8463,6 @@
         ],
         "title": "CoverageIn"
       },
-      "CoverageRate": {
-        "properties": {
-          "metric": {
-            "type": "string",
-            "enum": [
-              "land_rate",
-              "build_rate",
-              "design_rate",
-              "sale_rate"
-            ],
-            "title": "Metric"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "current",
-              "approved_waiting",
-              "pending",
-              "missing"
-            ],
-            "title": "Status",
-            "description": "current: in the zone's current assumptions; approved_waiting: approved, waiting for the other metrics of the zone's first version; pending: awaiting review; missing"
-          },
-          "low": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Low"
-          },
-          "expected": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Expected"
-          },
-          "high": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "High"
-          },
-          "source": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source"
-          },
-          "source_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Date"
-          },
-          "market_data_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Market Data Id",
-            "description": "The reviewed market input that set the current value"
-          },
-          "pending_item_ids": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Pending Item Ids"
-          },
-          "approved_item_ids": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Approved Item Ids"
-          }
-        },
-        "type": "object",
-        "required": [
-          "metric",
-          "status"
-        ],
-        "title": "CoverageRate"
-      },
       "CoverageReason": {
         "type": "string",
         "enum": [
@@ -11240,32 +10825,6 @@
           "market_data"
         ],
         "title": "FileKind"
-      },
-      "FileList": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/StoredFileOut"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "limit": {
-            "type": "integer",
-            "title": "Limit"
-          },
-          "offset": {
-            "type": "integer",
-            "title": "Offset"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "limit",
-          "offset"
-        ],
-        "title": "FileList"
       },
       "FileSummary": {
         "properties": {
@@ -13753,59 +13312,6 @@
         ],
         "title": "LinkedPlannedParcel"
       },
-      "ListingsImportIn": {
-        "properties": {
-          "source": {
-            "type": "string",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Source",
-            "description": "e.g. Realitica, Estitor"
-          },
-          "retrieved_on": {
-            "type": "string",
-            "format": "date",
-            "title": "Retrieved On"
-          },
-          "metric": {
-            "type": "string",
-            "enum": [
-              "sale_rate",
-              "land_rate"
-            ],
-            "title": "Metric",
-            "description": "sale_rate: dwellings (EUR per m² of floor); land_rate: plots (per m² of land)",
-            "default": "sale_rate"
-          },
-          "listings": {
-            "type": "string",
-            "maxLength": 200000,
-            "minLength": 1,
-            "title": "Listings"
-          },
-          "notes": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "source",
-          "retrieved_on",
-          "listings"
-        ],
-        "title": "ListingsImportIn",
-        "description": "Asking prices pasted from a portal: one listing per line, ``location, EUR/m², date``."
-      },
       "LocateQuery": {
         "properties": {
           "mode": {
@@ -14157,50 +13663,6 @@
         "type": "object",
         "title": "MarketApproveIn"
       },
-      "MarketCoverage": {
-        "properties": {
-          "zones": {
-            "items": {
-              "$ref": "#/components/schemas/ZoneCoverage"
-            },
-            "type": "array",
-            "title": "Zones"
-          },
-          "zones_total": {
-            "type": "integer",
-            "title": "Zones Total"
-          },
-          "zones_with_market_data": {
-            "type": "integer",
-            "title": "Zones With Market Data"
-          },
-          "zones_with_reviewed_sale_price": {
-            "type": "integer",
-            "title": "Zones With Reviewed Sale Price"
-          },
-          "zones_without_market_data": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Zones Without Market Data"
-          },
-          "pending_items": {
-            "type": "integer",
-            "title": "Pending Items"
-          }
-        },
-        "type": "object",
-        "required": [
-          "zones",
-          "zones_total",
-          "zones_with_market_data",
-          "zones_with_reviewed_sale_price",
-          "zones_without_market_data",
-          "pending_items"
-        ],
-        "title": "MarketCoverage"
-      },
       "MarketImportAccepted": {
         "properties": {
           "market_import": {
@@ -14320,8 +13782,7 @@
             "type": "string",
             "enum": [
               "statistics",
-              "client_ranges",
-              "listings"
+              "client_ranges"
             ],
             "title": "Kind"
           },
@@ -14680,8 +14141,7 @@
             "type": "string",
             "enum": [
               "statistics",
-              "client_ranges",
-              "listings"
+              "client_ranges"
             ],
             "title": "Import Kind"
           },
@@ -14735,7 +14195,6 @@
             "enum": [
               "stated",
               "derived",
-              "listings",
               "unavailable"
             ],
             "title": "Range Basis"
@@ -15933,30 +15392,6 @@
               }
             ],
             "title": "Tax Number"
-          },
-          "contact_person": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Person",
-            "description": "Orders placed before 0031 only (no longer collected)"
-          },
-          "registered_address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Registered Address",
-            "description": "Orders placed before 0031 only (no longer collected)"
           },
           "customer_id": {
             "anyOf": [
@@ -19510,8 +18945,7 @@
               "urban_parcel",
               "zone",
               "block",
-              "document",
-              "market_data"
+              "document"
             ],
             "title": "Entity Type"
           },
@@ -21279,123 +20713,6 @@
           "is_current_version"
         ],
         "title": "VersionRef"
-      },
-      "ZoneCoverage": {
-        "properties": {
-          "zone_id": {
-            "type": "integer",
-            "title": "Zone Id"
-          },
-          "zone_name": {
-            "type": "string",
-            "title": "Zone Name"
-          },
-          "zone_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Zone Type"
-          },
-          "market_data": {
-            "type": "boolean",
-            "title": "Market Data",
-            "description": "The zone has current assumptions: the panel shows its figures"
-          },
-          "assumptions_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assumptions Id"
-          },
-          "assumptions_version": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assumptions Version"
-          },
-          "effective_from": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Effective From"
-          },
-          "sale_price_eur_m2": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/MarketRange"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The current sale price per m² (null: not covered)"
-          },
-          "sale_price_source": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sale Price Source"
-          },
-          "sale_price_source_date": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sale Price Source Date"
-          },
-          "sale_price_reviewed": {
-            "type": "boolean",
-            "title": "Sale Price Reviewed",
-            "description": "The current sale price was set by an approved market input"
-          },
-          "rates": {
-            "items": {
-              "$ref": "#/components/schemas/CoverageRate"
-            },
-            "type": "array",
-            "title": "Rates"
-          }
-        },
-        "type": "object",
-        "required": [
-          "zone_id",
-          "zone_name",
-          "market_data",
-          "sale_price_reviewed",
-          "rates"
-        ],
-        "title": "ZoneCoverage"
       },
       "ZoneDetail": {
         "properties": {

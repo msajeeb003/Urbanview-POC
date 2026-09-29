@@ -1,11 +1,9 @@
-"""Market-data imports, the market-input review queue and coverage (``core.market``).
+"""Market-data imports and the market-input review queue (``core.market``).
 
 Imports (role admin):
 - ``POST /v1/admin/market/imports`` — register an uploaded table (``POST /v1/admin/files`` with
   ``kind = market_data``): official statistics (Monstat) or the client's range sheet. 202 with the
   queued ``import_market_data`` job; 200 when the same content was already normalised;
-- ``POST /v1/admin/market/listings`` — asking prices pasted from a portal (scraping is deferred
-  to the pilot), one listing per line: location, EUR per m², date;
 - ``GET /v1/admin/market/imports[/{id}]`` — imports with their item counts; the detail adds the
   normalisation report (every row or column left out, and why) and the table as read.
 
@@ -14,10 +12,8 @@ Review (roles admin, reviewer) — the review API for items of type ``market_inp
   metric, import, flag;
 - ``POST /v1/admin/review/market-inputs/{id}/approve | amend | reject`` — an approved or amended
   input writes the zone's next assumptions version (effective date, provenance); reject keeps it
-  out with a reason. Every decision is audited with the state before and after.
-
-``GET /v1/admin/market/coverage`` (admin, reviewer): the sale price per m² of every zone
-with its source and date, and what each zone still lacks.
+  out with a reason. Every decision is audited with the state before and after; each answers
+  the item as decided.
 """
 
 from __future__ import annotations
@@ -30,10 +26,8 @@ from api.deps import AdminPrincipal, MarketServiceDep, ReviewerPrincipal
 from api.schemas.market import (
     ImportKind,
     ImportStatus,
-    ListingsImportIn,
     MarketAmendIn,
     MarketApproveIn,
-    MarketCoverage,
     MarketImportAccepted,
     MarketImportIn,
     MarketImportList,
@@ -81,7 +75,10 @@ IMPORT_RESPONSES = {
     response_model=MarketImportAccepted,
     status_code=202,
     summary="Import an uploaded statistics table or range sheet",
-    responses={**IMPORT_RESPONSES, 200: {"description": "Already imported and normalised"}},
+    responses={
+        **IMPORT_RESPONSES,
+        200: {"model": MarketImportAccepted, "description": "Already imported and normalised"},
+    },
 )
 async def create_import(
     principal: AdminPrincipal,
@@ -90,25 +87,6 @@ async def create_import(
     response: Response,
 ) -> MarketImportAccepted:
     accepted, queued = await service.create_import(principal, payload)
-    if not queued:
-        response.status_code = 200
-    return accepted
-
-
-@router.post(
-    "/market/listings",
-    response_model=MarketImportAccepted,
-    status_code=202,
-    summary="Import asking prices pasted from a listings portal",
-    responses={**IMPORT_RESPONSES, 200: {"description": "Already imported and normalised"}},
-)
-async def create_listings(
-    principal: AdminPrincipal,
-    service: MarketServiceDep,
-    payload: ListingsImportIn,
-    response: Response,
-) -> MarketImportAccepted:
-    accepted, queued = await service.create_listings(principal, payload)
     if not queued:
         response.status_code = 200
     return accepted
@@ -135,16 +113,6 @@ async def get_import(
     principal: ReviewerPrincipal, service: MarketServiceDep, import_id: Id
 ) -> MarketImportOut:
     return await service.get_import(import_id, detail=True)
-
-
-@router.get(
-    "/market/coverage",
-    response_model=MarketCoverage,
-    summary="Per zone: the sale price per m² with source and date, and what is missing",
-    responses=AUTH,
-)
-async def coverage(principal: ReviewerPrincipal, service: MarketServiceDep) -> MarketCoverage:
-    return await service.coverage()
 
 
 @router.get(
@@ -177,18 +145,6 @@ async def list_market_inputs(
         limit=limit,
         offset=offset,
     )
-
-
-@router.get(
-    "/review/market-inputs/{item_id}",
-    response_model=MarketItemOut,
-    tags=["review"],
-    responses={**AUTH, 404: {"description": "No such market input (`not_found`)"}},
-)
-async def get_market_input(
-    principal: ReviewerPrincipal, service: MarketServiceDep, item_id: Id
-) -> MarketItemOut:
-    return await service.get_item(item_id)
 
 
 @router.post(

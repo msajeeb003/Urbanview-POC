@@ -270,12 +270,6 @@ class OrderOut(OrderSummary):
     last_name: str
     telephone: str
     tax_number: str | None = None
-    contact_person: str | None = Field(
-        default=None, description="Orders placed before 0031 only (no longer collected)"
-    )
-    registered_address: str | None = Field(
-        default=None, description="Orders placed before 0031 only (no longer collected)"
-    )
     customer_id: int | None = Field(default=None, description="customers.id (the guest purchaser)")
     message: str | None = None
     assumption_edits: dict[str, Any]

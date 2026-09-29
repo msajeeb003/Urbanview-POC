@@ -10,7 +10,7 @@ their files, jobs, coverage.
 - ``POST /v1/admin/documents/{id}/files``, ``PATCH`` / ``DELETE .../files/{file_id}``: add
   files to the current version, change what a file is read for, take one off (409 once an item
   read from it was approved);
-- ``GET /v1/admin/files`` / ``/documents`` (+ ``/{id}``): listings with job history;
+- ``GET /v1/admin/documents`` (+ ``/{id}``): listings with each file's job history;
 - ``POST /v1/admin/documents/{id}/jobs/extract[?file_id=]`` (one run per file),
   ``POST /v1/admin/files/{id}/jobs/geo``: queue the extraction / geometry job (staging only; both
   run the PDF pre-processing stage first when a PDF's manifest is missing): 202 with the job, or
@@ -45,10 +45,8 @@ from api.schemas.admin import (
     DocumentState,
     DocumentStatus,
     FileKind,
-    FileList,
     JobOut,
     JobStateFilter,
-    StoredFileOut,
     UploadResult,
     ZoneImportIn,
 )
@@ -78,7 +76,10 @@ Id = Annotated[int, Path(gt=0)]
     summary="Upload a planning document PDF, GIS file or cadastral extract (de-duplicated)",
     responses={
         **RESPONSES,
-        200: {"description": "The checksum was already known: the existing record"},
+        200: {
+            "model": UploadResult,
+            "description": "The checksum was already known: the existing record",
+        },
         413: {"description": "Larger than ADMIN_UPLOAD_MAX_MB (`payload_too_large`)"},
         422: {"description": "Extension, content type or signature not accepted for the kind"},
     },
@@ -99,24 +100,6 @@ async def upload_file(
     return result
 
 
-@router.get("/files", response_model=FileList, summary="Stored files with their job history")
-async def list_files(
-    principal: DocumentReaderPrincipal,
-    service: AdminServiceDep,
-    kind: Annotated[FileKind | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
-    offset: Annotated[int, Query(ge=0)] = 0,
-) -> FileList:
-    return await service.list_files(kind=kind, limit=limit, offset=offset)
-
-
-@router.get("/files/{file_id}", response_model=StoredFileOut, responses=RESPONSES)
-async def get_file(
-    principal: DocumentReaderPrincipal, service: AdminServiceDep, file_id: Id
-) -> StoredFileOut:
-    return await service.get_file(file_id)
-
-
 @router.post(
     "/files/{file_id}/jobs/geo",
     status_code=202,
@@ -124,7 +107,10 @@ async def get_file(
     summary="Queue the geometry job for a GIS file or vector PDF (staging only)",
     responses={
         **RESPONSES,
-        200: {"description": "An identical job is already queued or running; returned as is"},
+        200: {
+            "model": JobOut,
+            "description": "An identical job is already queued or running; returned as is",
+        },
         409: {"description": "The file kind has no geometry job"},
     },
 )
@@ -237,7 +223,10 @@ async def update_document(
     summary="Add stored files to the current version of a document",
     responses={
         **RESPONSES,
-        200: {"description": "Every file was already on the version; nothing changed"},
+        200: {
+            "model": DocumentOut,
+            "description": "Every file was already on the version; nothing changed",
+        },
         404: {"description": "No such document"},
         409: {"description": "Not the current version (`not_current_version`)"},
         422: {"description": "Unknown file, not a planning PDF, or a GIS file not as a drawing"},
@@ -321,11 +310,12 @@ async def set_coverage(
     responses={
         **RESPONSES,
         200: {
+            "model": JobOut,
             "description": (
                 "Nothing new to do: the same file was already read with the same model, prompt "
                 "and schema versions (that run's job, with its summary), or an identical job is "
                 "queued or running (returned as is)"
-            )
+            ),
         },
         404: {"description": "No such document, or `file_id` is not one of its files"},
         409: {
@@ -365,7 +355,10 @@ async def enqueue_extract_job(
     summary="Queue the import of a zone GeoPackage drawn in QGIS (validated, then staged)",
     responses={
         **RESPONSES,
-        200: {"description": "The same import of the same file is already queued or running"},
+        200: {
+            "model": JobOut,
+            "description": "The same import of the same file is already queued or running",
+        },
         404: {"description": "No such stored file"},
         409: {"description": "The file is not a GeoPackage GIS file (`not_a_geopackage`)"},
     },

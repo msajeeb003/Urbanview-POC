@@ -35,6 +35,7 @@ def profile(**changes: object) -> CadastreProfile:
     data: dict[str, object] = {
         "source": "uzn_geoportal",
         "ownership_source": "ekatastar",
+        "area_crs_epsg": 25834,
         "ko_names": {"PODGORICA 2": "Podgorica II", "907": "Podgorica II"},
         "sources": {
             "uzn_geoportal": {

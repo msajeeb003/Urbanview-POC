@@ -214,7 +214,7 @@ ELIGIBLE_ITEMS_SQL = """
     JOIN planning_documents d ON d.id = e.document_id AND d.is_current_version
     JOIN planning_fields f ON f.key = e.field_key AND NOT f.computed
     WHERE e.municipality_id = :m AND e.review_state IN ('approved', 'amended')
-      AND e.published_value_id IS NULL AND e.entity_type <> 'market_data'
+      AND e.published_value_id IS NULL
       AND e.superseded_at IS NULL AND e.source_page IS NOT NULL
       AND num_nonnulls(
             CASE WHEN e.review_state = 'amended' THEN e.amended_value_text ELSE e.value_text END,
@@ -233,7 +233,6 @@ SKIPPED_ITEMS_SQL = text(
     f"""
     SELECT e.id, e.document_id, e.entity_type, e.field_key,
            CASE WHEN e.source_page IS NULL THEN 'missing_source_page'
-                WHEN e.entity_type = 'market_data' THEN 'market_data_not_published_yet'
                 WHEN e.field_key IS NULL THEN 'no_field'
                 WHEN NOT EXISTS (SELECT 1 FROM planning_documents d
                                  WHERE d.id = e.document_id AND d.is_current_version)
@@ -297,7 +296,7 @@ GAPS_SQL = text(
         JOIN planning_documents d ON d.id = e.document_id AND d.is_current_version
         JOIN planning_fields f ON f.key = e.field_key AND NOT f.computed
         WHERE e.municipality_id = :m AND e.review_state = 'rejected'
-          AND e.published_value_id IS NULL AND e.entity_type <> 'market_data'
+          AND e.published_value_id IS NULL
           AND e.superseded_at IS NULL
           AND ((e.entity_type = 'urban_parcel'
                 AND EXISTS (SELECT 1 FROM urban_parcels u

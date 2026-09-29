@@ -9,15 +9,17 @@ differs:
   anchor is a point guaranteed inside it (``ST_PointOnSurface``).
 
 Resolution rules:
-- coverage / governing document: the *adopted* document whose coverage contains the anchor;
-  when several do (a DUP inside a PUP), the most specific one (smallest coverage) governs;
+- coverage / governing document: the *adopted*, live, current-version document whose coverage
+  contains the anchor (``core.coverage.LIVE_DOCUMENT``); when several do (a DUP inside a PUP),
+  the most specific one (smallest coverage) governs;
 - planned urban parcels: those containing the anchor, plus those overlapping the cadastral parcel
   by at least ``min_overlap_m2`` and ``min_overlap_fraction`` of its area (so the correspondence is
   surfaced even when the point falls in land the plan takes for roads, and digitising slivers are
   ignored); ordered point-match first, governing document first, largest overlap first;
 - urban block: the primary urban parcel's block, else the block containing the anchor;
-- zone: the governing document's zone, else the zone containing the anchor. Nothing planning-related
-  (document, block, zone, urban parcels) is returned for an uncovered anchor.
+- zone: the governing document's zone, else the zone containing the anchor, with the current
+  versions of its documents. Nothing planning-related (document, block, zone, urban parcels)
+  is returned for an uncovered anchor.
 
 Every table access is index-backed (GiST on geometry, the unique KO+number index, primary keys).
 Parameters: municipality_id, min_overlap_m2, min_overlap_fraction and either (lat, lng) or
@@ -67,6 +69,7 @@ doc AS (
     WHERE d.municipality_id = :municipality_id
       AND d.status = 'adopted'
       AND d.coverage_live
+      AND d.is_current_version
       AND ST_Intersects(d.coverage_geom, a.pt)
     ORDER BY ST_Area(d.coverage_geom) ASC, d.id DESC
     LIMIT 1
@@ -93,6 +96,7 @@ ups AS (
     FROM up_candidates uc
     JOIN urban_parcels u ON u.id = uc.id
     JOIN planning_documents d ON d.id = u.document_id AND d.status = 'adopted' AND d.coverage_live
+                              AND d.is_current_version
     LEFT JOIN urban_blocks b ON b.id = u.block_id
     CROSS JOIN anchor a
 ),
@@ -154,7 +158,7 @@ zone_docs AS (
                                   'status', d.status::text)
                ORDER BY (d.status = 'adopted') DESC, d.name ASC), '[]'::jsonb) AS docs
     FROM planning_documents d
-    WHERE d.zone_id = (SELECT id FROM zone)
+    WHERE d.zone_id = (SELECT id FROM zone) AND d.is_current_version
 )
 SELECT
     (SELECT ST_Y(pt) FROM anchor) AS anchor_lat,

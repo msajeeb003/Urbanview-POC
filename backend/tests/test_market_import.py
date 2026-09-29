@@ -1,6 +1,6 @@
 """Market-data imports (core.market): reading, parsing, rule mapping, the LLM step with a scripted
-model, range completion and pasted listings. No database: zones and configured range factors are
-given directly (the PostGIS path is ``tests/integration/test_market_postgis.py``).
+model and range completion. No database: zones and configured range factors are given directly
+(the PostGIS path is ``tests/integration/test_market_postgis.py``).
 
 Fixtures: ``tests/fixtures/market/monstat_new_dwellings_q4_2025_synthetic.csv`` (the layout of a
 Monstat release table: cp1250, ``;``, decimal commas, a title naming the quarter; SYNTHETIC
@@ -17,10 +17,9 @@ from pathlib import Path
 import pytest
 
 from core.extraction.llm import ModelRefused, ScriptedModel
-from core.market.listings import PastedListings, percentile, portal_source
 from core.market.llm_map import PLACES_SCHEMA, STRUCTURE_SCHEMA
 from core.market.model import RangeFactors, RawTable, Sheet, ZoneRef
-from core.market.normalise import NormaliseContext, normalise_listings, normalise_table
+from core.market.normalise import NormaliseContext, normalise_table
 from core.market.parse import parse_amount, parse_number_token, parse_period, parse_unit
 from core.market.readers import ReadError, read_csv, read_table
 from core.market.rules import HeaderRules, ZoneMatcher
@@ -463,48 +462,3 @@ def test_a_refusing_model_leaves_the_rules_result_and_says_so():
     )
     assert len(result.inputs) == 4
     assert any("could not place" in issue for issue in result.issues)
-
-
-# --- pasted listings ------------------------------------------------------------------------------
-
-
-LISTINGS = """Lokacija; Cijena €/m²; Datum
-# Realitica, septembar 2026
-Centar, Njegoševa; 2.400; 02.09.2026
-Centar grada; 2.100 €/m²; 2026-09-05
-centar; 2.650; 06.09.2026
-Centar - Hercegovačka; 2.300; 07.09.2026
-Centar; 2.500; 10.09.2026
-Centar; 12; 10.09.2026
-Stari Aerodrom; 1.700; 11.09.2026
-Stari Aerodrom; 1.650; 12.09.2026
-Podgorica; 1.900; 12.09.2026
-Tološi; 1.500; 12.09.2026
-Masline; 1.550;
-nije oglas
-"""
-
-
-def test_pasted_listings_give_the_median_and_quartiles_per_zone():
-    batch = PastedListings(LISTINGS).fetch()
-    assert len(batch.listings) == 10
-    why = {s.reason for s in batch.skipped}
-    assert {"header", "comment", "listing_date_missing", "listing_unreadable"} <= why
-    result = normalise_listings(batch, context("listings", source="Realitica"), min_listings=5)
-    (centar,) = result.inputs
-    assert (centar.zone_id, centar.metric, centar.range_basis) == (1, "sale_rate", "listings")
-    assert (centar.low, centar.expected, centar.high) == (2300, 2400, 2500)
-    assert centar.source_date == date(2026, 9, 10) and "asking_prices" in centar.flags
-    assert len(centar.raw["listings"]) == 5
-    skipped = reasons(result)
-    assert skipped["implausible_price"][0].detail.startswith("12")  # 12 EUR/m²: excluded, said
-    assert skipped["too_few_listings"][0].detail.startswith("Stari Aerodrom: 2 listings")
-    assert skipped["not_zone_specific"][0].detail == "Podgorica"
-    assert skipped["no_zone_match"][0].detail == "Tološi"
-
-
-def test_percentiles_interpolate_and_portals_are_deferred():
-    assert percentile([1, 2, 3, 4], 50) == 2.5
-    assert percentile([10.0], 25) == 10.0
-    with pytest.raises(NotImplementedError, match="pilot"):
-        portal_source("realitica")

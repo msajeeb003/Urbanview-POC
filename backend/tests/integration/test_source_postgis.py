@@ -5,7 +5,7 @@ Storage is mocked: only the signing is faked, the lookups are real."""
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import event
+from sqlalchemy import event, text
 
 from tests.helpers import make_app, make_client
 from tests.test_source import FakeStorage
@@ -57,6 +57,50 @@ async def test_document_pages_and_the_404s(source_app):
     assert no_document.status_code == 404 and no_value.status_code == 404
     assert no_document.json()["error"]["details"] == {"document_id": 999999}
     assert no_value.json()["error"]["details"] == {"value_id": 999999}
+
+
+async def test_a_value_of_another_version_is_not_served(source_app):
+    """Only the current version's values are served (API check 2026-09-30): the id of a value of
+    any other version answers 404 like an id that does not exist."""
+    app = source_app
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        async with app.state.session_factory() as session:
+            version_id = (
+                await session.execute(
+                    text(
+                        "INSERT INTO publish_versions (municipality_id, label, version_no, "
+                        "published_at, formula_version, is_current) VALUES ('podgorica', "
+                        "'earlier-test', 900, now(), 'poc-1', false) RETURNING id"
+                    )
+                )
+            ).scalar_one()
+            value_id = (
+                await session.execute(
+                    text(
+                        "INSERT INTO planning_parameter_values (municipality_id, document_id, "
+                        "urban_parcel_id, field_key, value_number, source_page, "
+                        "publish_version_id) VALUES ('podgorica', 2, 1, 'max_far', 1.1, 12, :v) "
+                        "RETURNING id"
+                    ),
+                    {"v": version_id},
+                )
+            ).scalar_one()
+            await session.commit()
+        try:
+            other = await client.get(f"/v1/source/value/{value_id}")
+            current = await client.get("/v1/source/value/1")
+        finally:
+            async with app.state.session_factory() as session:
+                await session.execute(
+                    text("DELETE FROM planning_parameter_values WHERE id = :id"), {"id": value_id}
+                )
+                await session.execute(
+                    text("DELETE FROM publish_versions WHERE id = :id"), {"id": version_id}
+                )
+                await session.commit()
+    assert other.status_code == 404
+    assert other.json()["error"]["details"] == {"value_id": value_id}
+    assert current.status_code == 200, current.text
 
 
 async def test_a_panel_source_reference_opens_in_one_click(source_app):

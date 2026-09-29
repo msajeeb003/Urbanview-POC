@@ -58,7 +58,7 @@ in `backend/pyproject.toml`).
   token with the `admin` role from `ADMIN_API_TOKENS`)
 - Staff pipeline API (role `admin`; config tokens or staff sessions from `python -m core.staff`):
   `POST /v1/admin/files` (de-duplicated uploads), `POST /v1/admin/documents` (versioned
-  registration), `GET /v1/admin/files|documents`, `POST /v1/admin/documents/{id}/jobs/extract`,
+  registration), `GET /v1/admin/documents`, `POST /v1/admin/documents/{id}/jobs/extract`,
   `POST /v1/admin/files/{id}/jobs/geo` (idempotent per target + file checksum),
   `GET /v1/admin/jobs` (+ `/{id}`, `/{id}/retry`: status, attempts, LLM cost per job),
   `POST /v1/admin/publish` (everything approved → new serving version → PMTiles archive →

@@ -47,7 +47,6 @@ const ENTITY_NAMES: Record<ReviewEntityType, string> = {
   block: "Block",
   zone: "Zone",
   document: "Whole plan",
-  market_data: "Market data",
 };
 
 export function entityName(type: ReviewEntityType): string {
@@ -66,8 +65,6 @@ export function targetLabel(target: ReviewTarget): string {
       return target.block_ref ?? target.label ?? "block";
     case "zone":
       return target.zone_name ?? target.label ?? "zone";
-    case "market_data":
-      return target.zone_name ?? "municipality";
     default:
       return "whole plan";
   }
@@ -240,7 +237,6 @@ export const ENTITY_TYPES: readonly { value: ReviewEntityType; label: string }[]
   { value: "block", label: "Block" },
   { value: "document", label: "Whole plan" },
   { value: "zone", label: "Zone" },
-  { value: "market_data", label: "Market data" },
 ];
 
 export const SORTS: readonly { value: ReviewSort; label: string }[] = [

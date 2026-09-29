@@ -59,7 +59,6 @@ from api.schemas.admin import (
     DocumentPatchIn,
     ExtractionRunOut,
     FileKind,
-    FileList,
     FileRole,
     FileSummary,
     GeoreferenceOut,
@@ -1056,22 +1055,6 @@ class AdminService:
         if row is None:
             raise NotFoundError(f"No stored file with id {file_id}", details={"file_id": file_id})
         return _file_out(row)
-
-    async def list_files(
-        self, *, kind: FileKind | None = None, limit: int = 50, offset: int = 0
-    ) -> FileList:
-        params: dict[str, Any] = {
-            "m": self.municipality_id,
-            "jobs_limit": self.jobs_limit,
-            "limit": limit,
-            "offset": offset,
-        }
-        extra = ""
-        if kind is not None:
-            extra, params["kind"] = "AND f.kind = :kind", kind.value
-        async with self.session_factory() as session:
-            rows = (await session.execute(text(_file_sql(extra)), params)).mappings().all()
-        return FileList(items=[_file_out(r) for r in rows], limit=limit, offset=offset)
 
     # --- documents -------------------------------------------------------------------------------
 

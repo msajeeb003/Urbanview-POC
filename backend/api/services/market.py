@@ -35,14 +35,11 @@ from starlette.concurrency import run_in_threadpool
 
 from api.schemas.admin_config import AssumptionsIn, RateIn
 from api.schemas.market import (
-    CoverageRate,
     CurrentRate,
     ItemCounts,
     JobRef,
-    ListingsImportIn,
     MarketAmendIn,
     MarketApproveIn,
-    MarketCoverage,
     MarketImportAccepted,
     MarketImportIn,
     MarketImportList,
@@ -50,7 +47,6 @@ from api.schemas.market import (
     MarketItemOut,
     MarketItemPage,
     MarketRange,
-    ZoneCoverage,
 )
 from api.services.admin_config import (
     RATES,
@@ -269,26 +265,6 @@ def _factors_from_ranges(rates: Mapping[str, RateIn]) -> tuple[float, float]:
 
 MARK_APPLIED_SQL = text(
     "UPDATE market_data SET applied_assumption_id = :assumption_id WHERE id = ANY(:ids)"
-)
-COVERAGE_ZONES_SQL = text(
-    "SELECT id, name, zone_type FROM zones WHERE municipality_id = :m ORDER BY name ASC, id ASC"
-)
-COVERAGE_ROWS_SQL = text(
-    f"""
-    SELECT f.id, f.zone_id, f.version, f.range_low_factor, f.range_high_factor, f.source,
-           f.source_date, f.rate_sources, f.effective_from, {_RATE_COLUMNS}
-    FROM ({live_versions_sql()}) f
-    WHERE f.zone_id IS NOT NULL
-    """
-)
-OPEN_ITEMS_SQL = text(
-    """
-    SELECT id, zone_id, metric, review_status::text AS review_status
-    FROM market_data
-    WHERE municipality_id = :m AND applied_assumption_id IS NULL
-      AND review_status IN ('pending_review', 'approved', 'amended')
-    ORDER BY id
-    """
 )
 
 
@@ -544,41 +520,6 @@ class MarketService:
                         "file_id": payload.file_id,
                         "sha256": created.sha256,
                         "rows": created.row_count,
-                    },
-                )
-            await session.commit()
-        return await self._queue(principal, created.id, created.created, created.sha256)
-
-    async def create_listings(
-        self, principal: Principal, payload: ListingsImportIn
-    ) -> tuple[MarketImportAccepted, bool]:
-        async with self.session_factory() as session:
-            try:
-                created = await self.importer.record_listings(
-                    session,
-                    source=payload.source,
-                    retrieved_on=payload.retrieved_on,
-                    metric=payload.metric,
-                    pasted=payload.listings,
-                    notes=payload.notes,
-                    created_by=principal.subject,
-                    created_by_user_id=principal.user_id,
-                )
-            except MarketImportError as exc:
-                raise _validation_error(["body", "listings"], str(exc)) from exc
-            if created.created:
-                await self._audit(
-                    session,
-                    principal,
-                    "market.import",
-                    "market_import",
-                    created.id,
-                    {
-                        "kind": "listings",
-                        "source": payload.source,
-                        "metric": payload.metric,
-                        "sha256": created.sha256,
-                        "lines": created.row_count,
                     },
                 )
             await session.commit()
@@ -1002,88 +943,3 @@ class MarketService:
         )
         await session.execute(MARK_APPLIED_SQL, {"assumption_id": new_id, "ids": ids})
         return new_id
-
-    # --- coverage ---------------------------------------------------------------------------------
-
-    async def coverage(self) -> MarketCoverage:
-        m = self.municipality_id
-        async with self.session_factory() as session:
-            zones = (await session.execute(COVERAGE_ZONES_SQL, {"m": m})).mappings().all()
-            rows = {
-                int(r["zone_id"]): r
-                for r in (
-                    await session.execute(COVERAGE_ROWS_SQL, {"m": m, "tz": self._tz})
-                ).mappings()
-            }
-            open_items = (await session.execute(OPEN_ITEMS_SQL, {"m": m})).mappings().all()
-        pending: dict[tuple[int, str], list[int]] = {}
-        approved: dict[tuple[int, str], list[int]] = {}
-        for item in open_items:
-            target = pending if item["review_status"] == "pending_review" else approved
-            target.setdefault((int(item["zone_id"]), item["metric"]), []).append(int(item["id"]))
-        out = []
-        for zone in zones:
-            zone_id = int(zone["id"])
-            row = rows.get(zone_id)
-            sources = dict(row["rate_sources"] or {}) if row is not None else {}
-            rates = []
-            for metric in METRICS:
-                key = (zone_id, metric)
-                entry = CoverageRate(
-                    metric=metric,  # type: ignore[arg-type]
-                    status="missing",
-                    pending_item_ids=pending.get(key, []),
-                    approved_item_ids=approved.get(key, []),
-                )
-                if row is not None:
-                    prefix = metric.removesuffix("_rate")
-                    rate = rate_range(
-                        float(row[f"{prefix}_rate_eur_m2"]),
-                        row[f"{prefix}_rate_low_eur_m2"],
-                        row[f"{prefix}_rate_high_eur_m2"],
-                        float(row["range_low_factor"]),
-                        float(row["range_high_factor"]),
-                    )
-                    provenance = sources.get(metric) or {}
-                    entry.status = "current"
-                    entry.low, entry.expected, entry.high = rate.low, rate.expected, rate.high
-                    entry.source = provenance.get("source") or row["source"]
-                    entry.source_date = (
-                        _as_date(provenance.get("source_date")) or row["source_date"]
-                    )
-                    entry.market_data_id = provenance.get("market_data_id")
-                elif key in approved:
-                    entry.status = "approved_waiting"
-                elif key in pending:
-                    entry.status = "pending"
-                rates.append(entry)
-            sale = next(r for r in rates if r.metric == "sale_rate")
-            out.append(
-                ZoneCoverage(
-                    zone_id=zone_id,
-                    zone_name=zone["name"],
-                    zone_type=zone["zone_type"],
-                    market_data=row is not None,
-                    assumptions_id=row["id"] if row is not None else None,
-                    assumptions_version=row["version"] if row is not None else None,
-                    effective_from=row["effective_from"] if row is not None else None,
-                    sale_price_eur_m2=MarketRange(
-                        low=sale.low, expected=sale.expected, high=sale.high
-                    )
-                    if sale.status == "current" and sale.expected is not None
-                    else None,
-                    sale_price_source=sale.source if sale.status == "current" else None,
-                    sale_price_source_date=sale.source_date if sale.status == "current" else None,
-                    sale_price_reviewed=sale.status == "current"
-                    and sale.market_data_id is not None,
-                    rates=rates,
-                )
-            )
-        return MarketCoverage(
-            zones=out,
-            zones_total=len(out),
-            zones_with_market_data=sum(1 for z in out if z.market_data),
-            zones_with_reviewed_sale_price=sum(1 for z in out if z.sale_price_reviewed),
-            zones_without_market_data=[z.zone_name for z in out if not z.market_data],
-            pending_items=sum(len(v) for v in pending.values()),
-        )

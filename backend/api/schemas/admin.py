@@ -200,12 +200,6 @@ class UploadResult(BaseModel):
     created: bool = Field(description="false when the checksum was already known (no new object)")
 
 
-class FileList(BaseModel):
-    items: list[StoredFileOut]
-    limit: int
-    offset: int
-
-
 class FileSummary(BaseModel):
     id: int
     kind: FileKind

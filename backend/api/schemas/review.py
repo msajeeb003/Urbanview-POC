@@ -1,7 +1,7 @@
 """Schemas for the expert review queue (``/v1/admin/review``) and the audit trail
 (``/v1/admin/audit``). A review item carries everything a reviewer needs to open the cited page
 and check the value: the parameter with its labels, the AI value with unit, the reviewer's
-corrected value when amended, the target (zone / block / urban parcel / market data), and the
+corrected value when amended, the target (zone / block / urban parcel / document), and the
 source payload (document, page, bbox, raw text snippet, confidence, a signed link to the page),
 and the staged payload: the value as the document printed it and what the contract did with it.
 Notes are trimmed: a reason made of spaces is no reason (422)."""
@@ -14,7 +14,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 ReviewStatus = Literal["pending", "approved", "amended", "rejected"]
-EntityType = Literal["urban_parcel", "zone", "block", "document", "market_data"]
+EntityType = Literal["urban_parcel", "zone", "block", "document"]
 # Queue order: pending first then page / parcel / field (default); page / parcel / field whatever
 # the status; pending first then the lowest confidence.
 ReviewSort = Literal["pending", "page", "confidence"]

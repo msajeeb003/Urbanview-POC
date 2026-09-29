@@ -543,13 +543,14 @@ class PlanningParameterExtraction(Base):
     urban_parcel_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("urban_parcels.id", ondelete="CASCADE")
     )
-    # Review queue (migration 0008): the target beyond the urban parcel, the parameter key for
-    # market data rows (no planning field), the snippet, the confidence, the reviewer's correction.
+    # Review queue (migration 0008): the target beyond the urban parcel, the parameter key, the
+    # snippet, the confidence, the reviewer's correction. Market inputs have their own queue
+    # (market_data, 0019).
     entity_type: Mapped[str] = mapped_column(
         Text,
         nullable=False,
         server_default=text("'urban_parcel'"),
-        comment="urban_parcel | zone | block | document | market_data",
+        comment="urban_parcel | zone | block | document",
     )
     zone_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("zones.id", ondelete="SET NULL")
@@ -560,9 +561,7 @@ class PlanningParameterExtraction(Base):
     field_key: Mapped[str | None] = mapped_column(
         Text, ForeignKey("planning_fields.key"), nullable=True
     )
-    parameter_key: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="planning field key, or a market rate key for market_data"
-    )
+    parameter_key: Mapped[str] = mapped_column(Text, nullable=False, comment="planning field key")
     value_text: Mapped[str | None] = mapped_column(Text)
     value_number: Mapped[float | None] = mapped_column(Float(53))
     unit: Mapped[str | None] = mapped_column(Text)
@@ -680,11 +679,11 @@ class PlanningParameterExtraction(Base):
         ),
         Index("ix_planning_parameter_extractions_page", "document_id", "source_page"),
         CheckConstraint(
-            "entity_type IN ('urban_parcel', 'zone', 'block', 'document', 'market_data')",
+            "entity_type IN ('urban_parcel', 'zone', 'block', 'document')",
             name="ck_planning_parameter_extractions_entity",
         ),
         CheckConstraint(
-            "(entity_type = 'market_data') = (field_key IS NULL)",
+            "field_key IS NOT NULL",
             name="ck_planning_parameter_extractions_key",
         ),
         CheckConstraint(

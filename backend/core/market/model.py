@@ -18,9 +18,8 @@ Metric = Literal["land_rate", "build_rate", "design_rate", "sale_rate"]
 METRICS: tuple[Metric, ...] = ("land_rate", "build_rate", "design_rate", "sale_rate")
 Bound = Literal["low", "expected", "high"]
 BOUNDS: tuple[Bound, ...] = ("low", "expected", "high")
-ImportKind = Literal["statistics", "client_ranges", "listings"]
-IMPORT_KINDS: tuple[ImportKind, ...] = ("statistics", "client_ranges", "listings")
-RangeBasis = Literal["stated", "derived", "listings", "unavailable"]
+ImportKind = Literal["statistics", "client_ranges"]
+RangeBasis = Literal["stated", "derived", "unavailable"]
 
 # What the metric means (the engine's rates, core.engine.feasibility): also the model's glossary.
 METRIC_MEANING: dict[Metric, str] = {
@@ -51,7 +50,7 @@ class Sheet:
 
 @dataclass(slots=True)
 class RawTable:
-    """A file as read: ``format`` csv | xlsx | listings, ``sheets`` of untouched cells."""
+    """A file as read: ``format`` csv | xlsx, ``sheets`` of untouched cells."""
 
     format: str
     sheets: list[Sheet]

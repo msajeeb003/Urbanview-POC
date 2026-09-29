@@ -127,7 +127,14 @@ async def test_preprocessing_persists_the_manifest_and_reports_scanned_pages(pre
         ]
         assert all(storage.get_bytes(k).startswith(b"\x89PNG") for k in keys)
 
-        file_out = (await client.get(f"/v1/admin/files/{file_id}", headers=auth())).json()
+        again_up = await client.post(
+            "/v1/admin/files",
+            files={"file": ("plan.pdf", pdf, "application/pdf")},
+            data={"kind": "planning_document"},
+            headers=auth(),
+        )
+        assert again_up.status_code == 200, again_up.text
+        file_out = again_up.json()["file"]
         document_out = (
             await client.get(f"/v1/admin/documents/{document_id}", headers=auth())
         ).json()

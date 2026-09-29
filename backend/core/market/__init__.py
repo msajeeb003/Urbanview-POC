@@ -1,13 +1,13 @@
 """Market-data imports: zone-level low / expected / high inputs for the feasibility engine.
 
 Spec: ``docs/specs/market-data.md``. Market figures come from official statistics (Monstat:
-selling prices and construction cost of new dwellings), the client's range sheet (per zone: land,
-construction, design and sale per m², low / high) and asking prices staff paste from the listing
-portals (Realitica, Estitor; scraping is deferred to the pilot). The path:
+selling prices and construction cost of new dwellings) and the client's range sheet (per zone:
+land, construction, design and sale per m², low / high); portal listings (Realitica, Estitor)
+are the pilot's. The path:
 
-1. **record** (:mod:`core.market.pipeline`): the file (``stored_files``, kind ``market_data``) or
-   the pasted text is read as it is (:mod:`core.market.readers`) into ``market_imports`` with
-   its source, retrieval date and checksum (the same content twice is one import);
+1. **record** (:mod:`core.market.pipeline`): the file (``stored_files``, kind ``market_data``)
+   is read as it is (:mod:`core.market.readers`) into ``market_imports`` with its source,
+   retrieval date and checksum (the same content twice is one import);
 2. **normalise** (job ``import_market_data``, :mod:`core.market.normalise`): the rules
    (:mod:`core.market.rules`, the profile's ``[market]`` words) and, where they cannot, the LLM
    (:mod:`core.market.llm_map`: which column is which metric and bound, which zone an area name
@@ -23,7 +23,6 @@ The CLI (``python -m core.market``) records and normalises without the queue.
 """
 
 from core.market.model import (
-    IMPORT_KINDS,
     METRICS,
     MarketInput,
     NormaliseResult,
@@ -33,7 +32,6 @@ from core.market.model import (
 )
 
 __all__ = [
-    "IMPORT_KINDS",
     "METRICS",
     "MarketInput",
     "NormaliseResult",

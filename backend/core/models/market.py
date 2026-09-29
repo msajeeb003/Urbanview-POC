@@ -32,24 +32,17 @@ from sqlalchemy.orm import Mapped, mapped_column
 from core.db import Base
 from core.models.panel import ReviewState
 
-IMPORT_KINDS: tuple[str, ...] = ("statistics", "client_ranges", "listings")
-IMPORT_STATUSES: tuple[str, ...] = ("received", "normalised", "failed")
-MARKET_METRICS: tuple[str, ...] = ("land_rate", "build_rate", "design_rate", "sale_rate")
-RANGE_BASES: tuple[str, ...] = ("stated", "derived", "listings", "unavailable")
-
 
 class MarketImport(Base):
     __tablename__ = "market_imports"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     municipality_id: Mapped[str] = mapped_column(Text, nullable=False)
-    kind: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="statistics | client_ranges | listings"
-    )
+    kind: Mapped[str] = mapped_column(Text, nullable=False, comment="statistics | client_ranges")
     source: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        comment="who published the figures: Monstat, the client, a listings portal",
+        comment="who published the figures: Monstat or the client",
     )
     retrieved_on: Mapped[date] = mapped_column(
         Date, nullable=False, comment="when the figures were retrieved or received"
@@ -57,12 +50,10 @@ class MarketImport(Base):
     file_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("stored_files.id", ondelete="SET NULL"),
-        comment="the uploaded table; null for pasted listings",
+        comment="the uploaded table",
     )
     filename: Mapped[str | None] = mapped_column(Text)
-    sha256: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="checksum of the file, or of the pasted listings"
-    )
+    sha256: Mapped[str] = mapped_column(Text, nullable=False, comment="checksum of the file")
     raw: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, comment="the table as read, cells untouched"
     )
@@ -94,9 +85,7 @@ class MarketImport(Base):
     normalised_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
-        CheckConstraint(
-            "kind IN ('statistics', 'client_ranges', 'listings')", name="ck_market_imports_kind"
-        ),
+        CheckConstraint("kind IN ('statistics', 'client_ranges')", name="ck_market_imports_kind"),
         CheckConstraint(
             "status IN ('received', 'normalised', 'failed')", name="ck_market_imports_status"
         ),
@@ -131,7 +120,7 @@ class MarketDataItem(Base):
     range_basis: Mapped[str] = mapped_column(
         Text,
         nullable=False,
-        comment="stated | derived (configured range factors) | listings | unavailable",
+        comment="stated | derived (configured range factors) | unavailable",
     )
     source: Mapped[str] = mapped_column(Text, nullable=False)
     source_date: Mapped[date | None] = mapped_column(
@@ -189,7 +178,7 @@ class MarketDataItem(Base):
             name="ck_market_data_metric",
         ),
         CheckConstraint(
-            "range_basis IN ('stated', 'derived', 'listings', 'unavailable')",
+            "range_basis IN ('stated', 'derived', 'unavailable')",
             name="ck_market_data_range_basis",
         ),
         CheckConstraint(

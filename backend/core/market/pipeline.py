@@ -9,7 +9,6 @@ review decision writes a new assumptions version (``api.services.market``).
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 from collections.abc import Callable
@@ -21,16 +20,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from core.extraction.llm import StructuredModel
-from core.market.listings import PastedListings
 from core.market.model import (
     ImportKind,
-    Metric,
     NormaliseResult,
     RangeFactors,
     RawTable,
     ZoneRef,
 )
-from core.market.normalise import NormaliseContext, normalise_listings, normalise_table
+from core.market.normalise import NormaliseContext, normalise_table
 from core.market.readers import read_table, sha256_hex
 from core.municipality import load_market_profile
 
@@ -100,10 +97,6 @@ class CreatedImport:
     created: bool
     sha256: str
     row_count: int
-
-
-def listings_checksum(metric: str, lines: list[str]) -> str:
-    return hashlib.sha256(("\n".join([f"metric={metric}", *lines])).encode("utf-8")).hexdigest()
 
 
 async def load_context(
@@ -245,36 +238,6 @@ class MarketImporter:
             created_by_user_id=created_by_user_id,
         )
 
-    async def record_listings(
-        self,
-        session: AsyncSession,
-        *,
-        source: str,
-        retrieved_on: date,
-        metric: Metric,
-        pasted: str,
-        notes: str | None = None,
-        created_by: str = "cli",
-        created_by_user_id: int | None = None,
-    ) -> CreatedImport:
-        batch = PastedListings(pasted).fetch()
-        if not batch.lines:
-            raise MarketImportError("nothing was pasted")
-        return await self._record(
-            session,
-            kind="listings",
-            source=source,
-            retrieved_on=retrieved_on,
-            sha=listings_checksum(metric, batch.lines),
-            raw={"format": "listings", "metric": metric, "lines": batch.lines},
-            row_count=len(batch.lines),
-            file_id=None,
-            filename=None,
-            notes=notes,
-            created_by=created_by,
-            created_by_user_id=created_by_user_id,
-        )
-
     # --- normalising ------------------------------------------------------------------------------
 
     async def normalise(self, import_id: int, *, job_id: int | None = None) -> dict[str, Any]:
@@ -305,20 +268,7 @@ class MarketImporter:
         model = None
         if ctx.mode != "never" and self.model_factory is not None:
             model = self.model_factory()
-        raw = row["raw"]
-        if row["kind"] == "listings":
-            batch = PastedListings("\n".join(raw["lines"])).fetch()
-            result = normalise_listings(
-                batch,
-                ctx,
-                metric=raw["metric"],
-                min_listings=self.settings.market_min_listings,
-                low_percentile=self.settings.market_listings_low_percentile,
-                high_percentile=self.settings.market_listings_high_percentile,
-                model=model,
-            )
-        else:
-            result = normalise_table(RawTable.from_json(raw), ctx, model)
+        result = normalise_table(RawTable.from_json(row["raw"]), ctx, model)
         if model is None and ctx.mode != "never":
             result.issues.append("no LLM configured: the rules alone mapped this import")
         await self.store(import_id, result, job_id=job_id)

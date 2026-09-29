@@ -256,9 +256,3 @@ def parse_period(text: str | None, words: MarketPeriods | None = None) -> Period
     if years:
         return Period(date(max(years), 12, 31), str(max(years)), "year")
     return None
-
-
-def parse_date(text: str | None) -> date | None:
-    """A listing date: ISO, d.m.yyyy, d/m/yyyy (the day must be stated)."""
-    period = parse_period(text)
-    return period.reference_date if period is not None and period.precision == "day" else None

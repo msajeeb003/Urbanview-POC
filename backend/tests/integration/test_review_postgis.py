@@ -134,19 +134,6 @@ async def staff_token(app, email: str, role: str) -> str:
 async def test_queue_lists_everything_a_reviewer_needs(review_app):
     app = review_app
     async with app.router.lifespan_context(app), make_client(app) as client:
-        market_id = await insert_item(
-            app,
-            document_id=1,
-            urban_parcel_id=None,
-            entity_type="market_data",
-            zone_id=1,
-            field_key=None,
-            parameter_key="sale_rate_eur_m2",
-            value_number=2400,
-            unit="EUR/m²",
-            source_page=3,
-            raw_text="prosječna cijena 2.400 €/m²",
-        )
         reviewer = await staff_token(app, "reviewer@example.com", "reviewer")
         expert = await staff_token(app, "expert@example.com", "expert")
         pending = await client.get("/v1/admin/review", params={"status": "pending"}, headers=auth())
@@ -156,9 +143,6 @@ async def test_queue_lists_everything_a_reviewer_needs(review_app):
         )
         none = await client.get("/v1/admin/review", params={"document_id": 4}, headers=auth())
         zone = await client.get("/v1/admin/review", params={"zone_id": 1}, headers=auth())
-        market = await client.get(
-            "/v1/admin/review", params={"entity_type": "market_data"}, headers=auth()
-        )
         page13 = await client.get(
             "/v1/admin/review", params={"document_id": 2, "source_page": 13}, headers=auth()
         )
@@ -188,31 +172,11 @@ async def test_queue_lists_everything_a_reviewer_needs(review_app):
     assert item["extracted_by"] == "llm:sample" and item["published"] is False
     assert item["reviewed_by"] is None
 
-    market_item = next(i for i in items if i["id"] == market_id)
-    assert market_item["target"] == {
-        "entity_type": "market_data",
-        "urban_parcel_id": None,
-        "urban_parcel_number": None,
-        "block_id": None,
-        "block_ref": None,
-        "zone_id": 1,
-        "zone_name": "Centar",
-        "label": None,
-        "matched": True,
-    }
-    assert market_item["label_en"] == "Selling price per m²"
-    assert market_item["extracted"] == {"text": None, "number": 2400.0, "unit": "EUR/m²"}
-    assert (
-        market_item["source"]["raw_text"].startswith("prosječna")
-        and market_item["source"]["confidence"] == 0.82
-    )
-
     assert one.json()["total"] >= 2 and len(one.json()["items"]) == 1
     assert one.json()["items"][0]["status"] == "pending"  # pending first
     assert [i["id"] for i in rejected.json()["items"]] == [2]
     assert none.json()["total"] == 0 and none.json()["items"] == []
     assert 1 in [i["id"] for i in zone.json()["items"]]
-    assert [i["id"] for i in market.json()["items"]] == [market_id]
     assert [i["id"] for i in page13.json()["items"]] == [1]
     # the pilot scope's roles: reviewers approve extractions; experts produce reports only
     assert as_reviewer.status_code == 200 and as_expert.status_code == 403

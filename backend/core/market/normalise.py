@@ -1,4 +1,4 @@
-"""Normalisation: from a table as read (or pasted listings) to zone-level market inputs.
+"""Normalisation: from a table as read to zone-level market inputs.
 
 For a table: the rules map each sheet (:mod:`core.market.rules`); the LLM maps what they cannot
 (``MARKET_NORMALISE_LLM``: ``auto`` = only then, ``always``, ``never``) and places the area names
@@ -12,8 +12,7 @@ Ranges, never invented: a stated range (low / high columns, or a range in one ce
 takes the configured range factors of the zone's current assumptions (else the municipality-wide
 row's): ``derived``, flagged ``range_derived``; with none configured the range stays empty
 (``unavailable``, flagged ``range_unavailable``) and approving needs a reviewer's amendment.
-Listings give the median and the configured percentiles (``listings``, flagged
-``asking_prices``). The AI interprets; every number is code arithmetic.
+The AI interprets; every number is code arithmetic.
 """
 
 from __future__ import annotations
@@ -24,7 +23,6 @@ from datetime import date
 from typing import Literal
 
 from core.extraction.llm import ModelError, StructuredModel
-from core.market.listings import Listing, ListingBatch, percentile
 from core.market.llm_map import (
     MARKET_PROMPT_VERSION,
     AiPlace,
@@ -64,7 +62,6 @@ from core.market.rules import (
     ZoneMatcher,
     allowed_metrics,
     column_skips,
-    row_place,
 )
 from core.municipality import MarketProfile
 
@@ -554,112 +551,6 @@ class Normaliser:
         if confidence < self.ctx.low_confidence:
             flags.append("low_confidence")
 
-    # --- listings ---------------------------------------------------------------------------------
-
-    def listings(
-        self,
-        batch: ListingBatch,
-        *,
-        metric: Metric,
-        min_listings: int,
-        low_percentile: float,
-        high_percentile: float,
-    ) -> NormaliseResult:
-        self.skipped.extend(batch.skipped)
-        places = {
-            listing.line: row_place(
-                listing.line, listing.location, self.matcher.match(listing.location)
-            )
-            for listing in batch.listings
-        }
-        unresolved = {p.geography_as_printed for p in places.values() if p.applies_to == "none"}
-        ai = self._ask_places(sorted(n for n in unresolved if n))
-        by_zone: dict[int, list[tuple[Listing, float, str]]] = defaultdict(list)
-        plausible = self.ctx.profile.plausible_eur_m2.get(metric)
-        for listing in batch.listings:
-            place = places[listing.line]
-            if place.applies_to == "none" and listing.location in ai:
-                place = _ai_row(place, ai[listing.location])
-            zone_id = place.zone_id
-            if place.applies_to != "zone" or zone_id is None:
-                why = {"municipality": "not_zone_specific", "other": "other_area"}.get(
-                    place.applies_to, "no_zone_match"
-                )
-                self.skipped.append(Skipped(why, row=listing.line, detail=listing.location))
-                continue
-            confidence, method = place.confidence, place.method
-            if plausible and not plausible[0] <= listing.price_eur_m2 <= plausible[1]:
-                self.skipped.append(
-                    Skipped(
-                        "implausible_price",
-                        row=listing.line,
-                        detail=f"{listing.price_eur_m2} EUR/m² ({listing.location})",
-                    )
-                )
-                continue
-            by_zone[zone_id].append((listing, confidence, method))
-        normaliser = _normaliser(self.log)
-        names = {z.id: z.name for z in self.ctx.zones}
-        inputs = []
-        for zone_id, entries in sorted(by_zone.items()):
-            if len(entries) < min_listings:
-                self.skipped.append(
-                    Skipped(
-                        "too_few_listings",
-                        detail=f"{names.get(zone_id, zone_id)}: {len(entries)} listings, "
-                        f"{min_listings} needed",
-                    )
-                )
-                continue
-            prices = sorted(e[0].price_eur_m2 for e in entries)
-            dates = sorted(e[0].listed_on for e in entries)
-            expected = round(percentile(prices, 50), 2)
-            low = round(percentile(prices, low_percentile), 2)
-            high = round(percentile(prices, high_percentile), 2)
-            ai_placed = sum(1 for e in entries if e[2] == "llm")
-            confidence = round(min(e[1] for e in entries), 3)
-            flags = ["asking_prices"]
-            if ai_placed:
-                flags.append("zone_mapped_by_ai")
-            self._quality_flags(metric, expected, low, high, confidence, flags)
-            inputs.append(
-                MarketInput(
-                    zone_id=zone_id,
-                    metric=metric,
-                    expected=expected,
-                    low=low,
-                    high=high,
-                    range_basis="listings",
-                    source=self.ctx.source,
-                    source_date=self._as_of(dates[-1]),
-                    confidence=confidence,
-                    notes=(
-                        f"{len(prices)} asking prices listed {dates[0].isoformat()} to "
-                        f"{dates[-1].isoformat()}: median, P{low_percentile:g} to "
-                        f"P{high_percentile:g}"
-                    ),
-                    flags=flags,
-                    raw={"listings": [e[0].to_json() for e in entries]},
-                    mapping={
-                        "method": "listings",
-                        "listings": len(prices),
-                        "ai_placed": ai_placed,
-                        "percentiles": [low_percentile, 50, high_percentile],
-                        "min": prices[0],
-                        "max": prices[-1],
-                    },
-                    normaliser=normaliser,
-                )
-            )
-        return NormaliseResult(
-            inputs=inputs,
-            skipped=self.skipped,
-            mappings=[],
-            normaliser=normaliser,
-            issues=self.issues,
-            llm=self.log.to_json() if self.log.calls else None,
-        )
-
 
 def _ai_row(row: RowPlace, ai: AiPlace) -> RowPlace:
     if ai.applies_to == "none" or (ai.applies_to == "zone" and ai.confidence < MIN_AI_CONFIDENCE):
@@ -680,22 +571,3 @@ def normalise_table(
     table: RawTable, ctx: NormaliseContext, model: StructuredModel | None = None
 ) -> NormaliseResult:
     return Normaliser(ctx, model).table(table)
-
-
-def normalise_listings(
-    batch: ListingBatch,
-    ctx: NormaliseContext,
-    *,
-    metric: Metric = "sale_rate",
-    min_listings: int = 5,
-    low_percentile: float = 25,
-    high_percentile: float = 75,
-    model: StructuredModel | None = None,
-) -> NormaliseResult:
-    return Normaliser(ctx, model).listings(
-        batch,
-        metric=metric,
-        min_listings=min_listings,
-        low_percentile=low_percentile,
-        high_percentile=high_percentile,
-    )

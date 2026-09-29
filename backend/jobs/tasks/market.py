@@ -1,7 +1,7 @@
 """Market-data normalisation on the ``extraction`` queue: ``import_market_data``.
 
-Target ``market_import`` (``POST /v1/admin/market/imports`` or ``/listings``): the import's table
-or pasted listings, as recorded, through ``core.market`` (rules, then the LLM where the rules
+Target ``market_import`` (``POST /v1/admin/market/imports``): the import's table, as recorded,
+through ``core.market`` (rules, then the LLM where the rules
 cannot map a sheet or place an area name, ``MARKET_NORMALISE_LLM``) into ``market_data`` rows
 waiting for review, in one transaction with the import's report. Nothing reaches the panel here:
 only an approved review decision writes an assumptions version. The LLM interprets (columns,

@@ -297,7 +297,7 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
     assert order["publish_version_id"] == version["id"]
     assert (order["market_version_id"], order["market_version"]) == (1, 1)
     assert order["assignee"] is None and order["has_report"] is False
-    assert order["contact_person"] is None and order["registered_address"] is None
+    assert "contact_person" not in order and "registered_address" not in order  # dropped in 0037
 
     # one customer per e-mail address (the pilot's public.customer)
     customers = await rows(
