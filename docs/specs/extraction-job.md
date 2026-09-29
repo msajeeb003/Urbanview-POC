@@ -101,7 +101,7 @@ one). Superseded items leave the queue (`?include_superseded=true` shows them), 
   processed / skipped / failed, chunks done / failed, items written / low_confidence / unmatched,
   items superseded, tokens in / out, estimated cost, the summary.
 - The job: progress per step while running, the run summary as `result`, the model and tokens in
-  its cost block (`GET /v1/admin/jobs/{id}`, `GET /v1/admin/jobs/costs`).
+  its cost block (`GET /v1/admin/jobs/{id}`).
 - `audit_log`: `extraction.start` (every attempt) and `extraction.finish` (status, item counts,
   pages failed / skipped, tokens) on entity `extraction_run`, actor `worker:extract_document`.
 

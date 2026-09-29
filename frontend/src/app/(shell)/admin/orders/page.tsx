@@ -14,16 +14,18 @@ import {
   ORDER_STATUSES,
   orderQuery,
   ordersHref,
-  parcelLine,
+  parcelCells,
   parseOrderFilters,
   statusChip,
 } from "@/lib/admin/orders";
 import { ApiError } from "@/lib/api/client";
 import type { OrderDetail, OrderExpert, OrderList } from "@/lib/api/types";
 
-// Orders (wireframe `adminOrders`): the manual fulfilment queue. Admins and reviewers see every
+// Orders (wireframe `adminOrders`): the manual fulfilment queue, newest first. Admins see every
 // order, record payments and assign experts; an expert sees the orders assigned to them and
-// uploads the report. `?order=<id>` opens the order's drawer.
+// uploads the report. Each row: reference, parcel (KO + number, the planned parcel), customer,
+// placed, age, status, price, turnaround, the data version the customer saw, delivered, expert.
+// `?order=<id>` opens the order's drawer.
 export default async function OrdersPage({
   searchParams,
 }: {
@@ -111,6 +113,10 @@ export default async function OrdersPage({
                 <th>Placed</th>
                 <th>Days</th>
                 <th>Status</th>
+                <th>Price</th>
+                <th title="Business days after the payment, and the expected date">Turnaround</th>
+                <th title="The published data version the customer saw">Data</th>
+                <th>Delivered</th>
                 <th>Expert</th>
                 <th aria-label="Open" />
               </tr>
@@ -119,10 +125,14 @@ export default async function OrdersPage({
               {data.items.map((o) => {
                 const chip = statusChip(o.status);
                 const href = ordersHref(filters, o.id);
+                const parcel = parcelCells(o);
                 return (
                   <tr key={o.id} className={filters.order === o.id ? "sel" : undefined}>
                     <td className="mono">{o.reference}</td>
-                    <td className="mono">{parcelLine(o.location)}</td>
+                    <td className="mono">
+                      {parcel.cadastral ?? "—"}
+                      <span className="fmeta">{parcel.planned ? `urban parcel ${parcel.planned}` : "no urban parcel"}</span>
+                    </td>
                     <td>
                       {customerLine(o)}
                       <span className="fmeta">{o.email}</span>
@@ -139,6 +149,12 @@ export default async function OrdersPage({
                         ) : null}
                       </span>
                     </td>
+                    <td className="mono">€{o.price_eur}</td>
+                    <td className="mono" title={`expected by ${o.expected_by}`}>
+                      {o.turnaround_business_days} d
+                    </td>
+                    <td className="mono">{o.data_version ?? "—"}</td>
+                    <td title={o.delivered_at ?? undefined}>{o.delivered_at ? relativeTime(o.delivered_at, now) : <span className="osub">—</span>}</td>
                     <td>{o.assignee ? (o.assignee.display_name ?? o.assignee.email) : <span className="osub">—</span>}</td>
                     <td>
                       <Link className="abtn sm ghost" href={href} scroll={false}>

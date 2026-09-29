@@ -16,8 +16,6 @@ import {
   progressOf,
   reviewHrefFor,
   reviewQuery,
-  sameParcel,
-  samePage,
   sourceLine,
   statusChip,
   targetLabel,
@@ -106,11 +104,6 @@ describe("moving through the queue", () => {
     expect(nextPending(list, 1)).toBe(3);
     expect(nextPending(list, 3)).toBe(1);
     expect(nextPending([item({ id: 9, status: "approved" })], 0)).toBeNull();
-  });
-
-  it("groups pending items by page and by parcel for bulk approval", () => {
-    expect(samePage(list, list[1]).map((i) => i.id)).toEqual([2]);
-    expect(sameParcel(list, list[1]).map((i) => i.id)).toEqual([2, 4]);
   });
 
   it("counts progress and moves one decision between counters", () => {

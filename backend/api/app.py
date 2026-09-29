@@ -30,7 +30,6 @@ from api.services.geometry_review import GeometryReviewService
 from api.services.jobs import JobService
 from api.services.market import MarketService
 from api.services.orders import OrderService
-from api.services.overview import OverviewService
 from api.services.panel import PanelService
 from api.services.panel_cache import PANEL_PAYLOAD_FORMAT, PanelCache
 from api.services.parcel_panel import ParcelPanelService
@@ -198,9 +197,6 @@ def create_app(
                 on_assumptions_changed=lambda: publish_service.refresh_heatmaps_if_stale(
                     reason="assumptions"
                 ),
-            )
-            app.state.overview_service = OverviewService(
-                app.state.session_factory, municipality=municipality
             )
             app.state.review_service = ReviewService(
                 app.state.session_factory,

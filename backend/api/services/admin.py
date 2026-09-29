@@ -1770,32 +1770,6 @@ class AdminService:
             key=f"import_zones:file:{file_id}:sha256:{file_row['sha256']}:{mode}",
         )
 
-    async def enqueue_preprocess(
-        self, principal: Principal, file_id: int, *, force: bool = False
-    ) -> EnqueuedJob:
-        async with self.session_factory() as session:
-            file_row = (
-                (await session.execute(FILE_REF_SQL, {"m": self.municipality_id, "id": file_id}))
-                .mappings()
-                .first()
-            )
-        if file_row is None:
-            raise NotFoundError(f"No stored file with id {file_id}", details={"file_id": file_id})
-        if file_row["kind"] != FileKind.planning_document.value:
-            raise ConflictError(
-                "Pre-processing reads planning-document PDFs",
-                details={"file_id": file_id, "kind": file_row["kind"]},
-            )
-        return await self._enqueue(
-            principal,
-            "preprocess_file",
-            target_type="file",
-            target_id=file_id,
-            payload={"file_id": file_id, "force": force},
-            file_id=file_id,
-            checksum=file_row["sha256"],
-        )
-
     async def _enqueue(
         self,
         principal: Principal,

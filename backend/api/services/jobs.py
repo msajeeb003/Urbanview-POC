@@ -18,7 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from api.schemas.admin import JobCostRow, JobCostSummary, JobList, JobOut
+from api.schemas.admin import JobList, JobOut
 from api.services.audit import write_audit
 from core.auth import Principal
 from core.errors import ConflictError, NotFoundError
@@ -76,27 +76,6 @@ REQUEUE_SQL = text(
         started_at = NULL, finished_at = NULL, next_retry_at = NULL, celery_task_id = NULL,
         result = NULL, wall_time_ms = NULL, progress = NULL
     WHERE id = :id AND municipality_id = :m
-    """
-)
-COSTS_SQL = text(
-    """
-    SELECT j.target_type, j.target_id, count(*) AS jobs,
-           count(*) FILTER (WHERE j.status = 'succeeded') AS succeeded,
-           count(*) FILTER (WHERE j.status = 'failed') AS failed,
-           COALESCE(sum(j.llm_tokens_in), 0) AS llm_tokens_in,
-           COALESCE(sum(j.llm_tokens_out), 0) AS llm_tokens_out,
-           COALESCE(sum(j.estimated_cost_eur), 0) AS estimated_cost_eur,
-           COALESCE(sum(j.wall_time_ms), 0) AS wall_time_ms,
-           max(j.finished_at) AS last_finished_at
-    FROM pipeline_jobs j
-    WHERE j.municipality_id = :m
-      AND (CAST(:type AS text) IS NULL OR j.type = CAST(:type AS text))
-      AND (CAST(:target_type AS text) IS NULL
-           OR (j.target_type = CAST(:target_type AS text)
-               AND j.target_id = CAST(:target_id AS bigint)))
-    GROUP BY j.target_type, j.target_id
-    ORDER BY estimated_cost_eur DESC, jobs DESC, j.target_type, j.target_id
-    LIMIT :limit
     """
 )
 
@@ -243,48 +222,3 @@ class JobService:
             job_type=row["type"],
         )
         return await self.get_job(job_id)
-
-    async def costs(
-        self, *, target: str | None = None, type: str | None = None, limit: int = 100
-    ) -> JobCostSummary:
-        target_type, target_id = parse_target(target)
-        async with self.session_factory() as session:
-            rows = (
-                (
-                    await session.execute(
-                        COSTS_SQL,
-                        {
-                            "m": self.municipality_id,
-                            "type": type,
-                            "target_type": target_type,
-                            "target_id": target_id,
-                            "limit": limit,
-                        },
-                    )
-                )
-                .mappings()
-                .all()
-            )
-        out = [
-            JobCostRow(
-                target_type=r["target_type"],
-                target_id=r["target_id"],
-                jobs=int(r["jobs"]),
-                succeeded=int(r["succeeded"]),
-                failed=int(r["failed"]),
-                llm_tokens_in=int(r["llm_tokens_in"]),
-                llm_tokens_out=int(r["llm_tokens_out"]),
-                estimated_cost_eur=round(float(r["estimated_cost_eur"]), 4),
-                wall_time_ms=int(r["wall_time_ms"]),
-                last_finished_at=_utc(r["last_finished_at"]),
-            )
-            for r in rows
-        ]
-        return JobCostSummary(
-            rows=out,
-            total_jobs=sum(r.jobs for r in out),
-            total_llm_tokens_in=sum(r.llm_tokens_in for r in out),
-            total_llm_tokens_out=sum(r.llm_tokens_out for r in out),
-            total_estimated_cost_eur=round(sum(r.estimated_cost_eur for r in out), 4),
-            total_wall_time_ms=sum(r.wall_time_ms for r in out),
-        )

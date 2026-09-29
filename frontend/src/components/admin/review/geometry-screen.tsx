@@ -39,7 +39,6 @@ import {
 } from "@/lib/admin/geometry";
 import {
   approveGeometryAction,
-  bulkApproveGeometryAction,
   rejectGeometryAction,
   type GeometryDecision,
   type Result,
@@ -127,16 +126,12 @@ function GeometryDetail({
   onReject,
   onApprove,
   onSubmitReject,
-  runPending,
-  onBulk,
 }: {
   draft: GeometryDraft;
   rejecting: boolean;
   onReject: (open: boolean) => void;
   onApprove: () => void;
   onSubmitReject: (note: string) => Promise<string | null>;
-  runPending: number;
-  onBulk: () => void;
 }) {
   const chip = decisionChip(draft);
   const qa = qaChip(draft.qa_status);
@@ -188,13 +183,6 @@ function GeometryDetail({
       )}
       {open && draft.approve_blocker === "qa_failed" && <div className="rhint">{BLOCKER_WORDS.qa_failed}</div>}
       {open && rejecting && <RejectEditor key={`reject-${draft.id}`} onSubmit={onSubmitReject} onCancel={() => onReject(false)} />}
-      {open && runPending > 1 && runOf(draft) && (
-        <div className="rbulk">
-          <button type="button" className="abtn sm ghost" onClick={onBulk}>
-            Approve all {runPending} pending of {runOf(draft)}
-          </button>
-        </div>
-      )}
 
       <div className="gvissues">
         <div className="gvh">Checks</div>
@@ -282,12 +270,10 @@ export function GeometryScreen({
   initial,
   filters,
   valuesPending,
-  me,
 }: {
   initial: GeometryPage;
   filters: GeometryFilters;
   valuesPending: number | null;
-  me: string;
 }) {
   const showToast = useShell((s) => s.showToast);
   const [drafts, setDrafts] = useState<GeometryDraft[]>(initial.items);
@@ -344,27 +330,6 @@ export function GeometryScreen({
     },
     [cursor, settle],
   );
-
-  const run = draft ? runOf(draft) : null;
-  const runPending = run ? drafts.filter((d) => runOf(d) === run && isPending(d)).length : 0;
-
-  const bulk = useCallback(async () => {
-    const current = draftsRef.current[cursor];
-    const version = current ? runOf(current) : null;
-    if (!version) return;
-    const result = await bulkApproveGeometryAction(version);
-    showToast(result.message);
-    if (!result.ok) return;
-    const approved = new Set(result.data.result.approved);
-    const now = new Date().toISOString();
-    const list = draftsRef.current.map((d) =>
-      approved.has(d.id) ? { ...d, review_status: "approved" as const, reviewed_by: me, reviewed_at: now, review_note: null } : d,
-    );
-    setDrafts(list);
-    if (result.data.counts) setCounts(result.data.counts);
-    const next = nextPendingDraft(list, cursor);
-    if (next != null) moveTo(next);
-  }, [cursor, me, moveTo, showToast]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -496,8 +461,6 @@ export function GeometryScreen({
                 onReject={setRejecting}
                 onApprove={() => void approve()}
                 onSubmitReject={reject}
-                runPending={runPending}
-                onBulk={() => void bulk()}
               />
             )}
           </div>

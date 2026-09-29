@@ -12,12 +12,12 @@ their files, jobs, coverage.
   read from it was approved);
 - ``GET /v1/admin/files`` / ``/documents`` (+ ``/{id}``): listings with job history;
 - ``POST /v1/admin/documents/{id}/jobs/extract[?file_id=]`` (one run per file),
-  ``POST /v1/admin/files/{id}/jobs/geo``,
-  ``POST /v1/admin/files/{id}/jobs/preprocess``: queue the extraction / geometry / PDF
-  pre-processing job (staging only): 202 with the job, or 200 with the existing job when an
-  identical one is already queued / running (idempotent); status, listing and retry live in
-  ``admin_jobs`` (``GET /v1/admin/jobs/{id}`` is the status URL). Files and documents carry the
-  pre-processing summary (``preprocessing``: vector / scanned pages, tables, chunks, sections);
+  ``POST /v1/admin/files/{id}/jobs/geo``: queue the extraction / geometry job (staging only; both
+  run the PDF pre-processing stage first when a PDF's manifest is missing): 202 with the job, or
+  200 with the existing job when an identical one is already queued / running (idempotent);
+  status, listing and retry live in ``admin_jobs`` (``GET /v1/admin/jobs/{id}`` is the status
+  URL). Files and documents carry the pre-processing summary (``preprocessing``: vector / scanned
+  pages, tables, chunks, sections);
 - ``PATCH /v1/admin/documents/{id}``: change the current version's status, name, short code, zone,
   source, registry link, adoption date or licence note (audited ``document.update``);
 - ``PATCH /v1/admin/documents/{id}/coverage``: mark a document's coverage area live or not;
@@ -132,31 +132,6 @@ async def enqueue_geo_job(
     principal: PipelinePrincipal, service: AdminServiceDep, file_id: Id, response: Response
 ) -> JobOut:
     enqueued = await service.enqueue_geo(principal, file_id)
-    response.status_code = 202 if enqueued.created else 200
-    return enqueued.job
-
-
-@router.post(
-    "/files/{file_id}/jobs/preprocess",
-    status_code=202,
-    response_model=JobOut,
-    summary="Queue PDF pre-processing: pages, tables, scanned pages, chunks and page images",
-    responses={
-        **RESPONSES,
-        200: {"description": "An identical job is already queued or running; returned as is"},
-        409: {"description": "The file is not a planning-document PDF"},
-    },
-)
-async def enqueue_preprocess_job(
-    principal: PipelinePrincipal,
-    service: AdminServiceDep,
-    file_id: Id,
-    response: Response,
-    force: Annotated[
-        bool, Query(description="Redo it even when the file's manifest is current")
-    ] = False,
-) -> JobOut:
-    enqueued = await service.enqueue_preprocess(principal, file_id, force=force)
     response.status_code = 202 if enqueued.created else 200
     return enqueued.job
 

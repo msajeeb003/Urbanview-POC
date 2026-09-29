@@ -158,7 +158,8 @@ $dc run --rm api python -m core.staff list   # staff users
 ## Notes
 
 - **Mail:** Hetzner blocks outgoing ports 25 and 465 on new accounts; use a provider on 587 (Resend,
-  Brevo). The worker sends; `GET /v1/admin/email-log` shows every attempt.
+  Brevo). The worker sends; every attempt is an `email_log` row, and an order's e-mails show on
+  its detail in the console.
 - **Storage:** MinIO runs on the server's disk, built from source (`deploy/minio/Dockerfile`: MinIO
   stopped publishing free images in 2025; the first build compiles it, a few minutes). Hetzner Object Storage (or Cloudflare R2) can
   replace it: set `S3_ENDPOINT_URL`, `S3_PUBLIC_ENDPOINT_URL`, `S3_BUCKET`, `S3_ACCESS_KEY`,

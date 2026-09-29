@@ -14,14 +14,13 @@ import {
 const labels = (role: Parameters<typeof visibleTabs>[0]) => visibleTabs(role).map((s) => s.label);
 
 describe("admin sections", () => {
-  it("shows the wireframe's tabs, then Publish, Analytics and Audit log, to an admin", () => {
+  it("shows the POC plan's admin screens in the pipeline's order to an admin", () => {
     expect(labels("admin")).toEqual([
-      "Overview",
+      "Documents",
       "AI review queue",
+      "Publish",
       "Financial assumptions",
       "Orders",
-      "Data sources",
-      "Publish",
       "Analytics",
       "Audit log",
     ]);
@@ -29,7 +28,7 @@ describe("admin sections", () => {
   });
 
   it("gives a reviewer the review queue, publishing and read-only documents (pilot scope)", () => {
-    expect(labels("reviewer")).toEqual(["Overview", "AI review queue", "Data sources", "Publish"]);
+    expect(labels("reviewer")).toEqual(["Documents", "AI review queue", "Publish"]);
     expect(barLinks("reviewer")).toEqual([]);
     expect(canOpen("reviewer", "orders")).toBe(false);
     expect(canOpen("reviewer", "users")).toBe(false);
@@ -42,23 +41,23 @@ describe("admin sections", () => {
   it("gives an expert the order queue only", () => {
     expect(labels("expert")).toEqual(["Orders"]);
     expect(homeFor("expert")).toBe("/admin/orders");
-    expect(homeFor("reviewer")).toBe("/admin/overview");
+    expect(homeFor("reviewer")).toBe("/admin/data");
   });
 
   it("guards routes: sign-in, home, allow, deny", () => {
-    expect(accessFor("/admin/overview", null)).toEqual({ kind: "sign-in" });
+    expect(accessFor("/admin/data", null)).toEqual({ kind: "sign-in" });
     expect(accessFor("/admin/login", null)).toEqual({ kind: "allow" });
     expect(accessFor("/admin", "expert")).toEqual({ kind: "home", href: "/admin/orders" });
-    expect(accessFor("/admin/", "admin")).toEqual({ kind: "home", href: "/admin/overview" });
+    expect(accessFor("/admin/", "admin")).toEqual({ kind: "home", href: "/admin/data" });
     expect(accessFor("/admin/orders", "expert")).toEqual({ kind: "allow" });
-    expect(accessFor("/admin/overview", "expert")).toMatchObject({ kind: "deny", section: { id: "overview" } });
+    expect(accessFor("/admin/data", "expert")).toMatchObject({ kind: "deny", section: { id: "data" } });
     expect(accessFor("/admin/users", "reviewer")).toMatchObject({ kind: "deny", section: { id: "users" } });
     expect(accessFor("/admin/orders", "reviewer")).toMatchObject({ kind: "deny", section: { id: "orders" } });
     expect(accessFor("/admin/publish", "reviewer")).toEqual({ kind: "allow" });
     expect(accessFor("/admin/review", "expert")).toMatchObject({ kind: "deny", section: { id: "review" } });
     expect(accessFor("/admin/audit", "admin")).toEqual({ kind: "allow" });
     expect(accessFor("/admin/no-access", "expert")).toEqual({ kind: "allow" });
-    expect(accessFor("/admin/whatever", "reviewer")).toEqual({ kind: "home", href: "/admin/overview" });
+    expect(accessFor("/admin/whatever", "reviewer")).toEqual({ kind: "home", href: "/admin/data" });
   });
 
   it("maps nested paths to their section", () => {

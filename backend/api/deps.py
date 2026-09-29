@@ -10,13 +10,11 @@ from api.services.admin import AdminService
 from api.services.admin_config import AdminConfigService
 from api.services.analytics import AnalyticsService
 from api.services.auth import MagicLinkService
-from api.services.email import EmailService
 from api.services.geocode import GeocodeService
 from api.services.geometry_review import GeometryReviewService
 from api.services.jobs import JobService
 from api.services.market import MarketService
 from api.services.orders import OrderService
-from api.services.overview import OverviewService
 from api.services.panel import PanelService
 from api.services.parcel_panel import ParcelPanelService
 from api.services.publish import PublishService
@@ -192,18 +190,6 @@ def get_publish_service(request: Request) -> PublishService:
 PublishServiceDep = Annotated[PublishService, Depends(get_publish_service)]
 
 
-def get_email_service(request: Request) -> EmailService:
-    service = getattr(request.app.state, "email_service", None)
-    if service is None:
-        raise ServiceUnavailableError(
-            "E-mail needs the planning database (LOCATION_RESOLVER=postgis)"
-        )
-    return service
-
-
-EmailServiceDep = Annotated[EmailService, Depends(get_email_service)]
-
-
 def get_magic_link_service(request: Request) -> MagicLinkService:
     service = getattr(request.app.state, "magic_link_service", None)
     if service is None:
@@ -231,17 +217,6 @@ AdminConfigServiceDep = Annotated[AdminConfigService, Depends(get_admin_config_s
 # any signed-in staff member (the admin console's own account routes)
 StaffPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer, Role.expert))]
 
-
-def get_overview_service(request: Request) -> OverviewService:
-    service = getattr(request.app.state, "overview_service", None)
-    if service is None:
-        raise ServiceUnavailableError(
-            "The admin overview needs the planning database (LOCATION_RESOLVER=postgis)"
-        )
-    return service
-
-
-OverviewServiceDep = Annotated[OverviewService, Depends(get_overview_service)]
 # The pilot technical scope's roles: admin (everything), reviewer ("planning expert approving
 # extractions": the review queue, publish, read-only documents), expert ("produces paid reports":
 # the orders assigned to them and the report upload).

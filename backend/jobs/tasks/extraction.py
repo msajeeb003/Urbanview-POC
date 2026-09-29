@@ -1,10 +1,9 @@
-"""AI extraction (build plan P1, AI track) on the ``extraction`` queue: ``preprocess_file`` and
-``extract_document``.
+"""AI extraction (build plan P1, AI track) on the ``extraction`` queue: ``extract_document``.
 
-``preprocess_file`` (``POST /v1/admin/files/{id}/jobs/preprocess``, target ``file``): the PDF
-pre-processing stage, ``jobs.preprocessing.PreprocessRunner``: pages, tables, scanned pages and the
-chunk plan persisted as a manifest on the file record, cached by checksum, plus page images per
-registered document. The extraction job starts from its manifest.
+The PDF pre-processing stage (``run_preprocess``, ``jobs.preprocessing.PreprocessRunner``): pages,
+tables, scanned pages and the chunk plan persisted as a manifest on the file record, cached by
+checksum, plus page images per registered document. The extraction job runs it first when the
+manifest is missing or stale; the geometry job runs it for a PDF drawing.
 
 ``extract_document`` (``POST /v1/admin/documents/{id}/jobs/extract``, target ``document``): one
 extraction run of the document version's file, ``jobs.extraction_runner.ExtractionRunner``: the
@@ -47,7 +46,7 @@ def configure_preprocess(
     settings: Any | None = None,
     ocr: Any | None = None,
 ) -> None:
-    """Override what the pre-processing task would build from the settings (tests); ``None``
+    """Override what the pre-processing stage would build from the settings (tests); ``None``
     resets a key."""
     for key, value in (
         ("database_url", database_url),
@@ -59,18 +58,6 @@ def configure_preprocess(
             _config.pop(key, None)
         else:
             _config[key] = value
-
-
-async def _preprocess_file(job: JobContext) -> JobResult:
-    file_id = int(job.payload.get("file_id") or job.file_id or job.target_id or 0)
-    result = await run_preprocess(
-        job.municipality_id, file_id, force=bool(job.payload.get("force"))
-    )
-    log.info(
-        "preprocess_file done",
-        extra={"job_id": job.id, "file_id": file_id, "cached": result["cached"]},
-    )
-    return JobResult(result=result)
 
 
 async def run_preprocess(municipality_id: str, file_id: int, *, force: bool = False) -> dict:
@@ -212,12 +199,6 @@ async def _extract_document(job: JobContext) -> JobResult:
         model_version or settings.extraction_model, usage.tokens_in, usage.output_tokens
     )
     return JobResult(result=summary, cost=cost)
-
-
-@celery_app.task(bind=True, base=JobTask, name="jobs.tasks.extraction.preprocess_file")
-def preprocess_file(self: JobTask, job_id: int, municipality_id: str) -> dict:
-    """Lifecycle-tracked pre-processing of one stored PDF (cached by checksum)."""
-    return self.execute(job_id, municipality_id, _preprocess_file)
 
 
 @celery_app.task(bind=True, base=JobTask, name="jobs.tasks.extraction.extract_document")

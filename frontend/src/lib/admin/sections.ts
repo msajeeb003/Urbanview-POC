@@ -4,13 +4,14 @@
  *
  * Roles (the staff user's `role`, from `GET /v1/admin/users/me`), the pilot technical scope's:
  * - admin: everything, including users, financial assumptions, analytics (A7) and the audit log;
- * - reviewer ("planning expert approving extractions"): Overview, AI review queue, Planning rules
- *   (read), Data sources (read: the documents, files and jobs), Publish;
+ * - reviewer ("planning expert approving extractions"): Documents (read: the documents, files and
+ *   jobs), AI review queue, Publish;
  * - expert ("produces paid reports"): Orders (the API returns only the orders assigned to them;
  *   the report upload is their only action).
  *
- * Tabs: the wireframe's seven, then the pilot scope's Publish (A4), Analytics (A7) and Audit log
- * (A7) screens; Users sits in the account menu.
+ * Tabs, in the pipeline's order (the POC plan's admin screens): Documents (A1), AI review queue
+ * (A2), Publish (A4), Financial assumptions (A5), Orders (A6), then the thin Analytics and Audit log
+ * tables (A7); Users sits in the account menu, "← Back to map" in the bar.
  *
  * The API enforces the same boundaries on every `/v1/admin/*` route (403, never 404); this table
  * only keeps the console from offering what the API would refuse.
@@ -20,18 +21,7 @@ export type StaffRole = "admin" | "reviewer" | "expert";
 
 export const STAFF_ROLES: readonly StaffRole[] = ["admin", "reviewer", "expert"];
 
-export type SectionId =
-  | "overview"
-  | "review"
-  | "rules"
-  | "assumptions"
-  | "engine"
-  | "orders"
-  | "data"
-  | "publish"
-  | "analytics"
-  | "audit"
-  | "users";
+export type SectionId = "data" | "review" | "publish" | "assumptions" | "orders" | "analytics" | "audit" | "users";
 
 export interface Section {
   id: SectionId;
@@ -45,22 +35,21 @@ export interface Section {
 }
 
 export const SECTIONS: readonly Section[] = [
-  { id: "overview", label: "Overview", href: "/admin/overview", tab: true, roles: ["admin", "reviewer"] },
-  { id: "review", label: "AI review queue", href: "/admin/review", tab: true, roles: ["admin", "reviewer"] },
-  { id: "assumptions", label: "Financial assumptions", href: "/admin/assumptions", tab: true, roles: ["admin"] },
-  // Admins manage orders; experts see and deliver their own (reviewers have no order access).
-  { id: "orders", label: "Orders", href: "/admin/orders", tab: true, roles: ["admin", "expert"] },
-  // Reviewers read the documents, files and jobs; admins register, upload and run the jobs.
+  // A1: reviewers read the documents, files and jobs; admins register, upload and run the jobs.
   {
     id: "data",
-    label: "Data sources",
+    label: "Documents",
     href: "/admin/data",
     tab: true,
     roles: ["admin", "reviewer"],
     readOnly: ["reviewer"],
   },
+  { id: "review", label: "AI review queue", href: "/admin/review", tab: true, roles: ["admin", "reviewer"] },
   // the pilot scope's A4 "Publish" (versions, publish): admins and reviewers
   { id: "publish", label: "Publish", href: "/admin/publish", tab: true, roles: ["admin", "reviewer"] },
+  { id: "assumptions", label: "Financial assumptions", href: "/admin/assumptions", tab: true, roles: ["admin"] },
+  // Admins manage orders; experts see and deliver their own (reviewers have no order access).
+  { id: "orders", label: "Orders", href: "/admin/orders", tab: true, roles: ["admin", "expert"] },
   // the pilot scope's A7 "Analytics and audit" (GET /v1/admin/analytics is admin only)
   { id: "analytics", label: "Analytics", href: "/admin/analytics", tab: true, roles: ["admin"] },
   { id: "audit", label: "Audit log", href: "/admin/audit", tab: true, roles: ["admin"] },

@@ -195,7 +195,7 @@ class EmailLogEntry(Base):
     )
     subject: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="queued | sent | suppressed | failed | bounced"
+        Text, nullable=False, comment="queued | sent | suppressed | failed"
     )
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     provider_message_id: Mapped[str | None] = mapped_column(
@@ -204,15 +204,13 @@ class EmailLogEntry(Base):
     provider_response: Mapped[str | None] = mapped_column(Text, comment="the DATA reply")
     error: Mapped[str | None] = mapped_column(Text)
     suppressed_reason: Mapped[str | None] = mapped_column(Text)
-    bounce_reason: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _ts(nullable=False, server_default=func.now())
     sent_at: Mapped[datetime | None] = _ts(nullable=True)
-    bounced_at: Mapped[datetime | None] = _ts(nullable=True)
     updated_at: Mapped[datetime] = _ts(nullable=False, server_default=func.now())
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('queued', 'sent', 'suppressed', 'failed', 'bounced')",
+            "status IN ('queued', 'sent', 'suppressed', 'failed')",
             name="ck_email_log_status",
         ),
         Index("ix_email_log_time", "municipality_id", "created_at"),

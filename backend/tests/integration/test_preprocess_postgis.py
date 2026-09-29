@@ -1,6 +1,7 @@
-"""PDF pre-processing as a job on PostGIS (eager Celery, fake storage): the manifest persisted on
-the file record, the scanned pages on the document record, page images at the source viewer's
-keys, the checksum cache on a re-run, ``force``, serving the images, and the refusals."""
+"""The PDF pre-processing stage on PostGIS (fake storage; the extraction and geometry jobs run it
+first): the manifest persisted on the file record, the scanned pages on the document record, page
+images at the source viewer's keys, the checksum cache on a re-run, ``force``, serving the images,
+and the refusals."""
 
 from __future__ import annotations
 
@@ -10,8 +11,8 @@ import json
 import pytest
 from sqlalchemy import text
 
-from jobs.base import SqlJobStore, configure_job_store
-from jobs.tasks.extraction import configure_preprocess
+from jobs.preprocessing import PreprocessError
+from jobs.tasks.extraction import configure_preprocess, run_preprocess
 from tests.helpers import make_app, make_client, make_settings
 from tests.integration.test_admin_pipeline_postgis import CLEANUP, FakeStorage
 
@@ -56,13 +57,8 @@ async def _clean(postgis_url):
 
 
 @pytest.fixture
-def preprocess_env(postgis_url, monkeypatch):
-    """``build(**settings)`` -> (app, storage): the job runs inline against the test database."""
-    from jobs.celery_app import celery_app
-    from jobs.enqueue import CeleryDispatcher
-
-    monkeypatch.setattr(celery_app.conf, "task_always_eager", True)
-    configure_job_store(SqlJobStore(database_url=postgis_url))
+def preprocess_env(postgis_url):
+    """``build(**settings)`` -> (app, storage): the stage runs against the test database."""
     storage = PreprocessStorage()
 
     def build(**overrides):
@@ -75,10 +71,9 @@ def preprocess_env(postgis_url, monkeypatch):
             **overrides,
         )
         configure_preprocess(database_url=postgis_url, storage=storage, settings=settings)
-        return make_app(settings, storage=storage, admin_dispatcher=CeleryDispatcher()), storage
+        return make_app(settings, storage=storage), storage
 
     yield build
-    configure_job_store(None)
     configure_preprocess(database_url=None, storage=None, settings=None)
 
 
@@ -117,11 +112,7 @@ async def test_preprocessing_persists_the_manifest_and_reports_scanned_pages(pre
         assert doc.status_code == 201, doc.text
         document_id = doc.json()["id"]
 
-        first = await client.post(f"/v1/admin/files/{file_id}/jobs/preprocess", headers=auth())
-        assert first.status_code == 202, first.text
-        job = first.json()
-        assert job["type"] == "preprocess_file" and job["status"] == "succeeded", job
-        result = job["result"]
+        result = await run_preprocess("podgorica", file_id)
         assert result["cached"] is False and result["images_rendered_for"] == [document_id]
 
         manifest = await stored_manifest(app, file_id)
@@ -144,14 +135,11 @@ async def test_preprocessing_persists_the_manifest_and_reports_scanned_pages(pre
 
         # the same file again: nothing is re-read or re-rendered
         puts = len(storage.puts)
-        again = await client.post(f"/v1/admin/files/{file_id}/jobs/preprocess", headers=auth())
-        assert again.status_code == 202 and again.json()["result"]["cached"] is True
-        assert again.json()["result"]["images_rendered_for"] == [] and len(storage.puts) == puts
-        forced = await client.post(
-            f"/v1/admin/files/{file_id}/jobs/preprocess", params={"force": True}, headers=auth()
-        )
-        assert forced.json()["result"]["cached"] is False
-        assert forced.json()["result"]["images_rendered_for"] == [document_id]
+        again = await run_preprocess("podgorica", file_id)
+        assert again["cached"] is True
+        assert again["images_rendered_for"] == [] and len(storage.puts) == puts
+        forced = await run_preprocess("podgorica", file_id, force=True)
+        assert forced["cached"] is False and forced["images_rendered_for"] == [document_id]
 
     for record in (file_out["preprocessing"], document_out["preprocessing"]):
         assert (record["scanned_pages"], record["unread_pages"]) == ([3], [3])
@@ -179,8 +167,7 @@ async def test_serving_the_page_images_switches_the_source_viewer(preprocess_env
             headers=auth(),
         )
         document_id = doc.json()["id"]
-        job = await client.post(f"/v1/admin/files/{file_id}/jobs/preprocess", headers=auth())
-        assert job.json()["status"] == "succeeded", job.text
+        await run_preprocess("podgorica", file_id)
         viewer = await client.get(f"/v1/source/{document_id}/page/3")
     body = viewer.json()
     assert viewer.status_code == 200 and body["kind"] == "page_image"
@@ -190,7 +177,6 @@ async def test_serving_the_page_images_switches_the_source_viewer(preprocess_env
 async def test_only_stored_planning_pdfs_are_preprocessed(preprocess_env):
     app, _ = preprocess_env()
     async with app.router.lifespan_context(app), make_client(app) as client:
-        missing = await client.post("/v1/admin/files/999999/jobs/preprocess", headers=auth())
         gis = await client.post(
             "/v1/admin/files",
             files={"file": ("layers.zip", b"PK\x03\x04" + b"\x00" * 64, "application/zip")},
@@ -198,9 +184,7 @@ async def test_only_stored_planning_pdfs_are_preprocessed(preprocess_env):
             headers=auth(),
         )
         assert gis.status_code == 201, gis.text
-        refused = await client.post(
-            f"/v1/admin/files/{gis.json()['file']['id']}/jobs/preprocess", headers=auth()
-        )
-        anonymous = await client.post("/v1/admin/files/1/jobs/preprocess")
-    assert missing.status_code == 404 and refused.status_code == 409
-    assert anonymous.status_code == 401
+        with pytest.raises(PreprocessError, match="no stored file"):
+            await run_preprocess("podgorica", 999999)
+        with pytest.raises(PreprocessError, match="not a planning PDF"):
+            await run_preprocess("podgorica", gis.json()["file"]["id"])

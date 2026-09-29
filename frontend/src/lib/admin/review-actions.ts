@@ -7,15 +7,14 @@
  * hundreds of items without the page re-rendering; a decision answers the updated item and the
  * document's counters. Refusals come back as `{ok: false, message}` in plain words.
  *
- * Publishing and rolling back are for admins and reviewers (the pilot scope's "review and
- * publish", A4), checked again on the server as the API does.
+ * Publishing is for admins and reviewers (the pilot scope's "review and publish", A4), checked
+ * again on the server as the API does.
  */
 import { unstable_rethrow } from "next/navigation";
 
 import type {
   AdminJob,
   AuditPage,
-  BulkResult,
   PublishStatus,
   ReviewCounters,
   ReviewItem,
@@ -98,24 +97,6 @@ export async function rejectAction(itemId: number, note: string): Promise<Result
   return decide(`/v1/admin/review/${itemId}/reject`, { note: note.trim() }, "Rejected");
 }
 
-/** `POST /v1/admin/review/bulk-approve` for the given items (one page, one parcel). */
-export async function bulkApproveAction(
-  itemIds: number[],
-  documentId: number,
-): Promise<Result<{ approved: number[]; skipped: number; counters: ReviewCounters | null }>> {
-  const denied = await reviewer();
-  if (denied) return { ok: false, message: denied };
-  if (!itemIds.length) return { ok: false, message: "Nothing pending to approve here." };
-  const result = await adminSend<BulkResult>("POST", "/v1/admin/review/bulk-approve", { item_ids: itemIds.slice(0, 500) });
-  if (!result.ok) return { ok: false, message: explainReviewProblem(result) };
-  const { approved, skipped } = result.data;
-  return {
-    ok: true,
-    message: `Approved ${approved.length} item${approved.length === 1 ? "" : "s"}${skipped.length ? ` (${skipped.length} already decided)` : ""}`,
-    data: { approved, skipped: skipped.length, counters: await counters(documentId) },
-  };
-}
-
 /** The next page of the queue for the same filters. */
 export async function loadQueueAction(filters: ReviewFilters, offset: number): Promise<Result<ReviewPage>> {
   const denied = await reviewer();
@@ -151,18 +132,6 @@ export async function optionsAction(documentId: number, fieldKey: string): Promi
   } catch (err) {
     unstable_rethrow(err);
     return { ok: false, message: "The document's wordings could not be loaded; type the value instead." };
-  }
-}
-
-/** Every document's counters (the progress header after bulk work). */
-export async function countersAction(): Promise<Result<ReviewCounters[]>> {
-  const denied = await reviewer();
-  if (denied) return { ok: false, message: denied };
-  try {
-    return { ok: true, message: "", data: await adminGet<ReviewCounters[]>("/v1/admin/review/summary") };
-  } catch (err) {
-    unstable_rethrow(err);
-    return { ok: false, message: "The counters could not be loaded." };
   }
 }
 

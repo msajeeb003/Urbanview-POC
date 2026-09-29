@@ -292,6 +292,46 @@ class FinancialAssumption(Base):
     )
 
 
+class FormulaVersion(Base):
+    """The client-owned formula versions (migration 0036, the pilot scope's ``formula_version``):
+    product-wide like the engine, which knows no municipality. The current row's ``label`` is the
+    engine's ``FORMULA_VERSION`` (a test holds them together); a new formula is a new engine
+    release and a new row, never an edit."""
+
+    __tablename__ = "formula_versions"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    label: Mapped[str] = mapped_column(
+        Text, nullable=False, comment="what the engine states (FORMULA_VERSION)"
+    )
+    effective_from: Mapped[date] = mapped_column(
+        Date, nullable=False, comment="applies from this date"
+    )
+    is_current: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("false"),
+        comment="the formula the engine runs; at most one row",
+    )
+    approval_note: Mapped[str | None] = mapped_column(Text, comment="the client's approval")
+    engine_package: Mapped[str] = mapped_column(
+        Text, nullable=False, comment="the shared engine package that implements it"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("uq_formula_versions_label", "label", unique=True),
+        Index(
+            "uq_formula_versions_current",
+            "is_current",
+            unique=True,
+            postgresql_where=text("is_current"),
+        ),
+    )
+
+
 class PlanningParameterValue(Base):
     """SERVING: approved, published planning values. ``urban_parcel_id`` null = document-level
     value (applies to parcels under the document without a parcel-level value, and to

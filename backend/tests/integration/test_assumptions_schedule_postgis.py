@@ -1,7 +1,8 @@
 """Effective-dated financial assumptions on PostGIS (the admin console's Financial assumptions
 screen): a set saved for today reaches the public panels on the next load, a set dated later waits
-for its date (the panel cache key follows), the audit row holds the old and the new figures, and
-the dates and figures are validated all or nothing."""
+for its date (the panel cache key follows; each version says until when it applies), the audit row
+holds the old and the new figures, the dates and figures are validated all or nothing, and the
+formula versions name what the engine runs."""
 
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ from datetime import date, timedelta
 import pytest
 from sqlalchemy import text
 
+from core.engine.shared import FORMULA_VERSION
 from tests.helpers import make_app, make_client, make_settings
 
 pytestmark = pytest.mark.integration
@@ -226,6 +228,9 @@ async def test_a_future_set_waits_for_its_date(app):
         (2, "scheduled"),
         (3, "live"),
     }
+    # each version says until when it applies: the live one until the scheduled date
+    until = {i["version"]: i["effective_to"] for i in listing if i["zone_id"] == 1}
+    assert until == {3: (today + timedelta(days=3)).isoformat(), 2: None}
     # the cache key follows what applies: a new set, then the date arriving
     etags = [r.headers["etag"] for r in (first, waiting, arrived)]
     assert len(set(etags)) == 3
@@ -237,6 +242,8 @@ async def test_a_future_set_waits_for_its_date(app):
         (2, "live"),
         (1, "superseded"),
     ]
+    assert history[0]["effective_to"] == history[1]["applies_from"]  # v2 took over from v3
+    assert history[1]["effective_to"] is None
 
 
 async def test_dates_and_figures_are_validated_all_or_nothing(app):
@@ -306,3 +313,17 @@ async def test_dates_and_figures_are_validated_all_or_nothing(app):
     assert retire_scheduled.json()["error"]["details"]["reason"] == "not_live"
     written = await rows(app, "SELECT id FROM financial_assumptions WHERE created_by <> 'seed'")
     assert [r["id"] for r in written] == [scheduled["id"]]  # nothing of the refused batches
+
+
+async def test_the_formula_versions_name_what_the_engine_runs(app):
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        listed = await client.get("/v1/admin/formulas", headers=auth())
+        as_reviewer = await client.get("/v1/admin/formulas", headers=auth(REVIEWER))
+        panel = (await client.get("/v1/panel", params={"type": "urban", "id": 1})).json()
+
+    assert listed.status_code == 200, listed.text
+    (current,) = [f for f in listed.json() if f["is_current"]]
+    assert current["label"] == FORMULA_VERSION == panel["formula_version"]
+    assert current["engine_package"] == "@urbanview/feasibility-engine"
+    assert current["effective_from"] == "2026-09-23" and current["approval_note"]
+    assert as_reviewer.status_code == 403  # the A5 screen is the admins'

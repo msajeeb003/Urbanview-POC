@@ -60,20 +60,21 @@ in `backend/pyproject.toml`).
   `POST /v1/admin/files` (de-duplicated uploads), `POST /v1/admin/documents` (versioned
   registration), `GET /v1/admin/files|documents`, `POST /v1/admin/documents/{id}/jobs/extract`,
   `POST /v1/admin/files/{id}/jobs/geo` (idempotent per target + file checksum),
-  `GET /v1/admin/jobs` (+ `/{id}`, `/{id}/retry`, `/costs`: status, attempts, LLM cost),
+  `GET /v1/admin/jobs` (+ `/{id}`, `/{id}/retry`: status, attempts, LLM cost per job),
   `POST /v1/admin/publish` (everything approved → new serving version → PMTiles archive →
   pointer flip; refused while items are pending review), `GET /v1/admin/publish` (status,
   per-step progress),
   public `GET /v1/tiles/current` (signed archive URL + data version),
-  `GET /v1/admin/email-log`, public `POST /v1/auth/magic-link` (+
+  public `POST /v1/auth/magic-link` (+
   `/exchange`) for the staff login,
   `PATCH /v1/admin/documents/{id}/coverage`; every action lands in `audit_log`
 - Admin configuration (role `admin`, versioned, audited): `/v1/admin/assumptions` (financial
   assumptions per zone with optional absolute bounds; the current version is what the panel
-  reads and names), `/v1/admin/users` (staff users, no passwords)
+  reads and names), `GET /v1/admin/formulas` (the formula versions; the current one is what the
+  engine runs), `/v1/admin/users` (staff users, no passwords)
 - Expert review (roles admin / reviewer / expert): `GET /v1/admin/review` (staged extracted
   items with value, target, source page + bbox + snippet and a signed page link),
-  `POST /v1/admin/review/{id}/approve|amend|reject`, `POST /v1/admin/review/bulk-approve`,
+  `POST /v1/admin/review/{id}/approve|amend|reject` (one decision per item),
   `GET /v1/admin/review/summary` (per-document counters, `can_publish`); `GET /v1/admin/audit`
   reads the append-only audit trail (who changed what and when)
 - Expert-analysis orders: `POST /v1/orders` (guest checkout, price from `ORDER_PRICE_TIERS`,

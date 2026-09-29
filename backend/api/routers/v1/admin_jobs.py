@@ -3,7 +3,6 @@ job (``jobs/``) is a ``pipeline_jobs`` row.
 
 - ``GET /v1/admin/jobs``: newest first; filters ``type``, ``status``, ``target=document:12``
   (also ``file:``, ``publish_run:``, ``email:``), ``document_id``, ``file_id``; paging;
-- ``GET /v1/admin/jobs/costs``: LLM tokens, estimated cost and wall time summed per target;
 - ``GET /v1/admin/jobs/{id}``: the status URL every enqueue response carries;
 - ``POST /v1/admin/jobs/{id}/retry``: re-queue a failed / cancelled job (audited); 409 while a
   job for the same target is active or the job is not in a retryable state.
@@ -20,7 +19,6 @@ from fastapi import APIRouter, Depends, Path, Query, Response
 from api.deps import DocumentReaderPrincipal, JobServiceDep, PipelinePrincipal
 from api.schemas.admin import (
     TARGET_PATTERN,
-    JobCostSummary,
     JobList,
     JobOut,
     JobStatus,
@@ -67,19 +65,6 @@ async def list_jobs(
         limit=limit,
         offset=offset,
     )
-
-
-@router.get(
-    "/costs", response_model=JobCostSummary, summary="Job cost per target", responses=RESPONSES
-)
-async def job_costs(
-    principal: DocumentReaderPrincipal,
-    service: JobServiceDep,
-    target: Target = None,
-    type: Annotated[JobType | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 100,
-) -> JobCostSummary:
-    return await service.costs(target=target, type=type, limit=limit)
 
 
 @router.get("/{job_id}", response_model=JobOut, summary="Job status", responses=RESPONSES)

@@ -6,19 +6,20 @@
  * snapshot the customer saw (read-only: the expert works from what was shown) and the timeline
  * from the audit log.
  *
- * Payment (admins and reviewers): "Mark payment received" (amount, date, bank reference — all
- * required; also after a failed payment), "Payment not received" (a note: the check is recorded and
- * the order becomes "Payment not received", which the customer's order page shows with the payment
- * instructions) and "Refund" (amount, date, reference); each asks for confirmation first. Fulfilment: assign an
- * expert (a paid order starts), "Start", and the report upload (also the assigned expert's only
- * action). Every action follows the API's status flow; a disabled one says why.
+ * Payment (admins): "Mark payment received" (amount, date, bank reference — all required; also
+ * after a failed payment), "Payment not received" (a note: the check is recorded and the order
+ * becomes "Payment not received", which the customer's order page shows with the payment
+ * instructions) and "Refund" (amount, date, reference; also after delivery); each asks for
+ * confirmation first. Fulfilment: assign an expert once the order is paid (work starts; reassign
+ * later) and the report upload (also the assigned expert's only action). Every action follows the
+ * API's status flow; a disabled one says why.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 
 import { relativeTime, utcStamp } from "@/lib/admin/format";
-import { assignAction, paymentAction, startAction, type PaymentInput } from "@/lib/admin/order-actions";
+import { assignAction, paymentAction, type PaymentInput } from "@/lib/admin/order-actions";
 import {
   allowed,
   customerLine,
@@ -26,8 +27,9 @@ import {
   emailChip,
   emailName,
   eventLine,
+  isManager,
   mapHref,
-  parcelLine,
+  parcelCells,
   snapshotAssumptions,
   snapshotFeasibility,
   snapshotPlanning,
@@ -231,8 +233,9 @@ function Fulfilment({ order, experts, role }: { order: OrderDetail; experts: Ord
   const [expert, setExpert] = useState<string>(order.assignee ? String(order.assignee.user_id) : "");
   const [pending, start] = useTransition();
   const assign = allowed(order, "assign", role);
-  const begin = allowed(order, "start", role);
   const upload = allowed(order, "upload", role);
+  // a paid order starts with its expert (also one picked before this rule: assign them again)
+  const sameExpert = Number(expert) === order.assignee?.user_id && order.status !== "paid";
   const run = (action: () => Promise<{ ok: boolean; message: string }>) =>
     start(async () => {
       const result = await action();
@@ -255,17 +258,12 @@ function Fulfilment({ order, experts, role }: { order: OrderDetail; experts: Ord
           <button
             type="button"
             className="abtn sm"
-            disabled={!assign.enabled || pending || !expert || Number(expert) === order.assignee?.user_id}
+            disabled={!assign.enabled || pending || !expert || sameExpert}
             title={assign.reason}
             onClick={() => run(() => assignAction(order.id, Number(expert), ""))}
           >
-            {order.assignee ? "Reassign" : "Assign expert"}
+            {order.assignee && order.status !== "paid" ? "Reassign" : "Assign expert"}
           </button>
-          {begin.visible && (
-            <button type="button" className="abtn sm ghost" disabled={!begin.enabled || pending} title={begin.reason} onClick={() => run(() => startAction(order.id))}>
-              Start
-            </button>
-          )}
         </div>
       )}
       <div className="oreport">
@@ -303,7 +301,8 @@ export function OrderDrawer({
   const chip = statusChip(order.status);
   const legal = order.purchaser_type === "legal_entity";
   const map = mapHref(order.location);
-  const manager = role === "admin" || role === "reviewer";
+  const manager = isManager(role);
+  const parcel = parcelCells(order);
   const snapshot = (order.snapshot ?? {}) as Record<string, unknown>;
   const planning = snapshotPlanning(snapshot);
   const figures = snapshotFeasibility(snapshot);
@@ -367,8 +366,9 @@ export function OrderDrawer({
           >
             <Rows
               rows={[
-                ["Parcel", <span className="mono" key="p">{parcelLine(order.location)}</span>],
-                ["Type", order.location.parcel_type === "urban" ? "Urban (planned) parcel" : "Cadastral parcel"],
+                ["Cadastral parcel", parcel.cadastral ? <span className="mono" key="c">{parcel.cadastral}</span> : "—"],
+                ["Urban parcel", parcel.planned ? <span className="mono" key="u">{parcel.planned}</span> : "none (cadastral basis)"],
+                ["Ordered from", order.location.parcel_type === "urban" ? "the urban (planned) parcel panel" : "the cadastral parcel panel"],
                 ["Planning document", order.location.document_name ?? ""],
                 ["Zone", order.location.zone_name ?? ""],
               ]}
@@ -398,7 +398,7 @@ export function OrderDrawer({
                       <span className="osub">
                         {" "}
                         to {e.to_email} · {utcStamp(e.sent_at ?? e.created_at)}
-                        {e.bounce_reason ? ` · bounced: ${e.bounce_reason}` : e.error ? ` · ${e.error.slice(0, 120)}` : e.suppressed_reason ? ` · ${e.suppressed_reason.replace(/_/g, " ")}` : ""}
+                        {e.error ? ` · ${e.error.slice(0, 120)}` : e.suppressed_reason ? ` · ${e.suppressed_reason.replace(/_/g, " ")}` : ""}
                       </span>
                     </li>
                   );

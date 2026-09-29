@@ -1,4 +1,5 @@
-"""Schemas of the e-mail log (``/v1/admin/email-log``) and the magic-link login (``/v1/auth``)."""
+"""Schemas of the e-mail log (an order's e-mails on the staff order detail) and the magic-link
+login (``/v1/auth``)."""
 
 from __future__ import annotations
 
@@ -7,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-EmailStatus = Literal["queued", "sent", "suppressed", "failed", "bounced"]
+EmailStatus = Literal["queued", "sent", "suppressed", "failed"]
 EmailTemplate = Literal["payment_instructions", "order_delivered", "magic_link"]
 
 
@@ -27,19 +28,10 @@ class EmailLogOut(BaseModel):
     )
     error: str | None = None
     suppressed_reason: str | None = None
-    bounce_reason: str | None = None
     job_id: int | None = None
     created_at: datetime
     sent_at: datetime | None = None
-    bounced_at: datetime | None = None
     updated_at: datetime | None = None
-
-
-class EmailLogList(BaseModel):
-    items: list[EmailLogOut]
-    total: int
-    limit: int
-    offset: int
 
 
 class MagicLinkRequest(BaseModel):

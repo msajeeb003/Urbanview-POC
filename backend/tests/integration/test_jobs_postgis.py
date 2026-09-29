@@ -202,7 +202,7 @@ async def test_sql_lifecycle_retries_transient_errors_then_fails(admin_app):
     assert retrying_listing.json()["total"] == 0
 
 
-async def test_cost_is_recorded_and_summed_per_document(admin_app):
+async def test_cost_is_recorded_per_job(admin_app):
     app = admin_app
     async with app.router.lifespan_context(app), make_client(app) as client:
         file = (await upload(client, PDF_A, "a.pdf")).json()["file"]
@@ -227,10 +227,6 @@ async def test_cost_is_recorded_and_summed_per_document(admin_app):
         listing = await client.get(
             "/v1/admin/jobs", params={"target": f"document:{doc['id']}"}, headers=auth()
         )
-        costs = await client.get(
-            "/v1/admin/jobs/costs", params={"target": f"document:{doc['id']}"}, headers=auth()
-        )
-        all_costs = await client.get("/v1/admin/jobs/costs", headers=auth())
         document = await client.get(f"/v1/admin/documents/{doc['id']}", headers=auth())
     assert first_row["status"] == "succeeded" and first_row["result"] == {"extracted": 3}
     cost = first_row["cost"]
@@ -242,18 +238,6 @@ async def test_cost_is_recorded_and_summed_per_document(admin_app):
     items = listing.json()["items"]
     assert [j["id"] for j in items] == [second["id"], first["id"]]
     assert [j["cost"]["estimated_cost_eur"] for j in items] == [0.012, 0.048]
-    summary = costs.json()
-    assert len(summary["rows"]) == 1
-    row = summary["rows"][0]
-    assert (row["target_type"], row["target_id"]) == ("document", doc["id"])
-    assert (row["jobs"], row["succeeded"], row["failed"]) == (2, 2, 0)
-    assert (row["llm_tokens_in"], row["llm_tokens_out"]) == (16_000, 800)
-    assert row["estimated_cost_eur"] == 0.06 and row["last_finished_at"] is not None
-    assert summary["total_estimated_cost_eur"] == 0.06 and summary["total_jobs"] == 2
-    assert any(
-        r["target_id"] == doc["id"] and r["estimated_cost_eur"] == 0.06
-        for r in all_costs.json()["rows"]
-    )
     # the document listing's job history shows the cost too
     doc_jobs = document.json()["jobs"]
     assert [j["cost"]["estimated_cost_eur"] for j in doc_jobs] == [0.012, 0.048]

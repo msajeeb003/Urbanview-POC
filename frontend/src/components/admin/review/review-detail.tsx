@@ -17,8 +17,8 @@
  *   the wordings the document already uses (or typed), free text otherwise — and a note, required;
  *   the API checks the correction with the extraction contract's rules, and a number outside the
  *   field's usual range asks "keep it anyway?" before it is saved. Reject (R): the reason,
- *   required. Esc closes an editor, Ctrl+Enter saves it.
- * - Bulk: approve every pending item of this page / this urban parcel at once.
+ *   required. Esc closes an editor, Ctrl+Enter saves it. One decision per item: there is no bulk
+ *   approval (100 % of items reviewed, each against its page).
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
@@ -324,18 +324,12 @@ export function ReviewDetail({
   onMode,
   onApprove,
   submit,
-  samePageCount,
-  sameParcelCount,
-  onBulk,
 }: {
   item: ReviewItem;
   mode: EditorMode;
   onMode: (mode: EditorMode) => void;
   onApprove: () => void;
   submit: Submit;
-  samePageCount: number;
-  sameParcelCount: number;
-  onBulk: (scope: "page" | "parcel") => void;
 }) {
   const chip = statusChip(item);
   const open = canDecide(item);
@@ -409,21 +403,6 @@ export function ReviewDetail({
         <AmendEditor key={`amend-${item.id}`} item={item} editor={editor} onSubmit={submit.amend} onCancel={() => onMode(null)} />
       )}
       {open && mode === "reject" && <RejectEditor key={`reject-${item.id}`} onSubmit={submit.reject} onCancel={() => onMode(null)} />}
-
-      {(samePageCount > 1 || sameParcelCount > 1) && (
-        <div className="rbulk">
-          {samePageCount > 1 && (
-            <button type="button" className="abtn sm ghost" onClick={() => onBulk("page")}>
-              Approve all {samePageCount} pending on p.{item.source.page}
-            </button>
-          )}
-          {sameParcelCount > 1 && (
-            <button type="button" className="abtn sm ghost" onClick={() => onBulk("parcel")}>
-              Approve all {sameParcelCount} pending of {targetLabel(item.target)}
-            </button>
-          )}
-        </div>
-      )}
 
       <dl className="rfacts">
         <Fact label="Parameter">

@@ -1282,12 +1282,6 @@ textarea.rinput {
   color: var(--brand-dark);
   text-decoration: underline;
 }
-.rbulk {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
 .rfacts {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -5,8 +5,8 @@ Admins manage every order (the pilot scope's roles: reviewers approve extraction
 order access); an expert sees and delivers only the orders assigned to
 them. Every change is an ``audit_log`` row; the guarded status flow answers 409 for anything
 outside ``pending_payment → paid → in_progress → delivered`` (+ ``payment_failed`` from
-pending_payment, which can still be paid, and ``refunded`` from paid / in_progress). Responses are
-``Cache-Control: no-store``.
+pending_payment, which can still be paid, and ``refunded`` from paid / in_progress / delivered;
+an expert is assigned to a paid order). Responses are ``Cache-Control: no-store``.
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ async def list_orders(
 @router.get(
     "/experts",
     response_model=list[ExpertOut],
-    summary="The active experts an order can be assigned to (admins and reviewers)",
+    summary="The active experts an order can be assigned to (admins)",
     responses=RESPONSES,
 )
 async def list_experts(
@@ -109,7 +109,7 @@ async def record_payment(
 @router.post(
     "/{order_id}/assign",
     response_model=OrderOut,
-    summary="Assign the order to an expert (a paid order moves to in_progress)",
+    summary="Assign a paid order to an expert (it moves to in_progress; reassign later)",
     responses=RESPONSES,
 )
 async def assign_order(

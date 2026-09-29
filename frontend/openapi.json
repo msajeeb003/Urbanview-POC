@@ -799,55 +799,6 @@
         }
       }
     },
-    "/v1/admin/overview": {
-      "get": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Parcels, documents, pending review, paid orders and the pipeline per district",
-        "operationId": "get_overview_v1_admin_overview_get",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OverviewOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/admin/files": {
       "post": {
         "tags": [
@@ -1129,92 +1080,6 @@
           },
           "409": {
             "description": "The file kind has no geometry job"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/admin/files/{file_id}/jobs/preprocess": {
-      "post": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Queue PDF pre-processing: pages, tables, scanned pages, chunks and page images",
-        "operationId": "enqueue_preprocess_job_v1_admin_files__file_id__jobs_preprocess_post",
-        "parameters": [
-          {
-            "name": "file_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "exclusiveMinimum": 0,
-              "title": "File Id"
-            }
-          },
-          {
-            "name": "force",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "description": "Redo it even when the file's manifest is current",
-              "default": false,
-              "title": "Force"
-            },
-            "description": "Redo it even when the file's manifest is current"
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or unknown bearer token (`unauthorized`)"
-          },
-          "403": {
-            "description": "The principal is neither admin nor reviewer (`forbidden`)"
-          },
-          "503": {
-            "description": "Database, object storage or job queue unavailable"
-          },
-          "200": {
-            "description": "An identical job is already queued or running; returned as is"
-          },
-          "409": {
-            "description": "The file is not a planning-document PDF"
           },
           "422": {
             "description": "Validation Error",
@@ -2176,7 +2041,6 @@
                 {
                   "enum": [
                     "extract_document",
-                    "preprocess_file",
                     "process_geometry",
                     "publish_approved",
                     "send_email",
@@ -2317,121 +2181,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobList"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Role not allowed"
-          },
-          "404": {
-            "description": "No such job"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/admin/jobs/costs": {
-      "get": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Job cost per target",
-        "operationId": "job_costs_v1_admin_jobs_costs_get",
-        "parameters": [
-          {
-            "name": "target",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "pattern": "^(document|file|publish_run|email):[0-9]+$"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "`<target_type>:<id>`, e.g. `document:12`",
-              "title": "Target"
-            },
-            "description": "`<target_type>:<id>`, e.g. `document:12`"
-          },
-          {
-            "name": "type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "extract_document",
-                    "preprocess_file",
-                    "process_geometry",
-                    "publish_approved",
-                    "send_email",
-                    "import_market_data",
-                    "refresh_heatmaps",
-                    "import_zones"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Type"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 500,
-              "minimum": 1,
-              "default": 100,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobCostSummary"
                 }
               }
             }
@@ -3156,6 +2905,61 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AssumptionsOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown bearer token (`unauthorized`)"
+          },
+          "403": {
+            "description": "The principal's role is not admin (`forbidden`)"
+          },
+          "409": {
+            "description": "Not the current version, duplicate e-mail, or a self-change (`conflict`)"
+          },
+          "422": {
+            "description": "Validation: low ≤ expected ≤ high, percentages, dates, references"
+          }
+        }
+      }
+    },
+    "/v1/admin/formulas": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Formula versions: the current one is what the engine runs and the panels state",
+        "operationId": "list_formulas_v1_admin_formulas_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FormulaVersionOut"
+                  },
+                  "title": "Response List Formulas V1 Admin Formulas Get"
                 }
               }
             }
@@ -4778,77 +4582,6 @@
         }
       }
     },
-    "/v1/admin/review/bulk-approve": {
-      "post": {
-        "tags": [
-          "review"
-        ],
-        "summary": "Approve many pending items (by ids, document page or urban parcel)",
-        "operationId": "bulk_approve_v1_admin_review_bulk_approve_post",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BulkApproveIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BulkResult"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or unknown bearer token (`unauthorized`)"
-          },
-          "403": {
-            "description": "The principal's role may not review (`forbidden`)"
-          },
-          "404": {
-            "description": "No such item (`not_found`)"
-          },
-          "409": {
-            "description": "The item has been published; decisions are closed (`conflict`)"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/admin/review/{item_id}": {
       "get": {
         "tags": [
@@ -5556,77 +5289,6 @@
         }
       }
     },
-    "/v1/admin/geometry/bulk-approve": {
-      "post": {
-        "tags": [
-          "review"
-        ],
-        "summary": "Approve the pending batches of a dataset, a document or given ids",
-        "operationId": "bulk_approve_geometry_v1_admin_geometry_bulk_approve_post",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GeometryBulkApproveIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GeometryBulkResult"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or unknown bearer token (`unauthorized`)"
-          },
-          "403": {
-            "description": "The principal's role may not review (`forbidden`)"
-          },
-          "404": {
-            "description": "No such batch (`not_found`)"
-          },
-          "409": {
-            "description": "The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`)"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/admin/geometry/{batch_id}": {
       "get": {
         "tags": [
@@ -6317,7 +5979,7 @@
         "tags": [
           "orders"
         ],
-        "summary": "The active experts an order can be assigned to (admins and reviewers)",
+        "summary": "The active experts an order can be assigned to (admins)",
         "operationId": "list_experts_v1_admin_orders_experts_get",
         "parameters": [
           {
@@ -6615,7 +6277,7 @@
         "tags": [
           "orders"
         ],
-        "summary": "Assign the order to an expert (a paid order moves to in_progress)",
+        "summary": "Assign a paid order to an expert (it moves to in_progress; reassign later)",
         "operationId": "assign_order_v1_admin_orders__order_id__assign_post",
         "parameters": [
           {
@@ -6764,233 +6426,6 @@
           },
           "422": {
             "description": "Not a PDF"
-          }
-        }
-      }
-    },
-    "/v1/admin/email-log": {
-      "get": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Sent e-mails",
-        "operationId": "list_email_log_v1_admin_email_log_get",
-        "parameters": [
-          {
-            "name": "order_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "exclusiveMinimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Order Id"
-            }
-          },
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "exclusiveMinimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "User Id"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "queued",
-                    "sent",
-                    "suppressed",
-                    "failed",
-                    "bounced"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          },
-          {
-            "name": "template",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "enum": [
-                    "payment_instructions",
-                    "order_delivered",
-                    "magic_link"
-                  ],
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Template"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmailLogList"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Role not allowed"
-          },
-          "404": {
-            "description": "No such entry"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/admin/email-log/{log_id}": {
-      "get": {
-        "tags": [
-          "admin"
-        ],
-        "summary": "Get Email Log",
-        "operationId": "get_email_log_v1_admin_email_log__log_id__get",
-        "parameters": [
-          {
-            "name": "log_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "exclusiveMinimum": 0,
-              "title": "Log Id"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmailLogOut"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Role not allowed"
-          },
-          "404": {
-            "description": "No such entry"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
         }
       }
@@ -7962,6 +7397,19 @@
             "title": "Applies From",
             "description": "Its place on the timeline: the effective date, never before the local day it was saved (a backdated market input applies from its approval)"
           },
+          "effective_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To",
+            "description": "The local date it stops applying (exclusive): the next version's applies_from on the zone's timeline, or the day it was retired; null = open-ended"
+          },
           "rate_sources": {
             "anyOf": [
               {
@@ -8469,126 +7917,6 @@
           "file"
         ],
         "title": "Body_upload_report_v1_admin_orders__order_id__report_post"
-      },
-      "BulkApproveIn": {
-        "properties": {
-          "item_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array",
-                "maxItems": 500
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Item Ids"
-          },
-          "document_id": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "exclusiveMinimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Document Id"
-          },
-          "source_page": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Page",
-            "description": "needs document_id"
-          },
-          "urban_parcel_id": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "exclusiveMinimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Urban Parcel Id"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "BulkApproveIn",
-        "description": "Approve many pending items at once: by ids, by document page, or by urban parcel."
-      },
-      "BulkResult": {
-        "properties": {
-          "approved": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Approved"
-          },
-          "skipped": {
-            "items": {
-              "$ref": "#/components/schemas/BulkSkipped"
-            },
-            "type": "array",
-            "title": "Skipped"
-          }
-        },
-        "type": "object",
-        "required": [
-          "approved",
-          "skipped"
-        ],
-        "title": "BulkResult"
-      },
-      "BulkSkipped": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "reason": {
-            "type": "string",
-            "enum": [
-              "not_found",
-              "not_pending",
-              "published",
-              "superseded"
-            ],
-            "title": "Reason"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "reason"
-        ],
-        "title": "BulkSkipped"
       },
       "CadastralIdentification": {
         "properties": {
@@ -9827,107 +9155,6 @@
         "title": "District",
         "description": "A zone (UrbanView's district) by the events made in it: the event's ``zone_id``, else the\nzone containing its ``lat`` / ``lng``, so searches outside coverage count too."
       },
-      "DistrictStatus": {
-        "properties": {
-          "zone_id": {
-            "type": "integer",
-            "title": "Zone Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "zone_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Zone Type"
-          },
-          "documents": {
-            "type": "integer",
-            "title": "Documents"
-          },
-          "documents_adopted": {
-            "type": "integer",
-            "title": "Documents Adopted"
-          },
-          "extraction": {
-            "type": "string",
-            "enum": [
-              "none",
-              "queued",
-              "in_progress",
-              "done"
-            ],
-            "title": "Extraction",
-            "description": "none: the zone has no documents; queued: nothing extracted yet; in_progress: runs going or only part of the documents read; done: every document read"
-          },
-          "extraction_done": {
-            "type": "integer",
-            "title": "Extraction Done"
-          },
-          "extraction_running": {
-            "type": "integer",
-            "title": "Extraction Running"
-          },
-          "extraction_failed": {
-            "type": "integer",
-            "title": "Extraction Failed"
-          },
-          "review_items": {
-            "type": "integer",
-            "title": "Review Items"
-          },
-          "review_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Review Pct",
-            "description": "Reviewed / extracted items, 0-100; null when nothing was extracted"
-          },
-          "live": {
-            "type": "string",
-            "enum": [
-              "yes",
-              "partial",
-              "no"
-            ],
-            "title": "Live",
-            "description": "Adopted documents with a live coverage: all of them, some, none"
-          },
-          "documents_live": {
-            "type": "integer",
-            "title": "Documents Live"
-          }
-        },
-        "type": "object",
-        "required": [
-          "zone_id",
-          "name",
-          "zone_type",
-          "documents",
-          "documents_adopted",
-          "extraction",
-          "extraction_done",
-          "extraction_running",
-          "extraction_failed",
-          "review_items",
-          "review_pct",
-          "live",
-          "documents_live"
-        ],
-        "title": "DistrictStatus"
-      },
       "DocumentCounts": {
         "properties": {
           "documents": {
@@ -11134,37 +10361,6 @@
         "title": "EditedAssumptions",
         "description": "The visitor's edits. Omitted / null = keep the default (0.70 share, market rates)."
       },
-      "EmailLogList": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/EmailLogOut"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          },
-          "limit": {
-            "type": "integer",
-            "title": "Limit"
-          },
-          "offset": {
-            "type": "integer",
-            "title": "Offset"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ],
-        "title": "EmailLogList"
-      },
       "EmailLogOut": {
         "properties": {
           "id": {
@@ -11212,8 +10408,7 @@
               "queued",
               "sent",
               "suppressed",
-              "failed",
-              "bounced"
+              "failed"
             ],
             "title": "Status"
           },
@@ -11267,17 +10462,6 @@
             ],
             "title": "Suppressed Reason"
           },
-          "bounce_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bounce Reason"
-          },
           "job_id": {
             "anyOf": [
               {
@@ -11305,18 +10489,6 @@
               }
             ],
             "title": "Sent At"
-          },
-          "bounced_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Bounced At"
           },
           "updated_at": {
             "anyOf": [
@@ -12198,6 +11370,55 @@
         ],
         "title": "Flags"
       },
+      "FormulaVersionOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "What the engine and the panels state, e.g. poc-1"
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date",
+            "title": "Effective From"
+          },
+          "is_current": {
+            "type": "boolean",
+            "title": "Is Current"
+          },
+          "approval_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Note",
+            "description": "The client's approval"
+          },
+          "engine_package": {
+            "type": "string",
+            "title": "Engine Package",
+            "description": "The shared engine package that implements it"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "effective_from",
+          "is_current",
+          "engine_package"
+        ],
+        "title": "FormulaVersionOut",
+        "description": "A client-owned formula version (``formula_versions``). The current one is what the shared\nengine runs and every panel states as ``formula_version``; a new formula comes with a new\nengine release and a new row, never an edit."
+      },
       "Funnel": {
         "properties": {
           "basis": {
@@ -12449,114 +11670,6 @@
         ],
         "title": "GeometryBlocker",
         "description": "A staged batch still waiting for a decision: publishing waits for it."
-      },
-      "GeometryBulkApproveIn": {
-        "properties": {
-          "batch_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array",
-                "maxItems": 200
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Batch Ids"
-          },
-          "dataset_version": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 120,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dataset Version"
-          },
-          "document_id": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "exclusiveMinimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Document Id"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "GeometryBulkApproveIn",
-        "description": "Approve the pending batches of one producing dataset, one document, or given ids."
-      },
-      "GeometryBulkResult": {
-        "properties": {
-          "approved": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Approved"
-          },
-          "skipped": {
-            "items": {
-              "$ref": "#/components/schemas/GeometryBulkSkipped"
-            },
-            "type": "array",
-            "title": "Skipped"
-          }
-        },
-        "type": "object",
-        "required": [
-          "approved",
-          "skipped"
-        ],
-        "title": "GeometryBulkResult"
-      },
-      "GeometryBulkSkipped": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "reason": {
-            "type": "string",
-            "enum": [
-              "not_found",
-              "not_pending",
-              "qa_failed",
-              "not_open"
-            ],
-            "title": "Reason"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "reason"
-        ],
-        "title": "GeometryBulkSkipped"
       },
       "GeometryCounts": {
         "properties": {
@@ -14186,127 +13299,6 @@
         "title": "JobCostOut",
         "description": "What the job cost; fields stay ``null`` until it has run (and succeeded, for LLM cost)."
       },
-      "JobCostRow": {
-        "properties": {
-          "target_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Target Type"
-          },
-          "target_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Target Id"
-          },
-          "jobs": {
-            "type": "integer",
-            "title": "Jobs"
-          },
-          "succeeded": {
-            "type": "integer",
-            "title": "Succeeded"
-          },
-          "failed": {
-            "type": "integer",
-            "title": "Failed"
-          },
-          "llm_tokens_in": {
-            "type": "integer",
-            "title": "Llm Tokens In"
-          },
-          "llm_tokens_out": {
-            "type": "integer",
-            "title": "Llm Tokens Out"
-          },
-          "estimated_cost_eur": {
-            "type": "number",
-            "title": "Estimated Cost Eur"
-          },
-          "wall_time_ms": {
-            "type": "integer",
-            "title": "Wall Time Ms"
-          },
-          "last_finished_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Finished At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "target_type",
-          "target_id",
-          "jobs",
-          "succeeded",
-          "failed",
-          "llm_tokens_in",
-          "llm_tokens_out",
-          "estimated_cost_eur",
-          "wall_time_ms"
-        ],
-        "title": "JobCostRow"
-      },
-      "JobCostSummary": {
-        "properties": {
-          "rows": {
-            "items": {
-              "$ref": "#/components/schemas/JobCostRow"
-            },
-            "type": "array",
-            "title": "Rows",
-            "description": "One row per target, most expensive first"
-          },
-          "total_jobs": {
-            "type": "integer",
-            "title": "Total Jobs"
-          },
-          "total_llm_tokens_in": {
-            "type": "integer",
-            "title": "Total Llm Tokens In"
-          },
-          "total_llm_tokens_out": {
-            "type": "integer",
-            "title": "Total Llm Tokens Out"
-          },
-          "total_estimated_cost_eur": {
-            "type": "number",
-            "title": "Total Estimated Cost Eur"
-          },
-          "total_wall_time_ms": {
-            "type": "integer",
-            "title": "Total Wall Time Ms"
-          }
-        },
-        "type": "object",
-        "required": [
-          "rows",
-          "total_jobs",
-          "total_llm_tokens_in",
-          "total_llm_tokens_out",
-          "total_estimated_cost_eur",
-          "total_wall_time_ms"
-        ],
-        "title": "JobCostSummary"
-      },
       "JobList": {
         "properties": {
           "items": {
@@ -14359,7 +13351,6 @@
             "type": "string",
             "enum": [
               "extract_document",
-              "preprocess_file",
               "process_geometry",
               "publish_approved",
               "send_email",
@@ -16817,6 +15808,42 @@
           "location": {
             "$ref": "#/components/schemas/OrderLocationOut"
           },
+          "planned_parcel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Parcel",
+            "description": "The planned (urban) parcel the figures used, as shown (`UP 12`)"
+          },
+          "ko_and_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ko And Number",
+            "description": "The cadastral parcel as shown: \"KO {ko}, {number}[/{sub}]\""
+          },
+          "data_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Version",
+            "description": "Label of the published version the visitor saw"
+          },
           "price_eur": {
             "type": "number",
             "title": "Price Eur"
@@ -16835,10 +15862,26 @@
             "format": "date-time",
             "title": "Status Changed At"
           },
+          "turnaround_business_days": {
+            "type": "integer",
+            "title": "Turnaround Business Days"
+          },
           "expected_by": {
             "type": "string",
             "format": "date",
             "title": "Expected By"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered At"
           },
           "assignee": {
             "anyOf": [
@@ -16857,7 +15900,7 @@
           "email_alerts": {
             "type": "integer",
             "title": "Email Alerts",
-            "description": "E-mails bounced or failed for this order (see /admin/email-log)",
+            "description": "E-mails that failed for this order (listed on its detail)",
             "default": 0
           },
           "emails": {
@@ -16948,17 +15991,6 @@
           },
           "turnaround": {
             "$ref": "#/components/schemas/TurnaroundOut"
-          },
-          "data_version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data Version"
           },
           "publish_version_id": {
             "anyOf": [
@@ -17051,18 +16083,6 @@
             ],
             "title": "Payment Received On"
           },
-          "delivered_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Delivered At"
-          },
           "refunded_at": {
             "anyOf": [
               {
@@ -17130,6 +16150,7 @@
           "currency",
           "placed_at",
           "status_changed_at",
+          "turnaround_business_days",
           "expected_by",
           "has_report",
           "first_name",
@@ -17317,6 +16338,42 @@
           "location": {
             "$ref": "#/components/schemas/OrderLocationOut"
           },
+          "planned_parcel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Parcel",
+            "description": "The planned (urban) parcel the figures used, as shown (`UP 12`)"
+          },
+          "ko_and_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ko And Number",
+            "description": "The cadastral parcel as shown: \"KO {ko}, {number}[/{sub}]\""
+          },
+          "data_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Version",
+            "description": "Label of the published version the visitor saw"
+          },
           "price_eur": {
             "type": "number",
             "title": "Price Eur"
@@ -17335,10 +16392,26 @@
             "format": "date-time",
             "title": "Status Changed At"
           },
+          "turnaround_business_days": {
+            "type": "integer",
+            "title": "Turnaround Business Days"
+          },
           "expected_by": {
             "type": "string",
             "format": "date",
             "title": "Expected By"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered At"
           },
           "assignee": {
             "anyOf": [
@@ -17357,7 +16430,7 @@
           "email_alerts": {
             "type": "integer",
             "title": "Email Alerts",
-            "description": "E-mails bounced or failed for this order (see /admin/email-log)",
+            "description": "E-mails that failed for this order (listed on its detail)",
             "default": 0
           }
         },
@@ -17374,6 +16447,7 @@
           "currency",
           "placed_at",
           "status_changed_at",
+          "turnaround_business_days",
           "expected_by",
           "has_report"
         ],
@@ -17471,94 +16545,6 @@
           "sale_price_eur_m2"
         ],
         "title": "OverrideFlags"
-      },
-      "OverviewOut": {
-        "properties": {
-          "municipality_id": {
-            "type": "string",
-            "title": "Municipality Id"
-          },
-          "municipality_name": {
-            "type": "string",
-            "title": "Municipality Name"
-          },
-          "totals": {
-            "$ref": "#/components/schemas/OverviewTotals"
-          },
-          "districts": {
-            "items": {
-              "$ref": "#/components/schemas/DistrictStatus"
-            },
-            "type": "array",
-            "title": "Districts"
-          }
-        },
-        "type": "object",
-        "required": [
-          "municipality_id",
-          "municipality_name",
-          "totals",
-          "districts"
-        ],
-        "title": "OverviewOut"
-      },
-      "OverviewTotals": {
-        "properties": {
-          "parcels": {
-            "type": "integer",
-            "title": "Parcels",
-            "description": "Cadastral parcels ingested"
-          },
-          "documents": {
-            "type": "integer",
-            "title": "Documents",
-            "description": "Planning documents (current versions)"
-          },
-          "documents_adopted": {
-            "type": "integer",
-            "title": "Documents Adopted"
-          },
-          "documents_in_progress": {
-            "type": "integer",
-            "title": "Documents In Progress"
-          },
-          "documents_superseded": {
-            "type": "integer",
-            "title": "Documents Superseded"
-          },
-          "pending_review": {
-            "type": "integer",
-            "title": "Pending Review",
-            "description": "AI-extracted items waiting for an expert"
-          },
-          "paid_orders": {
-            "type": "integer",
-            "title": "Paid Orders",
-            "description": "Orders paid, in progress or delivered"
-          },
-          "paid_orders_last_7_days": {
-            "type": "integer",
-            "title": "Paid Orders Last 7 Days"
-          },
-          "revenue_eur": {
-            "type": "number",
-            "title": "Revenue Eur",
-            "description": "Received amounts (the price where none was recorded)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "parcels",
-          "documents",
-          "documents_adopted",
-          "documents_in_progress",
-          "documents_superseded",
-          "pending_review",
-          "paid_orders",
-          "paid_orders_last_7_days",
-          "revenue_eur"
-        ],
-        "title": "OverviewTotals"
       },
       "PageFailure": {
         "properties": {

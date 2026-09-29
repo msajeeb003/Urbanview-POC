@@ -37,7 +37,6 @@ export default async function GeometryReviewPage({
       initial={page}
       filters={filters}
       valuesPending={valuesPending}
-      me={access.staff.email ?? access.staff.name ?? access.staff.role}
     />
   );
 }

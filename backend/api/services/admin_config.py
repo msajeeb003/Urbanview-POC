@@ -1,6 +1,8 @@
-"""Admin configuration API (``/v1/admin/assumptions``, ``/users``).
+"""Admin configuration API (``/v1/admin/assumptions``, ``/formulas``, ``/users``).
 
-Two sets of staff-maintained data, every write audited (``audit_log``) and role-gated (admin):
+Two sets of staff-maintained data, every write audited (``audit_log``) and role-gated (admin),
+and the formula versions (read-only: a formula changes with an engine release, a migration adds
+its row):
 
 - **Financial assumptions** per zone (or the municipality-wide row, ``zone_id`` null): the
   four rates the feasibility engine needs, the range factors, optional absolute low / high
@@ -42,6 +44,7 @@ from api.schemas.admin_config import (
     AssumptionsList,
     AssumptionsOut,
     AssumptionsUpdate,
+    FormulaVersionOut,
     RateIn,
     StaffMeOut,
     StaffUserIn,
@@ -108,6 +111,13 @@ def _assumptions_sql(extra: str) -> str:
                a.source_date, a.notes, a.effective_from, a.rate_sources,
                a.created_by, a.created_at, a.retired_at, a.retired_by,
                {applies_from_sql("a")} AS applies_from,
+               LEAST(
+                   LEAD({applies_from_sql("a")}) OVER (
+                       PARTITION BY a.zone_id
+                       ORDER BY {applies_from_sql("a")}, a.version, a.id
+                   ),
+                   (a.retired_at AT TIME ZONE CAST(:tz AS text))::date
+               ) AS effective_to,
                {status_sql("a", "top")} AS status
         FROM financial_assumptions a
         LEFT JOIN zones z ON z.id = a.zone_id
@@ -121,6 +131,10 @@ def _assumptions_sql(extra: str) -> str:
 
 
 ASSUMPTIONS_BY_ID_SQL = text(_assumptions_sql("AND id = :id"))
+FORMULAS_SQL = text(
+    "SELECT id, label, effective_from, is_current, approval_note, engine_package "
+    "FROM formula_versions ORDER BY effective_from DESC, id DESC"
+)
 TODAY_SQL = text(f"SELECT {LOCAL_TODAY} AS today")
 # The zone's newest version, locked: the next version number, what it supersedes and the "before"
 # of the audit row. Concurrent saves for a zone meet on the head's partial unique index.
@@ -235,6 +249,7 @@ def _assumptions_out(row: Mapping[str, Any]) -> AssumptionsOut:
         notes=row["notes"],
         effective_from=row["effective_from"],
         applies_from=row["applies_from"],
+        effective_to=row["effective_to"],
         rate_sources=row["rate_sources"],
         created_by=row["created_by"],
         created_at=_utc(row["created_at"]),
@@ -491,6 +506,12 @@ class AdminConfigService:
         return AssumptionsList(
             items=[_assumptions_out(r) for r in rows], today=today, timezone=self.timezone
         )
+
+    async def list_formulas(self) -> list[FormulaVersionOut]:
+        """The formula versions, newest first (product-wide, like the engine)."""
+        async with self.session_factory() as session:
+            rows = (await session.execute(FORMULAS_SQL)).mappings().all()
+        return [FormulaVersionOut(**r) for r in rows]
 
     async def get_assumptions(self, assumptions_id: int) -> AssumptionsOut:
         async with self.session_factory() as session:

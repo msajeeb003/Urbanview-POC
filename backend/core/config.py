@@ -98,7 +98,8 @@ class Settings(BaseSettings):
     extraction_retry_max_seconds: float = Field(default=30.0, ge=0, le=600)
     extraction_max_chunks: int = Field(default=400, ge=1)
 
-    # PDF pre-processing (core.extraction.preprocess, job preprocess_file), cached by checksum
+    # PDF pre-processing (core.extraction.preprocess, the extraction / geometry jobs' first
+    # stage), cached by checksum
     preprocess_page_image_dpi: int = Field(default=150, ge=36, le=600)
     preprocess_page_image_max_pixels: int = Field(default=25_000_000, ge=1_000_000)
     # true: the source viewer serves the rendered PNGs (page_images_rendered); the public viewer

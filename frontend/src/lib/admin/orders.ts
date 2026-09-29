@@ -6,11 +6,11 @@
  *
  * Status flow (the API's `TRANSITIONS`): pending_payment → paid → in_progress → delivered;
  * payment_failed from pending_payment ("Payment not received"; it can still be paid); refunded from
- * paid or in_progress. A paid order moves to in_progress when an expert is assigned
- * (or with "Start"); uploading the report delivers it and e-mails the customer; a delivered
- * report can be replaced (a note says why; the new link is e-mailed again). Admins manage orders
- * (the pilot scope's roles); an expert sees only the orders assigned to them and only uploads the
- * report.
+ * paid, in_progress or delivered (a delivered order never goes back to work). A paid order moves
+ * to in_progress when an expert is assigned (never before the payment); uploading the report
+ * delivers it and e-mails the customer; a delivered report can be replaced (a note says why; the
+ * new link is e-mailed again). Admins manage orders (the pilot scope's roles); an expert sees only
+ * the orders assigned to them and only uploads the report.
  */
 import type { ChipTone } from "@/components/admin/parts";
 import type { OrderDetail, OrderEmail, OrderEvent, OrderStatus, OrderSummary } from "@/lib/api/types";
@@ -37,7 +37,7 @@ export function statusLabel(status: string): string {
 
 // --- what may happen now ---------------------------------------------------------------------------
 
-export type OrderAction = "receive" | "notReceived" | "refund" | "assign" | "start" | "upload";
+export type OrderAction = "receive" | "notReceived" | "refund" | "assign" | "upload";
 
 export interface Allowed {
   /** Shown at all (experts see only the report upload). */
@@ -73,18 +73,17 @@ export function allowed(
         : no(`Payments are recorded while the order awaits payment; this one is ${is}.`);
     case "refund":
       if (!manager) return no("Admins record refunds.", false);
-      return status === "paid" || status === "in_progress"
+      return status === "paid" || status === "in_progress" || status === "delivered"
         ? { visible: true, enabled: true }
-        : no(`Only a paid order or one in progress can be refunded; this one is ${is}.`);
+        : no(`Only a paid order (in progress or delivered too) can be refunded; this one is ${is}.`);
     case "assign":
       if (!manager) return no("Admins assign experts.", false);
-      return status === "delivered" || status === "refunded"
-        ? no(`A ${is} order is closed.`)
-        : { visible: true, enabled: true };
-    case "start":
-      if (!manager) return no("Admins start the work.", false);
-      if (status !== "paid") return no(`Work starts on a paid order; this one is ${is}.`);
-      return order.assignee ? { visible: true, enabled: true } : no("Assign an expert first.");
+      if (status === "paid" || status === "in_progress") return { visible: true, enabled: true };
+      return no(
+        status === "pending_payment" || status === "payment_failed"
+          ? "An expert is assigned once the payment is received."
+          : `A ${is} order is closed.`,
+      );
     case "upload":
       if (status === "in_progress" || status === "delivered") return { visible: true, enabled: true };
       return no(
@@ -191,8 +190,6 @@ export function emailChip(email: Pick<OrderEmail, "status">): { tone: ChipTone; 
       return { tone: "pend", label: "Queued" };
     case "suppressed":
       return { tone: "rev", label: "Not sent" };
-    case "bounced":
-      return { tone: "rev", label: "Bounced" };
     default:
       return { tone: "rev", label: "Failed" };
   }
@@ -321,11 +318,22 @@ export function snapshotAssumptions(snapshot: Loose, edits: Record<string, unkno
   return rows;
 }
 
-/** The ordered parcel as the queue shows it: "#1042/3 · Podgorica I" (cadastral), "UP 12" (urban). */
+/** The ordered parcel as the drawer shows it: "#1042/3 · Podgorica I" (cadastral), "UP 12" (urban). */
 export function parcelLine(location: { parcel_type: string; parcel_label: string }): string {
   const label = location.parcel_label.trim();
   const ko = /^KO (.+?), (.+)$/.exec(label);
   if (ko) return `#${ko[2]} · ${ko[1]}`;
   if (location.parcel_type === "urban") return /^up\b/i.test(label) ? label : `UP ${label}`;
   return label.startsWith("#") ? label : `#${label}`;
+}
+
+/**
+ * The queue's parcel cell: the cadastral parcel ("#1042 · Podgorica I", from the order's
+ * `ko_and_number`) and the planned parcel the figures used ("UP 12"), whichever the order has.
+ */
+export function parcelCells(order: Pick<OrderSummary, "ko_and_number" | "planned_parcel">): { cadastral: string | null; planned: string | null } {
+  return {
+    cadastral: order.ko_and_number ? parcelLine({ parcel_type: "cadastral", parcel_label: order.ko_and_number }) : null,
+    planned: order.planned_parcel ? parcelLine({ parcel_type: "urban", parcel_label: order.planned_parcel }) : null,
+  };
 }

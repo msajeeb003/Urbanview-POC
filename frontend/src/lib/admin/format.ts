@@ -1,25 +1,7 @@
 /**
- * Words and chips of the admin tables: the wireframe's vocabulary for the pipeline status
- * (Queued / In progress / Done, Yes / Partial / No), relative times ("2h ago", "Yesterday"), and
- * the audit log's before -> after. The order chips live with the orders rules (`orders.ts`).
+ * Words of the admin tables: relative times ("2h ago", "Yesterday") and the audit log's
+ * before -> after. The order chips live with the orders rules (`orders.ts`).
  */
-import type { ChipTone } from "@/components/admin/parts";
-
-type Extraction = "none" | "queued" | "in_progress" | "done";
-
-export function extractionLabel(extraction: Extraction): string {
-  return { none: "—", queued: "Queued", in_progress: "In progress", done: "Done" }[extraction];
-}
-
-export function reviewLabel(pct: number | null | undefined): string {
-  return pct == null ? "—" : `${Math.round(pct)}%`;
-}
-
-export function liveChip(live: "yes" | "partial" | "no"): { tone: ChipTone; label: string } {
-  if (live === "yes") return { tone: "ok", label: "Yes" };
-  if (live === "partial") return { tone: "rev", label: "Partial" };
-  return { tone: "pend", label: "No" };
-}
 
 /** "just now", "2h ago", "Yesterday", "3 days ago", else the date (`12 May 2026`). */
 export function relativeTime(iso: string, now: Date = new Date()): string {

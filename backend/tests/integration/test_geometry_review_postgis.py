@@ -290,7 +290,7 @@ async def test_publish_waits_for_the_review_and_applies_approved_geometry_only(p
     )
 
 
-async def test_bulk_approval_of_a_dataset_skips_failing_batches(publish_env):  # noqa: F811 - imported fixtures
+async def test_per_batch_approval_and_the_document_filter(publish_env):  # noqa: F811 - imported fixtures
     app = publish_env()
     async with app.router.lifespan_context(app), make_client(app) as client:
         first = await stage(app, "urban_blocks", [("2|B", box(0, 0, 30, 30), {"block_ref": "B"})])
@@ -306,12 +306,16 @@ async def test_bulk_approval_of_a_dataset_skips_failing_batches(publish_env):  #
                 {"a": first, "b": second, "c": broken},
             )
             await session.commit()
-        bad = await client.post("/v1/admin/geometry/bulk-approve", json={}, headers=auth())
-        result = await client.post(
-            "/v1/admin/geometry/bulk-approve",
-            json={"dataset_version": "geo-2-test-1", "note": "checked against the plan sheets"},
-            headers=auth(),
-        )
+        # one decision per batch (the review is per draft); a failing batch is refused
+        approved = [
+            await client.post(
+                f"/v1/admin/geometry/{batch_id}/approve",
+                json={"note": "checked against the plan sheets"},
+                headers=auth(),
+            )
+            for batch_id in (first, second)
+        ]
+        refused = await client.post(f"/v1/admin/geometry/{broken}/approve", headers=auth())
         by_document = await client.get(
             "/v1/admin/geometry", params={"document_id": 2}, headers=auth()
         )
@@ -319,12 +323,9 @@ async def test_bulk_approval_of_a_dataset_skips_failing_batches(publish_env):  #
             app, "SELECT id, review_state, review_note FROM geometry_batches ORDER BY id"
         )
 
-    assert bad.status_code == 422
-    assert result.status_code == 200
-    assert result.json() == {
-        "approved": [first, second],
-        "skipped": [{"id": broken, "reason": "qa_failed"}],
-    }
+    assert [r.status_code for r in approved] == [200, 200]
+    assert refused.status_code == 409
+    assert refused.json()["error"]["details"] == {"batch_id": broken, "reason": "qa_failed"}
     listed = by_document.json()["items"]
     assert {d["id"] for d in listed} == {first, second, broken}
     assert listed[0]["id"] == broken  # pending first

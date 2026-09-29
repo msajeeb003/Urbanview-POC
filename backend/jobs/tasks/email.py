@@ -156,7 +156,7 @@ async def deliver(
     row = await repo.load_log(log_id)
     if row is None:
         raise MailPermanentError(f"email_log row {log_id} does not exist")
-    if row.status in ("sent", "bounced", "suppressed"):
+    if row.status in ("sent", "suppressed"):
         return JobResult(result={"email_log_id": log_id, "status": row.status, "skipped": True})
     template = row.template
     recipient, context = await resolve_context(template, row, repo, settings, storage, clock)

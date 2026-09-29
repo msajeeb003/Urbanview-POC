@@ -21,7 +21,7 @@ export type OrderResult = { ok: true; message: string } | { ok: false; message: 
 
 async function manager(): Promise<string | null> {
   const staff = await currentStaff();
-  return staff && isManager(staff.role) ? null : "Only admins and reviewers manage orders.";
+  return staff && isManager(staff.role) ? null : "Only admins manage orders.";
 }
 
 function explain(problem: { status: number; message?: string; details?: unknown }): string {
@@ -72,7 +72,7 @@ export async function paymentAction(orderId: number, input: PaymentInput): Promi
   );
 }
 
-/** `POST /v1/admin/orders/{id}/assign`: a paid order moves to in progress. */
+/** `POST /v1/admin/orders/{id}/assign`: a paid order moves to in progress (reassign later). */
 export async function assignAction(orderId: number, expertUserId: number, note: string): Promise<OrderResult> {
   const denied = await manager();
   if (denied) return { ok: false, message: denied };
@@ -83,13 +83,4 @@ export async function assignAction(orderId: number, expertUserId: number, note: 
   if (!result.ok) return { ok: false, message: explain(result) };
   const who = result.data.assignee?.display_name ?? result.data.assignee?.email ?? "the expert";
   return done(result.data.status === "in_progress" ? `Assigned to ${who} — work started` : `Assigned to ${who}`);
-}
-
-/** `PATCH /v1/admin/orders/{id}/status` → in_progress (a paid order with an expert). */
-export async function startAction(orderId: number): Promise<OrderResult> {
-  const denied = await manager();
-  if (denied) return { ok: false, message: denied };
-  const result = await adminSend<OrderDetail>("PATCH", `/v1/admin/orders/${orderId}/status`, { status: "in_progress" });
-  if (!result.ok) return { ok: false, message: explain(result) };
-  return done("Work started");
 }

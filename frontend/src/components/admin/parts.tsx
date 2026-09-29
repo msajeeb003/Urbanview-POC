@@ -6,8 +6,7 @@
  * - `AdminCard`: `.card > .cardhd (h3 + .sub, right-side action)` + body;
  * - `DataTable`: `.tbl`, numbers and references in `.mono` cells;
  * - `StatusChip`: `.st.ok | .st.pend | .st.rev` (dot + uppercase mono word);
- * - `AdminButton`: `.abtn`, `.ghost`, `.sm`;
- * - `StatCard`: `.astat > .sl + .sv (+ small) + .sd (.up | .warn)`.
+ * - `AdminButton`: `.abtn`, `.ghost`, `.sm`.
  */
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
@@ -101,33 +100,6 @@ export function DataTable<T>({
         )}
       </tbody>
     </table>
-  );
-}
-
-export function StatCard({
-  label,
-  value,
-  small,
-  note,
-  noteTone,
-  warn,
-}: {
-  label: string;
-  value: ReactNode;
-  small?: ReactNode;
-  note?: ReactNode;
-  noteTone?: "up" | "warn";
-  warn?: boolean;
-}) {
-  return (
-    <div className="astat">
-      <div className="sl">{label}</div>
-      <div className={warn ? "sv warn" : "sv"}>
-        {value}
-        {small != null && <small> {small}</small>}
-      </div>
-      {note != null && <div className={noteTone ? `sd ${noteTone}` : "sd"}>{note}</div>}
-    </div>
   );
 }
 

@@ -1,7 +1,8 @@
 """Orders as the admin console works them: the experts a manager assigns to (managers only), the
 order's timeline from its audit entries (payment with amount and bank reference, refund details),
-and replacing a delivered report (a note is required, the file is versioned and the delivery
-e-mail goes out again)."""
+replacing a delivered report (a note is required, the file is versioned and the delivery e-mail
+goes out again), an expert assigned only once the order is paid, a refund after delivery, and the
+queue's columns (parcel, planned parcel, data version seen, turnaround, delivered)."""
 
 from __future__ import annotations
 
@@ -113,3 +114,75 @@ async def test_experts_timeline_refund_and_a_replaced_report(order_app, mailer):
     assert refund["details"]["refunded_on"] == "2026-09-26"
     assert refund["details"]["bank_reference"] == "REFUND-8"
     assert refund["note"] == "customer cancelled"
+
+
+async def test_assignment_waits_for_the_payment_and_a_delivered_order_can_be_refunded(order_app):
+    app = order_app
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        reference = (await client.post("/v1/orders", json=FORM)).json()["reference"]
+        urban_form = {
+            **FORM,
+            "email": "u@example.com",
+            "location": {"parcel_type": "urban", "parcel_id": 1},
+        }
+        urban_ref = (await client.post("/v1/orders", json=urban_form)).json()["reference"]
+        oid = await order_id_of(app, reference)
+        expert_id, expert = await staff_token(app, "expert@example.com", "expert")
+
+        too_early = await client.post(
+            f"/v1/admin/orders/{oid}/assign", json={"expert_user_id": expert_id}, headers=auth()
+        )
+        await client.post(
+            f"/v1/admin/orders/{oid}/payment",
+            json={"status": "received", "amount_eur": 200, "reference": "BANK-9"},
+            headers=auth(),
+        )
+        assigned = await client.post(
+            f"/v1/admin/orders/{oid}/assign", json={"expert_user_id": expert_id}, headers=auth()
+        )
+        delivered = await client.post(
+            f"/v1/admin/orders/{oid}/report",
+            files={"file": ("report.pdf", PDF, "application/pdf")},
+            headers=auth(expert),
+        )
+        refunded = await client.post(
+            f"/v1/admin/orders/{oid}/payment",
+            json={
+                "status": "refunded",
+                "amount_eur": 200,
+                "received_on": "2026-09-30",
+                "reference": "REFUND-9",
+                "note": "goodwill refund after delivery",
+            },
+            headers=auth(),
+        )
+        refunded_again = await client.post(
+            f"/v1/admin/orders/{oid}/payment", json={"status": "refunded"}, headers=auth()
+        )
+        queue = await client.get("/v1/admin/orders", headers=auth())
+
+    # an expert works on a paid order: no assignment while the transfer is due
+    assert too_early.status_code == 409
+    assert too_early.json()["error"]["details"]["status"] == "pending_payment"
+    assert assigned.status_code == 200 and assigned.json()["status"] == "in_progress"
+    assert delivered.status_code == 200 and delivered.json()["status"] == "delivered"
+    # a delivered order can still be refunded (amount, date, reference on the audit row)
+    assert refunded.status_code == 200, refunded.text
+    body = refunded.json()
+    assert body["status"] == "refunded" and body["refunded_at"] and body["delivered_at"]
+    refund = [e for e in body["timeline"] if e["after"] == {"status": "refunded"}][-1]
+    assert refund["before"] == {"status": "delivered"}
+    assert refund["details"]["refund_amount_eur"] == 200
+    assert refund["details"]["bank_reference"] == "REFUND-9"
+    assert refunded_again.status_code == 409  # refunded is final
+
+    # the queue, newest first: KO + number, the planned parcel, the data version seen, turnaround
+    items = queue.json()["items"]
+    assert [o["reference"] for o in items] == [urban_ref, reference]
+    urban, cadastral = items
+    for order in (urban, cadastral):
+        assert order["ko_and_number"] == "KO Podgorica I, 1042"
+        assert order["planned_parcel"] == "UP 12"
+        assert order["data_version"] == "sample-2026-09-22"
+        assert order["turnaround_business_days"] == 5 and order["price_eur"] > 0
+    assert cadastral["delivered_at"] and urban["delivered_at"] is None

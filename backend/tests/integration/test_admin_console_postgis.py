@@ -1,5 +1,5 @@
-"""The admin console's own API: who am I, the Overview, sign-out, and the role gates the console's
-tabs rely on (a reviewer gets 403 on users and assumptions, an expert on the overview)."""
+"""The admin console's own API: who am I, sign-out, and the role gates the console's tabs rely on
+(a reviewer gets 403 on users and assumptions, an expert on the review queue)."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def auth(token: str = TOKEN) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def test_me_overview_sign_out_and_role_gates(console_app) -> None:
+async def test_me_sign_out_and_role_gates(console_app) -> None:
     app = console_app
     async with app.router.lifespan_context(app), make_client(app) as client:
         async with app.state.session_factory() as session:
@@ -70,21 +70,12 @@ async def test_me_overview_sign_out_and_role_gates(console_app) -> None:
         }
         assert (await client.get("/v1/admin/users/me")).status_code == 401
 
-        # the overview: admins and reviewers; experts are refused (403, not 404)
-        overview = await client.get("/v1/admin/overview", headers=auth(tokens["reviewer"]))
-        assert overview.status_code == 200
-        data = overview.json()
-        totals = data["totals"]
-        assert totals["parcels"] >= 7 and totals["documents"] >= 5
-        assert totals["documents"] >= totals["documents_adopted"] + totals["documents_in_progress"]
-        names = {d["name"] for d in data["districts"]}
-        assert "Centar" in names
-        for district in data["districts"]:
-            assert district["extraction"] in ("none", "queued", "in_progress", "done")
-            assert district["live"] in ("yes", "partial", "no")
-            assert district["documents_live"] <= district["documents_adopted"]
+        # the review queue: admins and reviewers; experts are refused (403, not 404)
         assert (
-            await client.get("/v1/admin/overview", headers=auth(tokens["expert"]))
+            await client.get("/v1/admin/review", headers=auth(tokens["reviewer"]))
+        ).status_code == 200
+        assert (
+            await client.get("/v1/admin/review", headers=auth(tokens["expert"]))
         ).status_code == 403
 
         # the console hides these tabs from a reviewer; the API refuses them too

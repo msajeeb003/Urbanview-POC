@@ -26,9 +26,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from api.schemas.geometry_review import (
     GeometryBlocker,
-    GeometryBulkApproveIn,
-    GeometryBulkResult,
-    GeometryBulkSkipped,
     GeometryCounts,
     GeometryDatasetRef,
     GeometryDocumentRef,
@@ -116,12 +113,6 @@ REJECT_SQL = text(
     RETURNING id
     """
 )
-BULK_CANDIDATES_SQL = """
-    SELECT id FROM geometry_batches
-    WHERE municipality_id = :m AND status = 'staged' AND review_state = 'pending_review'
-      AND ({selectors})
-    ORDER BY id
-"""
 FEATURES_SQL = text(
     """
     WITH ext AS (SELECT ST_Extent(geom) AS e FROM staging_geometry WHERE batch_id = :batch),
@@ -441,48 +432,6 @@ class GeometryReviewService:
             await self._audit(session, principal, row, "reject", before, after, note)
             await session.commit()
         return await self.get_draft(batch_id)
-
-    async def bulk_approve(
-        self, principal: Principal, payload: GeometryBulkApproveIn
-    ) -> GeometryBulkResult:
-        approved: list[int] = []
-        skipped: list[GeometryBulkSkipped] = []
-        async with self.session_factory() as session:
-            candidates: list[int] = list(dict.fromkeys(payload.batch_ids or []))
-            selectors: list[str] = []
-            params: dict[str, Any] = {"m": self.municipality_id}
-            if payload.dataset_version is not None:
-                selectors.append("dataset_version = :dataset_version")
-                params["dataset_version"] = payload.dataset_version
-            if payload.document_id is not None:
-                selectors.append("document_id = :document_id")
-                params["document_id"] = payload.document_id
-            if selectors:
-                rows = await session.execute(
-                    text(BULK_CANDIDATES_SQL.format(selectors=" OR ".join(selectors))), params
-                )
-                candidates += [int(r[0]) for r in rows.all() if int(r[0]) not in candidates]
-            for batch_id in candidates:
-                row = (
-                    (await session.execute(LOCK_SQL, {"id": batch_id, "m": self.municipality_id}))
-                    .mappings()
-                    .first()
-                )
-                if row is None:
-                    skipped.append(GeometryBulkSkipped(id=batch_id, reason="not_found"))
-                elif row["status"] != "staged":
-                    skipped.append(GeometryBulkSkipped(id=batch_id, reason="not_open"))
-                elif row["review_state"] != "pending_review":
-                    skipped.append(GeometryBulkSkipped(id=batch_id, reason="not_pending"))
-                else:
-                    try:  # refused before anything but its QA outcome is written
-                        await self._approve(session, principal, batch_id, payload.note)
-                    except ConflictError:
-                        skipped.append(GeometryBulkSkipped(id=batch_id, reason="qa_failed"))
-                        continue
-                    approved.append(batch_id)
-            await session.commit()
-        return GeometryBulkResult(approved=approved, skipped=skipped)
 
     # --- helpers ---------------------------------------------------------------------------------
 

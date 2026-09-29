@@ -10,13 +10,13 @@
  * Saving sends every changed zone as a new version applying from the chosen date (today by
  * default; a later date schedules it and the panel keeps today's figures until then), after a
  * confirmation line. Failures keep every figure typed. Nothing is ever deleted: earlier versions
- * stay in the history.
+ * stay in the history. The bar names the formula version the engine runs (`GET
+ * /v1/admin/formulas`: label, since when, the client's approval) and the engine's version.
  */
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-import { ENGINE_VERSION, FORMULA_VERSION } from "@urbanview/feasibility-engine";
+import { ENGINE_VERSION } from "@urbanview/feasibility-engine";
 
 import { saveAssumptionsAction } from "@/lib/admin/assumption-actions";
 import {
@@ -37,6 +37,7 @@ import {
   type SetDraft,
   type ZoneRow,
 } from "@/lib/admin/assumptions";
+import type { FormulaVersion } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
 import { AdminCard, StatusChip } from "../parts";
@@ -50,7 +51,18 @@ const SHORT: Record<RateKey, string> = {
   sale: "Sale €/m²",
 };
 
-export function AssumptionsScreen({ rows, today, timezone }: { rows: ZoneRow[]; today: string; timezone: string }) {
+export function AssumptionsScreen({
+  rows,
+  today,
+  timezone,
+  formula,
+}: {
+  rows: ZoneRow[];
+  today: string;
+  timezone: string;
+  /** The current formula version (`formula_versions`), null when the API lists none. */
+  formula: FormulaVersion | null;
+}) {
   const router = useRouter();
   const showToast = useShell((s) => s.showToast);
   const [drafts, setDrafts] = useState<Record<number, SetDraft>>(() =>
@@ -155,9 +167,9 @@ export function AssumptionsScreen({ rows, today, timezone }: { rows: ZoneRow[]; 
           />
         </label>
         <span className="finnote">{dateProblem(effective, today) ?? applyNote(effective, today)}</span>
-        <span className="finnote fright">
-          Formula <b className="mono">{FORMULA_VERSION}</b> · engine <span className="mono">{ENGINE_VERSION}</span> ·{" "}
-          <Link href="/admin/engine#changelog">changelog</Link>
+        <span className="finnote fright" title={formula?.approval_note ?? undefined}>
+          Formula <b className="mono">{formula?.label ?? "—"}</b>
+          {formula && <> since {dayLabel(formula.effective_from)}</>} · engine <span className="mono">{ENGINE_VERSION}</span>
         </span>
       </div>
       {message && (

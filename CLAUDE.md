@@ -136,6 +136,18 @@ the POC check of Group 2 asked for it).
   the public urban panel shows the pilot scope's Group 1 fields (parking, green area and
   utilities stay extracted and reviewed, not shown); the market approval derives a zone's first
   range factors from the reviewed ranges instead of a fixed 0.86 / 1.15.
+- **Orders and admin check (2026-09-30):** admin routes and screens no funded row needs are
+  gone: the Overview tab and `GET /v1/admin/overview`, bulk approval (`POST
+  /v1/admin/review/bulk-approve`, `POST /v1/admin/geometry/bulk-approve`: the plan's review is per
+  item), `GET /v1/admin/email-log*` (an order's e-mails are on its detail), `GET
+  /v1/admin/jobs/costs` (each job carries its cost), the separate PDF pre-processing trigger
+  (`POST /v1/admin/files/{id}/jobs/preprocess` and job type `preprocess_file`: the extraction
+  and geometry jobs run the stage first) and the `/order/<ref>` redirect. Migration 0036 adds
+  `formula_versions` and drops the `ai_check` / `preprocess_file` job types and the `email_log`
+  bounce columns. Deferred removal: table `app_secrets` (the removed AI settings page's; it holds
+  the Anthropic key saved on 2026-09-28, encrypted, read by nothing) goes once the key is in the
+  server's settings (`ANTHROPIC_API_KEY`). The nav is Documents, AI review queue, Publish, Financial
+  assumptions, Orders, Analytics, Audit log (+ Users in the account menu, back to the map).
 - **Open (S3 check):** a separate `land_use_code` in Group 1 and a `sample_size` per market
   input: neither is in the data yet (`docs/specs/frontend-design.md` §10 item 22).
 
@@ -558,10 +570,10 @@ the POC check of Group 2 asked for it).
   geometry job), `q` (name) and answers `total`. Tests:
   `tests/integration/test_document_files_postgis.py`.
 - **Jobs.** `POST /v1/admin/documents/{id}/jobs/extract[?file_id=]` (one run per file; default
-  the primary text file; 409 `drawing_file` / `not_a_pdf`), `POST /v1/admin/files/{id}/jobs/geo`
-  and `POST /v1/admin/files/{id}/jobs/preprocess[?force=true]` go through
-  `jobs.enqueue.enqueue_job` (see "Background jobs"): one `pipeline_jobs` row (`extract_document`
-  and `preprocess_file` on `extraction`, `process_geometry` on `geo`), committed, then the Celery
+  the primary text file; 409 `drawing_file` / `not_a_pdf`) and `POST /v1/admin/files/{id}/jobs/geo`
+  go through `jobs.enqueue.enqueue_job` (see "Background jobs"): one `pipeline_jobs` row
+  (`extract_document` on `extraction`, `process_geometry` on `geo`; both run the PDF
+  pre-processing stage first when a PDF's manifest is missing), committed, then the Celery
   message; the reply is 202 with `status_url = /v1/admin/jobs/{id}`, or **200 with the existing
   job** when an identical one is queued / running / retrying (idempotency key = type + target +
   file SHA-256; for extraction also the model and the prompt / schema versions, and a run that
@@ -615,7 +627,9 @@ the POC check of Group 2 asked for it).
   `applies_from` on or before today, the newest on a tie: a later-dated version is **scheduled**
   and needs no job to switch it on (the rule runs on the database's clock in every reader and the
   panel cache stamp). Every `AssumptionsOut` states `status` live | scheduled | superseded |
-  retired and `applies_from`; the list answers `today` and `timezone` and by default the live and
+  retired, `applies_from` and `effective_to` (exclusive: the next version's `applies_from` on the
+  zone's timeline, or the day it was retired; null = open-ended; `approved_by` is the version's
+  `created_by`); the list answers `today` and `timezone` and by default the live and
   scheduled versions (`include_history` lists all). `POST /assumptions/batch {effective_from?,
   sets}` saves several zones in one transaction (all or nothing: the console's "Save changes"; a
   zone twice is 422); PUT creates the next version from the head with the given changes (409 on
@@ -627,7 +641,15 @@ the POC check of Group 2 asked for it).
   adapter turns absolute bounds into `absolute` engine bounds for that rate
   (`core/engine/feasibility.py`). Tests: `tests/integration/test_assumptions_schedule_postgis.py`
   (today's set on the next load, a future set waiting for its date and the cache key following,
-  audit old / new values, validation all or nothing).
+  `effective_to`, audit old / new values, validation all or nothing, the formula versions).
+- **Formula versions** (`GET /v1/admin/formulas`, admins; migration 0036 `formula_versions`, the
+  pilot scope's `public.formula_version`): product-wide rows (the engine knows no municipality)
+  with `label` (what the engine and every panel state as `formula_version`), `effective_from`,
+  `is_current` (at most one: the formula the engine runs), `approval_note` (the client's approval;
+  `poc-1` still awaits the fixtures' validation, P0 gate 3) and `engine_package`
+  (`@urbanview/feasibility-engine`). Read-only: a new formula is a new engine release, fixtures and
+  a migration adding its row, never an edit (no formula editor). The Financial assumptions
+  screen names the current row (label, since when, the note on hover) next to the engine version.
 - **Staff users** (`/v1/admin/users`): create (e-mail normalised to lower case, unique per
   municipality → 409; roles admin | reviewer | expert, the client's "expert reviewer" is
   `reviewer`), list with open session counts, PATCH role / display name / `is_active`
@@ -682,8 +704,8 @@ the POC check of Group 2 asked for it).
   extraction runs carry `run_id`, `change` + `previous` (the previous run's item for the target
   and field) and `target.label` / `target.matched` (unmatched parcels stay text references);
   approving a newer reading retires the older approved item; the queue hides superseded items
-  (`?include_superseded=true`) and filters `run_id`, `change` (see "Extraction job"). `POST /v1/admin/review/bulk-approve` approves many
-  pending items (ids, document page or urban parcel), one audit row per item.
+  (`?include_superseded=true`) and filters `run_id`, `change` (see "Extraction job"). One
+  decision per item: there is no bulk approval (the plan's "approve / amend / reject per item").
   `GET /v1/admin/review/summary` (and `DocumentOut.review`) gives pending / approved / amended /
   rejected per document and `can_publish` = no pending items and something approved; the
   publish job (separate item) checks it. Approved / amended items are eligible for publishing
@@ -712,18 +734,18 @@ the POC check of Group 2 asked for it).
   each feature with the issue codes naming it), `POST .../{id}/approve` (409
   `qa_failed`; a batch staged before 0033 is checked on its first approval), `POST
   .../{id}/reject {note}` (final: status `rejected`, never published or carried; fix and stage
-  again), `POST .../bulk-approve {dataset_version | document_id | batch_ids}` (skips failing
-  ones); audited `geometry.approve` / `geometry.reject` (entity `geometry_batch`, before / after).
+  again); one decision per batch, audited `geometry.approve` / `geometry.reject` (entity
+  `geometry_batch`, before / after).
   `python -m core.geometry_qa check | recheck [--batch N]` prints / stores the QA. Batches published
   or superseded before 0033 have `review_state` null.
 - Tests: `tests/test_review_unit.py` (payloads, notes, the staged payload, publish rule, page
   links), `tests/test_corrections_unit.py` (the correction rules) and
   `tests/integration/test_review_postgis.py` (queue payload, transitions with audit before /
-  after, the contract's rules through the API, bulk approval, counters, append-only enforcement,
+  after, the contract's rules through the API, counters, append-only enforcement,
   audit listing, contract rows with flags and the flag filter),
   `tests/integration/test_geometry_review_postgis.py` (QA of invalid geometry and the run's own
   warnings, the queue and preview, decisions with audit and roles, publish waiting for and
-  applying approved geometry only, bulk approval).
+  applying approved geometry only, per-batch decisions and the document filter).
 
 ## AI extraction contract (`backend/core/extraction/`, `docs/specs/extraction-contract.md`)
 
@@ -839,7 +861,8 @@ the POC check of Group 2 asked for it).
   `over_budget`), planning sections first (`priority` 0) with suggested extraction tasks;
   `chunk_pages` -> the contract's `PageInput` (verification `text` + `words`, grids, the `view`
   the model reads).
-- **Job** `preprocess_file` (`POST /v1/admin/files/{id}/jobs/preprocess`): skips the analysis
+- **Stage** (`jobs.tasks.extraction.run_preprocess`, run first by the extraction job and by the
+  geometry job for a PDF drawing; there is no separate trigger): skips the analysis
   when `stored_files.preprocess` (migration 0018) is current for the SHA-256, version and options
   key; else stores the page data as gzip JSON next to the upload and the manifest (pages,
   tables, chunk plan, page image keys, `summary`) on the file record. Renders page images
@@ -965,11 +988,13 @@ the POC check of Group 2 asked for it).
   staff detail returns it.
 - **Status flow** `pending_payment → paid → in_progress → delivered`, `payment_failed` from
   pending_payment (it can still be paid: `payment_failed → paid`), `refunded` from paid /
-  in_progress; anything else 409. `POST /v1/admin/orders/{id}/payment` (`received` → paid with
+  in_progress / delivered (a delivered order never goes back to work; the refund's amount, date
+  and bank reference are on its audit row); anything else 409. `POST /v1/admin/orders/{id}/payment` (`received` → paid with
   amount / date / bank reference, also from payment_failed; `not_received` → payment_failed with
   the note, again on a failed order only records the check, 409 once paid; `refunded`),
   `.../assign` (an
-  active `expert` user; a paid order moves to in_progress), `PATCH .../status` (delivered needs
+  active `expert` user; only a paid order, which moves to in_progress, or one in progress:
+  reassignment; 409 while the payment is due), `PATCH .../status` (delivered needs
   a report), `POST .../report` (PDF → private bucket as `stored_files.kind = expert_report`,
   sets delivered, e-mails a signed download link, `ORDER_REPORT_LINK_EXPIRES_SECONDS`). Every
   change is an `audit_log` row with before / after. Admins manage everything (reviewers have
@@ -985,16 +1010,18 @@ the POC check of Group 2 asked for it).
   `bank_reference`, `received_on`, `order.payment_check`, `order.assign`, `order.report`,
   `order.status`, a refund's with `refund_amount_eur`, `refunded_on`, `bank_reference`),
   `report_versions` and `location.cadastral_parcel_id` (the Parcel ID the map opens with
-  `/?parcel=`, also for urban orders). `GET /v1/admin/orders/experts` (admins; 403 for the
-  others): the active `expert` users with their `open_orders` (in progress) for the assign
-  picker.
+  `/?parcel=`, also for urban orders). The queue (`GET /v1/admin/orders`, newest first, filters
+  status / assignee / search) gives per order the reference, customer, `ko_and_number` and
+  `planned_parcel` (from the order's columns and snapshot), `urban_parcel_id`, the `data_version`
+  seen, price, status, placed, `turnaround_business_days`, `expected_by`, `delivered_at` and the
+  assignee. `GET /v1/admin/orders/experts` (admins; 403 for the others): the active `expert` users
+  with their `open_orders` (in progress) for the assign picker.
 - **Confirmation data** `GET /v1/orders/{reference}` (the pilot scope's "confirmation page data",
   public, `no-store`, reference case-insensitive): status + labels, location, pricing,
   turnaround, `payment_due` (pending_payment | payment_failed), `payment_instructions` while it is
   due (else null), `data_version`, `status_url`; never personal data. The public map's order page
   `/orders/{reference}` (`frontend/src/app/orders/`) and the reloaded S5 confirmation read it; the
-  confirmation and every order e-mail link to the page. There is no compact status variant
-  the compact variant (status, location and turnaround only).
+  confirmation and every order e-mail link to the page. There is no compact status variant.
 - **The public map's flow** (`frontend/src/components/order/`): S4 order modal from the parcel
   panel (location carried through with the planned parcel and the data version, fee and
   turnaround from `GET /v1/orders/pricing`, inline validation with the API's rules),
@@ -1011,7 +1038,7 @@ the POC check of Group 2 asked for it).
   `send_email` jobs queued through `api.services.email.EmailService` (see "Transactional
   e-mail"); the reply's `email_status` is `queued` (or the final state when the job already
   ran); a queue outage marks the `email_log` row failed and the order stands. The staff order
-  detail lists `emails` and the queue shows `email_alerts` (bounced / failed).
+  detail lists `emails` and the queue shows `email_alerts` (failed sends).
 - **Payments**: `core/payments.py` holds `BankTransferProvider` (instructions from `ORDER_BANK_*`,
   no online step; hosted checkout, card providers and webhooks are not in the POC plan, so there
   is no provider seam). No card data anywhere. `customers` and `orders` are the only tables with personal data.
@@ -1051,9 +1078,9 @@ the POC check of Group 2 asked for it).
   `urbanview-mail`) with `SMTP_USE_TLS=false`. Deliverability check:
   `python -m core.mail.testsend --template payment_instructions --to you@…` sends fixture data
   through the real provider (DKIM / SPF / DMARC are the provider account's job).
-- **Log**: `GET /v1/admin/email-log` (admin; filters `order_id`, `user_id`, `status`,
-  `template`), `GET /v1/admin/email-log/{id}`. Orders show `email_alerts` in the queue and
-  `emails` in the detail (no bounce endpoint: provider webhooks are not in the POC plan).
+- **Log**: the `email_log` rows (queued | sent | suppressed | failed). Orders show
+  `email_alerts` in the queue and `emails` in the detail; there is no separate log route and no
+  bounce tracking (provider webhooks are not in the POC plan; 0036 dropped the bounce columns).
 - **Magic-link login** (`api/routers/v1/auth.py`, public): `POST /v1/auth/magic-link {email}`
   always answers 202 with the same neutral message, **before** anything is looked up: the lookup,
   the audit row and the e-mail job run after the response (Starlette background task; a failure
@@ -1074,12 +1101,8 @@ the POC check of Group 2 asked for it).
   `/admin/login?token=…`): `GET /v1/admin/users/me` (every staff role) answers the principal
   (`id`, `email`, `display_name`, `role`, `subject`, `via` session | token) the console takes its
   role from; `POST /v1/auth/sign-out` (bearer) revokes that staff session (204 whatever the token,
-  audited `auth.logout`); `GET /v1/admin/overview` (admins, reviewers;
-  `api/services/overview.py`, two statements) gives the Overview tab's totals (parcels, documents
-  by status, pending review, paid orders and revenue) and the pipeline per district = zone
-  (documents, the latest extraction run per document → none | queued | in_progress | done,
-  reviewed / extracted items %, live yes | partial | no for adopted documents with a live
-  coverage). Tests: `tests/integration/test_admin_console_postgis.py`.
+  audited `auth.logout`). There is no Overview dashboard (not in the POC plan): the console opens
+  on Documents (Orders for an expert). Tests: `tests/integration/test_admin_console_postgis.py`.
 - Tests: `tests/test_mail_unit.py` (every template against fixture data, policy, MIME, provider
   ids, the job body on the in-memory repository) and `tests/integration/test_mail_postgis.py`
   (through the API with eager Celery and a transport double: log rows with provider ids, jobs,
@@ -1147,8 +1170,9 @@ the POC check of Group 2 asked for it).
 ## Background jobs (`jobs/`, `api/services/jobs.py`, `api/routers/v1/admin_jobs.py`)
 
 - **One job system.** Every long-running task is a `pipeline_jobs` row (migration 0010: `type`
-  extract_document | preprocess_file (0018) | process_geometry | publish_approved | send_email
-  | import_zones (0032), `kind` family, `queue`,
+  extract_document | process_geometry | publish_approved | send_email | import_market_data |
+  refresh_heatmaps | import_zones (0032; 0036 dropped preprocess_file and ai_check), `kind`
+  family, `queue`,
   `target_type` document | file | publish_run | email + `target_id`, `payload`, `status` queued |
   running | retrying | succeeded | failed | cancelled, `attempts` / `max_attempts`,
   `manual_retries`, `next_retry_at`, `dedupe_key`, `wall_time_ms`, `llm_model`,
@@ -1177,7 +1201,7 @@ the POC check of Group 2 asked for it).
   retrying) makes the same key return the existing job; keys are `type:target_type:target_id`
   plus `sha256:<file checksum>` for document / file work, so the same content never runs twice.
   Task modules stay import-light (the API imports them to dispatch).
-- **Tasks** (`jobs/tasks/`): `extract_document` and `preprocess_file` (extraction queue),
+- **Tasks** (`jobs/tasks/`): `extract_document` (extraction queue),
   `process_geometry` (geo), `publish_approved` (publish; one active run per municipality),
   `send_email` (email; payload `{template, to, context}`, `to` a reference resolved at send time,
   never a stored address), `import_zones` (geo; a zone GeoPackage from QGIS). `process_geometry`
@@ -1186,15 +1210,14 @@ the POC check of Group 2 asked for it).
   `system.ping` is the broker smoke test.
 - **API** (reads: roles `admin` and `reviewer`; retry: `admin`): `GET /v1/admin/jobs` (filters `type`, `status`, `target=document:12`
   | `file:` | `publish_run:` | `email:`, `document_id`, `file_id`; `total`),
-  `GET /v1/admin/jobs/{id}` (the status URL), `GET /v1/admin/jobs/costs` (tokens, estimated
-  cost and wall time summed per target), `POST /v1/admin/jobs/{id}/retry` (failed / cancelled →
+  `GET /v1/admin/jobs/{id}` (the status URL), `POST /v1/admin/jobs/{id}/retry` (failed / cancelled →
   queued, attempts reset, `manual_retries` + 1, audited `job.retry`, re-dispatched; 409 when not
   retryable or while a job for the same key is active). Every `JobOut` carries a `cost` block.
 - **Run it.** `make worker` / `poe worker` (`-Q default,extraction,geo,publish,email`),
   compose `worker` service from
   `backend/Dockerfile.worker`. Tests: `tests/test_jobs_unit.py` (backoff, cost, keys, lifecycle
   on the memory store, a real task in eager mode) and `tests/integration/test_jobs_postgis.py`
-  (SQL store, idempotent API, listing, retry, costs, eager task through the API).
+  (SQL store, idempotent API, listing, retry, cost per job, eager task through the API).
 
 ## Publish pipeline (`jobs/publish_pipeline.py`, `jobs/publish_layers.py`, `jobs/tiles.py`, `api/services/publish.py`)
 

@@ -124,7 +124,8 @@ function History({ row, today, timezone }: { row: ZoneRow; today: string; timezo
                 <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
                 <span className="osub">
                   from {dayLabel(set.applies_from)}
-                  {set.effective_from !== set.applies_from ? ` (dated ${dayLabel(set.effective_from)})` : ""} · {set.created_by ?? "—"} ·{" "}
+                  {set.effective_from !== set.applies_from ? ` (dated ${dayLabel(set.effective_from)})` : ""}
+                  {set.effective_to ? ` until ${dayLabel(set.effective_to)}` : ""} · {set.created_by ?? "—"} ·{" "}
                   {utcStamp(set.created_at)}
                 </span>
                 <button type="button" className="abtn sm ghost" onClick={() => setDiffOf(diffOf === set.id ? null : set.id)}>

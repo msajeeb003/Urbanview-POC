@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from api.schemas.review import AmendIn, ApproveIn, BulkApproveIn, RejectIn
+from api.schemas.review import AmendIn, ApproveIn, RejectIn
 from api.services.review import DB_TO_STATUS, STATUS_TO_DB, _payload_out, can_publish
 from api.services.source import signed_page_link
 
@@ -57,16 +57,6 @@ def test_approve_and_reject_payloads():
     for bad in ({}, {"note": ""}, {"note": "   "}, {"note": "\n\t"}):
         with pytest.raises(ValidationError):
             RejectIn(**bad)
-    assert BulkApproveIn(document_id=2, note="  ").note is None
-
-
-def test_bulk_approve_needs_a_selector():
-    for bad in ({}, {"source_page": 3}, {"item_ids": [0]}, {"item_ids": []}, {"note": "x"}):
-        with pytest.raises(ValidationError):
-            BulkApproveIn(**bad)
-    assert BulkApproveIn(item_ids=[1, 2]).item_ids == [1, 2]
-    assert BulkApproveIn(document_id=2, source_page=13).source_page == 13
-    assert BulkApproveIn(urban_parcel_id=1).urban_parcel_id == 1
 
 
 def test_an_item_carries_its_staged_payload():

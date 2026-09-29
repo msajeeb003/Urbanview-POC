@@ -242,23 +242,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/overview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Parcels, documents, pending review, paid orders and the pipeline per district */
-        get: operations["get_overview_v1_admin_overview_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/admin/files": {
         parameters: {
             query?: never;
@@ -305,23 +288,6 @@ export interface paths {
         put?: never;
         /** Queue the geometry job for a GIS file or vector PDF (staging only) */
         post: operations["enqueue_geo_job_v1_admin_files__file_id__jobs_geo_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/files/{file_id}/jobs/preprocess": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Queue PDF pre-processing: pages, tables, scanned pages, chunks and page images */
-        post: operations["enqueue_preprocess_job_v1_admin_files__file_id__jobs_preprocess_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -467,23 +433,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/jobs/costs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Job cost per target */
-        get: operations["job_costs_v1_admin_jobs_costs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/admin/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -602,6 +551,23 @@ export interface paths {
         post?: never;
         /** Retire the live version (the zone has no market figures until a later set) */
         delete: operations["retire_assumptions_v1_admin_assumptions__assumptions_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/formulas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Formula versions: the current one is what the engine runs and the panels state */
+        get: operations["list_formulas_v1_admin_formulas_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -865,23 +831,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/review/bulk-approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Approve many pending items (by ids, document page or urban parcel) */
-        post: operations["bulk_approve_v1_admin_review_bulk_approve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/admin/review/{item_id}": {
         parameters: {
             query?: never;
@@ -978,23 +927,6 @@ export interface paths {
         get: operations["list_geometry_v1_admin_geometry_get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/geometry/bulk-approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Approve the pending batches of a dataset, a document or given ids */
-        post: operations["bulk_approve_geometry_v1_admin_geometry_bulk_approve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1195,7 +1127,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The active experts an order can be assigned to (admins and reviewers) */
+        /** The active experts an order can be assigned to (admins) */
         get: operations["list_experts_v1_admin_orders_experts_get"];
         put?: never;
         post?: never;
@@ -1265,7 +1197,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Assign the order to an expert (a paid order moves to in_progress) */
+        /** Assign a paid order to an expert (it moves to in_progress; reassign later) */
         post: operations["assign_order_v1_admin_orders__order_id__assign_post"];
         delete?: never;
         options?: never;
@@ -1284,40 +1216,6 @@ export interface paths {
         put?: never;
         /** Upload the expert's report (PDF): delivers the order and e-mails the download link */
         post: operations["upload_report_v1_admin_orders__order_id__report_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/email-log": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Sent e-mails */
-        get: operations["list_email_log_v1_admin_email_log_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/email-log/{log_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Email Log */
-        get: operations["get_email_log_v1_admin_email_log__log_id__get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1679,6 +1577,11 @@ export interface components {
              */
             applies_from: string;
             /**
+             * Effective To
+             * @description The local date it stops applying (exclusive): the next version's applies_from on the zone's timeline, or the day it was retired; null = open-ended
+             */
+            effective_to?: string | null;
+            /**
              * Rate Sources
              * @description Per rate, once reviewed market inputs set it: source, source_date, market_data_id, import_id, range_basis, effective_from (or set_by admin after a manual edit)
              */
@@ -1835,42 +1738,6 @@ export interface components {
             file: string;
             /** Note */
             note?: string | null;
-        };
-        /**
-         * BulkApproveIn
-         * @description Approve many pending items at once: by ids, by document page, or by urban parcel.
-         */
-        BulkApproveIn: {
-            /** Item Ids */
-            item_ids?: number[] | null;
-            /** Document Id */
-            document_id?: number | null;
-            /**
-             * Source Page
-             * @description needs document_id
-             */
-            source_page?: number | null;
-            /** Urban Parcel Id */
-            urban_parcel_id?: number | null;
-            /** Note */
-            note?: string | null;
-        };
-        /** BulkResult */
-        BulkResult: {
-            /** Approved */
-            approved: number[];
-            /** Skipped */
-            skipped: components["schemas"]["BulkSkipped"][];
-        };
-        /** BulkSkipped */
-        BulkSkipped: {
-            /** Id */
-            id: number;
-            /**
-             * Reason
-             * @enum {string}
-             */
-            reason: "not_found" | "not_pending" | "published" | "superseded";
         };
         /** CadastralIdentification */
         CadastralIdentification: {
@@ -2342,46 +2209,6 @@ export interface components {
             /** Share Pct */
             share_pct: number;
         };
-        /** DistrictStatus */
-        DistrictStatus: {
-            /** Zone Id */
-            zone_id: number;
-            /** Name */
-            name: string;
-            /** Zone Type */
-            zone_type: string | null;
-            /** Documents */
-            documents: number;
-            /** Documents Adopted */
-            documents_adopted: number;
-            /**
-             * Extraction
-             * @description none: the zone has no documents; queued: nothing extracted yet; in_progress: runs going or only part of the documents read; done: every document read
-             * @enum {string}
-             */
-            extraction: "none" | "queued" | "in_progress" | "done";
-            /** Extraction Done */
-            extraction_done: number;
-            /** Extraction Running */
-            extraction_running: number;
-            /** Extraction Failed */
-            extraction_failed: number;
-            /** Review Items */
-            review_items: number;
-            /**
-             * Review Pct
-             * @description Reviewed / extracted items, 0-100; null when nothing was extracted
-             */
-            review_pct: number | null;
-            /**
-             * Live
-             * @description Adopted documents with a live coverage: all of them, some, none
-             * @enum {string}
-             */
-            live: "yes" | "partial" | "no";
-            /** Documents Live */
-            documents_live: number;
-        };
         /** DocumentCounts */
         DocumentCounts: {
             /** Documents */
@@ -2822,17 +2649,6 @@ export interface components {
              */
             saleable_share?: number | null;
         };
-        /** EmailLogList */
-        EmailLogList: {
-            /** Items */
-            items: components["schemas"]["EmailLogOut"][];
-            /** Total */
-            total: number;
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-        };
         /**
          * EmailLogOut
          * @description One send; bodies are never stored, the subject is.
@@ -2855,7 +2671,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "queued" | "sent" | "suppressed" | "failed" | "bounced";
+            status: "queued" | "sent" | "suppressed" | "failed";
             /**
              * Attempts
              * @default 0
@@ -2872,8 +2688,6 @@ export interface components {
             error?: string | null;
             /** Suppressed Reason */
             suppressed_reason?: string | null;
-            /** Bounce Reason */
-            bounce_reason?: string | null;
             /** Job Id */
             job_id?: number | null;
             /**
@@ -2883,8 +2697,6 @@ export interface components {
             created_at: string;
             /** Sent At */
             sent_at?: string | null;
-            /** Bounced At */
-            bounced_at?: string | null;
             /** Updated At */
             updated_at?: string | null;
         };
@@ -3240,6 +3052,38 @@ export interface components {
             /** Note Me */
             note_me: string;
         };
+        /**
+         * FormulaVersionOut
+         * @description A client-owned formula version (``formula_versions``). The current one is what the shared
+         *     engine runs and every panel states as ``formula_version``; a new formula comes with a new
+         *     engine release and a new row, never an edit.
+         */
+        FormulaVersionOut: {
+            /** Id */
+            id: number;
+            /**
+             * Label
+             * @description What the engine and the panels state, e.g. poc-1
+             */
+            label: string;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Is Current */
+            is_current: boolean;
+            /**
+             * Approval Note
+             * @description The client's approval
+             */
+            approval_note?: string | null;
+            /**
+             * Engine Package
+             * @description The shared engine package that implements it
+             */
+            engine_package: string;
+        };
         /** Funnel */
         Funnel: {
             /**
@@ -3335,37 +3179,6 @@ export interface components {
             dataset_version?: string | null;
             /** Qa Status */
             qa_status?: ("pass" | "warn" | "fail") | null;
-        };
-        /**
-         * GeometryBulkApproveIn
-         * @description Approve the pending batches of one producing dataset, one document, or given ids.
-         */
-        GeometryBulkApproveIn: {
-            /** Batch Ids */
-            batch_ids?: number[] | null;
-            /** Dataset Version */
-            dataset_version?: string | null;
-            /** Document Id */
-            document_id?: number | null;
-            /** Note */
-            note?: string | null;
-        };
-        /** GeometryBulkResult */
-        GeometryBulkResult: {
-            /** Approved */
-            approved: number[];
-            /** Skipped */
-            skipped: components["schemas"]["GeometryBulkSkipped"][];
-        };
-        /** GeometryBulkSkipped */
-        GeometryBulkSkipped: {
-            /** Id */
-            id: number;
-            /**
-             * Reason
-             * @enum {string}
-             */
-            reason: "not_found" | "not_pending" | "qa_failed" | "not_open";
         };
         /** GeometryCounts */
         GeometryCounts: {
@@ -3986,47 +3799,6 @@ export interface components {
              */
             estimated_cost_eur?: number | null;
         };
-        /** JobCostRow */
-        JobCostRow: {
-            /** Target Type */
-            target_type: string | null;
-            /** Target Id */
-            target_id: number | null;
-            /** Jobs */
-            jobs: number;
-            /** Succeeded */
-            succeeded: number;
-            /** Failed */
-            failed: number;
-            /** Llm Tokens In */
-            llm_tokens_in: number;
-            /** Llm Tokens Out */
-            llm_tokens_out: number;
-            /** Estimated Cost Eur */
-            estimated_cost_eur: number;
-            /** Wall Time Ms */
-            wall_time_ms: number;
-            /** Last Finished At */
-            last_finished_at?: string | null;
-        };
-        /** JobCostSummary */
-        JobCostSummary: {
-            /**
-             * Rows
-             * @description One row per target, most expensive first
-             */
-            rows: components["schemas"]["JobCostRow"][];
-            /** Total Jobs */
-            total_jobs: number;
-            /** Total Llm Tokens In */
-            total_llm_tokens_in: number;
-            /** Total Llm Tokens Out */
-            total_llm_tokens_out: number;
-            /** Total Estimated Cost Eur */
-            total_estimated_cost_eur: number;
-            /** Total Wall Time Ms */
-            total_wall_time_ms: number;
-        };
         /** JobList */
         JobList: {
             /** Items */
@@ -4054,7 +3826,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "import_zones";
+            type: "extract_document" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "import_zones";
             /** Queue */
             queue: string;
             /**
@@ -4967,6 +4739,21 @@ export interface components {
             /** Company Name */
             company_name?: string | null;
             location: components["schemas"]["OrderLocationOut"];
+            /**
+             * Planned Parcel
+             * @description The planned (urban) parcel the figures used, as shown (`UP 12`)
+             */
+            planned_parcel?: string | null;
+            /**
+             * Ko And Number
+             * @description The cadastral parcel as shown: "KO {ko}, {number}[/{sub}]"
+             */
+            ko_and_number?: string | null;
+            /**
+             * Data Version
+             * @description Label of the published version the visitor saw
+             */
+            data_version?: string | null;
             /** Price Eur */
             price_eur: number;
             /** Currency */
@@ -4981,17 +4768,21 @@ export interface components {
              * Format: date-time
              */
             status_changed_at: string;
+            /** Turnaround Business Days */
+            turnaround_business_days: number;
             /**
              * Expected By
              * Format: date
              */
             expected_by: string;
+            /** Delivered At */
+            delivered_at?: string | null;
             assignee?: components["schemas"]["Assignee"] | null;
             /** Has Report */
             has_report: boolean;
             /**
              * Email Alerts
-             * @description E-mails bounced or failed for this order (see /admin/email-log)
+             * @description E-mails that failed for this order (listed on its detail)
              * @default 0
              */
             email_alerts: number;
@@ -5031,8 +4822,6 @@ export interface components {
             };
             pricing: components["schemas"]["PricingOut"];
             turnaround: components["schemas"]["TurnaroundOut"];
-            /** Data Version */
-            data_version?: string | null;
             /**
              * Publish Version Id
              * @description publish_versions.id of the data the visitor saw
@@ -5052,8 +4841,6 @@ export interface components {
             payment_reference?: string | null;
             /** Payment Received On */
             payment_received_on?: string | null;
-            /** Delivered At */
-            delivered_at?: string | null;
             /** Refunded At */
             refunded_at?: string | null;
             /** Notes */
@@ -5163,6 +4950,21 @@ export interface components {
             /** Company Name */
             company_name?: string | null;
             location: components["schemas"]["OrderLocationOut"];
+            /**
+             * Planned Parcel
+             * @description The planned (urban) parcel the figures used, as shown (`UP 12`)
+             */
+            planned_parcel?: string | null;
+            /**
+             * Ko And Number
+             * @description The cadastral parcel as shown: "KO {ko}, {number}[/{sub}]"
+             */
+            ko_and_number?: string | null;
+            /**
+             * Data Version
+             * @description Label of the published version the visitor saw
+             */
+            data_version?: string | null;
             /** Price Eur */
             price_eur: number;
             /** Currency */
@@ -5177,17 +4979,21 @@ export interface components {
              * Format: date-time
              */
             status_changed_at: string;
+            /** Turnaround Business Days */
+            turnaround_business_days: number;
             /**
              * Expected By
              * Format: date
              */
             expected_by: string;
+            /** Delivered At */
+            delivered_at?: string | null;
             assignee?: components["schemas"]["Assignee"] | null;
             /** Has Report */
             has_report: boolean;
             /**
              * Email Alerts
-             * @description E-mails bounced or failed for this order (see /admin/email-log)
+             * @description E-mails that failed for this order (listed on its detail)
              * @default 0
              */
             email_alerts: number;
@@ -5233,52 +5039,6 @@ export interface components {
             construction_cost_eur_m2: boolean;
             /** Sale Price Eur M2 */
             sale_price_eur_m2: boolean;
-        };
-        /** OverviewOut */
-        OverviewOut: {
-            /** Municipality Id */
-            municipality_id: string;
-            /** Municipality Name */
-            municipality_name: string;
-            totals: components["schemas"]["OverviewTotals"];
-            /** Districts */
-            districts: components["schemas"]["DistrictStatus"][];
-        };
-        /** OverviewTotals */
-        OverviewTotals: {
-            /**
-             * Parcels
-             * @description Cadastral parcels ingested
-             */
-            parcels: number;
-            /**
-             * Documents
-             * @description Planning documents (current versions)
-             */
-            documents: number;
-            /** Documents Adopted */
-            documents_adopted: number;
-            /** Documents In Progress */
-            documents_in_progress: number;
-            /** Documents Superseded */
-            documents_superseded: number;
-            /**
-             * Pending Review
-             * @description AI-extracted items waiting for an expert
-             */
-            pending_review: number;
-            /**
-             * Paid Orders
-             * @description Orders paid, in progress or delivered
-             */
-            paid_orders: number;
-            /** Paid Orders Last 7 Days */
-            paid_orders_last_7_days: number;
-            /**
-             * Revenue Eur
-             * @description Received amounts (the price where none was recorded)
-             */
-            revenue_eur: number;
         };
         /** PageFailure */
         PageFailure: {
@@ -8034,37 +7794,6 @@ export interface operations {
             };
         };
     };
-    get_overview_v1_admin_overview_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OverviewOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_files_v1_admin_files_get: {
         parameters: {
             query?: {
@@ -8266,77 +7995,6 @@ export interface operations {
                 content?: never;
             };
             /** @description The file kind has no geometry job */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Database, object storage or job queue unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    enqueue_preprocess_job_v1_admin_files__file_id__jobs_preprocess_post: {
-        parameters: {
-            query?: {
-                /** @description Redo it even when the file's manifest is current */
-                force?: boolean;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                file_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description An identical job is already queued or running; returned as is */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobOut"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal is neither admin nor reviewer (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The file is not a planning-document PDF */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -9039,7 +8697,7 @@ export interface operations {
     list_jobs_v1_admin_jobs_get: {
         parameters: {
             query?: {
-                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "import_zones") | null;
+                type?: ("extract_document" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "import_zones") | null;
                 status?: ("queued" | "running" | "retrying" | "succeeded" | "failed" | "cancelled") | null;
                 /** @description `<target_type>:<id>`, e.g. `document:12` */
                 target?: string | null;
@@ -9063,63 +8721,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobList"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Role not allowed */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such job */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    job_costs_v1_admin_jobs_costs_get: {
-        parameters: {
-            query?: {
-                /** @description `<target_type>:<id>`, e.g. `document:12` */
-                target?: string | null;
-                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "import_zones") | null;
-                limit?: number;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobCostSummary"];
                 };
             };
             /** @description Missing or invalid bearer token */
@@ -9685,6 +9286,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssumptionsOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal's role is not admin (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not the current version, duplicate e-mail, or a self-change (`conflict`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation: low ≤ expected ≤ high, percentages, dates, references */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_formulas_v1_admin_formulas_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormulaVersionOut"][];
                 };
             };
             /** @description Missing or unknown bearer token (`unauthorized`) */
@@ -10662,69 +10313,6 @@ export interface operations {
             };
         };
     };
-    bulk_approve_v1_admin_review_bulk_approve_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BulkApproveIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BulkResult"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role may not review (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such item (`not_found`) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The item has been published; decisions are closed (`conflict`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_review_item_v1_admin_review__item_id__get: {
         parameters: {
             query?: never;
@@ -11051,69 +10639,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GeometryPage"];
                 };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    bulk_approve_geometry_v1_admin_geometry_bulk_approve_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GeometryBulkApproveIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GeometryBulkResult"];
-                };
-            };
-            /** @description Missing or unknown bearer token (`unauthorized`) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The principal's role may not review (`forbidden`) */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such batch (`not_found`) */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The batch is published, superseded or rejected, or its QA fails (`conflict`, `details.reason`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -12017,119 +11542,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    list_email_log_v1_admin_email_log_get: {
-        parameters: {
-            query?: {
-                order_id?: number | null;
-                user_id?: number | null;
-                status?: ("queued" | "sent" | "suppressed" | "failed" | "bounced") | null;
-                template?: ("payment_instructions" | "order_delivered" | "magic_link") | null;
-                limit?: number;
-                offset?: number;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EmailLogList"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Role not allowed */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such entry */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_email_log_v1_admin_email_log__log_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                log_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EmailLogOut"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Role not allowed */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such entry */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
             };
         };
     };

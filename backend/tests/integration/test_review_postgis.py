@@ -1,5 +1,5 @@
 """Expert review on PostGIS: the queue payload, approve / amend / reject transitions with their
-audit rows (the AI value never overwritten), bulk approval, per-document counters and the publish
+audit rows (the AI value never overwritten), per-document counters and the publish
 rule, the append-only audit_log (UPDATE / DELETE / TRUNCATE fail at the database), and the audit
 listing. Storage is mocked; every other table is real."""
 
@@ -496,47 +496,6 @@ async def test_corrections_follow_the_extraction_contract(review_app):
     assert entries[1]["details"]["correction"] == {"out_of_range_confirmed": True}
 
 
-async def test_bulk_approve_by_page_and_by_ids(review_app):
-    app = review_app
-    async with app.router.lifespan_context(app), make_client(app) as client:
-        a = await insert_item(app, source_page=20)
-        b = await insert_item(
-            app, field_key="max_site_coverage_pct", value_number=60, source_page=20
-        )
-        c = await insert_item(app, field_key="max_height_m", value_number=18, source_page=21)
-        e = await insert_item(
-            app, field_key="max_far", value_number=2, source_page=20, review_state="rejected"
-        )
-        by_page = await client.post(
-            "/v1/admin/review/bulk-approve",
-            json={"document_id": 2, "source_page": 20, "note": "page 20 checked"},
-            headers=auth(),
-        )
-        by_ids = await client.post(
-            "/v1/admin/review/bulk-approve",
-            json={"item_ids": [c, e, a, 999999]},
-            headers=auth(),
-        )
-        by_parcel = await client.post(
-            "/v1/admin/review/bulk-approve", json={"urban_parcel_id": 1}, headers=auth()
-        )
-        trail = await client.get(
-            "/v1/admin/audit", params={"action": "review.approve", "limit": 10}, headers=auth()
-        )
-    assert by_page.status_code == 200, by_page.text
-    assert by_page.json() == {"approved": [a, b], "skipped": []}  # e is rejected, not pending
-    assert by_ids.status_code == 200
-    assert by_ids.json()["approved"] == [c]
-    assert by_ids.json()["skipped"] == [
-        {"id": e, "reason": "not_pending"},
-        {"id": a, "reason": "not_pending"},
-        {"id": 999999, "reason": "not_found"},
-    ]
-    assert by_parcel.json()["approved"] == [1]  # the seeded pending FAR of UP 12
-    approved_ids = [e["entity_id"] for e in trail.json()["items"] if e["note"] == "page 20 checked"]
-    assert sorted(approved_ids) == [a, b]  # one audit row per item
-
-
 # --- counters -------------------------------------------------------------------------------------
 
 
@@ -548,7 +507,17 @@ async def test_document_counters_and_the_publish_rule(review_app):
             "/v1/admin/review/summary", params={"document_id": 2}, headers=auth()
         )
         document_before = await client.get("/v1/admin/documents/2", headers=auth())
-        await client.post("/v1/admin/review/bulk-approve", json={"document_id": 2}, headers=auth())
+        # every pending item of the document, one decision each (the review is per item)
+        pending = await client.get(
+            "/v1/admin/review",
+            params={"document_id": 2, "status": "pending", "limit": 200},
+            headers=auth(),
+        )
+        for item in pending.json()["items"]:
+            approved = await client.post(
+                f"/v1/admin/review/{item['id']}/approve", json={}, headers=auth()
+            )
+            assert approved.status_code == 200, approved.text
         after = await client.get(
             "/v1/admin/review/summary", params={"document_id": 2}, headers=auth()
         )

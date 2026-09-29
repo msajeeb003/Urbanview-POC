@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from api.schemas.admin import GeoreferenceOut
 
@@ -141,37 +141,6 @@ class GeometryRejectIn(BaseModel):
     note: str = Field(min_length=1, max_length=2000, description="The reason (not blank)")
 
     _note = field_validator("note", mode="before")(_trim)
-
-
-class GeometryBulkApproveIn(BaseModel):
-    """Approve the pending batches of one producing dataset, one document, or given ids."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    batch_ids: list[int] | None = Field(default=None, max_length=200)
-    dataset_version: str | None = Field(default=None, min_length=1, max_length=120)
-    document_id: int | None = Field(default=None, gt=0)
-    note: str | None = Field(default=None, max_length=2000)
-
-    _note = field_validator("note", mode="before")(_trim_to_none)
-
-    @model_validator(mode="after")
-    def _a_selector(self) -> GeometryBulkApproveIn:
-        if not self.batch_ids and self.dataset_version is None and self.document_id is None:
-            raise ValueError("give batch_ids, a dataset_version or a document_id")
-        if self.batch_ids is not None and any(i <= 0 for i in self.batch_ids):
-            raise ValueError("batch ids are positive integers")
-        return self
-
-
-class GeometryBulkSkipped(BaseModel):
-    id: int
-    reason: Literal["not_found", "not_pending", "qa_failed", "not_open"]
-
-
-class GeometryBulkResult(BaseModel):
-    approved: list[int]
-    skipped: list[GeometryBulkSkipped]
 
 
 class GeometryBlocker(BaseModel):

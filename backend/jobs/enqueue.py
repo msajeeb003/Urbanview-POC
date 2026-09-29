@@ -40,9 +40,6 @@ JOB_TYPES: dict[str, JobType] = {
         JobType(
             "extract_document", "jobs.tasks.extraction.extract_document", "extraction", "extract"
         ),
-        JobType(
-            "preprocess_file", "jobs.tasks.extraction.preprocess_file", "extraction", "extract"
-        ),
         JobType("process_geometry", "jobs.tasks.ingestion.process_geometry", "geo", "geo"),
         JobType("import_zones", "jobs.tasks.ingestion.import_zones", "geo", "geo"),
         JobType("publish_approved", "jobs.tasks.publish.publish_approved", "publish", "publish"),

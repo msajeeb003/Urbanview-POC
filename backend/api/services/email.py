@@ -1,9 +1,10 @@
-"""The API side of transactional e-mail: queue a send, read the log.
+"""The API side of transactional e-mail: queue a send.
 
 ``queue`` inserts the ``email_log`` row (``queued``) and one ``send_email`` job for it (payload:
 template and ids, never an address or a body); the worker does the rendering, the policy check,
 the SMTP send and the outcome (``core.mail``, ``jobs.tasks.email``). A queue outage marks the row
-``failed`` instead of failing the caller (an order is never lost over mail).
+``failed`` instead of failing the caller (an order is never lost over mail). The staff order
+detail lists the order's rows (``EMAIL_LOG_JSON``).
 """
 
 from __future__ import annotations
@@ -16,8 +17,8 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from api.schemas.email import EmailLogList, EmailLogOut
-from core.errors import NotFoundError, ServiceUnavailableError
+from api.schemas.email import EmailLogOut
+from core.errors import ServiceUnavailableError
 from core.mail.templates import TEMPLATES
 from jobs.enqueue import JobDispatcher, enqueue_job
 
@@ -25,9 +26,8 @@ EMAIL_LOG_JSON = """jsonb_build_object(
     'id', e.id, 'template', e.template, 'to_email', e.to_email, 'order_id', e.order_id,
     'user_id', e.user_id, 'status', e.status, 'attempts', e.attempts, 'subject', e.subject,
     'provider_message_id', e.provider_message_id, 'error', e.error,
-    'suppressed_reason', e.suppressed_reason, 'bounce_reason', e.bounce_reason, 'job_id', e.job_id,
-    'created_at', e.created_at, 'sent_at', e.sent_at, 'bounced_at', e.bounced_at,
-    'updated_at', e.updated_at)"""
+    'suppressed_reason', e.suppressed_reason, 'job_id', e.job_id, 'created_at', e.created_at,
+    'sent_at', e.sent_at, 'updated_at', e.updated_at)"""
 
 INSERT_SQL = text(
     """
@@ -40,22 +40,6 @@ QUEUE_FAILED_SQL = text(
     "UPDATE email_log SET status = 'failed', error = :error, updated_at = now() WHERE id = :id"
 )
 STATUS_SQL = text("SELECT status FROM email_log WHERE id = :id")
-ROW_SQL = text(
-    f"SELECT {EMAIL_LOG_JSON} AS row FROM email_log e WHERE e.id = :id AND e.municipality_id = :m"
-)
-LIST_SQL = text(
-    f"""
-    SELECT {EMAIL_LOG_JSON} AS row, count(*) OVER () AS total
-    FROM email_log e
-    WHERE e.municipality_id = :m
-      AND (CAST(:order_id AS bigint) IS NULL OR e.order_id = CAST(:order_id AS bigint))
-      AND (CAST(:user_id AS bigint) IS NULL OR e.user_id = CAST(:user_id AS bigint))
-      AND (CAST(:status AS text) IS NULL OR e.status = CAST(:status AS text))
-      AND (CAST(:template AS text) IS NULL OR e.template = CAST(:template AS text))
-    ORDER BY e.id DESC
-    LIMIT :limit OFFSET :offset
-    """
-)
 
 
 def _utc(value: Any) -> datetime | None:
@@ -68,7 +52,7 @@ def _utc(value: Any) -> datetime | None:
 
 def email_log_out(row: Mapping[str, Any]) -> EmailLogOut:
     data = dict(row)
-    for key in ("created_at", "sent_at", "bounced_at", "updated_at"):
+    for key in ("created_at", "sent_at", "updated_at"):
         data[key] = _utc(data.get(key))
     return EmailLogOut(**data)
 
@@ -154,48 +138,3 @@ class EmailService:
             await session.commit()
             status = (await session.execute(STATUS_SQL, {"id": log_id})).scalar_one()
         return EmailQueued(log_id=log_id, job_id=outcome.job_id, status=str(status))
-
-    async def get(self, log_id: int) -> EmailLogOut:
-        async with self.session_factory() as session:
-            row = (
-                await session.execute(ROW_SQL, {"id": log_id, "m": self.municipality_id})
-            ).scalar_one_or_none()
-        if row is None:
-            raise NotFoundError(f"No e-mail log entry {log_id}", details={"email_log_id": log_id})
-        return email_log_out(row)
-
-    async def list(
-        self,
-        *,
-        order_id: int | None = None,
-        user_id: int | None = None,
-        status: str | None = None,
-        template: str | None = None,
-        limit: int = 50,
-        offset: int = 0,
-    ) -> EmailLogList:
-        async with self.session_factory() as session:
-            rows = (
-                (
-                    await session.execute(
-                        LIST_SQL,
-                        {
-                            "m": self.municipality_id,
-                            "order_id": order_id,
-                            "user_id": user_id,
-                            "status": status,
-                            "template": template,
-                            "limit": limit,
-                            "offset": offset,
-                        },
-                    )
-                )
-                .mappings()
-                .all()
-            )
-        return EmailLogList(
-            items=[email_log_out(r["row"]) for r in rows],
-            total=int(rows[0]["total"]) if rows else 0,
-            limit=limit,
-            offset=offset,
-        )

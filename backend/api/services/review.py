@@ -30,9 +30,6 @@ from api.schemas.review import (
     AmendIn,
     AuditEntry,
     AuditPage,
-    BulkApproveIn,
-    BulkResult,
-    BulkSkipped,
     PageLinkOut,
     ReviewCounters,
     ReviewItem,
@@ -149,13 +146,6 @@ def _queue_sql(extra: str, sort: str = "pending") -> str:
 
 
 ITEM_SQL = text(_queue_sql("AND e.id = :id"))
-ITEM_STATE_SQL = text(
-    """
-    SELECT id, review_state::text AS review_state, published_value_id, superseded_at
-    FROM planning_parameter_extractions
-    WHERE municipality_id = :m AND id = ANY(:ids)
-    """
-)
 DECIDE_SQL = text(
     """
     UPDATE planning_parameter_extractions
@@ -684,67 +674,6 @@ class ReviewService:
             after=_snapshot(after_row),
             note=note,
         )
-
-    async def bulk_approve(self, principal: Principal, payload: BulkApproveIn) -> BulkResult:
-        approved: list[int] = []
-        skipped: list[BulkSkipped] = []
-        async with self.session_factory() as session:
-            candidate_ids: list[int] = []
-            if payload.item_ids:
-                states = (
-                    (
-                        await session.execute(
-                            ITEM_STATE_SQL,
-                            {"m": self.municipality_id, "ids": list(payload.item_ids)},
-                        )
-                    )
-                    .mappings()
-                    .all()
-                )
-                by_id = {int(s["id"]): s for s in states}
-                for item_id in dict.fromkeys(payload.item_ids):
-                    state = by_id.get(item_id)
-                    if state is None:
-                        skipped.append(BulkSkipped(id=item_id, reason="not_found"))
-                    elif state["published_value_id"] is not None:
-                        skipped.append(BulkSkipped(id=item_id, reason="published"))
-                    elif state["superseded_at"] is not None:
-                        skipped.append(BulkSkipped(id=item_id, reason="superseded"))
-                    elif state["review_state"] != "pending_review":
-                        skipped.append(BulkSkipped(id=item_id, reason="not_pending"))
-                    else:
-                        candidate_ids.append(item_id)
-            selectors: list[str] = []
-            params: dict[str, Any] = {"m": self.municipality_id}
-            if payload.document_id is not None:
-                if payload.source_page is not None:
-                    selectors.append("(document_id = :document_id AND source_page = :source_page)")
-                    params["source_page"] = payload.source_page
-                else:
-                    selectors.append("document_id = :document_id")
-                params["document_id"] = payload.document_id
-            if payload.urban_parcel_id is not None:
-                selectors.append("urban_parcel_id = :urban_parcel_id")
-                params["urban_parcel_id"] = payload.urban_parcel_id
-            if selectors:
-                rows = await session.execute(
-                    text(
-                        "SELECT id FROM planning_parameter_extractions WHERE municipality_id = :m "
-                        "AND review_state = 'pending_review' AND published_value_id IS NULL "
-                        "AND superseded_at IS NULL "
-                        f"AND ({' OR '.join(selectors)}) ORDER BY id"
-                    ),
-                    params,
-                )
-                for (item_id,) in rows.all():
-                    if item_id not in candidate_ids:
-                        candidate_ids.append(int(item_id))
-            for item_id in candidate_ids:
-                row = await self._item_row(session, item_id)
-                await self._decide(session, principal, row, "approved", note=payload.note)
-                approved.append(item_id)
-            await session.commit()
-        return BulkResult(approved=approved, skipped=skipped)
 
     # --- options ---------------------------------------------------------------------------------
 

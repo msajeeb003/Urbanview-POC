@@ -212,8 +212,8 @@ class PipelineJob(Base):
         Text,
         nullable=False,
         comment=(
-            "extract_document | preprocess_file | process_geometry | publish_approved | send_email"
-            " | import_market_data | refresh_heatmaps | ai_check | import_zones"
+            "extract_document | process_geometry | publish_approved | send_email"
+            " | import_market_data | refresh_heatmaps | import_zones"
         ),
     )
     queue: Mapped[str] = mapped_column(
@@ -232,7 +232,7 @@ class PipelineJob(Base):
         BigInteger, ForeignKey("stored_files.id", ondelete="SET NULL")
     )
     target_type: Mapped[str | None] = mapped_column(
-        Text, comment="document | file | publish_run | email | market_import | ai_settings"
+        Text, comment="document | file | publish_run | email | market_import"
     )
     target_id: Mapped[int | None] = mapped_column(BigInteger)
     payload: Mapped[dict[str, Any]] = mapped_column(
@@ -275,9 +275,8 @@ class PipelineJob(Base):
             name="ck_pipeline_jobs_status",
         ),
         CheckConstraint(
-            "type IN ('extract_document', 'preprocess_file', 'process_geometry', "
-            "'publish_approved', 'send_email', 'import_market_data', 'refresh_heatmaps', "
-            "'ai_check', 'import_zones')",
+            "type IN ('extract_document', 'process_geometry', 'publish_approved', "
+            "'send_email', 'import_market_data', 'refresh_heatmaps', 'import_zones')",
             name="ck_pipeline_jobs_type",
         ),
         CheckConstraint("attempts >= 0 AND max_attempts >= 1", name="ck_pipeline_jobs_attempts"),

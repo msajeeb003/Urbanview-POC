@@ -9,8 +9,6 @@ extractions"; experts produce the paid reports and have no review access) and th
   ``can_publish`` (no pending items and something approved);
 - ``POST /v1/admin/review/{id}/approve | amend | reject`` — one decision, one audit row with the
   state before and after; amend keeps the AI value and stores the correction alongside;
-- ``POST /v1/admin/review/bulk-approve`` — many pending items at once (ids, document page or
-  urban parcel), one audit row per item;
 - ``GET /v1/admin/audit`` — who changed what and when, filterable by entity, actor, action, time.
 Nothing here writes to the serving tables; publishing is a separate job.
 """
@@ -27,8 +25,6 @@ from api.schemas.review import (
     AmendIn,
     ApproveIn,
     AuditPage,
-    BulkApproveIn,
-    BulkResult,
     EntityType,
     RejectIn,
     ReviewCounters,
@@ -142,18 +138,6 @@ async def review_options(
     field_key: Annotated[str, Query(min_length=1, max_length=60, pattern=r"^[a-z_]+$")],
 ) -> ReviewOptions:
     return await service.options(document_id=document_id, field_key=field_key)
-
-
-@router.post(
-    "/review/bulk-approve",
-    response_model=BulkResult,
-    summary="Approve many pending items (by ids, document page or urban parcel)",
-    responses=RESPONSES,
-)
-async def bulk_approve(
-    principal: ReviewerPrincipal, service: ReviewServiceDep, payload: BulkApproveIn
-) -> BulkResult:
-    return await service.bulk_approve(principal, payload)
 
 
 @router.get("/review/{item_id}", response_model=ReviewItem, responses=RESPONSES)

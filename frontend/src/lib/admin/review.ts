@@ -201,25 +201,6 @@ export function nextPending(items: readonly ReviewItem[], from: number): number 
   return null;
 }
 
-/** Items still pending on the same page of the same document and file (bulk approval). */
-export function samePage(items: readonly ReviewItem[], item: ReviewItem): ReviewItem[] {
-  return items.filter(
-    (i) =>
-      i.status === "pending" &&
-      canDecide(i) &&
-      i.source.document_id === item.source.document_id &&
-      i.source.file_id === item.source.file_id &&
-      i.source.page === item.source.page,
-  );
-}
-
-/** Items still pending on the same urban parcel. */
-export function sameParcel(items: readonly ReviewItem[], item: ReviewItem): ReviewItem[] {
-  const parcel = item.target.urban_parcel_id;
-  if (parcel == null) return [];
-  return items.filter((i) => i.status === "pending" && canDecide(i) && i.target.urban_parcel_id === parcel);
-}
-
 // --- progress ------------------------------------------------------------------------------------------
 
 export interface Progress {

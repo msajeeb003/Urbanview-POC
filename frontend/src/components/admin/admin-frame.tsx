@@ -2,7 +2,7 @@
 
 /**
  * The admin console's frame (wireframe `renderAdmin`): `.adminbar` with the title, the tab row and
- * "← Back to map", then `.adminbody` with the page. Tabs are routes (`/admin/overview` …) and a
+ * "← Back to map", then `.adminbody` with the page. Tabs are routes (`/admin/data` …) and a
  * role only sees the tabs it may open (`lib/admin/sections.ts`); the wireframe's `<button>`s are
  * kept so the stylesheet applies unchanged. Not in the mock: the account button before
  * "← Back to map" (role + name; its menu holds the e-mail, the admin-only audit log and users

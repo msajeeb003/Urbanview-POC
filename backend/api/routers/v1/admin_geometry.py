@@ -9,7 +9,6 @@ validity QA, decided before the publish job may apply them.
   (simplified GeoJSON, the issue codes naming each feature);
 - ``POST /v1/admin/geometry/{id}/approve | reject`` — one decision, one audit row; approve is
   refused for a batch whose QA fails (409 ``qa_failed``), reject needs a reason and is final;
-- ``POST /v1/admin/geometry/bulk-approve`` — the pending batches of a dataset, a document or ids.
 Nothing here writes to the serving tables; publishing is a separate job.
 """
 
@@ -22,8 +21,6 @@ from fastapi import APIRouter, Depends, Path, Query, Response
 from api.deps import GeometryReviewServiceDep, ReviewerPrincipal
 from api.schemas.geometry_review import (
     GeometryApproveIn,
-    GeometryBulkApproveIn,
-    GeometryBulkResult,
     GeometryDraft,
     GeometryFeatures,
     GeometryOrigin,
@@ -80,18 +77,6 @@ async def list_geometry(
         limit=limit,
         offset=offset,
     )
-
-
-@router.post(
-    "/bulk-approve",
-    response_model=GeometryBulkResult,
-    summary="Approve the pending batches of a dataset, a document or given ids",
-    responses=RESPONSES,
-)
-async def bulk_approve_geometry(
-    principal: ReviewerPrincipal, service: GeometryReviewServiceDep, payload: GeometryBulkApproveIn
-) -> GeometryBulkResult:
-    return await service.bulk_approve(principal, payload)
 
 
 @router.get("/{batch_id}", response_model=GeometryDraft, responses=RESPONSES)

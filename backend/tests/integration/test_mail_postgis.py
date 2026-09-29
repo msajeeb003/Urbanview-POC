@@ -1,8 +1,8 @@
 """Transactional e-mail on PostGIS through the API with Celery in eager mode and the SMTP
 transport faked: the payment e-mail of a new order lands in ``email_log`` with the provider's
-message id and shows on the order, the log endpoint and the jobs API; the magic-link login
-(request → e-mail → exchange → session; single use; expiry); the staging allow-list; bounces
-surfacing on the order; transient SMTP trouble retried then failed."""
+message id and shows on the order and in the jobs API; the magic-link login (request → e-mail →
+exchange → session; single use; expiry); the staging allow-list; transient SMTP trouble retried
+then failed."""
 
 from __future__ import annotations
 
@@ -128,27 +128,20 @@ async def test_the_payment_email_is_sent_logged_and_visible_everywhere(mail_env,
         assert created.status_code == 201, created.text
         reference = created.json()["reference"]
         (order,) = await rows(app, "SELECT id FROM orders WHERE reference = :r", r=reference)
-        log = await client.get(
-            "/v1/admin/email-log", params={"order_id": order["id"]}, headers=auth()
-        )
         detail = await client.get(f"/v1/admin/orders/{order['id']}", headers=auth())
-        entry_id = log.json()["items"][0]["id"]
-        one = await client.get(f"/v1/admin/email-log/{entry_id}", headers=auth())
+        entry_id = detail.json()["emails"][0]["id"]
         jobs = await client.get(
             "/v1/admin/jobs", params={"target": f"email:{entry_id}"}, headers=auth()
         )
-        by_template = await client.get(
-            "/v1/admin/email-log", params={"template": "magic_link"}, headers=auth()
-        )
-        anonymous = await client.get("/v1/admin/email-log")
 
     assert created.json()["email_status"] == "sent"  # eager: the job already ran
     mail = transport.sent[0]
     assert mail.to == ["ana.novak@example.com"] and mail.template == "payment_instructions"
     assert reference in mail.subject and reference in mail.text and "200.00 EUR" in mail.text
     assert "KO " in mail.text and "Podgorica" in mail.text
-    entry = log.json()["items"][0]
-    assert log.json()["total"] == 1
+    body = detail.json()
+    assert body["email_alerts"] == 0 and len(body["emails"]) == 1
+    entry = body["emails"][0]  # the order's e-mail log, newest first
     assert (entry["template"], entry["status"], entry["attempts"]) == (
         "payment_instructions",
         "sent",
@@ -158,9 +151,6 @@ async def test_the_payment_email_is_sent_logged_and_visible_everywhere(mail_env,
     assert entry["provider_message_id"] == "ses-0100019a2b3c" and entry["sent_at"]
     assert entry["subject"] == mail.subject and entry["job_id"]
     assert "text" not in entry and "html" not in entry and "body" not in entry
-    assert one.json() == entry
-    body = detail.json()
-    assert body["email_alerts"] == 0 and [e["id"] for e in body["emails"]] == [entry_id]
     job = jobs.json()["items"][0]
     assert job["type"] == "send_email" and job["status"] == "succeeded"
     assert job["payload"] == {
@@ -171,7 +161,6 @@ async def test_the_payment_email_is_sent_logged_and_visible_everywhere(mail_env,
     }
     assert job["result"]["provider_message_id"] == "ses-0100019a2b3c"
     assert "@" not in str(job["payload"]) and "@" not in str(job["result"])  # ids only
-    assert by_template.json()["total"] == 0 and anonymous.status_code == 401
     (stored,) = await rows(
         app,
         "SELECT provider_response, error, suppressed_reason FROM email_log WHERE id = :id",
@@ -217,7 +206,6 @@ async def test_magic_link_login_is_single_use_and_short_lived(mail_env, transpor
             )
             await session.commit()
         expired = await client.post("/v1/auth/magic-link/exchange", json={"token": stale_token})
-        log = await client.get("/v1/admin/email-log", params={"user_id": user_id}, headers=auth())
 
     assert requested.status_code == 202 and unknown.status_code == 202
     assert requested.json() == unknown.json()  # no account enumeration
@@ -237,7 +225,11 @@ async def test_magic_link_login_is_single_use_and_short_lived(mail_env, transpor
     assert as_staff.status_code == 200
     assert again.status_code == 401 and garbage.status_code == 401 and expired.status_code == 401
     assert again.json()["error"]["code"] == "unauthorized"
-    entries = log.json()["items"]
+    entries = await rows(
+        app,
+        "SELECT template, status, user_id FROM email_log WHERE user_id = :u ORDER BY id",
+        u=user_id,
+    )
     assert [e["template"] for e in entries] == ["magic_link", "magic_link"]
     assert all(e["status"] == "sent" and e["user_id"] == user_id for e in entries)
     tokens = await rows(
@@ -247,7 +239,8 @@ async def test_magic_link_login_is_single_use_and_short_lived(mail_env, transpor
     audit = await rows(
         app,
         "SELECT action, actor FROM audit_log WHERE entity_type = 'staff_user' "
-        "AND action LIKE 'auth.%' ORDER BY id",
+        "AND entity_id = :u AND action LIKE 'auth.%' ORDER BY id",
+        u=user_id,
     )
     assert [a["action"] for a in audit] == [
         "auth.magic_link_requested",
@@ -267,11 +260,11 @@ async def test_staging_only_mails_the_allow_list(mail_env, transport):
     async with app.router.lifespan_context(app), make_client(app) as client:
         allowed = await client.post("/v1/orders", json=FORM)
         blocked = await client.post("/v1/orders", json=LEGAL)
-        log = await client.get("/v1/admin/email-log", headers=auth())
+        log = await rows(app, "SELECT to_email, status, suppressed_reason, subject FROM email_log")
     assert allowed.json()["email_status"] == "sent"
     assert blocked.json()["email_status"] == "suppressed"
     assert [m.to for m in transport.sent] == [["ana.novak@example.com"]]
-    by_address = {e["to_email"]: e for e in log.json()["items"]}
+    by_address = {e["to_email"]: e for e in log}
     assert by_address["office@gradnja.me"]["status"] == "suppressed"
     assert by_address["office@gradnja.me"]["suppressed_reason"] == "not_allowlisted"
     assert by_address["office@gradnja.me"]["subject"]  # rendered, just not sent
@@ -294,10 +287,9 @@ async def test_transient_smtp_trouble_is_retried_then_failed(mail_env):
     async with app.router.lifespan_context(app), make_client(app) as client:
         created = await client.post("/v1/orders", json=FORM)
         assert created.status_code == 201
-        log = await client.get("/v1/admin/email-log", params={"status": "failed"}, headers=auth())
         jobs = await client.get("/v1/admin/jobs", params={"type": "send_email"}, headers=auth())
     assert created.json()["email_status"] == "failed"  # the order stands
-    entry = log.json()["items"][0]
+    (entry,) = await rows(app, "SELECT attempts, error FROM email_log WHERE status = 'failed'")
     assert entry["attempts"] == 3 and "451 provider busy" in entry["error"]
     job = jobs.json()["items"][0]
     assert job["status"] == "failed" and job["attempts"] == 3

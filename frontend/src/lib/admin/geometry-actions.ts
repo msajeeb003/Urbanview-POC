@@ -9,7 +9,7 @@
  */
 import { unstable_rethrow } from "next/navigation";
 
-import type { GeometryBulkResult, GeometryCounts, GeometryDraft, GeometryFeatures, GeometryPage } from "@/lib/api/types";
+import type { GeometryCounts, GeometryDraft, GeometryFeatures, GeometryPage } from "@/lib/api/types";
 
 import { adminGet, adminSend } from "./api";
 import { explainGeometryProblem } from "./geometry";
@@ -54,25 +54,6 @@ export async function approveGeometryAction(batchId: number, note?: string): Pro
 export async function rejectGeometryAction(batchId: number, note: string): Promise<Result<GeometryDecision>> {
   if (!note.trim()) return { ok: false, message: "Give the reason for rejecting." };
   return decide(`/v1/admin/geometry/${batchId}/reject`, { note: note.trim() }, "Geometry rejected");
-}
-
-/** `POST /v1/admin/geometry/bulk-approve` for every pending batch of one producing run. */
-export async function bulkApproveGeometryAction(
-  datasetVersion: string,
-): Promise<Result<{ result: GeometryBulkResult; counts: GeometryCounts | null }>> {
-  const denied = await reviewer();
-  if (denied) return { ok: false, message: denied };
-  const result = await adminSend<GeometryBulkResult>("POST", "/v1/admin/geometry/bulk-approve", {
-    dataset_version: datasetVersion,
-  });
-  if (!result.ok) return { ok: false, message: explainGeometryProblem(result) };
-  const { approved, skipped } = result.data;
-  const failing = skipped.filter((s) => s.reason === "qa_failed").length;
-  return {
-    ok: true,
-    message: `Approved ${approved.length} batch${approved.length === 1 ? "" : "es"}${failing ? ` (${failing} failing its checks left pending)` : ""}`,
-    data: { result: result.data, counts: await counts() },
-  };
 }
 
 /** One draft again (after another reviewer's decision). */

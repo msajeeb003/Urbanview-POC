@@ -56,8 +56,6 @@ export type UrbanLink = S["UrbanLink"];
 // --- the admin console (staff routes; called from the Next server with the staff session) ---
 export type StaffMe = S["StaffMeOut"];
 export type StaffSession = S["SessionOut"];
-export type AdminOverview = S["OverviewOut"];
-export type DistrictStatus = S["DistrictStatus"];
 export type AuditPage = S["AuditPage"];
 export type AnalyticsDashboard = S["AnalyticsDashboard"];
 export type AuditEntry = S["AuditEntry"];
@@ -92,7 +90,6 @@ export type ReviewOptions = S["ReviewOptions"];
 export type ReviewStatus = S["ReviewItem"]["status"];
 export type ReviewEntityType = S["ReviewTarget"]["entity_type"];
 export type ReviewSort = NonNullable<NonNullable<paths["/v1/admin/review"]["get"]["parameters"]["query"]>["sort"]>;
-export type BulkResult = S["BulkResult"];
 export type ReviewPayload = S["ReviewPayload"];
 export type PublishStatus = S["PublishStatus"];
 // the geometry review (staged batches, the pilot scope's geometry_draft)
@@ -101,7 +98,6 @@ export type GeometryPage = S["GeometryPage"];
 export type GeometryCounts = S["GeometryCounts"];
 export type GeometryFeatures = S["GeometryFeatures"];
 export type GeometryBlocker = S["GeometryBlocker"];
-export type GeometryBulkResult = S["GeometryBulkResult"];
 export type QaIssue = S["QaIssueOut"];
 export type GeometryOrigin = NonNullable<S["GeometryDraft"]["origin"]>;
 export type GeometryReviewStatus = NonNullable<S["GeometryDraft"]["review_status"]>;
@@ -118,6 +114,7 @@ export type OrderEmail = NonNullable<S["OrderOut"]["emails"]>[number];
 // Admin console: financial assumptions
 export type AssumptionSet = S["AssumptionsOut"];
 export type AssumptionSetList = S["AssumptionsList"];
+export type FormulaVersion = S["FormulaVersionOut"];
 export type AssumptionSetIn = S["AssumptionsIn"];
 export type AssumptionStatus = S["AssumptionsOut"]["status"];
 export type RateIn = S["RateIn"];

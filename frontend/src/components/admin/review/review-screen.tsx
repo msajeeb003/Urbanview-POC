@@ -28,8 +28,6 @@ import {
   itemTitle,
   nextPending,
   REVIEW_STATUSES,
-  sameParcel,
-  samePage,
   SORTS,
   sourceLine,
   statusChip,
@@ -38,8 +36,6 @@ import {
 import {
   amendAction,
   approveAction,
-  bulkApproveAction,
-  countersAction,
   itemAction,
   loadQueueAction,
   rejectAction,
@@ -219,32 +215,6 @@ export function ReviewScreen({
       reject: async (note: string) => (item ? settle(await rejectAction(item.id, note)) : null),
     }),
     [item, settle],
-  );
-
-  const bulk = useCallback(
-    async (scope: "page" | "parcel") => {
-      if (!item) return;
-      const targets = scope === "page" ? samePage(itemsRef.current, item) : sameParcel(itemsRef.current, item);
-      const result = await bulkApproveAction(
-        targets.map((t) => t.id),
-        item.source.document_id,
-      );
-      showToast(result.message);
-      if (!result.ok) return;
-      const approved = new Set(result.data.approved);
-      const now = new Date().toISOString();
-      const list = itemsRef.current.map((i) =>
-        approved.has(i.id) ? { ...i, status: "approved" as const, effective: i.extracted, amended: null, reviewed_by: me, reviewed_at: now } : i,
-      );
-      setItems(list);
-      applyCounters(result.data.counters);
-      if (!result.data.counters) {
-        const fresh = await countersAction();
-        if (fresh.ok) setCounters(fresh.data);
-      }
-      advanceFrom(cursor, list);
-    },
-    [advanceFrom, applyCounters, cursor, item, me, showToast],
   );
 
   // the keyboard: j / k, Enter, e, r, n, Esc
@@ -429,9 +399,6 @@ export function ReviewScreen({
                 onMode={setMode}
                 onApprove={approve}
                 submit={submit}
-                samePageCount={samePage(items, item).length}
-                sameParcelCount={sameParcel(items, item).length}
-                onBulk={(scope) => void bulk(scope)}
               />
             ) : null}
           </div>

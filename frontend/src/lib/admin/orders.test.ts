@@ -9,6 +9,7 @@ import {
   eventLine,
   mapHref,
   ordersHref,
+  parcelCells,
   parcelLine,
   parseOrderFilters,
   snapshotAssumptions,
@@ -33,15 +34,20 @@ describe("status flow", () => {
     expect(allowed(order("paid"), "receive", "admin")).toMatchObject({ enabled: false, reason: expect.stringMatching(/awaits payment/) });
     expect(allowed(order("paid"), "refund", "admin").enabled).toBe(true);
     expect(allowed(order("in_progress"), "refund", "admin").enabled).toBe(true);
-    expect(allowed(order("delivered"), "refund", "admin").enabled).toBe(false);
+    // a delivered order can still be refunded (it never goes back to work)
+    expect(allowed(order("delivered"), "refund", "admin").enabled).toBe(true);
+    expect(allowed(order("refunded"), "refund", "admin").enabled).toBe(false);
     expect(allowed(order("pending_payment"), "refund", "admin").enabled).toBe(false);
     // a failed payment can still be received (or checked again), never refunded
     expect(allowed(order("payment_failed"), "receive", "admin").enabled).toBe(true);
     expect(allowed(order("payment_failed"), "notReceived", "admin").enabled).toBe(true);
     expect(allowed(order("pending_payment"), "receive", "reviewer").visible).toBe(false); // no order access
     expect(allowed(order("payment_failed"), "refund", "admin").enabled).toBe(false);
-    expect(allowed(order("paid"), "start", "admin")).toMatchObject({ enabled: false, reason: "Assign an expert first." });
-    expect(allowed(order("paid", true), "start", "admin").enabled).toBe(true);
+    // an expert works on a paid order: assigning waits for the payment
+    expect(allowed(order("pending_payment"), "assign", "admin")).toMatchObject({ enabled: false, reason: expect.stringMatching(/payment is received/) });
+    expect(allowed(order("payment_failed"), "assign", "admin").enabled).toBe(false);
+    expect(allowed(order("paid"), "assign", "admin").enabled).toBe(true);
+    expect(allowed(order("in_progress", true), "assign", "admin").enabled).toBe(true); // reassign
     expect(allowed(order("delivered"), "assign", "admin").enabled).toBe(false);
     expect(allowed(order("in_progress"), "upload", "expert").enabled).toBe(true);
     expect(allowed(order("delivered"), "upload", "expert").enabled).toBe(true); // replace, with a note
@@ -60,6 +66,8 @@ describe("the queue", () => {
   it("writes the parcel, the customer and the age", () => {
     expect(parcelLine({ parcel_type: "cadastral", parcel_label: "KO Podgorica I, 1042/3" })).toBe("#1042/3 · Podgorica I");
     expect(parcelLine({ parcel_type: "urban", parcel_label: "12" })).toBe("UP 12");
+    expect(parcelCells({ ko_and_number: "KO Podgorica I, 1042", planned_parcel: "UP 12" })).toEqual({ cadastral: "#1042 · Podgorica I", planned: "UP 12" });
+    expect(parcelCells({ ko_and_number: null, planned_parcel: null })).toEqual({ cadastral: null, planned: null });
     expect(customerLine({ customer_name: "Marko P.", company_name: "Adria d.o.o.", purchaser_type: "legal_entity" })).toBe("Marko P. · Adria d.o.o.");
     expect(customerLine({ customer_name: "Ana V.", company_name: null, purchaser_type: "individual" })).toBe("Ana V.");
     expect(daysSince("2026-09-20T10:00:00Z", new Date("2026-09-27T09:00:00Z"))).toBe(6);

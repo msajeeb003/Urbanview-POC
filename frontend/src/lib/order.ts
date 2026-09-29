@@ -1,8 +1,7 @@
 /**
- * Where every order button leads ("Order expert analysis" on the parcel panel, "Order a report" in
- * "Choose your access", the methodology's "Order this analysis →"): the S4 order modal for the
- * parcel whose panel is on screen (`orderTarget`), with `order_started`. Without a parcel panel
- * the visitor is asked to pick one.
+ * Where every order button leads ("Order expert analysis" on the parcel panel, the methodology's
+ * "Order this analysis →"): the S4 order modal for the parcel whose panel is on screen
+ * (`orderTarget`), with `order_started`. Without a parcel panel the visitor is asked to pick one.
  */
 import { orderModalSpec } from "@/components/order/order-modal";
 

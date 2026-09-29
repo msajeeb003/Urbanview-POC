@@ -1,7 +1,8 @@
 # PDF pre-processing for AI extraction (version 1.0)
 
 Status: engineering contract for the POC (2026-09-26). Code: `backend/core/extraction/preprocess.py`,
-`chunking.py`, `manifest.py`, `backend/jobs/preprocessing.py`, job `preprocess_file`. It turns a
+`chunking.py`, `manifest.py`, `backend/jobs/preprocessing.py` (`run_preprocess`, the first stage of the
+extraction and geometry jobs). It turns a
 stored planning PDF into what the extraction prompts read (`docs/specs/extraction-contract.md`),
 page by page, keeping every position so each extracted value cites a page and a box.
 
@@ -63,8 +64,9 @@ none), `script` (latin | cyrillic | mixed | none), `headings[]`, `sections[]`.
 
 ## 3. Manifest, cache, page images (`manifest.py`, `jobs/preprocessing.py`)
 
-`POST /v1/admin/files/{id}/jobs/preprocess[?force=true]` (admin; planning-document PDFs only,
-409 otherwise; 202 / 200 idempotent) queues `preprocess_file` (queue `extraction`). The job:
+The extraction job runs the stage first when the file's manifest is missing or stale, and the
+geometry job runs it for a PDF drawing (`jobs.tasks.extraction.run_preprocess`; planning-document
+PDFs only; there is no separate trigger since 2026-09-30). The stage:
 
 1. skips the analysis when `stored_files.preprocess` is current (same SHA-256,
    `PREPROCESS_VERSION` and options key); otherwise reads the PDF (checksum verified), analyses

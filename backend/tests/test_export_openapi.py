@@ -19,7 +19,7 @@ def test_schema_has_every_public_route_the_frontend_calls():
         "/v1/events",
         "/v1/tiles/current",
         "/v1/orders",
-        "/v1/orders/{reference}/status",
+        "/v1/orders/{reference}",
     ):
         assert route in paths, route
 

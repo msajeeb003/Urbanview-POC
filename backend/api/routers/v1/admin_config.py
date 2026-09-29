@@ -1,7 +1,8 @@
-"""Admin configuration (role ``admin``, every write audited): financial assumptions per zone and
-staff users. Assumptions are version histories: POST creates version 1 (or the next version
-when the zone already has one), PUT creates the next version from the newest row, DELETE
-retires the live version; earlier versions are read-only and listed with ``include_history``.
+"""Admin configuration (role ``admin``, every write audited): financial assumptions per zone, the
+formula versions (read-only) and staff users. Assumptions are version histories: POST creates
+version 1 (or the next version when the zone already has one), PUT creates the next version from
+the newest row, DELETE retires the live version; earlier versions are read-only and listed with
+``include_history``.
 Assumptions are effective-dated (``core.assumptions``): a set applies from its
 ``effective_from`` (today or later) and the panel reads the one that applies today;
 ``/assumptions/batch`` saves several zones at once. Staff users have no passwords (magic-link
@@ -22,6 +23,7 @@ from api.schemas.admin_config import (
     AssumptionsList,
     AssumptionsOut,
     AssumptionsUpdate,
+    FormulaVersionOut,
     StaffMeOut,
     StaffUserIn,
     StaffUserList,
@@ -133,6 +135,21 @@ async def retire_assumptions(
     principal: AdminPrincipal, service: AdminConfigServiceDep, assumptions_id: Id
 ) -> AssumptionsOut:
     return await service.retire_assumptions(principal, assumptions_id)
+
+
+# --- formula versions -----------------------------------------------------------------------------
+
+
+@router.get(
+    "/formulas",
+    response_model=list[FormulaVersionOut],
+    summary="Formula versions: the current one is what the engine runs and the panels state",
+    responses=RESPONSES,
+)
+async def list_formulas(
+    principal: AdminPrincipal, service: AdminConfigServiceDep
+) -> list[FormulaVersionOut]:
+    return await service.list_formulas()
 
 
 # --- staff users ----------------------------------------------------------------------------------

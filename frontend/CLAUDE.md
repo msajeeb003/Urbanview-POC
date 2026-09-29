@@ -79,7 +79,7 @@ figures 44 / 700, body 14, secondary 13, mono data 13 / 700, uppercase mono micr
 | Map | fills the middle, `#EDE6D6`; legend top-left 16/16 (max 264 wide); coverage pill top-centre; scale bar left 16 / bottom 52; coordinates chip left 16 / bottom 16; tools right 16 / bottom 88 (zoom label, 42 px `+` `−` reset) |
 | Panel | 392 px (`--white`, hairline left, no shadow); sticky header, scrolling body, CTA stack; hidden (never replaced by anything) when the location is uncovered |
 | AI | not built (pilot scope: "intent button only"): no fab, no chat panel, no quota; "Ask about this site" in the parcel panel's button stack records `ai_interest` |
-| Admin | overlay `inset: 0` over the main row, `--paper`; admin bar 60 px; tabs "Overview", "AI review queue", "Financial assumptions", "Orders", "Data sources" (the wireframe's, without its Planning rules and Calculation engine tabs: not in the POC plan), then "Publish", "Analytics", "Audit log" (the pilot scope's A4 / A7; the bar scrolls sideways when narrow); "← Back to map" |
+| Admin | overlay `inset: 0` over the main row, `--paper`; admin bar 60 px; tabs in the pipeline's order: "Documents" (A1), "AI review queue" (A2), "Publish" (A4), "Financial assumptions" (A5), "Orders" (A6), "Analytics", "Audit log" (A7, thin tables; the wireframe's Overview, Planning rules and Calculation engine tabs are not in the POC plan; the bar scrolls sideways when narrow); "← Back to map" |
 | Modal | overlay `rgba(20,17,14,.55)`, padding 24; modal max 520 (`wide` 860), max-height 90vh, radius 8 (effective), pop-in .2s |
 | Toast | bottom-centre, ink, `✦` + text, 2.6 s |
 | ≤ 1100 px | panel 360, rail 182 (wireframe) |
@@ -586,11 +586,10 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   map stays mounted under the console (the wireframe's `.admin` overlay over the main row). The
   admin pages arrive as `AppShell`'s children and render inside `AdminOverlay` when the path starts
   with `/admin`; the store's `view` mirrors the route both ways (the topbar's Map / Admin, the
-  pill and ⌘K call `setView`, which navigates). Tabs are routes: `/admin/overview`, `/review`
-  (+ `/review/geometry`), `/rules`, `/assumptions`, `/engine`, `/orders`, `/data`, `/publish`,
-  `/analytics`, `/audit`;
+  pill and ⌘K call `setView`, which navigates). Tabs are routes: `/admin/data`, `/review`
+  (+ `/review/geometry`), `/publish`, `/assumptions`, `/orders`, `/analytics`, `/audit`;
   plus `/admin/users` (the account menu), `/admin/login` and `/admin/no-access`. `/admin` goes to
-  the role's first tab.
+  the role's first tab (Documents; Orders for an expert).
 - **Sign-in: magic links only (Auth.js v5, `src/auth.ts`).** The backend owns the link: the form's
   server action posts `POST /v1/auth/magic-link` (always 202, same "Check your email" for any
   well-formed address: no enumeration), the backend's `magic_link` e-mail opens
@@ -609,18 +608,15 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   behind Caddy, `API_INTERNAL_BASE_URL`.
 - **Roles** (`lib/admin/sections.ts`, the one table the proxy, the tab row and the pages read;
   the pilot technical scope's, auth check 2026-09-29): admin = every tab + users; reviewer
-  ("planning expert approving extractions") = Overview, AI review queue,
-  Data sources (read: no upload, register, job or live buttons, `DataReadOnly` context), Publish;
+  ("planning expert approving extractions") = Documents (read: no upload, register, job or live
+  buttons, `DataReadOnly` context), AI review queue, Publish;
   expert ("produces paid reports") = Orders only (the API returns only the orders assigned to
   them; the report upload is their only action). Reviewers have no order access. Guards: `src/proxy.ts` (Next 16's renamed
   middleware; no session → `/admin/login?callbackUrl=`, a section outside the role → a rewrite to
   the plain "You don't have access to this section" card under the same URL), each page's
   `guard(section)`, and the API's own 403 on every `/v1/admin/*` route.
 - **Data** comes from the Next server (`lib/admin/api.ts` `adminGet`: the staff bearer token, 401
-  → sign-in, 403 → no access); nothing staff-only reaches the browser. Overview reads
-  `GET /v1/admin/overview` (admins and reviewers: parcels, documents adopted / in progress,
-  pending AI review, paid orders + revenue, and per district = zone: documents, extraction
-  Queued / In progress / Done, expert review %, Live Yes / Partial / No); Orders (below);
+  → sign-in, 403 → no access); nothing staff-only reaches the browser. Orders (below);
   Audit log `GET /v1/admin/audit` (filters entity type and actor as a GET
   form, 50 per page, before → after as the changed keys); **Analytics** (`/admin/analytics`,
   admins; `lib/admin/analytics.ts`, no mock screen: plain tables, no dashboard: the POC plan funds
@@ -650,8 +646,8 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   staged payload (`payloadLines`: as printed, normalised with its rules, floors, land-use class,
   table cell), confidence and the checker's flags, source page and file, the run's job and cost,
   the last
-  decision's actor, time and note, the item's audit trail on demand, bulk "approve all pending on
-  this page / of this parcel") and the cited page (`components/source/pdf-page-view.tsx`: PDF.js
+  decision's actor, time and note, the item's audit trail on demand; one decision per item, no
+  bulk approval) and the cited page (`components/source/pdf-page-view.tsx`: PDF.js
   from the item's signed link, the value's box, prev / next, zoom, fit, "Cited p.N", Open PDF; a
   document is loaded once per file, `lib/pdf.ts`). Keyboard: j / k or ↓ / ↑ move, Enter approves
   and moves to the next pending item at once (sent in the background, undone with a toast if
@@ -673,7 +669,7 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   the batches (pending first, failing QA first; title = layer — document short code / name / run,
   source line = origin · run · features, QA and decision chips), the batch (origin and run, decision
   and QA chips, the last decision, Approve (Enter; disabled with the reason when its QA fails),
-  Reject (r, reason required, final), "Approve all n pending of <run>", the checks: every issue
+  Reject (r, reason required, final; one decision per batch), the checks: every issue
   with its chip, sentence, count and the features it names; facts: origin with its meaning, layer,
   document link, producing run, features, staged, the georeferencing fit and snapping, published)
   and the preview (`projectFeatures`: the batch's simplified features as an SVG, north up, fitted to
@@ -699,7 +695,7 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   Activate / Deactivate (confirmed; closes their sessions) per member over `PATCH
   /v1/admin/users/{id}`; the signed-in admin's own row is not editable (the API refuses too).
   Every write is audited by the API (`user.create`, `user.update`). Tests: `lib/admin/users.test.ts`.
-- **Data sources** (`/admin/data`, `/admin/data/documents/[id]`; `components/admin/data/*`, rules
+- **Documents** (`/admin/data`, `/admin/data/documents/[id]`; `components/admin/data/*`, rules
   in `lib/admin/data.ts`, writes in `lib/admin/data-actions.ts`): the wireframe's sources card
   (Source / Provides / Format / Status, "+ Upload document"), its rows the municipality profile's
   `sources` (`sourceRows`), each status the source's real integration (`integrationChip`:
@@ -742,24 +738,28 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
 - **Orders** (`/admin/orders`, `?order=<id>` opens the drawer; `components/admin/orders/*`, rules
   in `lib/admin/orders.ts`, writes in `lib/admin/order-actions.ts`): the wireframe's card
   ("Expert analysis orders", "Manual fulfilment queue"), filters status / expert (managers) /
-  search (reference, e-mail, name, parcel) in the URL (`next/form`), the table (Ref, Parcel
-  `#1042/3 · Podgorica I`, customer · company + e-mail, Placed (relative), Days, Status chip +
-  "⚠ e-mail" when an e-mail bounced or failed, Expert, Open). The drawer (fixed right, 600 px,
+  search (reference, e-mail, name, parcel) in the URL (`next/form`), the table, newest first
+  (Ref, Parcel `#1042 · Podgorica I` with "urban parcel UP 12" under it (`parcelCells`, the API's
+  `ko_and_number` / `planned_parcel`), customer · company + e-mail, Placed (relative), Days,
+  Status chip + "⚠ e-mail" when an e-mail failed, Price, Turnaround (business days, the expected
+  date on hover), Data (the version the customer saw), Delivered, Expert, Open). The drawer (fixed right, 600 px,
   a scrim closes it): Customer (an individual's name, or company, PIB and the name; the contact
   person and registered address of orders placed before migration 0031; e-mail, telephone, the
-  customer id, message); Location ordered with "Open on the map ↗"
+  customer id, message); Location ordered (cadastral parcel, urban parcel, the panel it was
+  ordered from) with "Open on the map ↗"
   (`/?parcel=<cadastral_parcel_id>`: today's published data, the snapshot below is what was
   shown); Price and turnaround; **Payment** (admins): "Mark payment received"
   (amount, date, bank reference, all required; also on a failed payment), "Payment not
   received" (a note: the order becomes `Payment not received`, chip `rev`, which the customer's
   order page shows with the instructions; again on a failed order it only records the check),
-  "Refund" (amount, date, reference), each confirmed in a
+  "Refund" (amount, date, reference; also after delivery), each confirmed in a
   line before `POST …/payment` is sent; **Fulfilment**: the expert picker (active experts with
-  their orders in progress, `GET /v1/admin/orders/experts`) + Assign / Reassign (a paid order
-  starts), Start, the report (download, `vN`) and its upload (`report-upload.tsx`: drop zone,
+  their orders in progress, `GET /v1/admin/orders/experts`) + Assign / Reassign (only once the
+  order is paid: work starts; the API refuses earlier), the report (download, `vN`) and its
+  upload (`report-upload.tsx`: drop zone,
   progress, `app/api/admin/orders/[id]/report/route.ts`; the customer is e-mailed the link;
   replacing a delivered report needs a note); E-mails (template, status chip, recipient, time,
-  bounce / error / suppression reason); "What the customer saw" (the snapshot, read-only: data,
+  error / suppression reason); "What the customer saw" (the snapshot, read-only: data,
   market and formula versions, planning values with their pages, the assumptions with "changed
   by the customer", the Group 2 ranges); Timeline (the order's audit entries in plain words,
   `eventLine`, with actor and note). Every button follows the API's status flow
@@ -775,20 +775,21 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   / +high %: the factors), the source note, and in the District cell the live version ("v2 Live
   since 26 Sep 2026"), any scheduled one ("v3 Scheduled from 1 Oct 2026") and "Changed — will be
   vN". The bar above: "Applies from" (the municipality's today by default, `min` today; the note
-  says "Applies today…" or "Scheduled: the panel keeps today's figures until …") and the formula
-  and engine versions with a link to the changelog. "Save changes" checks every changed row the
+  says "Applies today…" or "Scheduled: the panel keeps today's figures until …") and the current
+  formula version (`GET /v1/admin/formulas`: label, since when, the client's approval note on
+  hover) with the engine version. "Save changes" checks every changed row the
   API's way (`checkDraft`: positive figures, both bounds or neither, low ≤ expected ≤ high, a
   source; marked cells, the first bad row opened), shows a confirmation line (zones, new versions,
   date) and sends one `POST /v1/admin/assumptions/batch` (all or nothing); failures keep every
   figure. "Details" opens a row under the district (`zone-detail.tsx`): the absolute low / high per
-  rate and the notes; the version history (version, status chip, applies from,
-  author, time, "View diff vs vN" = `diffVersions`). Drafts start from the live version; the page
+  rate and the notes; the version history (version, status chip, applies from, until (the API's
+  `effective_to`), author, time, "View diff vs vN" = `diffVersions`). Drafts start from the live version; the page
   is keyed on the versions, so a save remounts it with fresh drafts. Nothing is deleted.
   Styles: block 20 of `overrides.css`.
 - **Components** (`components/admin/parts.tsx`, the wireframe's markup): `AdminCard` (`.card >
   .cardhd` h3 + `.sub` + right-side action), `DataTable` (`.tbl`, `.mono` cells for numbers and
   references), `StatusChip` (`.st.ok | .pend | .rev`), `AdminButton` (`.abtn`, `ghost`, `sm`),
-  `StatCard` (`.astat`), `NoAccess`, `AdminUnavailable`; `admin-frame.tsx` (the bar: title, tabs
+  `NoAccess`, `AdminUnavailable`; `admin-frame.tsx` (the bar: title, tabs
   the role may open, account button, "← Back to map"), `account-menu.tsx` (not in the mock: role
   chip + name, menu with the e-mail, Users for admins, sign-out; fixed-positioned
   because `.adminbar` scrolls horizontally, and compact so the bar fits at 1440 px), `sign-in.tsx`
@@ -893,5 +894,5 @@ worker to `public/pdfjs/`. Env: `.env.example` (`NEXT_PUBLIC_API_BASE_URL`, `NEX
 `NEXT_OUTPUT=standalone` switches `next.config.ts` to a standalone server traced from the root;
 `NEXT_PUBLIC_*` are build args; `deploy/README.md`). Routes: `/` (the map), `/?parcel=<Parcel ID>`, `/admin/*` (the admin
 console, see its section), `/orders/<reference>` (the
-public order page; `/order/<reference>` redirects there, `next.config.ts`).
+public order page, the link of the confirmation and the order e-mails).
 Without a Mapbox token the map area shows the wireframe background and the chrome only.

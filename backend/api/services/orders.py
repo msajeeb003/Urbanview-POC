@@ -11,13 +11,14 @@ a guarded status flow, expert assignment and report delivery.
   data again (price, turnaround, the payment instructions while the payment is due), so the
   confirmation survives a reload.
 - Status flow ``pending_payment → paid → in_progress → delivered``, ``payment_failed`` from
-  pending_payment when the transfer did not arrive (it can still be paid), ``refunded`` from paid
-  or in_progress; anything else is 409. Payment receipt, assignment and the report upload drive
-  it; every change is an ``audit_log`` row with before / after.
-- Staff: admins and reviewers see and manage everything; an expert sees and delivers only the
-  orders assigned to them. The public status page never returns personal data.
-- Payments: the provider seam (``core.payments``) is a bank-transfer stub; a card provider plugs
-  in there. Every e-mail attempt is an ``email_log`` row; a failed send never fails the order.
+  pending_payment when the transfer did not arrive (it can still be paid), ``refunded`` from paid,
+  in_progress or delivered (money back; a delivered order never goes back to work); anything else
+  is 409. Payment receipt, assignment (a paid order: work starts) and the report upload drive it;
+  every change is an ``audit_log`` row with before / after.
+- Staff: admins see and manage everything (reviewers have no order access); an expert sees and
+  delivers only the orders assigned to them. The public order page never returns personal data.
+- Payments: bank transfer only (``core.payments.BankTransferProvider``: the instructions). Every
+  e-mail attempt is an ``email_log`` row; a failed send never fails the order.
 """
 
 from __future__ import annotations
@@ -98,7 +99,8 @@ TRANSITIONS: dict[str, frozenset[str]] = {
     "payment_failed": frozenset({"paid"}),
     "paid": frozenset({"in_progress", "refunded"}),
     "in_progress": frozenset({"delivered", "refunded"}),
-    "delivered": frozenset(),
+    # closed: a delivered order never goes back to work; only money can still go back
+    "delivered": frozenset({"refunded"}),
     "refunded": frozenset(),
 }
 STATUS_LABELS: dict[str, tuple[str, str]] = {
@@ -286,6 +288,9 @@ _ORDER_COLUMNS = """
            o.telephone, o.company_name, o.tax_number, o.contact_person, o.registered_address,
            o.message, o.parcel_type, o.parcel_id, o.cadastral_parcel_id, o.urban_parcel_id,
            o.parcel_label, o.document_name, o.zone_id, o.zone_name, o.basis_area_m2,
+           CASE WHEN o.parcel_type = 'urban' THEN o.parcel_label
+                ELSE o.snapshot -> 'urban_parcel' ->> 'urban_parcel_number' END AS planned_parcel,
+           o.snapshot -> 'header' ->> 'ko_and_number' AS ko_and_number,
            o.calculation_basis, o.price_eur, o.currency, o.pricing_tier,
            o.turnaround_business_days, o.expected_by, o.assumption_edits, o.data_version,
            o.publish_version_id, o.customer_id, o.market_version_id, o.market_version,
@@ -296,7 +301,7 @@ _ORDER_COLUMNS = """
            f.object_key AS report_key, f.uploaded_at AS report_uploaded_at, o.status_changed_at,
            o.placed_at, o.updated_at, o.notes,
            (SELECT count(*) FROM email_log e WHERE e.order_id = o.id
-              AND e.status IN ('bounced', 'failed')) AS email_alerts,
+              AND e.status = 'failed') AS email_alerts,
            (SELECT COALESCE(jsonb_agg({email_log_json} ORDER BY e.id DESC), '[]'::jsonb)
             FROM email_log e WHERE e.order_id = o.id) AS emails{snapshot},
            count(*) OVER () AS total
@@ -422,11 +427,16 @@ def _summary_fields(row: Mapping[str, Any]) -> dict[str, Any]:
         "email": row["email"],
         "company_name": row["company_name"],
         "location": _location_out(row),
+        "planned_parcel": row["planned_parcel"],
+        "ko_and_number": row["ko_and_number"],
+        "data_version": row["data_version"],
         "price_eur": float(row["price_eur"]),
         "currency": row["currency"],
         "placed_at": _utc(row["placed_at"]),
         "status_changed_at": _utc(row["status_changed_at"]),
+        "turnaround_business_days": row["turnaround_business_days"],
         "expected_by": row["expected_by"],
+        "delivered_at": _utc(row["delivered_at"]),
         "assignee": assignee,
         "has_report": row["report_file_id"] is not None,
         "email_alerts": int(row.get("email_alerts") or 0),
@@ -818,7 +828,6 @@ class OrderService:
             assumption_edits=row["assumption_edits"] or {},
             pricing=_pricing_out(row),
             turnaround=_turnaround(row["turnaround_business_days"], row["expected_by"]),
-            data_version=row["data_version"],
             publish_version_id=row["publish_version_id"],
             market_version_id=row["market_version_id"],
             market_version=row["market_version"],
@@ -829,7 +838,6 @@ class OrderService:
             ),
             payment_reference=row["payment_reference"],
             payment_received_on=row["payment_received_on"],
-            delivered_at=_utc(row["delivered_at"]),
             refunded_at=_utc(row["refunded_at"]),
             notes=row["notes"],
             report=report,
@@ -975,9 +983,12 @@ class OrderService:
         now = self.clock()
         async with self.session_factory() as session:
             row = await self._row(session, order_id)
-            if row["status"] in ("delivered", "refunded"):
+            # the flow's paid -> in_progress: an expert works on a paid order (or takes over one)
+            if row["status"] not in ("paid", "in_progress"):
                 raise ConflictError(
-                    f"A {row['status']} order cannot be assigned",
+                    "An expert is assigned once the payment is received"
+                    if row["status"] in PAYMENT_DUE
+                    else f"A {row['status']} order cannot be assigned",
                     details={"order_id": order_id, "status": row["status"]},
                 )
             expert = (
@@ -1150,7 +1161,7 @@ class OrderService:
     @staticmethod
     def _manager(principal: Principal) -> None:
         if principal.role not in MANAGER_ROLES:
-            raise ForbiddenError("Only admins and reviewers manage orders")
+            raise ForbiddenError("Only admins manage orders")
 
     @staticmethod
     def _guard(row: Mapping[str, Any], target: str) -> None:

@@ -219,15 +219,26 @@ class OrderSummary(BaseModel):
     email: str
     company_name: str | None = None
     location: OrderLocationOut
+    planned_parcel: str | None = Field(
+        default=None, description="The planned (urban) parcel the figures used, as shown (`UP 12`)"
+    )
+    ko_and_number: str | None = Field(
+        default=None, description='The cadastral parcel as shown: "KO {ko}, {number}[/{sub}]"'
+    )
+    data_version: str | None = Field(
+        default=None, description="Label of the published version the visitor saw"
+    )
     price_eur: float
     currency: str
     placed_at: datetime
     status_changed_at: datetime
+    turnaround_business_days: int
     expected_by: date
+    delivered_at: datetime | None = None
     assignee: Assignee | None = None
     has_report: bool
     email_alerts: int = Field(
-        default=0, description="E-mails bounced or failed for this order (see /admin/email-log)"
+        default=0, description="E-mails that failed for this order (listed on its detail)"
     )
 
 
@@ -270,7 +281,6 @@ class OrderOut(OrderSummary):
     assumption_edits: dict[str, Any]
     pricing: PricingOut
     turnaround: TurnaroundOut
-    data_version: str | None = None
     publish_version_id: int | None = Field(
         default=None, description="publish_versions.id of the data the visitor saw"
     )
@@ -281,7 +291,6 @@ class OrderOut(OrderSummary):
     payment_amount_eur: float | None = None
     payment_reference: str | None = None
     payment_received_on: date | None = None
-    delivered_at: datetime | None = None
     refunded_at: datetime | None = None
     notes: str | None = None
     report: ReportFileOut | None = None

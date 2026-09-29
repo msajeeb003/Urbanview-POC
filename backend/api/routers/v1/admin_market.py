@@ -9,14 +9,14 @@ Imports (role admin):
 - ``GET /v1/admin/market/imports[/{id}]`` — imports with their item counts; the detail adds the
   normalisation report (every row or column left out, and why) and the table as read.
 
-Review (roles admin, reviewer, expert) — the review API for items of type ``market_input``:
+Review (roles admin, reviewer) — the review API for items of type ``market_input``:
 - ``GET /v1/admin/review/market-inputs`` — the queue (pending first), filters status, zone,
   metric, import, flag;
 - ``POST /v1/admin/review/market-inputs/{id}/approve | amend | reject`` — an approved or amended
   input writes the zone's next assumptions version (effective date, provenance); reject keeps it
   out with a reason. Every decision is audited with the state before and after.
 
-``GET /v1/admin/market/coverage`` (admin, reviewer, expert): the sale price per m² of every zone
+``GET /v1/admin/market/coverage`` (admin, reviewer): the sale price per m² of every zone
 with its source and date, and what each zone still lacks.
 """
 

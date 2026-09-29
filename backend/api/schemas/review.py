@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 ReviewStatus = Literal["pending", "approved", "amended", "rejected"]
 EntityType = Literal["urban_parcel", "zone", "block", "document", "market_data"]
@@ -254,40 +254,6 @@ class RejectIn(BaseModel):
     note: str = Field(min_length=1, max_length=2000, description="The reason (not blank)")
 
     _note = field_validator("note", mode="before")(_trim)
-
-
-class BulkApproveIn(BaseModel):
-    """Approve many pending items at once: by ids, by document page, or by urban parcel."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    item_ids: list[int] | None = Field(default=None, max_length=500)
-    document_id: int | None = Field(default=None, gt=0)
-    source_page: int | None = Field(default=None, ge=1, description="needs document_id")
-    urban_parcel_id: int | None = Field(default=None, gt=0)
-    note: str | None = Field(default=None, max_length=2000)
-
-    _note = field_validator("note", mode="before")(_trim_to_none)
-
-    @model_validator(mode="after")
-    def _a_selector(self) -> BulkApproveIn:
-        if not self.item_ids and self.document_id is None and self.urban_parcel_id is None:
-            raise ValueError("give item_ids, a document_id (+ source_page) or an urban_parcel_id")
-        if self.source_page is not None and self.document_id is None:
-            raise ValueError("source_page needs a document_id")
-        if self.item_ids is not None and any(i <= 0 for i in self.item_ids):
-            raise ValueError("item ids are positive integers")
-        return self
-
-
-class BulkSkipped(BaseModel):
-    id: int
-    reason: Literal["not_found", "not_pending", "published", "superseded"]
-
-
-class BulkResult(BaseModel):
-    approved: list[int]
-    skipped: list[BulkSkipped]
 
 
 class ReviewOption(BaseModel):

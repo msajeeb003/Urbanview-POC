@@ -434,8 +434,8 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
             data={"note": "final"},
             headers=auth(expert),
         )
-        refund_delivered = await client.post(
-            f"/v1/admin/orders/{oid}/payment", json={"status": "refunded"}, headers=auth()
+        back_to_work = await client.patch(
+            f"/v1/admin/orders/{oid}/status", json={"status": "in_progress"}, headers=auth()
         )
         report_pending = await client.post(
             f"/v1/admin/orders/{other}/report",
@@ -500,7 +500,8 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
         "ready" in mailer.sent[-1].subject
         and body["report"]["download_url"] in mailer.sent[-1].text
     )
-    assert refund_delivered.status_code == 409
+    assert back_to_work.status_code == 409  # delivered never goes back
+    assert back_to_work.json()["error"]["details"]["allowed"] == ["refunded"]
     assert report_pending.status_code == 409
     assert refunded.status_code == 200 and refunded.json()["status"] == "refunded"
     assert refunded.json()["refunded_at"]

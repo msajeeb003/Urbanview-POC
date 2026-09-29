@@ -1,5 +1,5 @@
 """Schemas for the admin configuration API: financial assumptions (versioned and effective-dated
-per zone), zone parameter sets (versioned per zone) and staff users. The validation rules live
+per zone), the formula versions (read-only) and staff users. The validation rules live
 here: a numeric range is ``low ≤ expected ≤ high`` with both bounds or neither, percentages are
 0–100, a saleable share is (0, 1], dates of record (source, verification) are not in the future
 (one day of time-zone slack), an e-mail looks like one. An assumptions set's ``effective_from``
@@ -157,6 +157,13 @@ class AssumptionsOut(BaseModel):
             "saved (a backdated market input applies from its approval)"
         )
     )
+    effective_to: date | None = Field(
+        default=None,
+        description=(
+            "The local date it stops applying (exclusive): the next version's applies_from on "
+            "the zone's timeline, or the day it was retired; null = open-ended"
+        ),
+    )
     rate_sources: dict[str, Any] | None = Field(
         default=None,
         description=(
@@ -191,6 +198,22 @@ class AssumptionsBatchIn(BaseModel):
 
 class AssumptionsBatchOut(BaseModel):
     items: list[AssumptionsOut]
+
+
+# --- formula versions -----------------------------------------------------------------------------
+
+
+class FormulaVersionOut(BaseModel):
+    """A client-owned formula version (``formula_versions``). The current one is what the shared
+    engine runs and every panel states as ``formula_version``; a new formula comes with a new
+    engine release and a new row, never an edit."""
+
+    id: int
+    label: str = Field(description="What the engine and the panels state, e.g. poc-1")
+    effective_from: date
+    is_current: bool
+    approval_note: str | None = Field(default=None, description="The client's approval")
+    engine_package: str = Field(description="The shared engine package that implements it")
 
 
 # --- staff users ----------------------------------------------------------------------------------

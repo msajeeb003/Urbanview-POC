@@ -40,7 +40,6 @@ ExtractionState = Literal["none", "queued", "extracting", "retrying", "ready_for
 JobKind = Literal["extract", "geo", "publish", "email"]
 JobType = Literal[
     "extract_document",
-    "preprocess_file",
     "process_geometry",
     "publish_approved",
     "send_email",
@@ -167,28 +166,6 @@ class JobList(BaseModel):
     total: int = Field(description="Matching jobs before paging")
     limit: int
     offset: int
-
-
-class JobCostRow(BaseModel):
-    target_type: str | None
-    target_id: int | None
-    jobs: int
-    succeeded: int
-    failed: int
-    llm_tokens_in: int
-    llm_tokens_out: int
-    estimated_cost_eur: float
-    wall_time_ms: int
-    last_finished_at: datetime | None = None
-
-
-class JobCostSummary(BaseModel):
-    rows: list[JobCostRow] = Field(description="One row per target, most expensive first")
-    total_jobs: int
-    total_llm_tokens_in: int
-    total_llm_tokens_out: int
-    total_estimated_cost_eur: float
-    total_wall_time_ms: int
 
 
 class StoredFileOut(BaseModel):

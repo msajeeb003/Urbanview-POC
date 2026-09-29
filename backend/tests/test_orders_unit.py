@@ -112,7 +112,8 @@ def test_transition_table():
     assert can_transition("paid", "in_progress") and can_transition("paid", "refunded")
     assert not can_transition("paid", "delivered")
     assert can_transition("in_progress", "delivered") and can_transition("in_progress", "refunded")
-    assert not any(can_transition("delivered", s) for s in STATUSES)
+    # a delivered order never goes back to work; money can still go back (a refund)
+    assert [s for s in STATUSES if can_transition("delivered", s)] == ["refunded"]
     assert not any(can_transition("refunded", s) for s in STATUSES)
 
 

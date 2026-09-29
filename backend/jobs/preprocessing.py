@@ -1,4 +1,5 @@
-"""Pre-processing a stored planning PDF (job ``preprocess_file``), cached by checksum.
+"""Pre-processing a stored planning PDF (the extraction and geometry jobs' first stage), cached
+by checksum.
 
 1. The file record (``stored_files``) must be a planning-document PDF.
 2. Unless its manifest is current (same checksum, ``PREPROCESS_VERSION`` and options): read the

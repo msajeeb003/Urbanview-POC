@@ -29,6 +29,7 @@ from core.models.market import MarketDataItem, MarketImport
 from core.models.orders import Customer, EmailLogEntry, Order
 from core.models.panel import (
     FinancialAssumption,
+    FormulaVersion,
     PlanningField,
     PlanningParameterExtraction,
     PlanningParameterValue,
@@ -67,6 +68,7 @@ __all__ = [
     "ExtractionRun",
     "ExtractionRunChunk",
     "FinancialAssumption",
+    "FormulaVersion",
     "GeometryBatch",
     "GeorefDataset",
     "LayerFeature",

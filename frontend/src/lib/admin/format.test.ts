@@ -1,20 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { auditChanges, extractionLabel, liveChip, relativeTime, reviewLabel, utcStamp } from "./format";
+import { auditChanges, relativeTime, utcStamp } from "./format";
 
 describe("admin table words", () => {
-  it("uses the wireframe's pipeline vocabulary", () => {
-    expect(extractionLabel("queued")).toBe("Queued");
-    expect(extractionLabel("in_progress")).toBe("In progress");
-    expect(extractionLabel("done")).toBe("Done");
-    expect(extractionLabel("none")).toBe("—");
-    expect(reviewLabel(59.6)).toBe("60%");
-    expect(reviewLabel(null)).toBe("—");
-    expect(liveChip("yes")).toEqual({ tone: "ok", label: "Yes" });
-    expect(liveChip("partial")).toEqual({ tone: "rev", label: "Partial" });
-    expect(liveChip("no")).toEqual({ tone: "pend", label: "No" });
-  });
-
   it("writes times like the mock", () => {
     const now = new Date("2026-09-26T12:00:00Z");
     expect(relativeTime("2026-09-26T10:00:00Z", now)).toBe("2h ago");
