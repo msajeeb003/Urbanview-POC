@@ -10,10 +10,12 @@
  * drawing = the geometry job, both).
  */
 import type { ChipTone } from "@/components/admin/parts";
+import { relativeTime, utcStamp } from "@/lib/admin/format";
 import type {
   AdminDocument,
   AdminDocumentFile,
   AdminJob,
+  DataSource,
   DocumentState,
   DocumentStatus,
   ExtractionState,
@@ -23,22 +25,68 @@ import type {
 
 // --- the public sources (wireframe `adminData`) -----------------------------------------------
 
-export interface DataSource {
-  source: string;
-  provides: string;
-  format: string;
+export type Integration = DataSource["integration"];
+
+/**
+ * How UrbanView gets each source's data today, in the table's words. Only `linked` is a live,
+ * automatic connection; the profile says which applies (a cadastral source follows its confirmed
+ * access), so the card never claims a link that does not exist.
+ */
+export const INTEGRATIONS: Record<Integration, { label: string; tone: ChipTone }> = {
+  linked: { label: "Linked", tone: "ok" },
+  access_confirmed: { label: "Access confirmed", tone: "ok" },
+  file_import: { label: "File import", tone: "rev" },
+  manual_upload: { label: "Manual upload", tone: "rev" },
+  reference_copy: { label: "Reference copy", tone: "rev" },
+  access_pending: { label: "Access pending", tone: "pend" },
+  not_connected: { label: "Not connected", tone: "rev" },
+};
+
+export function integrationChip(integration: Integration | null | undefined): { label: string; tone: ChipTone } {
+  return INTEGRATIONS[integration ?? "not_connected"] ?? INTEGRATIONS.not_connected;
 }
 
-/** The wireframe's rows: where UrbanView's public official data comes from. */
-export const DATA_SOURCES: readonly DataSource[] = [
-  { source: "eRegistri (lamp.gov.me)", provides: "Adopted planning documents", format: "PDF" },
-  { source: "mondarchitects.com/site-check", provides: "Zone & document structure", format: "Web" },
-  { source: "eKatastar", provides: "Ownership & legal burdens", format: "API" },
-  { source: "eMapa", provides: "Spatial & cadastral data", format: "GIS" },
-  { source: "Geoportal UZN", provides: "Cadastral parcels", format: "GIS" },
-  { source: "Realitica / Estitor", provides: "Market listings", format: "Web" },
-  { source: "Monstat", provides: "Prices & cost indices", format: "Table" },
+export interface SourceRow {
+  id: string;
+  name: string;
+  url: string;
+  provides: string;
+  format: string;
+  integration: Integration;
+  note: string | null;
+}
+
+/** The sources card's rows: the municipality profile's sources, in its order. */
+export function sourceRows(sources: readonly DataSource[] | null | undefined): SourceRow[] {
+  return (sources ?? []).map((s) => ({
+    id: s.id,
+    name: s.name,
+    url: s.url,
+    provides: s.provides,
+    format: s.format ?? "—",
+    integration: s.integration ?? "not_connected",
+    note: s.integration_note ?? null,
+  }));
+}
+
+const INTEGRATION_RANK: readonly Integration[] = [
+  "linked",
+  "access_confirmed",
+  "file_import",
+  "manual_upload",
+  "reference_copy",
+  "access_pending",
+  "not_connected",
 ];
+
+/** The status of a kind of input (the Calculation engine's rows): its best-connected source. */
+export function kindIntegration(
+  sources: readonly DataSource[] | null | undefined,
+  kind: DataSource["kind"],
+): Integration {
+  const found = (sources ?? []).filter((s) => s.kind === kind).map((s) => s.integration ?? "not_connected");
+  return INTEGRATION_RANK.find((i) => found.includes(i)) ?? "not_connected";
+}
 
 // --- uploads ------------------------------------------------------------------------------------
 
@@ -70,6 +118,14 @@ export const ACCEPT_ANY = Object.keys(KIND_BY_EXTENSION)
   .map((ext) => `.${ext}`)
   .join(",");
 export const ACCEPT_PDF = ".pdf,application/pdf";
+/** A document's drawings: plan-sheet PDFs, or the plan as GIS (a QGIS redraw, the official GIS). */
+export const ACCEPT_DRAWING = ".pdf,.gpkg,.geojson,.json,.zip";
+export const ACCEPT_GEOPACKAGE = ".gpkg";
+
+/** The kinds a document's drop zone takes for a role: GIS files only as drawings. */
+export function kindsForRole(role: FileRole): UploadKind[] {
+  return role === "drawing" ? ["planning_document", "gis"] : ["planning_document"];
+}
 
 export function extensionOf(filename: string): string {
   const base = filename.replace(/\\/g, "/").split("/").pop() ?? "";
@@ -187,6 +243,49 @@ export interface Pill {
   reason?: string | null;
   /** Not a state but "does not apply" (a drawing is not extracted, a text file has no geometry). */
   muted?: boolean;
+  /** When the job ran, exact (UTC): the detail's tooltip. */
+  times?: string | null;
+}
+
+/** When a job ran, short for the table (and the exact UTC times for the tooltip). */
+export function jobTimes(
+  job: AdminJob | null | undefined,
+  now: Date = new Date(),
+): { short: string | null; full: string | null } {
+  if (!job) return { short: null, full: null };
+  const parts: string[] = [];
+  if (job.started_at) parts.push(`started ${utcStamp(job.started_at)} UTC`);
+  if (job.finished_at) parts.push(`finished ${utcStamp(job.finished_at)} UTC`);
+  if (job.cost?.wall_time_ms != null && job.finished_at) parts.push(`took ${formatDuration(job.cost.wall_time_ms)}`);
+  const full = parts.length ? parts.join(" · ") : `queued ${utcStamp(job.requested_at)} UTC`;
+  const short = job.finished_at
+    ? `finished ${relativeTime(job.finished_at, now)}`
+    : job.started_at
+      ? `started ${relativeTime(job.started_at, now)}`
+      : `queued ${relativeTime(job.requested_at, now)}`;
+  return { short, full };
+}
+
+export function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms} ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} min ${Math.round(seconds - minutes * 60)} s`;
+}
+
+/** A job's error without the worker's class name when it is our own plain sentence. */
+export function reasonText(error: string | null | undefined): string | null {
+  if (!error) return null;
+  return error.replace(/^GeometryError: /, "");
+}
+
+/** The pages to redraw in QGIS (the week-1 assessment's scanned sheets); null until read. */
+export function redrawText(file: Pick<AdminDocumentFile, "redraw_pages" | "kind">): string | null {
+  if (file.kind !== "planning_document" || file.redraw_pages == null) return null;
+  if (!file.redraw_pages.length) return null;
+  const pages = file.redraw_pages;
+  return `needs QGIS redraw · p. ${pages.length > 6 ? `${pages.slice(0, 6).join(", ")} …` : pages.join(", ")}`;
 }
 
 export function formatCost(eur: number | null | undefined): string | null {
@@ -206,34 +305,44 @@ function join(...parts: (string | null | undefined)[]): string | undefined {
 }
 
 /** The file's extraction: queued → extracting → ready for review / failed with reason. */
-export function extractionPill(file: AdminDocumentFile): Pill {
+export function extractionPill(file: AdminDocumentFile, now: Date = new Date()): Pill {
   const state = file.extraction_state ?? "none";
   const run = file.extraction;
   const job = file.extraction_job;
   const cost = formatCost(run?.estimated_cost_eur ?? job?.cost?.estimated_cost_eur);
+  const times = jobTimes(job, now);
   switch (state) {
     case "queued":
-      return { tone: "pend", label: "Queued", detail: join(attempts(job)) };
+      return { tone: "pend", label: "Queued", detail: join(attempts(job), times.short), times: times.full };
     case "extracting":
       return {
         tone: "pend",
         label: "Extracting",
-        detail: join(run && run.chunks_total ? `${run.chunks_done}/${run.chunks_total} chunks` : null, attempts(job)),
+        detail: join(run && run.chunks_total ? `${run.chunks_done}/${run.chunks_total} chunks` : null, attempts(job), times.short),
+        times: times.full,
       };
     case "retrying":
-      return { tone: "pend", label: "Retrying", detail: join(attempts(job)), reason: job?.error ?? null };
+      return {
+        tone: "pend",
+        label: "Retrying",
+        detail: join(attempts(job), times.short),
+        reason: reasonText(job?.error),
+        times: times.full,
+      };
     case "ready_for_review":
       return {
         tone: "ok",
         label: "Ready for review",
-        detail: join(`${file.items?.total ?? run?.items_written ?? 0} items`, cost),
+        detail: join(`${file.items?.total ?? run?.items_written ?? 0} items`, cost, times.short),
+        times: times.full,
       };
     case "failed":
       return {
         tone: "pend",
         label: "Failed",
-        detail: join(job ? `${job.attempts}/${job.max_attempts} attempts` : null, cost),
-        reason: file.extraction_error ?? run?.error ?? job?.error ?? null,
+        detail: join(job ? `${job.attempts}/${job.max_attempts} attempts` : null, cost, times.short),
+        reason: reasonText(file.extraction_error ?? run?.error ?? job?.error),
+        times: times.full,
       };
     default:
       return file.role === "drawing"
@@ -243,26 +352,34 @@ export function extractionPill(file: AdminDocumentFile): Pill {
 }
 
 /** A job's status in the table's words (the geometry column). */
-export function jobPill(job: AdminJob | null | undefined, role?: FileRole): Pill {
+export function jobPill(job: AdminJob | null | undefined, role?: FileRole, now: Date = new Date()): Pill {
   if (!job) return role === "text" ? { tone: "rev", label: "— text file", muted: true } : { tone: "rev", label: "Not run" };
   const cost = formatCost(job.cost?.estimated_cost_eur);
+  const times = jobTimes(job, now);
   switch (job.status) {
     case "queued":
-      return { tone: "pend", label: "Queued" };
+      return { tone: "pend", label: "Queued", detail: join(times.short), times: times.full };
     case "running":
-      return { tone: "pend", label: "Running", detail: join(attempts(job)) };
+      return { tone: "pend", label: "Running", detail: join(attempts(job), times.short), times: times.full };
     case "retrying":
-      return { tone: "pend", label: "Retrying", detail: join(attempts(job)), reason: job.error };
+      return {
+        tone: "pend",
+        label: "Retrying",
+        detail: join(attempts(job), times.short),
+        reason: reasonText(job.error),
+        times: times.full,
+      };
     case "succeeded":
-      return { tone: "ok", label: "Succeeded", detail: join(cost) };
+      return { tone: "ok", label: "Succeeded", detail: join(cost, times.short), times: times.full };
     case "cancelled":
-      return { tone: "rev", label: "Cancelled" };
+      return { tone: "rev", label: "Cancelled", detail: join(times.short), times: times.full };
     default:
       return {
         tone: "pend",
         label: "Failed",
-        detail: `${job.attempts}/${job.max_attempts} attempts`,
-        reason: job.error,
+        detail: join(`${job.attempts}/${job.max_attempts} attempts`, times.short),
+        reason: reasonText(job.error),
+        times: times.full,
       };
   }
 }
@@ -390,6 +507,10 @@ export function explainProblem(problem: ApiProblem): string {
       return "This file is a drawing: set its role to text or both to extract it.";
     case "no_file":
       return "The document has no PDF to extract yet: upload one first.";
+    case "short_code_taken":
+      return problem.message || "This short code already names another document.";
+    case "not_a_geopackage":
+      return "Zones are imported from the GeoPackage drawn in QGIS (a .gpkg file).";
     case "items_accepted":
     case "values_published":
     case "extraction_active":

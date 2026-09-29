@@ -2,11 +2,14 @@
 
 /**
  * The "Data sources" tab (`/admin/data`, wireframe `adminData`): the public sources card with
- * "+ Upload document", then the planning documents with their files.
+ * "+ Upload document" (the municipality profile's sources, each with how UrbanView gets its data
+ * today: only a live connection says "Linked"), then the planning documents with their files, and
+ * the zone GeoPackage import from QGIS (admins; no zone editor).
  *
- * Documents table: one row per current version (name → its page, zone, type, status, version,
- * files, overall state, coverage, actions) and under it one row per file with its extraction and
- * geometry job (queued / running / succeeded / failed, attempts and cost when known). Actions:
+ * Documents table: one row per current version (short code + name → its page, zone, type,
+ * status, version, files, overall state, coverage, actions) and under it one row per file with its
+ * extraction and geometry job (queued / running / succeeded / failed, attempts, cost and when it
+ * ran; exact times on hover) and, for a PDF with scanned sheets, "needs QGIS redraw". Actions:
  * queue extraction (the text / both PDFs), queue geometry (the drawing / both files), retry a
  * failed job, rerun an extraction, mark the coverage live or not, register a new version. The page
  * re-reads its data every 3 s while a job is queued or running (`AutoRefresh`), and stops after.
@@ -19,7 +22,6 @@ import { useState } from "react";
 
 import {
   anyActive,
-  DATA_SOURCES,
   documentHref,
   DOCUMENT_STATES,
   DOCUMENT_STATUSES,
@@ -27,14 +29,17 @@ import {
   extractionPill,
   filtersHref,
   hasFilters,
+  integrationChip,
   JOB_STATE_FILTERS,
   jobPill,
   PAGE_SIZE,
+  redrawText,
   reviewHref,
   roleLabel,
   stateChip,
   statusChip,
   type DocumentFilters,
+  type SourceRow,
 } from "@/lib/admin/data";
 import {
   queueExtractionAction,
@@ -42,15 +47,14 @@ import {
   retryJobAction,
   setCoverageLiveAction,
 } from "@/lib/admin/data-actions";
-import type { AdminDocument, AdminDocumentFile } from "@/lib/api/types";
+import type { AdminDocument, AdminDocumentFile, AdminJob } from "@/lib/api/types";
 
 import { AdminButton, AdminCard, DataTable, StatusChip } from "../parts";
 
 import { ActionButton, AutoRefresh, DataReadOnly, PillView, useDataReadOnly } from "./parts";
 import { RegisterDialog, type PickedFile, type TypeOption, type ZoneOption } from "./register-dialog";
 import { UploadDialog } from "./upload-dialog";
-
-const LINKED = <StatusChip tone="ok">Linked</StatusChip>;
+import { ZoneImportCard } from "./zone-import";
 
 function textFiles(doc: AdminDocument): AdminDocumentFile[] {
   return (doc.files ?? []).filter((f) => f.kind === "planning_document" && f.role !== "drawing");
@@ -167,6 +171,7 @@ function DocumentsTable({ documents, onNewVersion }: { documents: AdminDocument[
           <tbody key={doc.id} className="docgroup">
             <tr className="docrow">
               <td>
+                {doc.short_code && <span className="mono doccode">{doc.short_code}</span>}
                 <Link className="docname" href={documentHref(doc.id)}>
                   {doc.name}
                 </Link>
@@ -193,18 +198,28 @@ function DocumentsTable({ documents, onNewVersion }: { documents: AdminDocument[
                 <DocumentActions doc={doc} onNewVersion={() => onNewVersion(doc)} />
               </td>
             </tr>
-            {(doc.files ?? []).map((file) => (
-              <tr key={file.file_id} className="filerow">
-                <td colSpan={5}>
-                  <span className="fname" title={file.original_filename}>
-                    ↳ {file.original_filename}
-                  </span>
-                  <span className="fmeta mono">
-                    {roleLabel(file.role)}
-                    {file.page_count ? ` · ${file.page_count} p.` : ""}
-                    {file.scanned_pages?.length ? ` · ${file.scanned_pages.length} scanned` : ""}
-                  </span>
-                </td>
+            {(doc.files ?? []).map((file) => {
+              const redraw = redrawText(file);
+              return (
+                <tr key={file.file_id} className="filerow">
+                  <td colSpan={5}>
+                    <span className="fname" title={file.original_filename}>
+                      ↳ {file.original_filename}
+                    </span>
+                    <span className="fmeta mono">
+                      {roleLabel(file.role)}
+                      {file.kind === "gis" ? " · GIS" : ""}
+                      {file.page_count ? ` · ${file.page_count} p.` : ""}
+                    </span>
+                    {redraw && (
+                      <span
+                        className="redraw"
+                        title="Scanned sheets (the week-1 assessment's class C): georeference and redraw them in QGIS, then add the GeoPackage as a drawing"
+                      >
+                        {redraw}
+                      </span>
+                    )}
+                  </td>
                 <td />
                 <td>
                   <PillView pill={extractionPill(file)} />
@@ -212,11 +227,12 @@ function DocumentsTable({ documents, onNewVersion }: { documents: AdminDocument[
                 <td>
                   <PillView pill={jobPill(file.geometry_job, file.role)} />
                 </td>
-                <td>
-                  <FileActions doc={doc} file={file} />
-                </td>
-              </tr>
-            ))}
+                  <td>
+                    <FileActions doc={doc} file={file} />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         );
       })}
@@ -230,6 +246,9 @@ export function DataScreen({
   filters,
   zones,
   types,
+  sources,
+  municipality,
+  zoneImports = [],
   readOnly = false,
 }: {
   documents: AdminDocument[];
@@ -237,6 +256,12 @@ export function DataScreen({
   filters: DocumentFilters;
   zones: ZoneOption[];
   types: TypeOption[];
+  /** The municipality profile's sources with how UrbanView gets their data today. */
+  sources: SourceRow[];
+  /** Whose documents these are (multi-city scoping is data: the API names it). */
+  municipality: { id: string; name: string } | null;
+  /** The latest zone GeoPackage imports (admins). */
+  zoneImports?: AdminJob[];
   /** Reviewers: documents, files and jobs without the write controls. */
   readOnly?: boolean;
 }) {
@@ -258,20 +283,45 @@ export function DataScreen({
         action={readOnly ? undefined : <AdminButton onClick={() => setUploadOpen(true)}>+ Upload document</AdminButton>}
       >
         <DataTable
-          rows={[...DATA_SOURCES]}
-          rowKey={(s) => s.source}
+          rows={sources}
+          rowKey={(s) => s.id}
           columns={[
-            { key: "source", label: "Source", render: (s) => <b>{s.source}</b> },
+            {
+              key: "source",
+              label: "Source",
+              render: (s) => (
+                <a href={s.url} target="_blank" rel="noreferrer">
+                  <b>{s.name}</b>
+                </a>
+              ),
+            },
             { key: "provides", label: "Provides", render: (s) => s.provides },
             { key: "format", label: "Format", mono: true, render: (s) => s.format },
-            { key: "status", label: "Status", render: () => LINKED },
+            {
+              key: "status",
+              label: "Status",
+              render: (s) => {
+                const chip = integrationChip(s.integration);
+                return (
+                  <span className="srcstatus" title={s.note ?? undefined}>
+                    <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
+                    {s.note && <span className="fmeta">{s.note}</span>}
+                  </span>
+                );
+              },
+            },
           ]}
         />
+        <div className="admin-note">
+          {sources.some((s) => s.integration === "linked")
+            ? "Linked sources are read automatically; the others reach UrbanView through staff uploads and imports."
+            : "No source is read automatically yet: planning documents, market tables and any cadastral export reach UrbanView through staff uploads and imports."}
+        </div>
       </AdminCard>
 
       <AdminCard
         title="Planning documents"
-        sub={`${total} ${filtered ? "matching " : ""}document${total === 1 ? "" : "s"} · current versions · each file's extraction and geometry`}
+        sub={`${municipality ? `${municipality.name} · ` : ""}${total} ${filtered ? "matching " : ""}document${total === 1 ? "" : "s"} · current versions · each file's extraction and geometry`}
         action={readOnly ? undefined : <AdminButton onClick={() => openRegister([])}>+ New document</AdminButton>}
       >
         <Form action="/admin/data" className="datafilters" role="search">
@@ -358,6 +408,8 @@ export function DataScreen({
           </div>
         )}
       </AdminCard>
+
+      {!readOnly && <ZoneImportCard imports={zoneImports} />}
 
       <UploadDialog
         open={uploadOpen}

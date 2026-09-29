@@ -23,7 +23,12 @@ export function PillView({ pill }: { pill: Pill }) {
   return (
     <span className="pillcell">
       <StatusChip tone={pill.tone}>{pill.label}</StatusChip>
-      {pill.detail && <span className="mono pd">{pill.detail}</span>}
+      {pill.detail && (
+        // "finished 3 min ago" is rendered on the server and again in the browser, a minute apart
+        <span className="mono pd" title={pill.times ?? undefined} suppressHydrationWarning>
+          {pill.detail}
+        </span>
+      )}
       {pill.reason && (
         <span className="pr" title={pill.reason}>
           {pill.reason}

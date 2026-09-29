@@ -64,7 +64,12 @@ shown to everyone (see "POC scope").
   live in `packages/feasibility-engine/fixtures` next to the shared TypeScript engine; the Python
   copy `backend/core/engine/shared.py` must reproduce the same fixtures exactly.
 
-**Market data sources:** Realitica, Estitor listings + Monstat statistics.
+**Market data sources:** Realitica, Estitor listings + Monstat statistics. Each profile source
+states how its data reaches UrbanView today (`[[sources]]` `format`, `integration`
+linked | manual_upload | file_import | reference_copy | access_pending | access_confirmed |
+not_connected, `integration_note`; a cadastral source's integration follows its
+`[cadastre.sources.<id>].access`): the console says "Linked" only for a live connection (A1
+check 2026-09-29).
 **Planning sources:** eRegistri (lamp.gov.me), eKatastar, eMapa, Geoportal UZN. URLs in
 `backend/municipalities/podgorica.toml`.
 
@@ -511,6 +516,18 @@ the POC check of Group 2 asked for it).
   that cite them stay. `type` must be a key of the profile's `document_types`; `zone_id`,
   `file_id` (a planning_document PDF) and `amends_document_id` must exist (422 otherwise).
   `coverage_geom` is nullable since 0006 (registered before the geometry job ran).
+- **Edit, short code, municipality (A1 check 2026-09-29, migration 0032).** `PATCH
+  /v1/admin/documents/{id}` (admin, `DocumentPatchIn`) changes the current version's status,
+  name, `short_code`, zone, source, registry link, adoption date or licence note; only what
+  differs is written, with one `document.update` audit row (before / after of the changed fields);
+  409 `not_current_version`; 422 for nothing to change, an unknown zone or clearing name / status.
+  A status change counts at once in locate and the panels (adopted documents only) and in the
+  tiles at the next publish. `short_code` (optional, `DUP-NG12`, trimmed) is set at registration,
+  carried to a new version unless given, and names one current document (409
+  `short_code_taken`). `DocumentOut` carries `municipality_id` and `short_code`, `DocumentList`
+  the `municipality` {id, name}: multi-city scoping is data. `DocumentFileOut.redraw_pages`: the
+  pages to redraw in QGIS (the PDF stage's raster sheets, see "PDF pre-processing"; null until
+  read).
 - **Files of a version** (`planning_document_files`, migration 0022): a version has any number
   of stored files, each with a `role`: `text` (read by the extraction job), `drawing` (the
   geometry job) or `both`; GIS files only as drawings. `DocumentIn.files` = `[{file_id, role}]`
@@ -539,9 +556,19 @@ the POC check of Group 2 asked for it).
   job** when an identical one is queued / running / retrying (idempotency key = type + target +
   file SHA-256; for extraction also the model and the prompt / schema versions, and a run that
   already finished answers 200 unless `?force=true`: see "Extraction job"). A dead broker marks
-  the job failed and answers 503 with the job id. The geometry body is a stub until its item
-  lands (a run ends `failed` with a clear "not implemented" error); pre-processing and extraction
-  run. Files and documents carry `preprocessing` (the manifest summary: vector / scanned pages,
+  the job failed and answers 503 with the job id. **The geometry job** (`jobs/geometry.py`,
+  `GeometryRunner`): a GIS drawing of a current document version (GeoPackage, GeoJSON, zipped
+  Shapefile: a QGIS redraw or the plan's official GIS) is read with GDAL, its contract layers
+  (`plan_boundary`, `urban_parcels` with `urban_parcel_number` / `block_ref`, `urban_blocks`,
+  `planned_land_use`; also the staged names `document_coverage`, `land_use`; a single-layer file
+  is named by its file name) reprojected from the file's CRS (else the profile's
+  `source_crs_epsg`) and staged through georeferencing's `stage_document` (snapping, validation,
+  batches; source `gis_file`, method `native`, no fit); a refused dataset is recorded `invalid`
+  and the job fails naming the errors. A PDF drawing gets the PDF stage (its raster sheets become
+  the file's `redraw_pages`) and fails with what it needs: a QGIS redraw of the scanned pages, or
+  the control-point georeferencing CLI for a vector sheet. A GIS file that is no document's
+  drawing fails with that reason. These are final answers (`GeometryError`, never retried).
+  Pre-processing and extraction run. Files and documents carry `preprocessing` (the manifest summary: vector / scanned pages,
   tables, chunks, sections) and `extraction` (the latest run: status, pages failed / skipped,
   items). Extraction writes to STAGING only; publishing is a separate job.
 - **Coverage switch.** `PATCH /v1/admin/documents/{id}/coverage {live}` sets
@@ -550,8 +577,9 @@ the POC check of Group 2 asked for it).
   (`locate_sql`, `panel_sql`; the urban panel's `covered` too). The sample's adopted documents
   are seeded live; synthetic bulk documents are live.
 - **Audit.** Every action writes `audit_log` (actor subject + user id, action `file.upload`,
-  `file.upload_duplicate`, `document.register`, `coverage.set_live`, `job.enqueue`,
-  `job.enqueue_failed`, entity type + id, details, request id). Listings are not audited.
+  `file.upload_duplicate`, `document.register`, `document.update`, `coverage.set_live`,
+  `job.enqueue`, `job.enqueue_failed`, `zones.import` (actor `worker:import_zones`), entity type
+  + id, details, request id). Listings are not audited.
 - Responses are `Cache-Control: no-store`. Tests: `tests/test_admin_pipeline_unit.py` (upload
   validation, filenames, Celery dispatcher with `send_task` mocked, token helpers, role gate with
   staff sessions) and `tests/integration/test_admin_pipeline_postgis.py` (dedup, versions, jobs
@@ -759,7 +787,11 @@ the POC check of Group 2 asked for it).
   wrapped in a narrow cell joined: "Površin" + "a UP", "1906.0" + "9"; leading rows without
   numbers are the header), page size / rotation, script (latin | cyrillic | mixed), and
   `scanned` (images cover ≥ half the page, ≤ 200 vector paths, no text layer or below
-  `PREPROCESS_MIN_TEXT_DENSITY`). Boxes: PDF points, origin bottom-left, rotation undone. Text is
+  `PREPROCESS_MIN_TEXT_DENSITY`), and (preprocess 1.2) `raster` by the week-1 assessment's own
+  rule (`core.gis.sheets`: the largest image ≥ 60 % of the page and < 1000 vector paths, class C
+  = redraw in QGIS; the assessment imports the same rule) with `largest_image_pct` and the path
+  count; the manifest's `summary.redraw_pages` lists them (null for an older manifest, which
+  then names its scanned pages). Boxes: PDF points, origin bottom-left, rotation undone. Text is
   kept as extracted (NFC; č ć š ž đ and Cyrillic unchanged); on pages with the AutoCAD glyph-id
   shift the shifted words are decoded with `core.gis` (block `decoded`); a word is taken as
   shifted only when it decodes to word-like casing and is not id-shaped (preprocess 1.1: Stara
@@ -1093,8 +1125,8 @@ the POC check of Group 2 asked for it).
 ## Background jobs (`jobs/`, `api/services/jobs.py`, `api/routers/v1/admin_jobs.py`)
 
 - **One job system.** Every long-running task is a `pipeline_jobs` row (migration 0010: `type`
-  extract_document | preprocess_file (0018) | process_geometry | publish_approved | send_email,
-  `kind` family, `queue`,
+  extract_document | preprocess_file (0018) | process_geometry | publish_approved | send_email
+  | import_zones (0032), `kind` family, `queue`,
   `target_type` document | file | publish_run | email + `target_id`, `payload`, `status` queued |
   running | retrying | succeeded | failed | cancelled, `attempts` / `max_attempts`,
   `manual_retries`, `next_retry_at`, `dedupe_key`, `wall_time_ms`, `llm_model`,
@@ -1126,8 +1158,9 @@ the POC check of Group 2 asked for it).
 - **Tasks** (`jobs/tasks/`): `extract_document` and `preprocess_file` (extraction queue),
   `process_geometry` (geo), `publish_approved` (publish; one active run per municipality),
   `send_email` (email; payload `{template, to, context}`, `to` a reference resolved at send time,
-  never a stored address). `process_geometry` is still a stub that fails with a clear "not
-  implemented" error until its item lands; `extract_document` runs (see "Extraction job").
+  never a stored address), `import_zones` (geo; a zone GeoPackage from QGIS). `process_geometry`
+  stages a document's GIS drawing and answers a PDF drawing with what it needs (see "Staff
+  pipeline API" Jobs); `extract_document` runs (see "Extraction job").
   `system.ping` is the broker smoke test.
 - **API** (reads: roles `admin` and `reviewer`; retry: `admin`): `GET /v1/admin/jobs` (filters `type`, `status`, `target=document:12`
   | `file:` | `publish_run:` | `email:`, `document_id`, `file_id`; `total`),
@@ -1310,7 +1343,12 @@ the POC check of Group 2 asked for it).
   batch in `staging_geometry` (reprojected to 4326 in PostGIS, keyed by `zone_key`), the documents
   in `staging_zone_documents` matched to registered `planning_documents` (eRegistri id, registry
   link in `source_url`, then folded name; each taken once). A newer import supersedes the staged
-  dataset and its batch. It exports `zones.geojson` (4326) and the normalised
+  dataset and its batch. **Through the API** (A1 check 2026-09-29): `POST /v1/admin/zones/import
+  {file_id, dry_run?}` (admin; the GeoPackage uploaded first as a `gis` file, 409
+  `not_a_geopackage` otherwise) queues `import_zones` on the worker (the `gis` extra): read,
+  validated with `data/zones/<m>/zones.toml` when the server has it (else the defaults), staged
+  with its report, audited `zones.import`; a dry run validates only; errors fail the job naming
+  them; the console's "Zones from QGIS" card drives it. The CLI also exports `zones.geojson` (4326) and the normalised
   `zone_documents.csv` to version (in the private data repository: `.gitignore` keeps `data/`
   out of this public one).
 - **Publish:** the publish job's `geometry` step upserts zones by `zone_key` (new column; a legacy
@@ -1408,7 +1446,8 @@ the POC check of Group 2 asked for it).
   the newest staged batch or the current version; a re-run replaces the document's own; the
   plan's traffic network is not staged). Every feature has `document_id`, `dataset_version`.
 - **Record** `georef_datasets` (`geo-<doc>-<yyyymmdd>-<n>`, staged | invalid | published |
-  superseded, source extraction | manual_redraw, CRS, method, transform JSON with residuals,
+  superseded, source extraction | manual_redraw | gis_file (0032: a GIS drawing staged by the
+  geometry job, method `native`, `rmse_m` null), CRS, method, transform JSON with residuals,
   `rmse_m`, `max_residual_m`, `points_used`, `sheets` per-sheet RMSE, `snap` (+ overlap),
   `validation`, `batches`, `output_sha256`, `gpkg_key`); a newer staged run supersedes the
   document's staged one; the publish job's geometry step publishes a dataset once its batches

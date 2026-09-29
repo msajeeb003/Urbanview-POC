@@ -62,6 +62,20 @@ def configure_preprocess(
 
 
 async def _preprocess_file(job: JobContext) -> JobResult:
+    file_id = int(job.payload.get("file_id") or job.file_id or job.target_id or 0)
+    result = await run_preprocess(
+        job.municipality_id, file_id, force=bool(job.payload.get("force"))
+    )
+    log.info(
+        "preprocess_file done",
+        extra={"job_id": job.id, "file_id": file_id, "cached": result["cached"]},
+    )
+    return JobResult(result=result)
+
+
+async def run_preprocess(municipality_id: str, file_id: int, *, force: bool = False) -> dict:
+    """The PDF stage of one stored file (``jobs.preprocessing.PreprocessRunner``) with what the
+    settings configure; the geometry job runs it for a PDF drawing too."""
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
     from sqlalchemy.pool import NullPool
 
@@ -79,7 +93,6 @@ async def _preprocess_file(job: JobContext) -> JobResult:
         from core.storage import ObjectStorage
 
         storage = ObjectStorage(settings)
-    file_id = int(job.payload.get("file_id") or job.file_id or job.target_id or 0)
     engine = create_async_engine(
         _config.get("database_url") or settings.database_url, poolclass=NullPool
     )
@@ -87,22 +100,17 @@ async def _preprocess_file(job: JobContext) -> JobResult:
         runner = PreprocessRunner(
             async_sessionmaker(engine, expire_on_commit=False),
             storage,
-            municipality_id=job.municipality_id,
+            municipality_id=municipality_id,
             options=PreprocessOptions.from_settings(settings),
             image_dpi=settings.preprocess_page_image_dpi,
             image_max_pixels=settings.preprocess_page_image_max_pixels,
             serve_images=settings.preprocess_serve_page_images,
             ocr=_config.get("ocr") or ocr_from_settings(settings),
-            rules=SectionRules.from_profile(job.municipality_id),
+            rules=SectionRules.from_profile(municipality_id),
         )
-        result = await runner.run(file_id, force=bool(job.payload.get("force")))
+        return await runner.run(file_id, force=force)
     finally:
         await engine.dispose()
-    log.info(
-        "preprocess_file done",
-        extra={"job_id": job.id, "file_id": file_id, "cached": result["cached"]},
-    )
-    return JobResult(result=result)
 
 
 def configure_extraction(

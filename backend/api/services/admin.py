@@ -39,7 +39,7 @@ import re
 import unicodedata
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any, Protocol
 
 from botocore.exceptions import BotoCoreError, ClientError
@@ -56,6 +56,7 @@ from api.schemas.admin import (
     DocumentIn,
     DocumentList,
     DocumentOut,
+    DocumentPatchIn,
     ExtractionRunOut,
     FileKind,
     FileList,
@@ -66,6 +67,7 @@ from api.schemas.admin import (
     ItemCounts,
     JobOut,
     JobStateFilter,
+    MunicipalityRef,
     ReviewSummary,
     StoredFileOut,
     UploadResult,
@@ -377,7 +379,8 @@ _GEOREF_JSON = """
 
 def _document_sql(extra: str) -> str:
     return f"""
-    SELECT d.id, d.name, d.type, d.status::text AS status, d.source, d.source_url, d.zone_id,
+    SELECT d.id, d.municipality_id, d.name, d.short_code, d.type, d.status::text AS status,
+           d.source, d.source_url, d.zone_id,
            z.name AS zone_name, d.amends_document_id, d.licence_note, d.adopted_on, d.file_id,
            d.page_count,
            COALESCE(d.lineage_id, d.id) AS lineage_id, d.version, d.is_current_version,
@@ -449,7 +452,7 @@ DOCUMENT_BY_ID_SQL = text(_document_sql("AND d.id = :id"))
 DOCUMENT_VERSION_SQL = text(
     """
     SELECT d.id, COALESCE(d.lineage_id, d.id) AS lineage_id, d.version, d.is_current_version,
-           d.coverage_live, d.zone_id,
+           d.coverage_live, d.zone_id, d.short_code,
            (SELECT c.id FROM planning_documents c
             WHERE COALESCE(c.lineage_id, c.id) = COALESCE(d.lineage_id, d.id)
               AND c.is_current_version
@@ -473,12 +476,14 @@ RETIRE_VERSION_SQL = text(
 INSERT_DOCUMENT_SQL = text(
     """
     INSERT INTO planning_documents (
-        municipality_id, name, type, status, source, source_url, zone_id, amends_document_id,
+        municipality_id, name, short_code, type, status, source, source_url, zone_id,
+        amends_document_id,
         coverage_geom, file_id, file_key, page_count, page_images_rendered, lineage_id, version,
         is_current_version, licence_note, adopted_on, registered_by, registered_at,
         dataset_version)
     VALUES (
-        :m, :name, :type, CAST(:status AS planning_document_status), :source, :source_url,
+        :m, :name, :short_code, :type, CAST(:status AS planning_document_status), :source,
+        :source_url,
         :zone_id, :amends_document_id,
         (SELECT p.coverage_geom FROM planning_documents p WHERE p.id = :previous_id),
         :file_id, :file_key, :page_count, false, :lineage_id, :version, true, :licence_note,
@@ -593,6 +598,35 @@ FAIL_JOB_SQL = text(
 JOB_SQL = text(
     f"SELECT {_JOB_JSON} AS job FROM pipeline_jobs j WHERE j.id = :id AND j.municipality_id = :m"
 )
+SHORT_CODE_TAKEN_SQL = text(
+    """
+    SELECT id, name FROM planning_documents
+    WHERE municipality_id = :m AND is_current_version AND lower(short_code) = lower(:code)
+      AND COALESCE(lineage_id, id) <> :lineage
+    LIMIT 1
+    """
+)
+DOCUMENT_EDIT_SQL = text(
+    """
+    SELECT d.id, COALESCE(d.lineage_id, d.id) AS lineage_id, d.is_current_version, d.name,
+           d.short_code, d.status::text AS status, d.zone_id, d.source, d.source_url,
+           d.adopted_on, d.licence_note
+    FROM planning_documents d
+    WHERE d.id = :id AND d.municipality_id = :m
+    FOR UPDATE
+    """
+)
+# the columns PATCH may set, in the order they are written (status is the enum)
+EDITABLE = (
+    "name",
+    "short_code",
+    "status",
+    "zone_id",
+    "source",
+    "source_url",
+    "adopted_on",
+    "licence_note",
+)
 COVERAGE_STATE_SQL = text(
     """
     SELECT id, status::text AS status, is_current_version, coverage_live,
@@ -662,7 +696,9 @@ def _document_out(row: Mapping[str, Any]) -> DocumentOut:
         lineage_id=row["lineage_id"],
         version=row["version"],
         is_current_version=row["is_current_version"],
+        municipality_id=row["municipality_id"],
         name=row["name"],
+        short_code=row.get("short_code"),
         type=row["type"],
         status=row["status"],
         source=row["source"],
@@ -721,6 +757,24 @@ def _georeference(raw: Mapping[str, Any] | None) -> GeoreferenceOut | None:
     )
 
 
+def _redraw_pages(preprocessing: PreprocessSummary | None) -> list[int] | None:
+    """Pages to redraw in QGIS (the week-1 assessment's class C); a manifest of an older
+    pre-processing version names its scanned pages (a subset: every one is a raster sheet)."""
+    if preprocessing is None:
+        return None
+    if preprocessing.redraw_pages is not None:
+        return list(preprocessing.redraw_pages)
+    return list(preprocessing.scanned_pages)
+
+
+def _plain(value: Any) -> Any:
+    return value.isoformat() if isinstance(value, date) else value
+
+
+def _short_code(value: str | None) -> str | None:
+    return " ".join(value.split()) or None if value is not None else None
+
+
 def _document_file_out(raw: Mapping[str, Any]) -> DocumentFileOut:
     """One file of a version as the admin screens show it (``_FILES_SQL``)."""
     counts = raw.get("items") or {}
@@ -755,6 +809,7 @@ def _document_file_out(raw: Mapping[str, Any]) -> DocumentFileOut:
         sha256=raw["sha256"],
         page_count=raw.get("page_count"),
         scanned_pages=list(preprocessing.scanned_pages) if preprocessing else None,
+        redraw_pages=_redraw_pages(preprocessing),
         uploaded_at=raw["uploaded_at"],
         added_by=raw.get("added_by"),
         added_at=raw["added_at"],
@@ -1072,6 +1127,12 @@ class AdminService:
                     )
             if problems:
                 raise _validation_error(problems)
+            short_code = _short_code(payload.short_code)
+            if short_code is None and previous is not None:
+                short_code = previous["short_code"]
+            await self._check_short_code(
+                session, short_code, previous["lineage_id"] if previous is not None else None
+            )
 
             primary = _primary(files)
             now = self.clock()
@@ -1085,6 +1146,7 @@ class AdminService:
                     {
                         "m": m,
                         "name": payload.name.strip(),
+                        "short_code": short_code,
                         "type": doc_type,
                         "status": payload.status,
                         "source": payload.source,
@@ -1117,6 +1179,7 @@ class AdminService:
                 new_id,
                 {
                     "name": payload.name.strip(),
+                    "short_code": short_code,
                     "type": doc_type,
                     "status": payload.status,
                     "file_id": primary.file_id if primary is not None else None,
@@ -1198,11 +1261,100 @@ class AdminService:
                 .all()
             )
         return DocumentList(
+            municipality=MunicipalityRef(id=self.municipality.id, name=self.municipality.name),
             items=[_document_out(r) for r in rows],
             total=int(rows[0]["total"]) if rows else 0,
             limit=limit,
             offset=offset,
         )
+
+    async def _check_short_code(
+        self, session: AsyncSession, code: str | None, lineage_id: int | None
+    ) -> None:
+        """A short code names one document: no other current document may carry it (its own
+        versions share it)."""
+        if code is None:
+            return
+        taken = (
+            (
+                await session.execute(
+                    SHORT_CODE_TAKEN_SQL,
+                    {"m": self.municipality_id, "code": code, "lineage": lineage_id or -1},
+                )
+            )
+            .mappings()
+            .first()
+        )
+        if taken is not None:
+            raise ConflictError(
+                f"The short code {code} already names {taken['name']}",
+                details={"reason": "short_code_taken", "document_id": taken["id"]},
+            )
+
+    async def update_document(
+        self, principal: Principal, document_id: int, patch: DocumentPatchIn
+    ) -> DocumentOut:
+        """Change the facts of the current version (status, name, short code, zone, source, link,
+        adoption date, licence note). Only what differs is written, with one ``document.update``
+        audit row holding the before and after of the changed fields."""
+        async with self.session_factory() as session:
+            row = (
+                (
+                    await session.execute(
+                        DOCUMENT_EDIT_SQL, {"m": self.municipality_id, "id": document_id}
+                    )
+                )
+                .mappings()
+                .first()
+            )
+            if row is None:
+                raise NotFoundError(
+                    f"No planning document with id {document_id}",
+                    details={"document_id": document_id},
+                )
+            if not row["is_current_version"]:
+                raise ConflictError(
+                    "Only the current version of a document can be edited",
+                    details={"document_id": document_id, "reason": "not_current_version"},
+                )
+            wanted: dict[str, Any] = {}
+            for key in EDITABLE:
+                if key not in patch.model_fields_set:
+                    continue
+                value = getattr(patch, key)
+                if isinstance(value, str):
+                    value = _short_code(value) if key == "short_code" else (value.strip() or None)
+                wanted[key] = value
+            changes = {k: v for k, v in wanted.items() if v != row[k]}
+            if changes.get("zone_id") is not None and not await self._exists(
+                session, ZONE_EXISTS_SQL, changes["zone_id"]
+            ):
+                raise _validation_error([{"loc": ["body", "zone_id"], "msg": "no such zone"}])
+            if changes.get("short_code") is not None:
+                await self._check_short_code(session, changes["short_code"], row["lineage_id"])
+            if changes:
+                sets = ", ".join(
+                    "status = CAST(:status AS planning_document_status)"
+                    if key == "status"
+                    else f"{key} = :{key}"
+                    for key in changes
+                )
+                await session.execute(
+                    text(f"UPDATE planning_documents SET {sets} WHERE id = :id"),
+                    {**changes, "id": document_id},
+                )
+                await self._audit(
+                    session,
+                    principal,
+                    "document.update",
+                    "planning_document",
+                    document_id,
+                    {"fields": sorted(changes)},
+                    before={k: _plain(row[k]) for k in changes},
+                    after={k: _plain(v) for k, v in changes.items()},
+                )
+                await session.commit()
+        return await self.get_document(document_id)
 
     async def set_coverage_live(
         self, principal: Principal, document_id: int, live: bool
@@ -1585,6 +1737,37 @@ class AdminService:
             payload={"file_id": file_id, "kind": file_row["kind"]},
             file_id=file_id,
             checksum=file_row["sha256"],
+        )
+
+    async def enqueue_zone_import(
+        self, principal: Principal, file_id: int, *, dry_run: bool = False
+    ) -> EnqueuedJob:
+        """Queue the zone import of a GeoPackage drawn in QGIS (``import_zones``: the worker
+        validates it with ``core.zones`` and stages the zones and their documents; the publish
+        job applies them)."""
+        async with self.session_factory() as session:
+            file_row = (
+                (await session.execute(FILE_REF_SQL, {"m": self.municipality_id, "id": file_id}))
+                .mappings()
+                .first()
+            )
+        if file_row is None:
+            raise NotFoundError(f"No stored file with id {file_id}", details={"file_id": file_id})
+        key = str(file_row["object_key"] or "").lower()
+        if file_row["kind"] != FileKind.gis.value or not key.endswith(".gpkg"):
+            raise ConflictError(
+                "Zones are imported from the GeoPackage drawn in QGIS (a .gpkg GIS file)",
+                details={"file_id": file_id, "reason": "not_a_geopackage"},
+            )
+        mode = "dry_run" if dry_run else "stage"
+        return await self._enqueue(
+            principal,
+            "import_zones",
+            target_type="file",
+            target_id=file_id,
+            payload={"file_id": file_id, "dry_run": dry_run},
+            file_id=file_id,
+            key=f"import_zones:file:{file_id}:sha256:{file_row['sha256']}:{mode}",
         )
 
     async def enqueue_preprocess(

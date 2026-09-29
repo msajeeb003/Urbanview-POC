@@ -6,10 +6,14 @@
  * The formula rows are this page's words for the engine's figures, keyed by the engine's own
  * result keys (a test keeps them in step with `FIELD_ORDER`). Proposals ("+ Add formula", "+ Add
  * data input") are recorded and audited by the API for the client's review; they never change a
- * calculation, which only a new `FORMULA_VERSION` with validated fixtures does.
+ * calculation, which only a new `FORMULA_VERSION` with validated fixtures does. Each dataset row
+ * says how its data reaches UrbanView today (the profile's sources of that kind: "Linked" only
+ * for a live connection), never a blanket "Connected".
  */
 import type { ChipTone } from "@/components/admin/parts";
 import type { DataSource, EngineProposal } from "@/lib/api/types";
+
+import { integrationChip, kindIntegration } from "./data";
 
 export interface FormulaRow {
   /** The engine's result key (`FIELD_ORDER`). */
@@ -62,6 +66,8 @@ export interface InputRow {
   key: string;
   name: string;
   provides: string;
+  /** How the kind's best-connected source reaches UrbanView today. */
+  status: { label: string; tone: ChipTone };
 }
 
 /** The three dataset rows the formulas read, named from the municipality profile's sources. */
@@ -75,17 +81,25 @@ export function inputRows(sources: readonly DataSource[] | null | undefined): In
     const found = names(kind);
     return found ? `${text} (${found})` : text;
   };
+  const status = (kind: DataSource["kind"]) => integrationChip(kindIntegration(sources, kind));
   return [
     {
       key: "planning",
       name: "Adopted planning documents",
       provides: listed("DUP / PUP source PDFs — FAR, site coverage, height and land use read per urban parcel, each value reviewed", "planning"),
+      status: status("planning"),
     },
-    { key: "cadastre", name: "Cadastre", provides: listed("parcel geometry, area and ownership status", "cadastre") },
+    {
+      key: "cadastre",
+      name: "Cadastre",
+      provides: listed("parcel geometry, area and ownership status", "cadastre"),
+      status: status("cadastre"),
+    },
     {
       key: "market",
       name: "Market sources",
       provides: listed("asking and transaction prices, construction cost indicators, entered as financial assumptions", "market"),
+      status: status("market"),
     },
   ];
 }

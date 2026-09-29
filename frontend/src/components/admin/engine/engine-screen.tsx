@@ -119,7 +119,7 @@ export function EngineScreen({ proposals, inputs }: { proposals: EngineProposal[
                 </td>
                 <td>{i.provides}</td>
                 <td>
-                  <StatusChip tone="ok">Connected</StatusChip>
+                  <StatusChip tone={i.status.tone}>{i.status.label}</StatusChip>
                 </td>
               </tr>
             ))}

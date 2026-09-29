@@ -37,6 +37,8 @@ function refresh(): void {
 
 export interface RegisterInput {
   name: string;
+  /** Optional short reference ("DUP-NG12"); a new version keeps the previous one when blank. */
+  shortCode: string;
   type: string;
   status: DocumentStatus;
   source: string;
@@ -61,6 +63,7 @@ export async function registerDocumentAction(input: RegisterInput): Promise<Acti
 
   const result = await adminSend<AdminDocument>("POST", "/v1/admin/documents", {
     name: input.name.trim(),
+    short_code: input.shortCode.trim() || null,
     type: input.type,
     status: input.status,
     source: input.source.trim() || null,
@@ -86,6 +89,74 @@ export async function registerDocumentAction(input: RegisterInput): Promise<Acti
     message: doc.version > 1 ? `Version ${doc.version} of ${doc.name} registered` : `${doc.name} registered`,
     data: { id: doc.id },
   };
+}
+
+export interface DocumentEdit {
+  name: string;
+  shortCode: string;
+  status: DocumentStatus;
+  zoneId: number | null;
+  source: string;
+  sourceUrl: string;
+  adoptedOn: string;
+  licenceNote: string;
+}
+
+/**
+ * `PATCH /v1/admin/documents/{id}`: the current version's facts (status, name, short code, zone,
+ * source and its link, adoption date, licence note). Every field is sent; the API writes only
+ * what changed, with one audited `document.update` row.
+ */
+export async function updateDocumentAction(documentId: number, edit: DocumentEdit): Promise<ActionResult> {
+  const denied = await allowed();
+  if (denied) return { ok: false, message: denied };
+  if (!edit.name.trim()) return { ok: false, message: "Some fields need attention.", fields: { name: "Give the document its official name." } };
+  const result = await adminSend<AdminDocument>("PATCH", `/v1/admin/documents/${documentId}`, {
+    name: edit.name.trim(),
+    short_code: edit.shortCode.trim() || null,
+    status: edit.status,
+    zone_id: edit.zoneId,
+    source: edit.source.trim() || null,
+    source_url: edit.sourceUrl.trim() || null,
+    adopted_on: edit.adoptedOn || null,
+    licence_note: edit.licenceNote.trim() || null,
+  });
+  if (!result.ok) {
+    const fields = result.status === 422 ? fieldErrors(result.details) : undefined;
+    return {
+      ok: false,
+      message: fields && Object.keys(fields).length ? "Some fields need attention." : explainProblem(result),
+      fields,
+    };
+  }
+  refresh();
+  return { ok: true, message: `${result.data.name} saved`, data: undefined };
+}
+
+/**
+ * `POST /v1/admin/zones/import`: the zone GeoPackage drawn in QGIS (uploaded first), checked only
+ * (`dryRun`) or validated and staged by the worker; the next publish applies it.
+ */
+export async function importZonesAction(fileId: number, dryRun: boolean): Promise<ActionResult<{ jobId: number }>> {
+  const denied = await allowed();
+  if (denied) return { ok: false, message: denied };
+  const result = await adminSend<AdminJob>("POST", "/v1/admin/zones/import", { file_id: fileId, dry_run: dryRun });
+  if (!result.ok) return { ok: false, message: explainProblem(result) };
+  refresh();
+  const job = result.data;
+  const done = job.status === "succeeded" || job.status === "failed";
+  const message = result.status === 200
+    ? "The same import is already running"
+    : done
+      ? job.status === "succeeded"
+        ? dryRun
+          ? "The GeoPackage passed the checks"
+          : "Zones staged — publish to apply them"
+        : "The import was refused — see why below"
+      : dryRun
+        ? "Check queued"
+        : "Import queued";
+  return { ok: true, message, data: { jobId: job.id } };
 }
 
 /** `POST /v1/admin/documents/{id}/files`: put uploaded files on the current version. */

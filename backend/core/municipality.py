@@ -35,12 +35,33 @@ class Terminology(BaseModel):
     document_types_en: dict[str, str] = Field(default_factory=dict)
 
 
+# How UrbanView gets a source's data today: only ``linked`` is a live, automatic connection.
+Integration = Literal[
+    "linked",  # read automatically from the source's service
+    "manual_upload",  # staff download files from the source and upload them
+    "file_import",  # staff upload the source's tables; an import job reads them for review
+    "reference_copy",  # a saved copy used as a reference, not read by the system
+    "access_pending",  # bulk access / licence not confirmed: nothing is imported
+    "access_confirmed",  # access agreed: staff import the delivered export
+    "not_connected",
+]
+
+
 class DataSource(BaseModel):
     id: str
     kind: Literal["planning", "cadastre", "market", "reference"]
     name: str
     url: str
     provides: str
+    format: str | None = Field(default=None, description="PDF, GIS, API, Web, Table")
+    integration: Integration = Field(
+        default="not_connected",
+        description=(
+            "How UrbanView gets its data today; for a cadastral source it follows "
+            "[cadastre.sources.<id>].access (confirmed or not)"
+        ),
+    )
+    integration_note: str | None = None
 
 
 class CrsCandidate(BaseModel):
@@ -211,9 +232,25 @@ def profile_table(municipality_id: str, name: str) -> dict | None:
     return table if isinstance(table, dict) else None
 
 
+def _source_integrations(raw: dict) -> dict:
+    """A cadastral source's integration is its access flag (one truth: ``core.cadastre``
+    refuses to import from a source whose access is not confirmed)."""
+    cadastre = (raw.get("cadastre") or {}).get("sources") or {}
+    sources = []
+    for source in raw.get("sources") or []:
+        access = (cadastre.get(source.get("id")) or {}).get("access")
+        if access is not None:
+            source = {
+                **source,
+                "integration": "access_confirmed" if access == "confirmed" else "access_pending",
+            }
+        sources.append(source)
+    return {**raw, "sources": sources} if sources else raw
+
+
 @cache
 def load_profile(municipality_id: str) -> MunicipalityProfile:
-    return MunicipalityProfile.model_validate(_read_profile(municipality_id))
+    return MunicipalityProfile.model_validate(_source_integrations(_read_profile(municipality_id)))
 
 
 @cache

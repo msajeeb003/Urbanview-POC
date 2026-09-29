@@ -685,22 +685,35 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   Every write is audited by the API (`user.create`, `user.update`). Tests: `lib/admin/users.test.ts`.
 - **Data sources** (`/admin/data`, `/admin/data/documents/[id]`; `components/admin/data/*`, rules
   in `lib/admin/data.ts`, writes in `lib/admin/data-actions.ts`): the wireframe's sources card
-  (Source / Provides / Format / Status, "+ Upload document") and the planning documents: one row
-  per current version (name → its page, zone, type, status, version, files, overall state,
-  coverage, actions Queue extraction / Queue geometry / Mark live · not live / New version…) with
-  one indented row per file (extraction and geometry: queued / running / succeeded / failed with
-  attempts, cost and the reason; Retry, Extract, Rerun, "Review n →" = `/admin/review?document=
-  &file=`). Filters zone / status / state / job state / name in the URL (`next/form`). The
-  document page: facts, "Add as" text / drawing / both + drop zone (PDF only, several at once:
-  each file uploads, joins the version and, unless a drawing, is queued for extraction), the
-  files table (role select, pages, scanned pages, extraction, cost, geometry, Remove disabled
+  (Source / Provides / Format / Status, "+ Upload document"), its rows the municipality profile's
+  `sources` (`sourceRows`), each status the source's real integration (`integrationChip`:
+  Manual upload, File import, Reference copy, Access pending … "Linked" only for a live
+  connection; the note under the chip; A1 check 2026-09-29, never the mock's blanket "Linked"),
+  and the planning documents (the card names the municipality): one row
+  per current version (short code chip + name → its page, zone, type, status, version, files,
+  overall state, coverage, actions Queue extraction / Queue geometry / Mark live · not live / New
+  version…) with one indented row per file (extraction and geometry: queued / running / succeeded
+  / failed with attempts, cost, when it ran — "finished 3 min ago", the exact UTC times on hover,
+  `jobTimes` — and the reason; a PDF with raster sheets "needs QGIS redraw · p. 3", `redrawText`;
+  Retry, Extract, Rerun, "Review n →" = `/admin/review?document=&file=`). Filters zone / status /
+  state / job state / name in the URL (`next/form`). "Zones from QGIS" (admins,
+  `zone-import.tsx`): drop the zone GeoPackage (uploaded like any file), "Check only" or "Import
+  zones" (`POST /v1/admin/zones/import`), the latest imports with their outcome (staged dataset
+  version and counts, passed, or refused with the errors); no zone editor. The
+  document page: facts (with short code and municipality), "Edit" (admins, current version:
+  status, name, short code, zone, adoption date, source, registry link, licence note; `PATCH
+  /v1/admin/documents/{id}`, a note on what a status change does), "Add as" text / drawing / both
+  + drop zone (PDFs, several at once, and as a drawing GIS files too: `kindsForRole`; each file
+  uploads, joins the version and, unless a drawing, is queued for extraction), the
+  files table (role select, pages, the pages to redraw in QGIS, extraction, cost, geometry, Remove disabled
   with the API's reason once an item was approved), the Georeferencing card (the latest
   `georeference` run: status, RMSE against the limit, max residual, snapping, cadastral overlap
   and mean offset, warning codes, one row per sheet with its RMSE; "Not georeferenced yet" with
-  the CLI to run otherwise) and the version history. "+ Upload document"
+  the CLI to run otherwise; a GIS drawing staged by the geometry job says "GIS drawing in its own
+  coordinate system … no control points needed") and the version history. "+ Upload document"
   takes PDFs, GIS files and cadastral extracts (kind from the extension, editable), a progress
   bar each; a known checksum is "Already uploaded" with a link to its document, never an error;
-  PDFs continue to "Register a planning document" (name, type from the profile, DUP / PUP / PGR
+  PDFs and GIS drawings continue to "Register a planning document" (name, short code, type from the profile, DUP / PUP / PGR
   first, status, zone, adoption date, source default eRegistri + registry link, licence /
   permission note, files with roles; "New version…" starts from the current version and shows
   the history). Uploads go through `app/api/admin/files/route.ts` (`lib/admin/upload-proxy.ts`,
@@ -762,7 +775,8 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   Expression, Source, Status "Live") from `FORMULA_ROWS` (the page's words for the shared engine's
   figures, keyed by the engine's result keys: a test keeps them in step with `FIELD_ORDER`), the
   "Input data" card (Adopted planning documents, Cadastre, Market sources, named from the profile's
-  `sources` by kind, "Connected"), proposals from `GET /v1/admin/engine/proposals` under each
+  `sources` by kind, each with its kind's best-connected integration, `kindIntegration`, never a
+  blanket "Connected"), proposals from `GET /v1/admin/engine/proposals` under each
   (gold-tinted rows, "New" / "Pending", who and when), the footer line (`engineFooter`: engine and
   formula versions, counts, last updated = `ENGINE_UPDATED`, proposals waiting, "the calculation
   changes only with a new formula version the client has validated") and the changelog

@@ -18,7 +18,11 @@ their files, jobs, coverage.
   identical one is already queued / running (idempotent); status, listing and retry live in
   ``admin_jobs`` (``GET /v1/admin/jobs/{id}`` is the status URL). Files and documents carry the
   pre-processing summary (``preprocessing``: vector / scanned pages, tables, chunks, sections);
-- ``PATCH /v1/admin/documents/{id}/coverage``: mark a document's coverage area live or not.
+- ``PATCH /v1/admin/documents/{id}``: change the current version's status, name, short code, zone,
+  source, registry link, adoption date or licence note (audited ``document.update``);
+- ``PATCH /v1/admin/documents/{id}/coverage``: mark a document's coverage area live or not;
+- ``POST /v1/admin/zones/import``: queue the import of a zone GeoPackage drawn in QGIS (validated
+  and staged by the worker; there is no zone editor).
 
 Every action lands in ``audit_log``. Responses are ``Cache-Control: no-store``.
 """
@@ -37,6 +41,7 @@ from api.schemas.admin import (
     DocumentIn,
     DocumentList,
     DocumentOut,
+    DocumentPatchIn,
     DocumentState,
     DocumentStatus,
     FileKind,
@@ -45,6 +50,7 @@ from api.schemas.admin import (
     JobStateFilter,
     StoredFileOut,
     UploadResult,
+    ZoneImportIn,
 )
 
 
@@ -224,6 +230,31 @@ async def get_document(
     return await service.get_document(document_id)
 
 
+@router.patch(
+    "/documents/{document_id}",
+    response_model=DocumentOut,
+    summary="Change the current version's status, name, short code, zone, source or link",
+    responses={
+        **RESPONSES,
+        404: {"description": "No such document"},
+        409: {
+            "description": (
+                "Not the current version (`not_current_version`), or the short code already "
+                "names another document (`short_code_taken`)"
+            )
+        },
+        422: {"description": "Nothing to change, an unknown zone, or a value out of bounds"},
+    },
+)
+async def update_document(
+    principal: PipelinePrincipal,
+    service: AdminServiceDep,
+    document_id: Id,
+    payload: DocumentPatchIn,
+) -> DocumentOut:
+    return await service.update_document(principal, document_id, payload)
+
+
 @router.post(
     "/documents/{document_id}/files",
     status_code=201,
@@ -345,6 +376,34 @@ async def enqueue_extract_job(
     ] = False,
 ) -> JobOut:
     enqueued = await service.enqueue_extract(principal, document_id, file_id=file_id, force=force)
+    response.status_code = 202 if enqueued.created else 200
+    return enqueued.job
+
+
+# --- zones ----------------------------------------------------------------------------------------
+
+
+@router.post(
+    "/zones/import",
+    status_code=202,
+    response_model=JobOut,
+    summary="Queue the import of a zone GeoPackage drawn in QGIS (validated, then staged)",
+    responses={
+        **RESPONSES,
+        200: {"description": "The same import of the same file is already queued or running"},
+        404: {"description": "No such stored file"},
+        409: {"description": "The file is not a GeoPackage GIS file (`not_a_geopackage`)"},
+    },
+)
+async def import_zones(
+    principal: PipelinePrincipal,
+    service: AdminServiceDep,
+    payload: ZoneImportIn,
+    response: Response,
+) -> JobOut:
+    enqueued = await service.enqueue_zone_import(
+        principal, payload.file_id, dry_run=payload.dry_run
+    )
     response.status_code = 202 if enqueued.created else 200
     return enqueued.job
 

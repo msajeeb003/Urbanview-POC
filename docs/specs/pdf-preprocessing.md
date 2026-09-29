@@ -10,7 +10,8 @@ page by page, keeping every position so each extracted value cites a page and a 
 Per page: `number`, `width` / `height` / `rotation` (PDF user space), `text` (the blocks in
 reading order, top to bottom then left to right), `blocks[]` `{id, text, bbox, words range,
 font_size, bold, table, decoded, section}`, `words[]` `{text, bbox}`, `tables[]`, `char_count`,
-`image_coverage`, `path_count`, `scanned` + `scanned_reason`, `blank`, `method` (text | ocr |
+`image_coverage`, `largest_image_pct`, `path_count`, `raster`, `scanned` + `scanned_reason`,
+`blank`, `method` (text | ocr |
 none), `script` (latin | cyrillic | mixed | none), `headings[]`, `sections[]`.
 
 - **Boxes** are PDF points with the origin bottom-left, rotation undone (the review queue's and
@@ -34,6 +35,12 @@ none), `script` (latin | cyrillic | mixed | none), `headings[]`, `sections[]`.
   OCR backend (`EXTRACTION_OCR_BACKEND=tesseract`, languages `srp_latn+srp`, method `ocr`);
   otherwise it stays unread (method `none`) and is listed for manual handling. Text is never made
   up. OCR is outside the POC scope: the default is `none`.
+- **Raster sheet** (version 1.2, the A1 check of 2026-09-29): the week-1 geometry assessment's
+  own rule, shared from `core.gis.sheets` (`is_raster_sheet`): the largest single image covers ≥
+  60 % of the page (`largest_image_pct`) and fewer than 1000 vector paths are drawn on it. Such a
+  page is the assessment's class C: nothing to extract, georeference and redraw it in QGIS. The
+  summary lists them as `redraw_pages` (null in a manifest of an older version: the admin API then
+  names its scanned pages); the Data sources list flags the file "needs QGIS redraw".
 
 ## 2. Sections and chunks (`chunking.py`)
 
@@ -64,7 +71,7 @@ none), `script` (latin | cyrillic | mixed | none), `headings[]`, `sections[]`.
    it, stores the page data as gzip JSON next to the upload
    (`{m}/uploads/planning_document/{sha256}/preprocess-v1.0.json.gz`) and the manifest (migration
    0018) on the file record: pages, tables, chunk plan in reading priority, page image keys per
-   document, and `summary` (page count, vector pages, scanned / OCR / unread / blank pages,
+   document, and `summary` (page count, vector pages, scanned / OCR / unread / blank / redraw pages,
    tables, chunks, sections with their pages, scripts);
 2. renders page images (PNG at `PREPROCESS_PAGE_IMAGE_DPI` 150, large sheets capped at
    `PREPROCESS_PAGE_IMAGE_MAX_PIXELS` 25 Mpx) for every document version registered on the file

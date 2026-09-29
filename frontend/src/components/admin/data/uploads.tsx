@@ -19,7 +19,6 @@ import {
   FILE_ROLES,
   formatBytes,
   guessKind,
-  isPdf,
   rolesFor,
   UPLOAD_KINDS,
   type UploadKind,
@@ -89,8 +88,9 @@ let sequence = 0;
 export interface UploadOptions {
   /** Role given to new PDFs (the document detail's "Add as"). */
   defaultRole?: FileRole;
-  /** Refuse anything but PDFs (a planning document's files). */
-  pdfOnly?: boolean;
+  /** The kinds this drop zone takes (a planning document: PDFs, and GIS files as drawings);
+   * anything else is refused on the spot. Default: every kind, by the file's extension. */
+  kinds?: readonly UploadKind[];
   /** Called after each successful upload; its answer becomes the row's note. */
   onUploaded?: (item: UploadItem) => Promise<string | void> | string | void;
 }
@@ -114,12 +114,15 @@ export function useUploads(options: UploadOptions = {}) {
   );
 
   const add = useCallback((files: FileList | File[], role?: FileRole): UploadItem[] => {
-    const { pdfOnly, defaultRole = "text" } = latest.current;
+    const { kinds, defaultRole = "text" } = latest.current;
     const added = Array.from(files).map((file): UploadItem => {
-      const kind = pdfOnly ? (isPdf(file.name) ? "planning_document" : null) : guessKind(file.name);
+      const guessed = guessKind(file.name);
+      const kind = guessed && (!kinds || kinds.includes(guessed)) ? guessed : null;
       const refused = !kind
-        ? pdfOnly
-          ? "Only PDF files belong to a planning document."
+        ? kinds
+          ? kinds.includes("gis")
+            ? "A drawing is a PDF or a GIS file (.gpkg, .geojson, zipped Shapefile)."
+            : "Only PDF files belong here; add GIS files as drawings."
           : "This file type is not accepted (PDF, GIS files or cadastral extracts)."
         : file.size === 0
           ? "The file is empty."

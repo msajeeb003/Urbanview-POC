@@ -44,6 +44,7 @@ from core.gis.sample import (
     round_lattice,
     sample_faces,
 )
+from core.gis.sheets import is_raster_sheet, sheet_class_of
 from core.municipality import GisProfile
 
 # --- vocabulary ----------------------------------------------------------------------------------
@@ -412,7 +413,7 @@ def match_layers(
 
 
 def is_raster(page: PageReport) -> bool:
-    return page.image_cover_pct >= 60 and page.paths < 1000
+    return is_raster_sheet(page.image_cover_pct, page.paths)
 
 
 def forms_of(stats: list[LayerStats], by_length: bool = False) -> dict[str, float]:
@@ -675,17 +676,6 @@ def evaluate_sheet(
         previews=previews,
         sheet_set=spec.set_key,
     )
-
-
-def sheet_class_of(raster: bool, plan_sheet: bool, layered_share: float, layers: int) -> str:
-    """A vector with identifiable layers, B vector but flattened / unlayered, C scanned raster,
-    T no geometry (tables, text). Whether a layer holds all of its features is the layer type's
-    class, not the sheet's."""
-    if raster:
-        return "C"
-    if not plan_sheet:
-        return "T"
-    return "B" if layered_share < 0.6 or layers < 3 else "A"
 
 
 def _expected(

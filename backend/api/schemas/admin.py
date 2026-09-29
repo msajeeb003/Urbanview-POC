@@ -11,6 +11,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from core.extraction.manifest import PreprocessSummary
 
 DocumentStatus = Literal["adopted", "in_progress", "superseded"]
+SHORT_CODE_PATTERN = r"^[\w][\w .\-/]*$"
+
+
+def _trimmed(value: object) -> object:
+    """Surrounding spaces never count (a short code is typed by hand)."""
+    return value.strip() if isinstance(value, str) else value
+
+
 FileRole = Literal["text", "drawing", "both"]
 # Where a document stands in the pipeline (DocumentOut.state), first match wins: no file
 # attached; an extraction queued / running; items waiting for review; a file's latest extraction
@@ -38,6 +46,7 @@ JobType = Literal[
     "send_email",
     "import_market_data",
     "refresh_heatmaps",
+    "import_zones",
 ]
 JobStatus = Literal["queued", "running", "retrying", "succeeded", "failed", "cancelled"]
 TARGET_PATTERN = r"^(document|file|publish_run|email):[0-9]+$"
@@ -278,6 +287,15 @@ class DocumentIn(BaseModel):
         ),
     )
     name: str = Field(min_length=1, max_length=300)
+    short_code: str | None = Field(
+        default=None,
+        max_length=40,
+        pattern=SHORT_CODE_PATTERN,
+        description=(
+            "Short reference staff use for the plan (the pilot's short_code), e.g. DUP-NG12; a new "
+            "version keeps the previous one unless it is given"
+        ),
+    )
     type: str = Field(
         min_length=1,
         max_length=20,
@@ -298,6 +316,8 @@ class DocumentIn(BaseModel):
         description="Register a new version of this document (it must be the current version)",
     )
 
+    _short_code = field_validator("short_code", mode="before")(_trimmed)
+
     @field_validator("adopted_on")
     @classmethod
     def _adopted_in_the_past(cls, value: date | None) -> date | None:
@@ -314,6 +334,56 @@ class DocumentIn(BaseModel):
         if len(ids) != len(set(ids)):
             raise ValueError("a file is listed more than once")
         return self
+
+
+class DocumentPatchIn(BaseModel):
+    """What ``PATCH /v1/admin/documents/{id}`` may change on the current version; a field left
+    out stays as it is, ``null`` clears the optional ones. A status change takes effect in
+    location resolution and the panels at once (they read adopted documents only) and in the map
+    tiles at the next publish."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, min_length=1, max_length=300)
+    short_code: str | None = Field(default=None, max_length=40, pattern=SHORT_CODE_PATTERN)
+    status: DocumentStatus | None = None
+    zone_id: int | None = Field(default=None, gt=0)
+    source: str | None = Field(default=None, max_length=200)
+    source_url: str | None = Field(default=None, max_length=1000)
+    adopted_on: date | None = None
+    licence_note: str | None = Field(default=None, max_length=2000)
+
+    _short_code = field_validator("short_code", mode="before")(_trimmed)
+
+    @field_validator("adopted_on")
+    @classmethod
+    def _adopted_in_the_past(cls, value: date | None) -> date | None:
+        if value is not None and value > date.today():
+            raise ValueError("adopted_on cannot be in the future")
+        return value
+
+    @model_validator(mode="after")
+    def _something(self) -> DocumentPatchIn:
+        if not self.model_fields_set:
+            raise ValueError("nothing to change")
+        for key in ("name", "status"):
+            if key in self.model_fields_set and getattr(self, key) is None:
+                raise ValueError(f"{key} cannot be cleared")
+        return self
+
+
+class MunicipalityRef(BaseModel):
+    id: str
+    name: str
+
+
+class ZoneImportIn(BaseModel):
+    """A zone GeoPackage from QGIS, uploaded first (``POST /v1/admin/files``, kind ``gis``)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    file_id: int = Field(gt=0, description="The stored GeoPackage (zones layer + documents table)")
+    dry_run: bool = Field(default=False, description="Validate only: nothing staged")
 
 
 class VersionRef(BaseModel):
@@ -368,6 +438,13 @@ class DocumentFileOut(BaseModel):
     scanned_pages: list[int] | None = Field(
         default=None, description="From the PDF pre-processing; null until it has run"
     )
+    redraw_pages: list[int] | None = Field(
+        default=None,
+        description=(
+            "Pages to redraw in QGIS: scanned sheets by the week-1 assessment's rule (class C, "
+            "core.gis.sheets); [] = none, null = the pages have not been read yet"
+        ),
+    )
     uploaded_at: datetime
     added_by: str | None = None
     added_at: datetime
@@ -405,10 +482,14 @@ class GeoreferenceOut(BaseModel):
 
     dataset_version: str
     status: Literal["staged", "invalid", "published", "superseded"]
-    source: Literal["extraction", "manual_redraw"]
-    crs: str = Field(description="The plan's projected CRS the control points are in")
-    method: Literal["helmert", "affine"]
-    rmse_m: float
+    source: Literal["extraction", "manual_redraw", "gis_file"]
+    crs: str = Field(
+        description="The plan's projected CRS the control points are in (a GIS file: its own)"
+    )
+    method: Literal["helmert", "affine", "native"] = Field(
+        description="native: a GIS file in its own CRS, reprojected without a fit"
+    )
+    rmse_m: float | None = Field(default=None, description="Null for a native GIS file")
     max_rmse_m: float | None = Field(default=None, description="The document's threshold")
     max_residual_m: float | None = None
     points_used: int
@@ -442,7 +523,9 @@ class DocumentOut(BaseModel):
     lineage_id: int = Field(description="Id of the first version; all versions share it")
     version: int
     is_current_version: bool
+    municipality_id: str = Field(description="Multi-city scoping is data: every row carries it")
     name: str
+    short_code: str | None = None
     type: str
     status: DocumentStatus
     source: str | None = None
@@ -495,6 +578,7 @@ class DocumentOut(BaseModel):
 
 
 class DocumentList(BaseModel):
+    municipality: MunicipalityRef = Field(description="The municipality these documents belong to")
     items: list[DocumentOut]
     total: int = Field(default=0, description="Matching documents before paging")
     limit: int

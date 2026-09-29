@@ -115,6 +115,9 @@ class PlanningDocument(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     municipality_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    short_code: Mapped[str | None] = mapped_column(
+        Text, comment="short reference staff use for the plan (pilot short_code), e.g. DUP-NG12"
+    )
     type: Mapped[str] = mapped_column(Text, nullable=False, comment="DUP / PUP / PGR (profile)")
     status: Mapped[PlanningDocumentStatus] = mapped_column(
         Enum(

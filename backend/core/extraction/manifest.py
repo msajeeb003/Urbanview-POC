@@ -42,6 +42,11 @@ class PageSummary(_M):
     tables_skipped: str | None = None
     glyph_decoded: bool = False
     sections: list[str] = Field(default_factory=list)
+    largest_image_pct: float | None = None  # null: read by an older version
+    paths: int | None = None
+    raster: bool | None = Field(
+        default=None, description="Scanned sheet by the week-1 assessment's rule: redraw in QGIS"
+    )
 
 
 class TableSummary(_M):
@@ -74,6 +79,13 @@ class PreprocessSummary(_M):
         default_factory=list, description="Scanned pages nobody has read yet (no OCR backend)"
     )
     blank_pages: list[int] = Field(default_factory=list)
+    redraw_pages: list[int] | None = Field(
+        default=None,
+        description=(
+            "Scanned sheets by the week-1 assessment's rule (class C, core.gis.sheets): nothing to "
+            "extract, georeference and redraw them in QGIS; null when read by an older version"
+        ),
+    )
     tables: int
     chunks: int
     sections: dict[str, list[int]] = Field(default_factory=dict)
@@ -140,6 +152,9 @@ def build_manifest(
                 tables_skipped=p.tables_skipped,
                 glyph_decoded=p.glyph_decoded,
                 sections=p.sections,
+                largest_image_pct=p.largest_image_pct,
+                paths=p.path_count,
+                raster=p.raster,
             )
             for p in doc.pages
         ],
@@ -168,6 +183,7 @@ def build_manifest(
             ocr_pages=[p.number for p in doc.pages if p.method == "ocr"],
             unread_pages=[p.number for p in doc.pages if p.scanned and p.method == "none"],
             blank_pages=[p.number for p in doc.pages if p.blank],
+            redraw_pages=[p.number for p in doc.pages if p.raster],
             tables=sum(len(p.tables) for p in doc.pages),
             chunks=len(chunks),
             sections=ordered,

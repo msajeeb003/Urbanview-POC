@@ -4,8 +4,8 @@
  * "+ Upload document" (the Data sources card's action): drop PDF planning documents, GIS files and
  * cadastral extracts, check the kind each file was taken for (by its extension), upload them with
  * a progress bar each, and see what happened to each: uploaded, already uploaded (the checksum
- * matched a stored file: its record, never an error) or refused with the API's reason. PDFs can
- * go straight on to "Register a planning document" with the files preselected.
+ * matched a stored file: its record, never an error) or refused with the API's reason. PDFs and
+ * GIS drawings can go straight on to "Register a planning document" with the files preselected.
  */
 import { Cta } from "@/components/ui/cta";
 import { Modal, ModalHead } from "@/components/ui/modal";
@@ -27,9 +27,15 @@ export function UploadDialog({
   const uploads = useUploads();
   const waiting = uploads.items.filter((i) => i.status === "waiting" && i.kind).length;
   const finished = uploads.items.filter((i) => i.status === "done" || i.status === "duplicate");
+  // PDFs join as text (their role can change in the form), GIS files as drawings
   const pdfs: PickedFile[] = finished
-    .filter((i) => i.stored?.kind === "planning_document")
-    .map((i) => ({ fileId: i.stored!.id, name: i.stored!.original_filename, kind: i.stored!.kind, role: "text" }));
+    .filter((i) => i.stored?.kind === "planning_document" || i.stored?.kind === "gis")
+    .map((i) => ({
+      fileId: i.stored!.id,
+      name: i.stored!.original_filename,
+      kind: i.stored!.kind,
+      role: i.stored!.kind === "gis" ? "drawing" : "text",
+    }));
   const failed = uploads.items.filter((i) => i.status === "error").length;
   const summary = uploads.busy
     ? "Uploading…"

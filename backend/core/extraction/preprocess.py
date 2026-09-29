@@ -41,7 +41,9 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
-PREPROCESS_VERSION = "1.1"
+from core.gis.sheets import is_raster_sheet
+
+PREPROCESS_VERSION = "1.2"
 BBox = tuple[float, float, float, float]
 Source = bytes | str | Path
 
@@ -108,7 +110,15 @@ class PageData(_M):
     tables: list[PageTable] = Field(default_factory=list)
     char_count: int = 0
     image_coverage: float = 0.0
+    largest_image_pct: float = Field(
+        default=0.0,
+        description="The largest single image, % of the page (the assessment's measure)",
+    )
     path_count: int = 0
+    raster: bool = Field(
+        default=False,
+        description="Scanned sheet by the week-1 assessment's rule (core.gis.sheets): QGIS redraw",
+    )
     scanned: bool = False
     scanned_reason: Literal["no_text_layer", "low_text_density"] | None = None
     blank: bool = False
@@ -293,6 +303,22 @@ def _coverage(boxes: Sequence[BBox], page: BBox, steps: int = 48) -> float:
             if any(b[0] <= x <= b[2] and b[1] <= y <= b[3] for b in boxes):
                 hits += 1
     return round(hits / (steps * steps), 3)
+
+
+def _largest_share_pct(boxes: Sequence[BBox], page: BBox) -> float:
+    """The largest single box inside the page, % of the page's area (the assessment's
+    ``image_cover_pct``)."""
+    x0, y0, x1, y1 = page
+    area = (x1 - x0) * (y1 - y0)
+    if not boxes or area <= 0:
+        return 0.0
+    best = 0.0
+    for b in boxes:
+        w = min(b[2], x1) - max(b[0], x0)
+        h = min(b[3], y1) - max(b[1], y0)
+        if w > 0 and h > 0:
+            best = max(best, w * h)
+    return round(best / area * 100, 1)
 
 
 def detect_script(text: str) -> Literal["latin", "cyrillic", "mixed", "none"]:
@@ -537,6 +563,7 @@ def _read_page(
     char_count = sum(len("".join(line.text.split())) for b in raw for line in b.lines)
     images = [tuple(info["bbox"]) for info in page.get_image_info()]
     coverage = _coverage(images, display)  # type: ignore[arg-type]
+    largest_image = _largest_share_pct(images, display)  # type: ignore[arg-type]
     path_count = sum(1 for kind, _ in page.get_bboxlog() if "path" in kind)
     area = abs(mediabox.width * mediabox.height)
     density = char_count / max(area / 10_000, 1e-9)
@@ -602,7 +629,9 @@ def _read_page(
         tables=tables,
         char_count=char_count,
         image_coverage=coverage,
+        largest_image_pct=largest_image,
         path_count=path_count,
+        raster=is_raster_sheet(largest_image, path_count),
         scanned=scanned_reason is not None,
         scanned_reason=scanned_reason,
         blank=blank,

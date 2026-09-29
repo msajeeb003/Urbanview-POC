@@ -20,16 +20,27 @@ describe("formulas", () => {
 describe("input data", () => {
   it("names the profile's sources per dataset", () => {
     const rows = inputRows([
-      { id: "eregistri", kind: "planning", name: "eRegistri (lamp.gov.me)", url: "", provides: "" },
-      { id: "ekatastar", kind: "cadastre", name: "eKatastar", url: "", provides: "" },
-      { id: "realitica", kind: "market", name: "Realitica", url: "", provides: "" },
-      { id: "monstat", kind: "market", name: "Monstat", url: "", provides: "" },
-      { id: "site", kind: "reference", name: "site-check", url: "", provides: "" },
+      { id: "eregistri", kind: "planning", name: "eRegistri (lamp.gov.me)", url: "", provides: "", integration: "manual_upload" },
+      { id: "ekatastar", kind: "cadastre", name: "eKatastar", url: "", provides: "", integration: "access_pending" },
+      { id: "realitica", kind: "market", name: "Realitica", url: "", provides: "", integration: "file_import" },
+      { id: "monstat", kind: "market", name: "Monstat", url: "", provides: "", integration: "file_import" },
+      { id: "site", kind: "reference", name: "site-check", url: "", provides: "", integration: "reference_copy" },
     ]);
     expect(rows.map((r) => r.name)).toEqual(["Adopted planning documents", "Cadastre", "Market sources"]);
     expect(rows[0].provides).toMatch(/\(eRegistri\)$/);
     expect(rows[2].provides).toMatch(/\(Realitica, Monstat\)$/);
     expect(inputRows(null)[1].provides).toBe("parcel geometry, area and ownership status");
+  });
+
+  it("says how each kind of data reaches UrbanView, never a blanket Connected", () => {
+    const rows = inputRows([
+      { id: "eregistri", kind: "planning", name: "eRegistri", url: "", provides: "", integration: "manual_upload" },
+      { id: "ekatastar", kind: "cadastre", name: "eKatastar", url: "", provides: "", integration: "access_pending" },
+      { id: "emapa", kind: "cadastre", name: "eMapa", url: "", provides: "", integration: "access_confirmed" },
+      { id: "monstat", kind: "market", name: "Monstat", url: "", provides: "", integration: "file_import" },
+    ]);
+    expect(rows.map((r) => r.status.label)).toEqual(["Manual upload", "Access confirmed", "File import"]);
+    expect(inputRows(null).every((r) => r.status.label === "Not connected")).toBe(true);
   });
 });
 

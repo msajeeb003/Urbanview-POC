@@ -1,15 +1,18 @@
 "use client";
 
 /**
- * One planning document version (`/admin/data/documents/[id]`): its registry facts, its files and
- * its version history.
+ * One planning document version (`/admin/data/documents/[id]`): its registry facts (with its
+ * short code and municipality; "Edit" changes the current version's status, name, short code,
+ * zone, source, registry link, adoption date and licence note: `PATCH /v1/admin/documents/{id}`,
+ * audited), its files and its version history.
  *
  * Files: drop PDFs (several at once) after choosing what they are read for ("Add as" text /
- * drawing / both). Each file uploads with a progress bar, joins the version and, unless it is a
+ * drawing / both); as drawings, GIS files too (a QGIS redraw of scanned sheets, the plan's GIS). Each file uploads with a progress bar, joins the version and, unless it is a
  * drawing, goes straight to the AI extraction; its row then moves queued → extracting → ready for
  * review (or failed, with the reason) while the page re-reads its data every 3 s, and polling
  * stops once every file is finished. The same PDF dropped again is recognised by its checksum:
- * "already uploaded", the existing row, no new one. Per file: pages, scanned pages, extraction
+ * "already uploaded", the existing row, no new one. Per file: pages, the pages to redraw in QGIS
+ * (scanned sheets by the week-1 assessment's rule), extraction
  * state and cost, the geometry job, rerun / retry, the review queue filtered to the file, and
  * "Remove" (refused once an item read from it was approved).
  */
@@ -17,13 +20,16 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import {
+  ACCEPT_DRAWING,
   ACCEPT_PDF,
   documentActive,
   documentHref,
+  DOCUMENT_STATUSES,
   extractionPill,
   FILE_ROLES,
   formatCost,
   jobPill,
+  kindsForRole,
   removeBlockerText,
   reviewHref,
   rolesFor,
@@ -35,9 +41,11 @@ import {
   queueExtractionAction,
   removeFileAction,
   setFileRoleAction,
+  updateDocumentAction,
+  type DocumentEdit,
 } from "@/lib/admin/data-actions";
 import { relativeTime, utcStamp } from "@/lib/admin/format";
-import type { AdminDocument, AdminDocumentFile, AdminGeoreference, FileRole } from "@/lib/api/types";
+import type { AdminDocument, AdminDocumentFile, AdminGeoreference, DocumentStatus, FileRole } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
 import { AdminCard, type ChipTone, StatusChip } from "../parts";
@@ -80,8 +88,8 @@ function FilesTable({ doc }: { doc: AdminDocument }) {
   if (!files.length) {
     return (
       <div className="admin-note">
-        No files yet. Drop the document&apos;s PDFs above: text parts are read by the AI extraction, drawing sheets by the
-        geometry job.
+        No files yet. Drop the document&apos;s PDFs above: text parts are read by the AI extraction, drawings (plan sheets,
+        or the plan as a GIS file) by the geometry job.
       </div>
     );
   }
@@ -92,7 +100,7 @@ function FilesTable({ doc }: { doc: AdminDocument }) {
           <th>File</th>
           <th>Role</th>
           <th>Pages</th>
-          <th>Scanned</th>
+          <th>QGIS redraw</th>
           <th>Extraction</th>
           <th>Cost</th>
           <th>Geometry</th>
@@ -118,8 +126,27 @@ function FilesTable({ doc }: { doc: AdminDocument }) {
                 <RoleSelect doc={doc} file={file} />
               </td>
               <td className="mono">{file.page_count ?? "—"}</td>
-              <td className="mono" title={file.scanned_pages?.length ? `Pages ${file.scanned_pages.join(", ")}` : undefined}>
-                {file.scanned_pages == null ? "—" : file.scanned_pages.length}
+              <td
+                className="mono"
+                title={
+                  file.kind !== "planning_document"
+                    ? "A GIS file is geometry already"
+                    : file.redraw_pages == null
+                      ? "The pages are read with the extraction or the geometry job"
+                      : file.redraw_pages.length
+                        ? "Scanned sheets (the week-1 assessment's class C): redraw them in QGIS and add the GeoPackage as a drawing"
+                        : "No scanned sheet"
+                }
+              >
+                {file.kind !== "planning_document" ? (
+                  "—"
+                ) : file.redraw_pages == null ? (
+                  "not read yet"
+                ) : file.redraw_pages.length ? (
+                  <span className="redraw">p. {file.redraw_pages.join(", ")}</span>
+                ) : (
+                  "none"
+                )}
               </td>
               <td>
                 <PillView pill={extractionPill(file)} />
@@ -181,11 +208,12 @@ function GeoreferenceCard({ geo }: { geo: AdminGeoreference | null | undefined }
   }
   const status = GEOREF_STATUS[geo.status];
   const limit = geo.max_rmse_m ?? null;
+  const native = geo.method === "native";
+  const sub = native
+    ? `GIS drawing in its own coordinate system (${geo.crs}) · reprojected, no control points needed`
+    : `${geo.method === "helmert" ? "Helmert" : "Affine"} fit to ${geo.crs} · ${geo.points_used} control points${geo.source === "manual_redraw" ? " · redrawn sheets" : ""}`;
   return (
-    <AdminCard
-      title="Georeferencing"
-      sub={`${geo.method === "helmert" ? "Helmert" : "Affine"} fit to ${geo.crs} · ${geo.points_used} control points${geo.source === "manual_redraw" ? " · redrawn sheets" : ""}`}
-    >
+    <AdminCard title="Georeferencing" sub={sub}>
       <dl className="docfacts">
         <div>
           <dt>Status</dt>
@@ -196,8 +224,14 @@ function GeoreferenceCard({ geo }: { geo: AdminGeoreference | null | undefined }
         <div>
           <dt>RMSE</dt>
           <dd className="mono">
-            {metres(geo.rmse_m)}
-            {limit != null ? ` (limit ${limit} m)` : ""} · max residual {metres(geo.max_residual_m)}
+            {native ? (
+              "no fit: the file carries its coordinates"
+            ) : (
+              <>
+                {metres(geo.rmse_m)}
+                {limit != null ? ` (limit ${limit} m)` : ""} · max residual {metres(geo.max_residual_m)}
+              </>
+            )}
           </dd>
         </div>
         <div>
@@ -233,6 +267,7 @@ function GeoreferenceCard({ geo }: { geo: AdminGeoreference | null | undefined }
           </div>
         )}
       </dl>
+      {(geo.sheets ?? []).length > 0 && (
       <table className="tbl">
         <thead>
           <tr>
@@ -263,7 +298,165 @@ function GeoreferenceCard({ geo }: { geo: AdminGeoreference | null | undefined }
           ))}
         </tbody>
       </table>
+      )}
     </AdminCard>
+  );
+}
+
+function editOf(doc: AdminDocument): DocumentEdit {
+  return {
+    name: doc.name,
+    shortCode: doc.short_code ?? "",
+    status: doc.status,
+    zoneId: doc.zone_id ?? null,
+    source: doc.source ?? "",
+    sourceUrl: doc.source_url ?? "",
+    adoptedOn: doc.adopted_on ?? "",
+    licenceNote: doc.licence_note ?? "",
+  };
+}
+
+/** "Edit": the current version's registry facts (`PATCH /v1/admin/documents/{id}`, audited). */
+function EditDocument({ doc, zones, onClose }: { doc: AdminDocument; zones: ZoneOption[]; onClose: () => void }) {
+  const showToast = useShell((s) => s.showToast);
+  const [form, setForm] = useState<DocumentEdit>(() => editOf(doc));
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const set = <K extends keyof DocumentEdit>(key: K, value: DocumentEdit[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const statusChanged = form.status !== doc.status;
+  const save = () =>
+    start(async () => {
+      const result = await updateDocumentAction(doc.id, form);
+      if (!result.ok) {
+        setErrors(result.fields ?? {});
+        setMessage(result.message);
+        return;
+      }
+      showToast(result.message);
+      onClose();
+    });
+  return (
+    <form
+      className="regform docedit"
+      onSubmit={(e) => {
+        e.preventDefault();
+        save();
+      }}
+    >
+      <div className="frow">
+        <div className="field">
+          <label htmlFor="edit-name">Official name</label>
+          <input id="edit-name" value={form.name} maxLength={300} onChange={(e) => set("name", e.target.value)} />
+          {errors.name && <div className="ferr">{errors.name}</div>}
+        </div>
+        <div className="field">
+          <label htmlFor="edit-code">
+            Short code <span className="opt">optional</span>
+          </label>
+          <input
+            id="edit-code"
+            value={form.shortCode}
+            maxLength={40}
+            placeholder="DUP-NG12"
+            onChange={(e) => set("shortCode", e.target.value)}
+          />
+          {errors.short_code && <div className="ferr">{errors.short_code}</div>}
+        </div>
+      </div>
+      <div className="frow">
+        <div className="field">
+          <label htmlFor="edit-status">Status</label>
+          <select id="edit-status" value={form.status} onChange={(e) => set("status", e.target.value as DocumentStatus)}>
+            {DOCUMENT_STATUSES.map((st) => (
+              <option key={st.value} value={st.value}>
+                {st.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="edit-zone">Zone</label>
+          <select
+            id="edit-zone"
+            value={form.zoneId ?? ""}
+            onChange={(e) => set("zoneId", e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">Not assigned</option>
+            {zones.map((z) => (
+              <option key={z.id} value={z.id}>
+                {z.name}
+              </option>
+            ))}
+          </select>
+          {errors.zone_id && <div className="ferr">{errors.zone_id}</div>}
+        </div>
+        <div className="field">
+          <label htmlFor="edit-adopted">
+            Adoption date <span className="opt">optional</span>
+          </label>
+          <input
+            id="edit-adopted"
+            type="date"
+            value={form.adoptedOn}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => set("adoptedOn", e.target.value)}
+          />
+          {errors.adopted_on && <div className="ferr">{errors.adopted_on}</div>}
+        </div>
+      </div>
+      <div className="frow">
+        <div className="field">
+          <label htmlFor="edit-source">Source</label>
+          <input id="edit-source" value={form.source} maxLength={200} onChange={(e) => set("source", e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="edit-url">
+            Registry link <span className="opt">optional</span>
+          </label>
+          <input
+            id="edit-url"
+            type="url"
+            value={form.sourceUrl}
+            maxLength={1000}
+            placeholder="https://lamp.gov.me/…"
+            onChange={(e) => set("sourceUrl", e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="field">
+        <label htmlFor="edit-licence">
+          Licence / permission note <span className="opt">optional</span>
+        </label>
+        <textarea
+          id="edit-licence"
+          rows={2}
+          value={form.licenceNote}
+          maxLength={2000}
+          onChange={(e) => set("licenceNote", e.target.value)}
+        />
+      </div>
+      {statusChanged && (
+        <div className="admin-note">
+          {form.status === "adopted"
+            ? "Adopted: location and the panels use the document at once where its coverage is live; the map tiles follow at the next publish."
+            : "No longer adopted: location and the panels stop using it at once; the map tiles follow at the next publish."}
+        </div>
+      )}
+      {message && (
+        <p className="formmsg" role="alert">
+          {message}
+        </p>
+      )}
+      <div className="rowacts">
+        <button type="button" className="abtn sm ghost" onClick={onClose} disabled={pending}>
+          Cancel
+        </button>
+        <button type="submit" className="abtn sm" disabled={pending}>
+          {pending ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -271,18 +464,22 @@ export function DocumentDetail({
   doc,
   zones,
   types,
+  municipalityName,
   readOnly = false,
 }: {
   doc: AdminDocument;
   zones: ZoneOption[];
   types: TypeOption[];
+  /** The municipality's name (the profile's); the document carries its id. */
+  municipalityName?: string | null;
   /** Reviewers: the document, its files and jobs without the write controls. */
   readOnly?: boolean;
 }) {
   const [addAs, setAddAs] = useState<FileRole>("text");
   const [versionKey, setVersionKey] = useState<number | null>(null);
+  const [editing, setEditing] = useState(false);
   const uploads = useUploads({
-    pdfOnly: true,
+    kinds: kindsForRole(addAs),
     defaultRole: addAs,
     onUploaded: async (item) => {
       const stored = item.stored!;
@@ -310,9 +507,19 @@ export function DocumentDetail({
       </div>
       <AdminCard
         title={doc.name}
-        sub={`${doc.type} · version ${doc.version}${doc.zone_name ? ` · ${doc.zone_name}` : " · no zone yet"}`}
-        action={<DocumentActions doc={doc} onNewVersion={() => setVersionKey(Date.now())} />}
+        sub={`${doc.short_code ? `${doc.short_code} · ` : ""}${doc.type} · version ${doc.version}${doc.zone_name ? ` · ${doc.zone_name}` : " · no zone yet"}`}
+        action={
+          <div className="rowacts">
+            <DocumentActions doc={doc} onNewVersion={() => setVersionKey(Date.now())} />
+            {!readOnly && doc.is_current_version && !editing && (
+              <button type="button" className="abtn sm ghost" onClick={() => setEditing(true)}>
+                Edit
+              </button>
+            )}
+          </div>
+        }
       >
+        {editing && <EditDocument key={doc.id} doc={doc} zones={zones} onClose={() => setEditing(false)} />}
         <dl className="docfacts">
           <div>
             <dt>Status</dt>
@@ -377,6 +584,14 @@ export function DocumentDetail({
             <dt>Adopted</dt>
             <dd className="mono">{doc.adopted_on ?? "—"}</dd>
           </div>
+          <div>
+            <dt>Short code</dt>
+            <dd className="mono">{doc.short_code ?? "—"}</dd>
+          </div>
+          <div>
+            <dt>Municipality</dt>
+            <dd>{municipalityName ?? doc.municipality_id}</dd>
+          </div>
           <div className="wide">
             <dt>Licence / permission</dt>
             <dd>{doc.licence_note ?? "Not recorded"}</dd>
@@ -413,8 +628,12 @@ export function DocumentDetail({
               ))}
             </div>
             <DropZone
-              accept={ACCEPT_PDF}
-              title="Drop PDFs here or click to choose — several at once"
+              accept={addAs === "drawing" ? ACCEPT_DRAWING : ACCEPT_PDF}
+              title={
+                addAs === "drawing"
+                  ? "Drop drawings here — plan-sheet PDFs or GIS files (.gpkg, .geojson, zipped Shapefile)"
+                  : "Drop PDFs here or click to choose — several at once"
+              }
               hint={FILE_ROLES.find((r) => r.value === addAs)?.hint}
               onFiles={(files) => {
                 uploads.add(files, addAs);

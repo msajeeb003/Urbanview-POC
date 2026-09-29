@@ -79,6 +79,9 @@ kind = "planning"
 name = "eRegistri (lamp.gov.me)"
 url = "https://lamp.gov.me/PlanningDocument?m=PG"
 provides = "Adopted planning documents for Podgorica (mostly PDF)"
+format = "PDF"
+integration = "manual_upload"
+integration_note = "Plan PDFs are downloaded from the registry and uploaded by staff; each document keeps its registry link"
 
 [[sources]]
 id = "mondarchitects_site_check"
@@ -86,6 +89,9 @@ kind = "reference"
 name = "mondarchitects.com/site-check"
 url = "https://mondarchitects.com/site-check"
 provides = "Reference list of zones and the planning documents within each (confirm against the official registry)"
+format = "Web"
+integration = "reference_copy"
+integration_note = "A saved copy of the page the zones were drawn from; not read by the system"
 
 [[sources]]
 id = "ekatastar"
@@ -93,6 +99,8 @@ kind = "cadastre"
 name = "eKatastar"
 url = "https://ekatastar.me"
 provides = "Ownership and legal burdens of cadastral parcels"
+format = "API"
+integration_note = "Bulk access and licence to be confirmed: no ownership or legal-burden data is imported"
 
 [[sources]]
 id = "emapa"
@@ -100,6 +108,8 @@ kind = "cadastre"
 name = "eMapa"
 url = "https://emapa.me"
 provides = "Spatial and cadastral data"
+format = "GIS"
+integration_note = "Bulk export and licence to be confirmed: nothing is imported yet"
 
 [[sources]]
 id = "uzn_geoportal"
@@ -107,6 +117,8 @@ kind = "cadastre"
 name = "Geoportal Uprave za nekretnine (UZN)"
 url = "https://webmap.uzn.me/geoportal01"
 provides = "Cadastral parcels"
+format = "GIS"
+integration_note = "Bulk export and licence to be confirmed: nothing is imported yet"
 
 [[sources]]
 id = "realitica"
@@ -114,6 +126,9 @@ kind = "market"
 name = "Realitica"
 url = "https://www.realitica.com"
 provides = "Real-estate listings — market reference prices"
+format = "Web"
+integration = "file_import"
+integration_note = "Listing prices summarised in range sheets that staff upload; the import job reads them for review"
 
 [[sources]]
 id = "estitor"
@@ -121,6 +136,9 @@ kind = "market"
 name = "Estitor"
 url = "https://www.estitor.com"
 provides = "Real-estate listings — market reference prices"
+format = "Web"
+integration = "file_import"
+integration_note = "Listing prices summarised in range sheets that staff upload; the import job reads them for review"
 
 [[sources]]
 id = "monstat"
@@ -128,6 +146,9 @@ kind = "market"
 name = "Monstat"
 url = "https://www.monstat.org"
 provides = "Official statistics: selling prices and construction cost indicators"
+format = "Table"
+integration = "file_import"
+integration_note = "Published tables uploaded by staff; the import job reads them for review"
 
 # --- AI extraction (core.extraction): how this place's planning documents are written ----------
 # Rendered into the extraction prompts (docs/specs/extraction-contract.md); the prompt templates

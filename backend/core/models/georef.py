@@ -51,16 +51,25 @@ class GeorefDataset(Base):
         Text,
         nullable=False,
         server_default=text("'extraction'"),
-        comment="extraction (vector sheets) | manual_redraw (scanned sheets redrawn in QGIS)",
+        comment=(
+            "extraction (vector sheets) | manual_redraw (scanned sheets redrawn in QGIS)"
+            " | gis_file (a GIS drawing in its own CRS: the geometry job)"
+        ),
     )
     crs: Mapped[str] = mapped_column(Text, nullable=False, comment="the plan's projected CRS")
-    method: Mapped[str] = mapped_column(Text, nullable=False, comment="helmert | affine")
+    method: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        comment="helmert | affine | native (a GIS file in its own CRS, no fit)",
+    )
     transform: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         comment="parameters, per-sheet page -> CRS parameters, residuals, control-point hash",
     )
-    rmse_m: Mapped[float] = mapped_column(Float(53), nullable=False)
+    rmse_m: Mapped[float | None] = mapped_column(
+        Float(53), comment="null for a native GIS file (no fit)"
+    )
     max_residual_m: Mapped[float | None] = mapped_column(Float(53))
     points_used: Mapped[int] = mapped_column(Integer, nullable=False)
     sheets: Mapped[list[Any]] = mapped_column(
@@ -101,8 +110,11 @@ class GeorefDataset(Base):
             name="ck_georef_datasets_status",
         ),
         CheckConstraint(
-            "source IN ('extraction', 'manual_redraw')", name="ck_georef_datasets_source"
+            "source IN ('extraction', 'manual_redraw', 'gis_file')",
+            name="ck_georef_datasets_source",
         ),
-        CheckConstraint("method IN ('helmert', 'affine')", name="ck_georef_datasets_method"),
+        CheckConstraint(
+            "method IN ('helmert', 'affine', 'native')", name="ck_georef_datasets_method"
+        ),
         Index("ix_georef_datasets_document", "document_id", "id"),
     )

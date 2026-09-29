@@ -2,10 +2,12 @@
 
 /**
  * "Register a planning document" (and "New version of …"): the form behind
- * `POST /v1/admin/documents`. Name, type (the profile's document types, DUP / PUP / PGR first),
+ * `POST /v1/admin/documents`. Name, short code (optional, "DUP-NG12"; a new version keeps the
+ * previous one), type (the profile's document types, DUP / PUP / PGR first),
  * status (adopted / in progress / superseded), source (default eRegistri) and its link, zone, the
  * adoption date, the licence / permission note, and the document's files: the PDFs just uploaded
- * (each read as text, drawing or both) plus any dropped here. A new version is registered against
+ * (each read as text, drawing or both) and GIS drawings (a QGIS redraw, the plan's GIS: drawing
+ * only), plus any dropped here. A new version is registered against
  * the current one (`replaces_document_id`): the form starts from its values and shows the version
  * history. On success a toast and the document's page; on failure the form keeps everything typed
  * and says what to fix.
@@ -15,7 +17,7 @@ import { useState, useTransition } from "react";
 
 import { Cta } from "@/components/ui/cta";
 import { Modal, ModalHead } from "@/components/ui/modal";
-import { ACCEPT_PDF, documentHref, DOCUMENT_STATUSES, FILE_ROLES, rolesFor, statusChip } from "@/lib/admin/data";
+import { ACCEPT_DRAWING, documentHref, DOCUMENT_STATUSES, FILE_ROLES, rolesFor, statusChip } from "@/lib/admin/data";
 import { registerDocumentAction, type RegisterInput } from "@/lib/admin/data-actions";
 import { utcStamp } from "@/lib/admin/format";
 import type { AdminDocument, DocumentStatus, FileRole } from "@/lib/api/types";
@@ -45,6 +47,7 @@ export interface TypeOption {
 function initialState(replaces: AdminDocument | null | undefined, types: TypeOption[]) {
   return {
     name: replaces?.name ?? "",
+    shortCode: replaces?.short_code ?? "",
     type: replaces?.type ?? types[0]?.value ?? "DUP",
     status: (replaces?.status ?? "adopted") as DocumentStatus,
     source: replaces?.source ?? "eRegistri",
@@ -78,7 +81,7 @@ export function RegisterDialog({
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const uploads = useUploads({
-    pdfOnly: true,
+    kinds: ["planning_document", "gis"],
     onUploaded: (item) => {
       const stored = item.stored!;
       setFiles((list) =>
@@ -162,6 +165,20 @@ export function RegisterDialog({
         </div>
         <div className="frow">
           <div className="field">
+            <label htmlFor="doc-code">
+              Short code <span className="opt">optional</span>
+            </label>
+            <input
+              id="doc-code"
+              value={form.shortCode}
+              maxLength={40}
+              placeholder="DUP-NG12"
+              aria-invalid={!!errors.short_code || undefined}
+              onChange={(e) => set("shortCode", e.target.value)}
+            />
+            {errors.short_code && <div className="ferr">{errors.short_code}</div>}
+          </div>
+          <div className="field">
             <label htmlFor="doc-type">Type</label>
             <select id="doc-type" value={form.type} onChange={(e) => set("type", e.target.value)}>
               {types.map((t) => (
@@ -172,6 +189,8 @@ export function RegisterDialog({
             </select>
             {errors.type && <div className="ferr">{errors.type}</div>}
           </div>
+        </div>
+        <div className="frow">
           <div className="field">
             <label htmlFor="doc-status">Status</label>
             <select
@@ -187,8 +206,6 @@ export function RegisterDialog({
             </select>
             {errors.status && <div className="ferr">{errors.status}</div>}
           </div>
-        </div>
-        <div className="frow">
           <div className="field">
             <label htmlFor="doc-zone">
               Zone <span className="opt">optional</span>
@@ -207,6 +224,8 @@ export function RegisterDialog({
             </select>
             {errors.zone_id && <div className="ferr">{errors.zone_id}</div>}
           </div>
+        </div>
+        <div className="frow">
           <div className="field">
             <label htmlFor="doc-adopted">
               Adoption date <span className="opt">optional</span>
@@ -220,12 +239,12 @@ export function RegisterDialog({
             />
             {errors.adopted_on && <div className="ferr">{errors.adopted_on}</div>}
           </div>
-        </div>
-        <div className="frow">
           <div className="field">
             <label htmlFor="doc-source">Source</label>
             <input id="doc-source" value={form.source} maxLength={200} onChange={(e) => set("source", e.target.value)} />
           </div>
+        </div>
+        <div className="frow">
           <div className="field">
             <label htmlFor="doc-url">
               Registry link <span className="opt">optional</span>
@@ -294,9 +313,9 @@ export function RegisterDialog({
             </ul>
           )}
           <DropZone
-            accept={ACCEPT_PDF}
-            title={files.length ? "Add more PDFs" : "Drop the document's PDFs here or click to choose"}
-            hint="Text files are read by the AI extraction, drawings by the geometry job. Files can also be added later."
+            accept={ACCEPT_DRAWING}
+            title={files.length ? "Add more files" : "Drop the document's PDFs (and GIS drawings) here or click to choose"}
+            hint="PDF text is read by the AI extraction; drawings (plan-sheet PDFs, a QGIS redraw or the plan's GIS) by the geometry job. Files can also be added later."
             onFiles={(list) => {
               uploads.add(list);
               void uploads.start();

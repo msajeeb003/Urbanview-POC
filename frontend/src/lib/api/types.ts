@@ -69,6 +69,7 @@ export type AdminDocument = S["DocumentOut"];
 export type AdminDocumentFile = S["DocumentFileOut"];
 export type AdminDocumentList = S["DocumentList"];
 export type AdminJob = S["JobOut"];
+export type AdminJobList = S["JobList"];
 export type AdminVersionRef = S["VersionRef"];
 export type AdminGeoreference = S["GeoreferenceOut"];
 export type StoredFile = S["StoredFileOut"];

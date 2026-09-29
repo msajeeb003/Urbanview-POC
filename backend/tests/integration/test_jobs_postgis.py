@@ -303,16 +303,19 @@ async def test_manual_retry_requeues_a_failed_job(admin_app, dispatcher):
 async def test_eager_celery_task_runs_through_the_api(postgis_url, storage, monkeypatch):
     """With ``task_always_eager`` the real task runs inside the request: the enqueue reply already
     shows its outcome (the extraction run over a placeholder PDF with a scripted model; the
-    geometry stub's clear not-implemented error), attempts and wall time."""
+    geometry job's plain refusal of a GIS file that is no document's drawing, never retried),
+    attempts and wall time."""
     from jobs.celery_app import celery_app
     from jobs.enqueue import CeleryDispatcher
     from jobs.tasks.extraction import configure_extraction, configure_preprocess
+    from jobs.tasks.ingestion import configure_ingestion
     from tests.extraction_script import Transcriber
 
     storage.get_bytes = lambda key: storage.objects[key][0]
     configure_job_store(SqlJobStore(database_url=postgis_url))
     configure_extraction(database_url=postgis_url, storage=storage, model=Transcriber())
     configure_preprocess(database_url=postgis_url, storage=storage)
+    configure_ingestion(database_url=postgis_url, storage=storage)
     monkeypatch.setattr(celery_app.conf, "task_always_eager", True)
     app = build(postgis_url, storage, CeleryDispatcher())
     try:
@@ -329,6 +332,7 @@ async def test_eager_celery_task_runs_through_the_api(postgis_url, storage, monk
         configure_job_store(None)
         configure_extraction(database_url=None, storage=None, model=None)
         configure_preprocess(database_url=None, storage=None)
+        configure_ingestion(database_url=None, storage=None)
     assert extract.status_code == 202, extract.text
     job = extract.json()
     assert job["status"] == "succeeded" and job["attempts"] == 1, job
@@ -338,4 +342,5 @@ async def test_eager_celery_task_runs_through_the_api(postgis_url, storage, monk
     assert job["cost"]["wall_time_ms"] is not None
     assert status.json() == job
     assert geo.status_code == 202 and geo.json()["status"] == "failed"
-    assert "geometry extraction lands with the GIS track item" in geo.json()["error"]
+    assert geo.json()["attempts"] == 1  # a final answer, not retried
+    assert "not a drawing of any current planning document" in geo.json()["error"]

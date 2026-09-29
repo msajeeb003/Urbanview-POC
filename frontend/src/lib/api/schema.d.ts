@@ -394,7 +394,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Change the current version's status, name, short code, zone, source or link */
+        patch: operations["update_document_v1_admin_documents__document_id__patch"];
         trace?: never;
     };
     "/v1/admin/documents/{document_id}/files": {
@@ -460,6 +461,23 @@ export interface paths {
         put?: never;
         /** Queue the LLM extraction run over one file of a document version (staging only) */
         post: operations["enqueue_extract_job_v1_admin_documents__document_id__jobs_extract_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/zones/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue the import of a zone GeoPackage drawn in QGIS (validated, then staged) */
+        post: operations["import_zones_v1_admin_zones_import_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2426,6 +2444,20 @@ export interface components {
             url: string;
             /** Provides */
             provides: string;
+            /**
+             * Format
+             * @description PDF, GIS, API, Web, Table
+             */
+            format?: string | null;
+            /**
+             * Integration
+             * @description How UrbanView gets its data today; for a cadastral source it follows [cadastre.sources.<id>].access (confirmed or not)
+             * @default not_connected
+             * @enum {string}
+             */
+            integration: "linked" | "manual_upload" | "file_import" | "reference_copy" | "access_pending" | "access_confirmed" | "not_connected";
+            /** Integration Note */
+            integration_note?: string | null;
         };
         /** DateRange */
         DateRange: {
@@ -2649,6 +2681,11 @@ export interface components {
              */
             scanned_pages?: number[] | null;
             /**
+             * Redraw Pages
+             * @description Pages to redraw in QGIS: scanned sheets by the week-1 assessment's rule (class C, core.gis.sheets); [] = none, null = the pages have not been read yet
+             */
+            redraw_pages?: number[] | null;
+            /**
              * Uploaded At
              * Format: date-time
              */
@@ -2716,6 +2753,11 @@ export interface components {
             /** Name */
             name: string;
             /**
+             * Short Code
+             * @description Short reference staff use for the plan (the pilot's short_code), e.g. DUP-NG12; a new version keeps the previous one unless it is given
+             */
+            short_code?: string | null;
+            /**
              * Type
              * @description A key of the municipality's document_types (DUP / PUP / PGR)
              */
@@ -2751,6 +2793,8 @@ export interface components {
         };
         /** DocumentList */
         DocumentList: {
+            /** @description The municipality these documents belong to */
+            municipality: components["schemas"]["MunicipalityRef"];
             /** Items */
             items: components["schemas"]["DocumentOut"][];
             /**
@@ -2777,8 +2821,15 @@ export interface components {
             version: number;
             /** Is Current Version */
             is_current_version: boolean;
+            /**
+             * Municipality Id
+             * @description Multi-city scoping is data: every row carries it
+             */
+            municipality_id: string;
             /** Name */
             name: string;
+            /** Short Code */
+            short_code?: string | null;
             /** Type */
             type: string;
             /**
@@ -2898,6 +2949,31 @@ export interface components {
             coverage_counts: components["schemas"]["CoverageCounts"];
             /** General Planning Summary */
             general_planning_summary?: string | null;
+        };
+        /**
+         * DocumentPatchIn
+         * @description What ``PATCH /v1/admin/documents/{id}`` may change on the current version; a field left
+         *     out stays as it is, ``null`` clears the optional ones. A status change takes effect in
+         *     location resolution and the panels at once (they read adopted documents only) and in the map
+         *     tiles at the next publish.
+         */
+        DocumentPatchIn: {
+            /** Name */
+            name?: string | null;
+            /** Short Code */
+            short_code?: string | null;
+            /** Status */
+            status?: ("adopted" | "in_progress" | "superseded") | null;
+            /** Zone Id */
+            zone_id?: number | null;
+            /** Source */
+            source?: string | null;
+            /** Source Url */
+            source_url?: string | null;
+            /** Adopted On */
+            adopted_on?: string | null;
+            /** Licence Note */
+            licence_note?: string | null;
         };
         /**
          * DocumentZone
@@ -3515,19 +3591,23 @@ export interface components {
              * Source
              * @enum {string}
              */
-            source: "extraction" | "manual_redraw";
+            source: "extraction" | "manual_redraw" | "gis_file";
             /**
              * Crs
-             * @description The plan's projected CRS the control points are in
+             * @description The plan's projected CRS the control points are in (a GIS file: its own)
              */
             crs: string;
             /**
              * Method
+             * @description native: a GIS file in its own CRS, reprojected without a fit
              * @enum {string}
              */
-            method: "helmert" | "affine";
-            /** Rmse M */
-            rmse_m: number;
+            method: "helmert" | "affine" | "native";
+            /**
+             * Rmse M
+             * @description Null for a native GIS file
+             */
+            rmse_m?: number | null;
             /**
              * Max Rmse M
              * @description The document's threshold
@@ -4027,7 +4107,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps";
+            type: "extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "import_zones";
             /** Queue */
             queue: string;
             /**
@@ -4772,6 +4852,13 @@ export interface components {
             terminology: components["schemas"]["Terminology"];
             /** Sources */
             sources?: components["schemas"]["DataSource"][];
+        };
+        /** MunicipalityRef */
+        MunicipalityRef: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** OrderCreated */
         OrderCreated: {
@@ -5759,6 +5846,11 @@ export interface components {
             unread_pages?: number[];
             /** Blank Pages */
             blank_pages?: number[];
+            /**
+             * Redraw Pages
+             * @description Scanned sheets by the week-1 assessment's rule (class C, core.gis.sheets): nothing to extract, georeference and redraw them in QGIS; null when read by an older version
+             */
+            redraw_pages?: number[] | null;
             /** Tables */
             tables: number;
             /** Chunks */
@@ -7108,6 +7200,23 @@ export interface components {
             subtitle_en: string;
             /** Subtitle Me */
             subtitle_me: string;
+        };
+        /**
+         * ZoneImportIn
+         * @description A zone GeoPackage from QGIS, uploaded first (``POST /v1/admin/files``, kind ``gis``).
+         */
+        ZoneImportIn: {
+            /**
+             * File Id
+             * @description The stored GeoPackage (zones layer + documents table)
+             */
+            file_id: number;
+            /**
+             * Dry Run
+             * @description Validate only: nothing staged
+             * @default false
+             */
+            dry_run: boolean;
         };
         /** ZoneIndex */
         ZoneIndex: {
@@ -8785,6 +8894,76 @@ export interface operations {
             };
         };
     };
+    update_document_v1_admin_documents__document_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                document_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not the current version (`not_current_version`), or the short code already names another document (`short_code_taken`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Nothing to change, an unknown zone, or a value out of bounds */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Database, object storage or job queue unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     attach_document_files_v1_admin_documents__document_id__files_post: {
         parameters: {
             query?: never;
@@ -9147,6 +9326,83 @@ export interface operations {
             };
         };
     };
+    import_zones_v1_admin_zones_import_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZoneImportIn"];
+            };
+        };
+        responses: {
+            /** @description The same import of the same file is already queued or running */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Missing or unknown bearer token (`unauthorized`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The principal is neither admin nor reviewer (`forbidden`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such stored file */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The file is not a GeoPackage GIS file (`not_a_geopackage`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Database, object storage or job queue unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     list_proposals_v1_admin_engine_proposals_get: {
         parameters: {
             query?: never;
@@ -9240,7 +9496,7 @@ export interface operations {
     list_jobs_v1_admin_jobs_get: {
         parameters: {
             query?: {
-                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps") | null;
+                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "import_zones") | null;
                 status?: ("queued" | "running" | "retrying" | "succeeded" | "failed" | "cancelled") | null;
                 /** @description `<target_type>:<id>`, e.g. `document:12` */
                 target?: string | null;
@@ -9303,7 +9559,7 @@ export interface operations {
             query?: {
                 /** @description `<target_type>:<id>`, e.g. `document:12` */
                 target?: string | null;
-                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps") | null;
+                type?: ("extract_document" | "preprocess_file" | "process_geometry" | "publish_approved" | "send_email" | "import_market_data" | "refresh_heatmaps" | "import_zones") | null;
                 limit?: number;
             };
             header?: {

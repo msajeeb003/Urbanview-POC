@@ -1661,6 +1661,81 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Change the current version's status, name, short code, zone, source or link",
+        "operationId": "update_document_v1_admin_documents__document_id__patch",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentPatchIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown bearer token (`unauthorized`)"
+          },
+          "403": {
+            "description": "The principal is neither admin nor reviewer (`forbidden`)"
+          },
+          "503": {
+            "description": "Database, object storage or job queue unavailable"
+          },
+          "404": {
+            "description": "No such document"
+          },
+          "409": {
+            "description": "Not the current version (`not_current_version`), or the short code already names another document (`short_code_taken`)"
+          },
+          "422": {
+            "description": "Nothing to change, an unknown zone, or a value out of bounds"
+          }
+        }
       }
     },
     "/v1/admin/documents/{document_id}/files": {
@@ -2101,6 +2176,83 @@
         }
       }
     },
+    "/v1/admin/zones/import": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Queue the import of a zone GeoPackage drawn in QGIS (validated, then staged)",
+        "operationId": "import_zones_v1_admin_zones_import_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZoneImportIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown bearer token (`unauthorized`)"
+          },
+          "403": {
+            "description": "The principal is neither admin nor reviewer (`forbidden`)"
+          },
+          "503": {
+            "description": "Database, object storage or job queue unavailable"
+          },
+          "200": {
+            "description": "The same import of the same file is already queued or running"
+          },
+          "404": {
+            "description": "No such stored file"
+          },
+          "409": {
+            "description": "The file is not a GeoPackage GIS file (`not_a_geopackage`)"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/admin/engine/proposals": {
       "get": {
         "tags": [
@@ -2227,7 +2379,8 @@
                     "publish_approved",
                     "send_email",
                     "import_market_data",
-                    "refresh_heatmaps"
+                    "refresh_heatmaps",
+                    "import_zones"
                   ],
                   "type": "string"
                 },
@@ -2429,7 +2582,8 @@
                     "publish_approved",
                     "send_email",
                     "import_market_data",
-                    "refresh_heatmaps"
+                    "refresh_heatmaps",
+                    "import_zones"
                   ],
                   "type": "string"
                 },
@@ -10057,6 +10211,44 @@
           "provides": {
             "type": "string",
             "title": "Provides"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format",
+            "description": "PDF, GIS, API, Web, Table"
+          },
+          "integration": {
+            "type": "string",
+            "enum": [
+              "linked",
+              "manual_upload",
+              "file_import",
+              "reference_copy",
+              "access_pending",
+              "access_confirmed",
+              "not_connected"
+            ],
+            "title": "Integration",
+            "description": "How UrbanView gets its data today; for a cadastral source it follows [cadastre.sources.<id>].access (confirmed or not)",
+            "default": "not_connected"
+          },
+          "integration_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Integration Note"
           }
         },
         "type": "object",
@@ -10551,6 +10743,21 @@
             "title": "Scanned Pages",
             "description": "From the PDF pre-processing; null until it has run"
           },
+          "redraw_pages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redraw Pages",
+            "description": "Pages to redraw in QGIS: scanned sheets by the week-1 assessment's rule (class C, core.gis.sheets); [] = none, null = the pages have not been read yet"
+          },
           "uploaded_at": {
             "type": "string",
             "format": "date-time",
@@ -10747,6 +10954,20 @@
             "minLength": 1,
             "title": "Name"
           },
+          "short_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^[\\w][\\w .\\-/]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Code",
+            "description": "Short reference staff use for the plan (the pilot's short_code), e.g. DUP-NG12; a new version keeps the previous one unless it is given"
+          },
           "type": {
             "type": "string",
             "maxLength": 20,
@@ -10862,6 +11083,10 @@
       },
       "DocumentList": {
         "properties": {
+          "municipality": {
+            "$ref": "#/components/schemas/MunicipalityRef",
+            "description": "The municipality these documents belong to"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/DocumentOut"
@@ -10886,6 +11111,7 @@
         },
         "type": "object",
         "required": [
+          "municipality",
           "items",
           "limit",
           "offset"
@@ -10911,9 +11137,25 @@
             "type": "boolean",
             "title": "Is Current Version"
           },
+          "municipality_id": {
+            "type": "string",
+            "title": "Municipality Id",
+            "description": "Multi-city scoping is data: every row carries it"
+          },
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "short_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Code"
           },
           "type": {
             "type": "string",
@@ -11177,6 +11419,7 @@
           "lineage_id",
           "version",
           "is_current_version",
+          "municipality_id",
           "name",
           "type",
           "status",
@@ -11271,6 +11514,116 @@
           "coverage_counts"
         ],
         "title": "DocumentPanel"
+      },
+      "DocumentPatchIn": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "short_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^[\\w][\\w .\\-/]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Code"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "adopted",
+                  "in_progress",
+                  "superseded"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "zone_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone Id"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "adopted_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adopted On"
+          },
+          "licence_note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Licence Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DocumentPatchIn",
+        "description": "What ``PATCH /v1/admin/documents/{id}`` may change on the current version; a field left\nout stays as it is, ``null`` clears the optional ones. A status change takes effect in\nlocation resolution and the panels at once (they read adopted documents only) and in the map\ntiles at the next publish."
       },
       "DocumentZone": {
         "properties": {
@@ -12800,26 +13153,37 @@
             "type": "string",
             "enum": [
               "extraction",
-              "manual_redraw"
+              "manual_redraw",
+              "gis_file"
             ],
             "title": "Source"
           },
           "crs": {
             "type": "string",
             "title": "Crs",
-            "description": "The plan's projected CRS the control points are in"
+            "description": "The plan's projected CRS the control points are in (a GIS file: its own)"
           },
           "method": {
             "type": "string",
             "enum": [
               "helmert",
-              "affine"
+              "affine",
+              "native"
             ],
-            "title": "Method"
+            "title": "Method",
+            "description": "native: a GIS file in its own CRS, reprojected without a fit"
           },
           "rmse_m": {
-            "type": "number",
-            "title": "Rmse M"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rmse M",
+            "description": "Null for a native GIS file"
           },
           "max_rmse_m": {
             "anyOf": [
@@ -12966,7 +13330,6 @@
           "source",
           "crs",
           "method",
-          "rmse_m",
           "points_used",
           "created_at"
         ],
@@ -14128,7 +14491,8 @@
               "publish_approved",
               "send_email",
               "import_market_data",
-              "refresh_heatmaps"
+              "refresh_heatmaps",
+              "import_zones"
             ],
             "title": "Type"
           },
@@ -16158,6 +16522,24 @@
           "terminology"
         ],
         "title": "MunicipalityProfile"
+      },
+      "MunicipalityRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MunicipalityRef"
       },
       "OrderCreated": {
         "properties": {
@@ -18518,6 +18900,21 @@
             },
             "type": "array",
             "title": "Blank Pages"
+          },
+          "redraw_pages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redraw Pages",
+            "description": "Scanned sheets by the week-1 assessment's rule (class C, core.gis.sheets): nothing to extract, georeference and redraw them in QGIS; null when read by an older version"
           },
           "tables": {
             "type": "integer",
@@ -22228,6 +22625,29 @@
           "subtitle_me"
         ],
         "title": "ZoneHeader"
+      },
+      "ZoneImportIn": {
+        "properties": {
+          "file_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "File Id",
+            "description": "The stored GeoPackage (zones layer + documents table)"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "description": "Validate only: nothing staged",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "file_id"
+        ],
+        "title": "ZoneImportIn",
+        "description": "A zone GeoPackage from QGIS, uploaded first (``POST /v1/admin/files``, kind ``gis``)."
       },
       "ZoneIndex": {
         "properties": {

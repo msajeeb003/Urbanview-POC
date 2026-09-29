@@ -11,12 +11,22 @@ import {
   filterQuery,
   filtersHref,
   formatCost,
+  formatDuration,
   guessKind,
+  integrationChip,
   jobPill,
+  jobTimes,
+  kindIntegration,
+  kindsForRole,
   parseFilters,
+  reasonText,
+  redrawText,
   rolesFor,
+  sourceRows,
   zoneOptions,
 } from "./data";
+
+const NOW = new Date("2026-09-26T10:30:00Z");
 
 function job(over: Partial<AdminJob> = {}): AdminJob {
   return {
@@ -65,6 +75,44 @@ describe("uploads", () => {
   it("lets GIS files be drawings only", () => {
     expect(rolesFor("gis")).toEqual(["drawing"]);
     expect(rolesFor("planning_document")).toEqual(["text", "drawing", "both"]);
+    expect(kindsForRole("drawing")).toEqual(["planning_document", "gis"]);
+    expect(kindsForRole("text")).toEqual(["planning_document"]);
+    expect(kindsForRole("both")).toEqual(["planning_document"]);
+  });
+});
+
+describe("sources", () => {
+  const profile = [
+    { id: "eregistri", kind: "planning", name: "eRegistri", url: "https://x", provides: "Plans", format: "PDF", integration: "manual_upload", integration_note: "Uploaded by staff" },
+    { id: "ekatastar", kind: "cadastre", name: "eKatastar", url: "https://y", provides: "Owners", integration: "access_pending" },
+    { id: "monstat", kind: "market", name: "Monstat", url: "https://z", provides: "Prices", integration: "not_connected" },
+  ] as const;
+
+  it("never calls a source Linked unless the profile says it is", () => {
+    const rows = sourceRows([...profile]);
+    expect(rows.map((r) => integrationChip(r.integration).label)).toEqual(["Manual upload", "Access pending", "Not connected"]);
+    expect(rows[0]).toMatchObject({ format: "PDF", note: "Uploaded by staff", url: "https://x" });
+    expect(rows[2]).toMatchObject({ format: "—", note: null, integration: "not_connected" });
+    expect(integrationChip("linked")).toEqual({ label: "Linked", tone: "ok" });
+    expect(sourceRows(null)).toEqual([]);
+  });
+
+  it("names a kind by its best-connected source", () => {
+    expect(kindIntegration([...profile], "cadastre")).toBe("access_pending");
+    expect(kindIntegration([...profile, { id: "emapa", kind: "cadastre", name: "eMapa", url: "", provides: "", integration: "access_confirmed" }], "cadastre")).toBe("access_confirmed");
+    expect(kindIntegration([], "market")).toBe("not_connected");
+  });
+});
+
+describe("the redraw flag", () => {
+  it("names the scanned sheets of a PDF, nothing before its pages are read", () => {
+    expect(redrawText({ kind: "planning_document", redraw_pages: [3, 5] })).toBe("needs QGIS redraw · p. 3, 5");
+    expect(redrawText({ kind: "planning_document", redraw_pages: [] })).toBeNull();
+    expect(redrawText({ kind: "planning_document", redraw_pages: null })).toBeNull();
+    expect(redrawText({ kind: "gis", redraw_pages: [1] })).toBeNull();
+    expect(redrawText({ kind: "planning_document", redraw_pages: [1, 2, 3, 4, 5, 6, 7, 8] })).toBe(
+      "needs QGIS redraw · p. 1, 2, 3, 4, 5, 6 …",
+    );
   });
 });
 
@@ -88,20 +136,48 @@ describe("extraction and job pills", () => {
       file({
         extraction_state: "failed",
         extraction_error: "ExtractionFailed: no readable page",
-        extraction_job: job({ status: "failed", attempts: 3 }),
+        extraction_job: job({
+          status: "failed",
+          attempts: 3,
+          started_at: "2026-09-26T10:01:00Z",
+          finished_at: "2026-09-26T10:20:00Z",
+          cost: { wall_time_ms: 81_000 },
+        }),
       }),
+      NOW,
     );
-    expect(failed).toMatchObject({ label: "Failed", detail: "3/3 attempts", reason: "ExtractionFailed: no readable page" });
+    expect(failed).toMatchObject({
+      label: "Failed",
+      detail: "3/3 attempts · finished 10 min ago",
+      reason: "ExtractionFailed: no readable page",
+      times: "started 2026-09-26 10:01 UTC · finished 2026-09-26 10:20 UTC · took 1 min 21 s",
+    });
+  });
+
+  it("says when a job ran", () => {
+    expect(jobTimes(null)).toEqual({ short: null, full: null });
+    expect(jobTimes(job(), NOW)).toEqual({ short: "queued 30 min ago", full: "queued 2026-09-26 10:00 UTC" });
+    expect(jobTimes(job({ status: "running", started_at: "2026-09-26T10:25:00Z" }), NOW).short).toBe("started 5 min ago");
+    expect(formatDuration(650)).toBe("650 ms");
+    expect(formatDuration(22_629)).toBe("22.6 s");
   });
 
   it("reads geometry jobs", () => {
     expect(jobPill(null, "text")).toMatchObject({ label: "— text file", muted: true });
     expect(jobPill(null, "drawing").label).toBe("Not run");
-    expect(jobPill(job({ status: "running", attempts: 2 })).detail).toBe("attempt 2/3");
+    expect(jobPill(job({ status: "running", attempts: 2, started_at: "2026-09-26T10:29:00Z" }), undefined, NOW).detail).toBe(
+      "attempt 2/3 · started 1 min ago",
+    );
     expect(jobPill(job({ status: "failed", attempts: 1, error: "not implemented" }))).toMatchObject({
       label: "Failed",
       reason: "not implemented",
     });
+    // the geometry job's own refusals read as plain sentences
+    expect(
+      jobPill(job({ status: "failed", error: "GeometryError: pages 3 are scanned sheets (the week-1 assessment's class C)" })).reason,
+    ).toBe("pages 3 are scanned sheets (the week-1 assessment's class C)");
+    expect(reasonText("TypeError: boom")).toBe("TypeError: boom");
+    expect(reasonText(null)).toBeNull();
   });
 
   it("formats costs", () => {
