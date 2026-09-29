@@ -156,16 +156,25 @@ export function useSourcePage(documentId: number | null, page: number | null) {
   });
 }
 
+/** A publish or rollback reaches maps already open within this time (a reload at once). */
+const POINTER_REFRESH_MS = 5 * 60_000;
+
+/** When to read the tile pointer again: before the signed archive URL expires, at most 5 min. */
+export function pointerRefreshMs(expiresAt: string | null | undefined): number {
+  return expiresAt ? Math.min(freshUntil(expiresAt, 2 * 60_000), POINTER_REFRESH_MS) : POINTER_REFRESH_MS;
+}
+
 export function useTilesCurrent(initialData?: TilesCurrent | null) {
   return useQuery<TilesCurrent>({
     queryKey: queryKeys.tilesCurrent,
     initialData: initialData ?? undefined,
     queryFn: ({ signal }) => api.tilesCurrent({ signal }),
-    staleTime: (q) => freshUntil(q.state.data?.expires_at, 2 * 60_000),
+    staleTime: (q) => pointerRefreshMs(q.state.data?.expires_at),
     refetchInterval: (q) => {
-      const ms = freshUntil(q.state.data?.expires_at, 2 * 60_000);
-      return ms > 0 ? ms : false; // renew the signed archive URL before it expires
+      const ms = pointerRefreshMs(q.state.data?.expires_at);
+      return ms > 0 ? ms : false;
     },
+    refetchOnWindowFocus: true,
     retry: retryTransient,
   });
 }

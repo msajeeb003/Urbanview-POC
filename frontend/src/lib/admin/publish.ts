@@ -57,12 +57,17 @@ export function jobSteps(progress: unknown): JobStep[] {
 
 /**
  * Whether "Roll back to this" may be offered for `version`: not the current one, published
- * before it, and its archive still kept (the API answers 409 otherwise).
+ * before it, with map tiles that are still kept (the API answers 409 otherwise).
  */
 export function canRollBackTo(version: PublishVersion, current: PublishVersion | null): boolean {
   if (version.is_current || !current) return false;
-  if (version.archive_pruned_at) return false;
+  if (!version.archive_key) return false; // never had tiles, or retention cleared them
   return Date.parse(version.published_at) < Date.parse(current.published_at) || version.id < current.id;
+}
+
+/** A failed publish's error for the note: at most `max` characters, cut at a word, "…" when cut. */
+export function shortError(error: string, max = 200): string {
+  return error.length <= max ? error : `${error.slice(0, max).replace(/\s+\S*$/, "")}…`;
 }
 
 /** `12.4 MB`, `—` when unknown. */

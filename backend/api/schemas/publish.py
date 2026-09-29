@@ -46,6 +46,7 @@ class LayerInfo(BaseModel):
 class PublishVersionOut(BaseModel):
     id: int
     label: str
+    version_no: int = Field(description="1, 2, 3 … per municipality in publish order")
     is_current: bool
     published_at: datetime
     published_by: str | None = None
@@ -121,8 +122,12 @@ class CellClasses(BaseModel):
 class TilesCurrent(BaseModel):
     status: str = Field(description="published | unpublished")
     version_id: int | None = None
+    version_no: int | None = Field(default=None, description="The current version's number")
     data_version: str = Field(description="Label of the current version, or `unpublished`")
     published_at: datetime | None = None
+    archive_key: str | None = Field(
+        default=None, description="The current version's PMTiles object key (the tiles key)"
+    )
     archive_url: str | None = Field(
         default=None, description="Signed URL of the PMTiles archive (HTTP range requests)"
     )

@@ -636,8 +636,10 @@ field is `not_stated`.
 {
   "status": "published",
   "version_id": 7,
+  "version_no": 7,
   "data_version": "2026-09-25.1",
   "published_at": "2026-09-25T09:12:03Z",
+  "archive_key": "podgorica/tiles/7/2026-09-25.1.pmtiles",
   "archive_url": "https://…/podgorica/tiles/7/2026-09-25.1.pmtiles?X-Amz-…",
   "expires_at": "2026-09-25T10:12:03Z",
   "layers": [
@@ -651,6 +653,9 @@ field is `not_stated`.
 
 - `archive_url` is a signed URL into the private bucket; the PMTiles client reads it with HTTP
   range requests. Fetch a fresh one after `expires_at` (or on a 403).
+- `version_no` numbers the municipality's versions in publish order (1, 2, 3 …); `archive_key`
+  is the current version's tiles key (the object `archive_url` signs). Both change with a publish
+  or a rollback, never with a deploy (added 2026-10-16).
 - `status: "unpublished"` (no version yet) or a version without an archive (the seeded sample)
   answers `archive_url: null`; the map then shows the base map only.
 - Source layers (one per map layer, toggled independently): `zones`, `document_coverage`,

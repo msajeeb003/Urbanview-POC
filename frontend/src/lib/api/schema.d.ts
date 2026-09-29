@@ -6333,6 +6333,11 @@ export interface components {
             id: number;
             /** Label */
             label: string;
+            /**
+             * Version No
+             * @description 1, 2, 3 … per municipality in publish order
+             */
+            version_no: number;
             /** Is Current */
             is_current: boolean;
             /**
@@ -7257,12 +7262,22 @@ export interface components {
             /** Version Id */
             version_id?: number | null;
             /**
+             * Version No
+             * @description The current version's number
+             */
+            version_no?: number | null;
+            /**
              * Data Version
              * @description Label of the current version, or `unpublished`
              */
             data_version: string;
             /** Published At */
             published_at?: string | null;
+            /**
+             * Archive Key
+             * @description The current version's PMTiles object key (the tiles key)
+             */
+            archive_key?: string | null;
             /**
              * Archive Url
              * @description Signed URL of the PMTiles archive (HTTP range requests)

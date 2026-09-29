@@ -115,7 +115,7 @@ the POC check of Group 2 asked for it).
   `choropleth_cells`); serving data is per `publish_versions` row and a rollback is a pointer flip,
   but entity geometry is upserted in place, the current version's heatmap cells and links can be
   recomputed in place, and only `audit_log` and `analytics_events` (0030) are append-only at the
-  database level. The server runs
+  database level (published planning values refuse UPDATE, 0034). The server runs
   the Python copy of the engine, held byte-identical to the TypeScript package's fixtures. PMTiles
   come from the private MinIO bucket through Caddy with signed links, no CDN. Auth.js signs staff
   in through a Credentials provider over the backend's magic-link tokens. The tablet / phone layout
@@ -1225,22 +1225,25 @@ the POC check of Group 2 asked for it).
   `publish_approved` job
   (202; 200 with the active job while one is queued / running: key
   `publish_approved:publish_run:-`, `max_attempts = 1`). `GET /v1/admin/publish` is the status
-  screen: `current` (label, who, when, counts, layers, signed archive link), `versions` (newest
-  first), `active_job` / `last_job` with `progress` (`step` + one entry per step: pending |
+  screen: `current` (label, who, when, counts, layers, signed archive link), `versions` (every
+  version, newest first, with its `version_no` and tiles key `archive_key`), `active_job` /
+  `last_job` with `progress` (`step` + one entry per step: pending |
   running | done | failed, timestamps, detail), `can_publish`, `blockers`,
   `geometry_blockers`, `keep_versions`.
 - **The job** (`PublishPipeline.run`, one database transaction from preflight to flip, so
-  visitors see the previous version until the commit and a failure leaves nothing behind):
+  visitors see the previous version until the commit and a failure leaves nothing behind: an
+  archive already uploaded is deleted again):
   `preflight` (pending items or geometry pending review = hard failure; superseded items never
   count or publish) →
-  `version` (new `publish_versions` row, not
-  current) → `values` (the previous version's `planning_parameter_values` carried forward for
-  current document versions, overridden by approved / amended items: amended value wins, unit
-  `COALESCE(amended, extracted)`, every row cites the item's page; items closed with
-  `published_value_id`; items without a page / value or with a parcel–document mismatch are
-  listed in `result.skipped_items` and stay open; `market_data` items are not published yet;
-  expert-rejected fields that nothing replaced become `planning_value_gaps` rows of the version,
-  counted as `values_rejected`, so the parcel panel can say `rejected` without reading staging)
+  `version` (new `publish_versions` row, not current, numbered `version_no` 1, 2, 3 … per
+  municipality, 0034) → `values` (the previous version's `planning_parameter_values` carried
+  forward for current document versions, overridden by approved / amended items: amended value
+  wins, unit `COALESCE(amended, extracted)`, every row cites the item's page; items closed with
+  `published_value_id` and `published_version_id`; items without a page / value or with a
+  parcel–document mismatch are listed in `result.skipped_items` and stay open; `market_data`
+  items are not published yet; expert-rejected fields that nothing replaced become
+  `planning_value_gaps` rows of the version, counted as `values_rejected`, so the parcel panel can
+  say `rejected` without reading staging)
   → `geometry` (the staged batches a reviewer approved, see below) → `links` (`parcel_links`:
   cadastral ↔ planned
   overlaps with locate's thresholds, `rank 1` = the panel's primary: largest overlap, smallest
@@ -1290,13 +1293,17 @@ the POC check of Group 2 asked for it).
   archive are per version; entity geometry is upserted in place (a geometry rollback needs a
   re-ingest: documented limitation). `POST /v1/admin/publish/rollback {version_id?}` flips
   `is_current` to the given version (default the one before the current), audited
-  `publish.rollback`; 409 when nothing is earlier, the target is current or its archive was
-  pruned; 404 for an unknown id. Retention `PUBLISH_KEEP_VERSIONS` (3, ≥ 2): after a publish,
-  versions beyond the newest N lose their archive object and derived rows
-  (`archive_pruned_at`); version rows and values stay for history. Never the current or the
+  `publish.rollback` (before / after: the version id and label, as `publish.complete`);
+  409 when nothing is earlier, the target is current, its archive was pruned or it never had one
+  (`no_archive`: the seeded version); 404 for an unknown id. Published values never change:
+  a trigger refuses UPDATE on `planning_parameter_values` (0034). Retention
+  `PUBLISH_KEEP_VERSIONS` (3, ≥ 2): after a publish, versions beyond the newest N lose their
+  archive object and derived rows (`archive_pruned_at`); version rows and values stay for history.
+  Never the current or the
   previous version.
 - **Tiles pointer.** `GET /v1/tiles/current` (public, `no-store`): `status` published |
-  unpublished, `data_version`, `version_id`, `published_at`, one signed `archive_url`
+  unpublished, `data_version`, `version_id`, `version_no`, `published_at`, the tiles key
+  `archive_key`, one signed `archive_url`
   (`TILES_URL_EXPIRES_SECONDS`, PMTiles range requests) + `expires_at`, `layers`, `min_zoom`,
   `max_zoom`, `cell_classes` (the heatmaps' stored classes per layer) and
   `heatmaps_refreshing`. The seeded version has no archive (`archive_url: null`).

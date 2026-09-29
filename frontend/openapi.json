@@ -20571,6 +20571,11 @@
             "type": "string",
             "title": "Label"
           },
+          "version_no": {
+            "type": "integer",
+            "title": "Version No",
+            "description": "1, 2, 3 … per municipality in publish order"
+          },
           "is_current": {
             "type": "boolean",
             "title": "Is Current"
@@ -20759,6 +20764,7 @@
         "required": [
           "id",
           "label",
+          "version_no",
           "is_current",
           "published_at",
           "formula_version"
@@ -23076,6 +23082,18 @@
             ],
             "title": "Version Id"
           },
+          "version_no": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version No",
+            "description": "The current version's number"
+          },
           "data_version": {
             "type": "string",
             "title": "Data Version",
@@ -23092,6 +23110,18 @@
               }
             ],
             "title": "Published At"
+          },
+          "archive_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archive Key",
+            "description": "The current version's PMTiles object key (the tiles key)"
           },
           "archive_url": {
             "anyOf": [

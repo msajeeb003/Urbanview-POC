@@ -18,6 +18,7 @@ import {
   canRollBackTo,
   countsText,
   jobSteps,
+  shortError,
   sizeText,
   stepChip,
   stepLabel,
@@ -94,8 +95,9 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
         <div className="pubnow">
           {current ? (
             <span>
-              The map serves <b className="mono">{current.label}</b>
-              <span className="rsub">
+              The map serves <b className="mono">v{current.version_no} · {current.label}</b>
+              {/* "N min ago" is computed again in the browser: a minute may have passed */}
+              <span className="rsub" suppressHydrationWarning>
                 {" "}
                 · published {relativeTime(current.published_at)}
                 {current.published_by ? ` by ${current.published_by}` : ""}
@@ -130,7 +132,9 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
         )}
         {lastFailed && (
           <div className="admin-note">
-            The last publish did not finish{lastFailed.error ? `: ${lastFailed.error.slice(0, 200)}` : "."} Nothing changed on the map.
+            <span title={lastFailed.error ?? undefined}>
+              The last publish did not finish{lastFailed.error ? `: ${shortError(lastFailed.error)}` : "."} Nothing changed on the map.
+            </span>
           </div>
         )}
       </AdminCard>
@@ -168,7 +172,7 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
               label: "Version",
               render: (v) => (
                 <>
-                  <span className="mono">{v.label}</span> {v.is_current && <StatusChip tone="ok">Live</StatusChip>}
+                  <span className="mono">v{v.version_no} · {v.label}</span> {v.is_current && <StatusChip tone="ok">Live</StatusChip>}
                 </>
               ),
             },
@@ -183,7 +187,8 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
               key: "archive",
               label: "Tiles",
               mono: true,
-              render: (v) => (v.archive_pruned_at ? "cleared" : v.archive_key ? sizeText(v.archive_size_bytes) : "—"),
+              render: (v) =>
+                v.archive_pruned_at ? "cleared" : v.archive_key ? `${v.archive_key} · ${sizeText(v.archive_size_bytes)}` : "—",
             },
             {
               key: "act",

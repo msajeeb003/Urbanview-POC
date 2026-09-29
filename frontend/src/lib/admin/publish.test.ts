@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { blockersText, canRollBackTo, countsText, jobSteps, sizeText, stepChip, stepLabel, type PublishVersion } from "./publish";
+import {
+  blockersText,
+  canRollBackTo,
+  countsText,
+  jobSteps,
+  shortError,
+  sizeText,
+  stepChip,
+  stepLabel,
+  type PublishVersion,
+} from "./publish";
 
 const version = (over: Partial<PublishVersion>): PublishVersion =>
   ({
@@ -25,10 +35,20 @@ describe("publish page rules", () => {
 
   it("offers a rollback only to an earlier version whose archive is kept (the API's guards)", () => {
     const current = version({ id: 5, is_current: true, published_at: "2026-09-29T08:00:00Z" });
-    expect(canRollBackTo(version({ id: 4, published_at: "2026-09-28T08:00:00Z" }), current)).toBe(true);
+    const archive_key = "podgorica/tiles/4/2026-09-28.1.pmtiles";
+    expect(canRollBackTo(version({ id: 4, published_at: "2026-09-28T08:00:00Z", archive_key }), current)).toBe(true);
     expect(canRollBackTo(current, current)).toBe(false);
     expect(canRollBackTo(version({ id: 3, archive_pruned_at: "2026-09-29T09:00:00Z" }), current)).toBe(false);
-    expect(canRollBackTo(version({ id: 4 }), null)).toBe(false);
+    // a version that never had tiles (the seeded one): nothing to serve
+    expect(canRollBackTo(version({ id: 1, published_at: "2026-09-22T10:00:00Z", archive_key: null }), current)).toBe(false);
+    expect(canRollBackTo(version({ id: 4, archive_key }), null)).toBe(false);
+  });
+
+  it("shortens a failed publish's error at a word", () => {
+    expect(shortError("TileBuildError: tippecanoe exited with 1: out of memory")).toBe("TileBuildError: tippecanoe exited with 1: out of memory");
+    const long = `TileBuildError: tippecanoe exited with 1: ${"layer urban_parcels failed ".repeat(10)}`;
+    // 200 characters end inside the sixth "failed": the note stops at the word before it
+    expect(shortError(long)).toBe(`TileBuildError: tippecanoe exited with 1: ${"layer urban_parcels failed ".repeat(5)}layer urban_parcels…`);
   });
 
   it("summarises a version and what blocks a publish", () => {

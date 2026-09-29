@@ -185,8 +185,11 @@ Planned traffic (an MVP layer; not published).
   source `url` is `/v1/tiles/current#archive=…&expires=…&version=…` (`lib/map/tiles.ts`): workers
   start on the pointer the page already has and re-read the pointer shortly before the signed link
   expires or when a range request fails. A new `version_id` from `useTilesCurrent` recreates the
-  source, so a publish swaps tiles without a deploy. No archive (unpublished) = base map only,
-  nothing drawn. The page reads `/v1/tiles/current` server-side together with the profile, so the
+  source, so a publish swaps tiles without a deploy; the page reads the pointer again at least
+  every 5 minutes and when the tab regains focus (`pointerRefreshMs`), so a publish or a rollback
+  reaches maps already open within 5 minutes (a reload at once). No archive (unpublished) = base
+  map only, nothing drawn. The page reads `/v1/tiles/current` server-side together with the
+  profile, so the
   first paint has it. The object store must allow CORS `GET` with `Range` from the site origin.
 - **Layers** (`lib/map/style.ts`, wireframe values; fills and lines under the base map's labels,
   our labels on top): zones filled by `zone_type` at 24 % + boundary at 40 %, a label from the
@@ -694,14 +697,16 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
 - **Publish** (`/admin/publish`, admins and reviewers, the pilot scope's A4;
   `components/admin/publish/publish-screen.tsx`, rules in `lib/admin/publish.ts`, calls
   `publishAction` / `rollbackAction` / `publishStatusAction` in `lib/admin/review-actions.ts`):
-  what the map serves (label, when, who), "Publish" with an optional label and notes (disabled
-  while any document has pending items or any geometry waits for review, `blockersText`, named with
+  what the map serves (`v7 · label`, when, who), "Publish" with an optional label and notes
+  (disabled while any document has pending items or any geometry waits for review, `blockersText`,
+  named with
   a link into the review queue or the geometry review), the
   running job's steps (preflight … prune, `stepLabel`, read every 2 s until it ends; a failed
-  last run says where it stopped), and the versions (label + Live chip, published when and by
-  whom, what it holds: values, parcel links, heatmap cells, tile size or "cleared") with "Roll
-  back to this" (confirmed inline) on earlier versions whose tiles are kept (`canRollBackTo`,
-  the API's guards). Tests: `lib/admin/publish.test.ts`.
+  last run says where it stopped, its error cut at a word with the full text on hover,
+  `shortError`), and every version (`version_no` + label + Live chip, published when and by
+  whom, what it holds: values, parcel links, heatmap cells, the tiles key and size or "cleared")
+  with "Roll back to this" (confirmed inline) on earlier versions that have tiles, still kept
+  (`canRollBackTo`, the API's guards). Tests: `lib/admin/publish.test.ts`.
 - **Users** (`/admin/users`, admins; `components/admin/users/users-screen.tsx`, `lib/admin/users.ts`,
   `lib/admin/user-actions.ts`): "Add staff" (work e-mail, name, role; they sign in by e-mailed
   link, no password) over `POST /v1/admin/users`, and the staff table with a role select and

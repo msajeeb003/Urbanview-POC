@@ -112,7 +112,8 @@ class TippecanoeTileBuilder:
         completed = subprocess.run(command, capture_output=True, text=True, check=False)
         if completed.returncode != 0:
             tail = (completed.stderr or completed.stdout or "").strip()[-2000:]
-            raise TileBuildError(f"{command[0]} exited with {completed.returncode}: {tail}")
+            tool = Path(command[0]).name  # the tool, not where it is installed
+            raise TileBuildError(f"{tool} exited with {completed.returncode}: {tail}")
 
     def build(self, layers: Sequence[LayerFile], archive: Path) -> TileBuildReport:
         if not layers:

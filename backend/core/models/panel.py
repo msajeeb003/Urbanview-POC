@@ -60,6 +60,9 @@ class PublishVersion(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     municipality_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     label: Mapped[str] = mapped_column(Text, nullable=False, comment="e.g. 2026-09-22.1")
+    version_no: Mapped[int] = mapped_column(
+        Integer, nullable=False, comment="1, 2, 3 … per municipality in publish order"
+    )
     published_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -111,6 +114,7 @@ class PublishVersion(Base):
 
     __table_args__ = (
         UniqueConstraint("municipality_id", "label", name="uq_publish_versions_label"),
+        UniqueConstraint("municipality_id", "version_no", name="uq_publish_versions_version_no"),
         Index(
             "uq_publish_versions_current",
             "municipality_id",
@@ -615,6 +619,11 @@ class PlanningParameterExtraction(Base):
     review_note: Mapped[str | None] = mapped_column(Text)
     published_value_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("planning_parameter_values.id", ondelete="SET NULL")
+    )
+    published_version_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("publish_versions.id", ondelete="SET NULL"),
+        comment="the publish version that served the item (with published_value_id)",
     )
     dataset_version: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(

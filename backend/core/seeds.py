@@ -121,6 +121,7 @@ TABLES: list[tuple[str, str | None, frozenset[str]]] = [
                 "id",
                 "municipality_id",
                 "label",
+                "version_no",
                 "published_at",
                 "published_by",
                 "formula_version",

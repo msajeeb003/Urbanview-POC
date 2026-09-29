@@ -2,16 +2,19 @@
 
 One database transaction covers the whole run (the flip is the commit), so visitors keep
 seeing the previous version until the new one is complete, and a failure anywhere leaves nothing
-behind but the job's error. Steps, each reported to ``pipeline_jobs.progress``:
+behind but the job's error (an archive already uploaded is deleted again). Steps, each reported
+to ``pipeline_jobs.progress``:
 
 1. ``preflight``: no document may still have items pending review, and no staged geometry batch
    may wait for the reviewer's decision (geometry review, 0033); a hard failure otherwise;
-2. ``version``: a new ``publish_versions`` row (not current yet);
+2. ``version``: a new ``publish_versions`` row (not current yet) with the municipality's next
+   ``version_no``;
 3. ``values``: the previous version's serving values carried forward, overridden by the
    approved / amended review items (the amended value wins; every item cites its page), which
-   are closed with ``published_value_id``; zone / block / document / parcel scopes; fields whose
-   extracted value was rejected and nothing replaced become ``planning_value_gaps`` rows (the
-   public panel says ``rejected`` without reading the review queue);
+   are closed with ``published_value_id`` and ``published_version_id``; zone / block / document /
+   parcel scopes; fields whose extracted value was rejected and nothing replaced become
+   ``planning_value_gaps`` rows (the public panel says ``rejected`` without reading the review
+   queue);
 4. ``geometry``: the staged batches a reviewer approved applied (rejected ones never are):
    entity layers upserted by natural key (stable ids),
    generic layers copied into ``layer_features`` for the version (untouched layers carried
@@ -181,10 +184,13 @@ LABELS_SQL = text(
 )
 INSERT_VERSION_SQL = text(
     """
-    INSERT INTO publish_versions (municipality_id, label, published_by, formula_version, notes,
-                                  is_current, previous_version_id, job_id, min_zoom, max_zoom)
-    VALUES (:m, :label, :by, :formula_version, :notes, false, :previous_id, :job_id, :min_zoom,
-            :max_zoom)
+    INSERT INTO publish_versions (municipality_id, label, version_no, published_by,
+                                  formula_version, notes, is_current, previous_version_id, job_id,
+                                  min_zoom, max_zoom)
+    VALUES (:m, :label,
+            (SELECT COALESCE(max(version_no), 0) + 1 FROM publish_versions
+             WHERE municipality_id = :m),
+            :by, :formula_version, :notes, false, :previous_id, :job_id, :min_zoom, :max_zoom)
     RETURNING id
     """
 )
@@ -321,7 +327,8 @@ GAPS_SQL = text(
     """
 )
 CLOSE_ITEM_SQL = text(
-    "UPDATE planning_parameter_extractions SET published_value_id = :value_id WHERE id = :id"
+    "UPDATE planning_parameter_extractions "
+    "SET published_value_id = :value_id, published_version_id = :version_id WHERE id = :id"
 )
 STAGED_BATCHES_SQL = text(
     """
@@ -624,6 +631,7 @@ class PublishPipeline:
         work_dir = Path(tempfile.mkdtemp(prefix=f"publish-{job.id}-", dir=self.tmp_dir))
         current = "preflight"
         m = self.municipality_id
+        uploaded: str | None = None  # an archive uploaded for a version not (yet) committed
         try:
             async with self.session_factory() as session:
                 await progress.start("preflight")
@@ -755,6 +763,7 @@ class PublishPipeline:
                 await asyncio.to_thread(
                     self.storage.put_file, archive_key, report.archive, ARCHIVE_CONTENT_TYPE
                 )
+                uploaded = archive_key
                 outcome.archive_key = archive_key
                 await progress.done(current, {"archive_key": archive_key})
 
@@ -795,9 +804,15 @@ class PublishPipeline:
                     after={"current_version_id": version_id, "current_label": label},
                 )
                 await session.commit()
+                uploaded = None
                 await progress.done(current, {"current_version": label})
         except Exception as exc:
             await progress.fail(current, f"{type(exc).__name__}: {exc}")
+            if uploaded:  # the version was rolled back: its archive would be served by nothing
+                try:
+                    await asyncio.to_thread(self.storage.delete, uploaded)
+                except Exception as cleanup:  # noqa: BLE001 - the publish error is what matters
+                    log.warning("publish: could not delete %s: %s", uploaded, cleanup)
             raise
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
@@ -880,7 +895,10 @@ class PublishPipeline:
                     },
                 )
             ).scalar_one()
-            await session.execute(CLOSE_ITEM_SQL, {"value_id": value_id, "id": item["id"]})
+            await session.execute(
+                CLOSE_ITEM_SQL,
+                {"value_id": value_id, "version_id": version_id, "id": item["id"]},
+            )
             published += 1
         gaps = await session.execute(GAPS_SQL, {"m": m, "v": version_id})
         skipped = (await session.execute(SKIPPED_ITEMS_SQL, {"m": m})).mappings().all()

@@ -314,6 +314,8 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     pointer = tiles_now.json()
     assert pointer["status"] == "published" and pointer["data_version"] == "test-publish-1"
     assert key in pointer["archive_url"] and pointer["expires_at"] is not None
+    # the pilot scope's pointer: the current version's tiles key and number (the seed is 1)
+    assert pointer["archive_key"] == key and pointer["version_no"] == 2
     assert {layer["id"]: layer["features"] for layer in pointer["layers"]}["urban_parcels"] >= 6
     assert (pointer["min_zoom"], pointer["max_zoom"]) == (8, 16)
 
@@ -321,7 +323,11 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     body = status.json()
     assert body["current"]["label"] == "test-publish-1" and body["current"]["archive_url"]
     assert body["current"]["published_by"] == "vesna" and body["current"]["counts"] == counts
-    assert [v["label"] for v in body["versions"]] == ["test-publish-1", "sample-2026-09-22"]
+    assert [(v["version_no"], v["label"]) for v in body["versions"]] == [
+        (2, "test-publish-1"),
+        (1, "sample-2026-09-22"),
+    ]
+    assert body["versions"][0]["archive_key"] == key
     assert body["active_job"] is None and body["last_job"]["id"] == job["id"]
     steps = {s["name"]: s["status"] for s in job_row.json()["progress"]["steps"]}
     assert set(steps.values()) == {"done"} and job_row.json()["progress"]["step"] == "prune"
@@ -336,9 +342,9 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     assert version_rows["n"] == 40
     (published,) = await rows(
         app,
-        "SELECT v.value_number, v.source_page, v.urban_parcel_id, e.published_value_id "
-        "FROM planning_parameter_extractions e JOIN planning_parameter_values v "
-        "ON v.id = e.published_value_id WHERE e.id = :id",
+        "SELECT v.value_number, v.source_page, v.urban_parcel_id, e.published_value_id, "
+        "e.published_version_id FROM planning_parameter_extractions e "
+        "JOIN planning_parameter_values v ON v.id = e.published_value_id WHERE e.id = :id",
         id=item,
     )
     assert (published["value_number"], published["source_page"], published["urban_parcel_id"]) == (
@@ -346,10 +352,11 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
         13,
         1,
     )
+    assert published["published_version_id"] == result["version_id"]
     # this run's rows (audit_log is append-only: earlier tests' publishes stay in it)
     actions = await rows(
         app,
-        "SELECT action, actor FROM audit_log WHERE municipality_id = 'podgorica' "
+        "SELECT action, actor, before, after FROM audit_log WHERE municipality_id = 'podgorica' "
         "AND action LIKE 'publish.%' AND ((entity_type = 'pipeline_job' AND entity_id = :job) "
         "OR (entity_type = 'publish_version' AND entity_id = :v)) ORDER BY id",
         job=job["id"],
@@ -357,6 +364,11 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     )
     assert [a["action"] for a in actions] == ["publish.request", "publish.complete"]
     assert {a["actor"] for a in actions} == {"vesna"}
+    assert actions[1]["before"] == {"current_version_id": 1, "current_label": "sample-2026-09-22"}
+    assert actions[1]["after"] == {
+        "current_version_id": result["version_id"],
+        "current_label": "test-publish-1",
+    }
 
     # heatmap cells: block SA-01 holds UP 7 alone (FAR 2.4, P+5+Pk = 7 floors), the zones'
     # sale prices exactly as their assumptions state them, in the profile's bands
@@ -409,6 +421,7 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
 async def test_rollback_flips_the_pointer_without_recomputing(publish_env, tiles):
     app = publish_env()
     async with app.router.lifespan_context(app), make_client(app) as client:
+        nothing_earlier = await client.post("/v1/admin/publish/rollback", json={}, headers=auth())
         await reject_seeded_pending_item(app)
         first = await insert_item(
             app, urban_parcel_id=1, field_key="max_far", value_number=3.5, source_page=13
@@ -430,10 +443,11 @@ async def test_rollback_flips_the_pointer_without_recomputing(publish_env, tiles
         rolled = await client.post("/v1/admin/publish/rollback", json={}, headers=auth())
         fields_a, body_a = await fields_of(client, 1)
         pointer_a = (await client.get("/v1/tiles/current")).json()
-        rolled_again = await client.post("/v1/admin/publish/rollback", json={}, headers=auth())
-        fields_seed, body_seed = await fields_of(client, 1)
-        pointer_seed = (await client.get("/v1/tiles/current")).json()
-        nothing_earlier = await client.post("/v1/admin/publish/rollback", json={}, headers=auth())
+        # the version before test-a is the seed, which never had map tiles
+        no_tiles = await client.post("/v1/admin/publish/rollback", json={}, headers=auth())
+        no_tiles_by_id = await client.post(
+            "/v1/admin/publish/rollback", json={"version_id": 1}, headers=auth()
+        )
         forward = await client.post(
             "/v1/admin/publish/rollback",
             json={"version_id": version_b["version_id"]},
@@ -449,6 +463,8 @@ async def test_rollback_flips_the_pointer_without_recomputing(publish_env, tiles
             "/v1/admin/publish/rollback", json={"version_id": 999_999}, headers=auth()
         )
 
+    assert nothing_earlier.status_code == 409
+    assert nothing_earlier.json()["error"]["details"]["reason"] == "no_previous_version"
     assert fields_b["max_far"]["value"] == 3.5 and fields_b["max_height_m"]["value"] == 30
     assert body_b["data_version"] == "test-b"
     assert rolled.status_code == 200, rolled.text
@@ -461,30 +477,70 @@ async def test_rollback_flips_the_pointer_without_recomputing(publish_env, tiles
         pointer_a["data_version"] == "test-a"
         and version_a["archive_key"] in pointer_a["archive_url"]
     )
+    assert pointer_a["archive_key"] == version_a["archive_key"] and pointer_a["version_no"] == 2
     assert len(tiles.runs) == runs_before  # nothing was rebuilt
-    assert (
-        rolled_again.status_code == 200
-        and rolled_again.json()["current"]["label"] == "sample-2026-09-22"
-    )
-    assert (
-        fields_seed["max_far"]["value"] == 3.2 and body_seed["data_version"] == "sample-2026-09-22"
-    )
-    assert pointer_seed["status"] == "published" and pointer_seed["archive_url"] is None
-    assert nothing_earlier.status_code == 409
-    assert nothing_earlier.json()["error"]["details"]["reason"] == "no_previous_version"
+    for refused in (no_tiles, no_tiles_by_id):
+        assert refused.status_code == 409, refused.text
+        assert refused.json()["error"]["details"] == {"reason": "no_archive", "version_id": 1}
     assert forward.status_code == 200 and forward.json()["current"]["label"] == "test-b"
     assert fields_b_again["max_height_m"]["value"] == 30
     assert already.status_code == 409 and unknown.status_code == 404
     actions = await rows(
         app,
-        "SELECT action, before, after FROM audit_log WHERE municipality_id = 'podgorica' "
-        "AND action = 'publish.rollback' ORDER BY id",
+        "SELECT before, after FROM audit_log WHERE municipality_id = 'podgorica' "
+        "AND action = 'publish.rollback' AND entity_id IN (:a, :b) ORDER BY id",
+        a=version_a["version_id"],
+        b=version_b["version_id"],
     )
-    assert len(actions) == 3
-    assert (
-        actions[0]["before"]["current_label"] == "test-b"
-        and actions[0]["after"]["current_label"] == "test-a"
+    a = {"current_version_id": version_a["version_id"], "current_label": "test-a"}
+    b = {"current_version_id": version_b["version_id"], "current_label": "test-b"}
+    assert [(row["before"], row["after"]) for row in actions] == [(b, a), (a, b)]
+
+
+async def test_a_failed_publish_leaves_no_archive_behind(publish_env, storage, monkeypatch):
+    """The flip fails after the upload: the version is rolled back with the transaction and the
+    archive it uploaded is deleted again, so the bucket holds nothing the map could never serve."""
+    import jobs.publish_pipeline as pipeline
+
+    async def failing_audit(*args, **kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(pipeline, "write_audit", failing_audit)
+    app = publish_env()
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        await reject_seeded_pending_item(app)
+        failed = await client.post("/v1/admin/publish", json={"label": "test-fail"}, headers=auth())
+        status = (await client.get("/v1/admin/publish", headers=auth())).json()
+        versions = await rows(app, "SELECT id, is_current FROM publish_versions ORDER BY id")
+
+    job = failed.json()
+    assert failed.status_code == 202 and job["status"] == "failed"
+    assert job["error"] == "RuntimeError: audit unavailable"
+    steps = {s["name"]: s["status"] for s in job["progress"]["steps"]}
+    assert steps["upload"] == "done" and steps["flip"] == "failed"
+    key = next(
+        s["detail"]["archive_key"] for s in job["progress"]["steps"] if s["name"] == "upload"
     )
+    assert storage.deleted == [key] and key not in storage.objects
+    assert versions == [{"id": 1, "is_current": True}]  # nothing left behind
+    assert status["current"]["label"] == "sample-2026-09-22"
+
+
+async def test_published_values_refuse_update(publish_env):
+    """Serving rows are never updated in place (migration 0034): the next version carries its own
+    rows, so a published value can only be read."""
+    from sqlalchemy.exc import DBAPIError
+
+    app = publish_env()
+    async with app.router.lifespan_context(app), app.state.session_factory() as session:
+        with pytest.raises(DBAPIError, match="immutable once published"):
+            await session.execute(
+                text(
+                    "UPDATE planning_parameter_values SET value_number = 99 "
+                    "WHERE id = (SELECT min(id) FROM planning_parameter_values)"
+                )
+            )
+        await session.rollback()
 
 
 # --- staged geometry ------------------------------------------------------------------------------
@@ -638,6 +694,13 @@ async def test_retention_prunes_archives_beyond_keep_versions(publish_env, stora
     ]
     assert storage.deleted == [a["archive_key"]] and b["archive_key"] in storage.objects
     assert pruned.status_code == 409 and pruned.json()["error"]["details"]["reason"] == "pruned"
+    # every version is listed (the pruned one and the seed too), numbered in publish order
+    assert [(v["version_no"], v["label"]) for v in status["versions"]] == [
+        (4, "keep-c"),
+        (3, "keep-b"),
+        (2, "keep-a"),
+        (1, "sample-2026-09-22"),
+    ]
     by_label = {v["label"]: v for v in status["versions"]}
     assert by_label["keep-a"]["archive_pruned_at"] and by_label["keep-a"]["archive_key"] is None
     assert by_label["keep-b"]["archive_key"] and by_label["keep-c"]["is_current"]

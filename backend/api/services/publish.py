@@ -40,14 +40,14 @@ from jobs.enqueue import JobDispatcher, enqueue_job
 from jobs.publish_pipeline import GEOMETRY_PENDING_SQL, PENDING_SQL
 
 _VERSION_COLUMNS = """
-    p.id, p.label, p.is_current, p.published_at, p.published_by, p.formula_version, p.notes,
-    p.previous_version_id, p.job_id, p.archive_key, p.archive_size_bytes, p.archive_sha256,
+    p.id, p.label, p.version_no, p.is_current, p.published_at, p.published_by, p.formula_version,
+    p.notes, p.previous_version_id, p.job_id, p.archive_key, p.archive_size_bytes, p.archive_sha256,
     p.archive_pruned_at, p.layers, p.counts, p.duration_ms, p.min_zoom, p.max_zoom,
     p.rolled_back_at, p.rolled_back_by"""
 VERSIONS_SQL = text(
     f"""
     SELECT {_VERSION_COLUMNS} FROM publish_versions p
-    WHERE p.municipality_id = :m ORDER BY p.id DESC LIMIT :limit
+    WHERE p.municipality_id = :m ORDER BY p.id DESC
     """
 )
 CURRENT_SQL = text(
@@ -145,6 +145,7 @@ class PublishService:
         return PublishVersionOut(
             id=int(row["id"]),
             label=row["label"],
+            version_no=int(row["version_no"]),
             is_current=bool(row["is_current"]),
             published_at=_utc(row["published_at"]),
             published_by=row["published_by"],
@@ -192,11 +193,7 @@ class PublishService:
     async def status(self) -> PublishStatus:
         m = self.municipality_id
         async with self.session_factory() as session:
-            versions = (
-                (await session.execute(VERSIONS_SQL, {"m": m, "limit": self.keep_versions + 3}))
-                .mappings()
-                .all()
-            )
+            versions = (await session.execute(VERSIONS_SQL, {"m": m})).mappings().all()
             jobs = [
                 job_out(r["job"])
                 for r in (await session.execute(PUBLISH_JOBS_SQL, {"m": m})).mappings()
@@ -235,8 +232,10 @@ class PublishService:
         return TilesCurrent(
             status="published",
             version_id=version.id,
+            version_no=version.version_no,
             data_version=version.label,
             published_at=version.published_at,
+            archive_key=version.archive_key,
             archive_url=version.archive_url,
             expires_at=expires_at,
             layers=version.layers,
@@ -414,6 +413,11 @@ class PublishService:
                 raise ConflictError(
                     f"Version {target['label']} was pruned by retention; its archive is gone",
                     details={"reason": "pruned", "version_id": target["id"]},
+                )
+            if not target["archive_key"]:
+                raise ConflictError(
+                    f"Version {target['label']} has no map tiles to serve",
+                    details={"reason": "no_archive", "version_id": target["id"]},
                 )
             await session.execute(UNSET_CURRENT_SQL, {"m": m})
             await session.execute(SET_CURRENT_SQL, {"id": target["id"]})
