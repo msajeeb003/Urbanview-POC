@@ -19,7 +19,6 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from core.extraction.llm import StructuredModel
 from core.market.model import (
     ImportKind,
     NormaliseResult,
@@ -107,9 +106,7 @@ async def load_context(
     kind: ImportKind,
     source: str,
     retrieved_on: date,
-    mode: str = "auto",
     low_confidence: float = 0.7,
-    llm_max_rows: int = 150,
 ) -> NormaliseContext:
     profile = load_market_profile(municipality_id)
     aliases = {name.casefold(): tuple(values) for name, values in profile.zone_aliases.items()}
@@ -134,9 +131,7 @@ async def load_context(
         zones=zones,
         profile=profile,
         factors=factors,
-        mode=mode,  # type: ignore[arg-type]
         low_confidence=low_confidence,
-        llm_max_rows=llm_max_rows,
     )
 
 
@@ -150,14 +145,12 @@ class MarketImporter:
         municipality_id: str,
         municipality_name: str,
         settings: Any,
-        model_factory: Callable[[], StructuredModel | None] | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.session_factory = session_factory
         self.municipality_id = municipality_id
         self.municipality_name = municipality_name
         self.settings = settings
-        self.model_factory = model_factory
         self.clock = clock
 
     # --- recording --------------------------------------------------------------------------------
@@ -261,16 +254,9 @@ class MarketImporter:
                 kind=row["kind"],
                 source=row["source"],
                 retrieved_on=row["retrieved_on"],
-                mode=self.settings.market_normalise_llm,
                 low_confidence=self.settings.market_low_confidence,
-                llm_max_rows=self.settings.market_llm_max_rows,
             )
-        model = None
-        if ctx.mode != "never" and self.model_factory is not None:
-            model = self.model_factory()
-        result = normalise_table(RawTable.from_json(row["raw"]), ctx, model)
-        if model is None and ctx.mode != "never":
-            result.issues.append("no LLM configured: the rules alone mapped this import")
+        result = normalise_table(RawTable.from_json(row["raw"]), ctx)
         await self.store(import_id, result, job_id=job_id)
         return summary(import_id, result)
 
@@ -332,25 +318,4 @@ def summary(import_id: int, result: NormaliseResult) -> dict[str, Any]:
         "skipped_by_reason": report["skipped_by_reason"],
         "issues": result.issues,
         "normaliser": result.normaliser,
-        "llm": result.llm,
     }
-
-
-def model_from_settings(settings: Any) -> StructuredModel | None:
-    """The Claude adapter for the LLM step, or None when the ``ai`` extra is not installed."""
-    try:
-        from core.extraction.llm import ClaudeModel
-
-        key = settings.anthropic_api_key
-        return ClaudeModel(
-            settings.market_model or settings.extraction_model,
-            api_key=key.get_secret_value() if key else None,
-            effort=settings.market_effort,
-            adaptive_thinking=settings.extraction_adaptive_thinking,
-            max_tokens=settings.market_max_tokens,
-            timeout_seconds=settings.extraction_timeout_seconds,
-            base_url=settings.anthropic_base_url,
-        )
-    except Exception as exc:  # noqa: BLE001 - no SDK or no key: the rules work alone
-        log.warning("market normalisation runs without an LLM: %s", exc)
-        return None

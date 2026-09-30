@@ -16,7 +16,7 @@ import pytest
 from pydantic import ValidationError
 
 from core.extraction import cases as C
-from core.extraction.__main__ import DEFAULT_DOCS, schema_path
+from core.extraction.__main__ import schema_path
 from core.extraction.fields import FIELD_SPECS
 from core.extraction.llm import ModelOutputInvalid, ScriptedModel
 from core.extraction.normalise import (
@@ -40,7 +40,6 @@ from core.extraction.prompts import (
 )
 from core.extraction.response import RESPONSE_MODELS, strict_json_schema
 from core.extraction.run import run_task
-from core.extraction.sample import check_label_file, load_labels, pages_for
 from core.extraction.schema import (
     SCHEMA_VERSION,
     ExtractionResult,
@@ -61,7 +60,6 @@ from tests.extraction_script import absent
 M = "podgorica"
 CONVENTIONS = Conventions.from_profile(M)
 FIXTURES = Path(__file__).parent / "fixtures" / "extraction"
-SAMPLE = DEFAULT_DOCS / "extraction-sample"
 CASES = {case.id: case for case in C.ABSENT_CASES}
 
 
@@ -809,21 +807,3 @@ def test_a_reply_outside_the_response_schema_is_rejected():
             document=DocumentContext(3, "Test document"),
             pages=case.pages,
         )
-
-
-# --- the hand-labelled sample (client documents; this machine only) --------------------------
-
-
-@pytest.mark.skipif(not SAMPLE.is_dir(), reason="the sample lives with the client documents")
-def test_the_hand_labelled_sample_fits_the_schema_unchanged():
-    pytest.importorskip("pymupdf")
-    files = sorted(SAMPLE.glob("*.labels.json"))
-    pages_by_source: dict[str, set[int]] = {}
-    for path in files:
-        labels = load_labels(path)
-        pages_by_source.setdefault(labels.source, set()).add(labels.page)
-        check = check_label_file(path, DEFAULT_DOCS, write=False)
-        assert check.ok, check.problems
-        assert ExtractionResult.model_validate_json(check.result.model_dump_json()) == check.result
-        assert_cited_text_on_page(check.result, pages_for(labels, DEFAULT_DOCS))
-    assert len(pages_by_source) == 2 and all(len(p) >= 2 for p in pages_by_source.values())

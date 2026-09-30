@@ -111,13 +111,8 @@ class Settings(BaseSettings):
     preprocess_scanned_image_coverage: float = Field(default=0.5, ge=0, le=1)
     preprocess_table_max_paths: int = Field(default=20_000, ge=0)
 
-    # Market-data imports (core.market, job import_market_data): the LLM maps table structure,
-    # area names and periods only (auto = when the rules cannot); every figure is read by code
-    market_normalise_llm: Literal["auto", "never", "always"] = "auto"
-    market_model: str | None = None  # None = EXTRACTION_MODEL
-    market_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "medium"
-    market_max_tokens: int = Field(default=16_000, ge=1024, le=128_000)
-    market_llm_max_rows: int = Field(default=150, ge=5, le=2000)  # rows of a sheet shown
+    # Market-data imports (core.market, job import_market_data): rules only, every figure read
+    # by code
     market_low_confidence: float = Field(default=0.7, ge=0, le=1)
     market_max_rows: int = Field(default=5000, ge=1)  # per sheet, larger tables are refused
 

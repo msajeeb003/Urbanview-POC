@@ -272,8 +272,8 @@ admin_boundaries = ['drzavna[ _-]*granica', 'opstinska[ _-]*granica', '^granice$
 
 # --- Market-data imports (core.market): how this place's market figures are labelled -----------
 # Patterns are regular expressions (TOML literal strings) on accent-folded lower-case words
-# (Cyrillic transliterated). The LLM step (core.market.llm_map) sees the same zone names and
-# aliases. Provisional until the zone definition (gate 2) and the client's range sheet are final.
+# (Cyrillic transliterated); a sheet or an area name they cannot map is skipped with its reason.
+# Provisional until the zone definition (gate 2) and the client's range sheet are final.
 [market]
 statistics_source = "Monstat"
 # rows naming the whole municipality apply to every zone (each item flagged municipality_level)

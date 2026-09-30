@@ -227,14 +227,11 @@ The corpus evaluation (every parcel of the client's POC documents, scored per fi
   plan's date. Unit tests run each with a faithful and a guessing scripted response (the guesses
   come back `unverified`, the neighbour's copy is flagged). `python -m core.extraction eval`
   asks the configured model: a case passes only when the model itself returns `not_found`.
-- **Hand-labelled sample**: two pages per POC document (DUP Novi grad 1 i 2: parameter table
-  pp. 1, 11, and the document facts on p. 11; UP Stara Varoš: pp. 1, 57), stored with the client
-  documents (`docs/gis/source/extraction-sample/*.labels.json`, not in the repository).
-  `python -m core.extraction check-sample docs/gis/source/extraction-sample` builds each into the
-  contract (every label must be on its page) and reads it back unchanged; `eval --sample` scores
-  a model (matched / missed / wrong / extra / removed).
-- Commands (from `backend/`): `python -m core.extraction export | check-sample DIR | eval
-  [--sample DIR] [--dry-run]`. A live `eval` costs tokens.
+- **Accuracy** on the client's documents: the evaluation corpus (`python -m core.extraction
+  corpus ...`, `backend/tests/corpus/README.md`; every parcel row of each POC document). The
+  earlier two-page hand-labelled sample was removed on 2026-09-30 (the corpus covers it).
+- Commands (from `backend/`): `python -m core.extraction export | eval [--dry-run] | corpus ...`.
+  A live `eval` costs tokens.
 
 ## 10. Open items
 

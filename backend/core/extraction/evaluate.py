@@ -4,10 +4,8 @@
   only when the model itself returns null (``not_found``) for every absent field: a value the
   validator had to remove (``unverified``) never reaches the review queue, but it is still a
   failure of the model and counts as one.
-- :func:`run_sample`: every hand-labelled page through the model, scored against its labels
-  (matched / missed / wrong / extra, and values removed because their text was not on the page).
-  Every value the model returns carries a page that contains its raw text: the validator keeps
-  no other.
+
+The accuracy on the client's documents is measured by the corpus (``corpus eval``, ``evalcli``).
 
 A live run needs Anthropic credentials and costs tokens; ``--dry-run`` replays the faithful
 responses through the same pipeline instead.
@@ -16,13 +14,11 @@ responses through the same pipeline instead.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from core.extraction.cases import ABSENT_CASES, find_leaf
 from core.extraction.llm import ClaudeModel, ModelUsage, StructuredModel
 from core.extraction.prompts import DocumentContext
 from core.extraction.run import run_task
-from core.extraction.sample import Score, compare, load_labels, pages_for, result_from_labels
 from core.extraction.schema import Leaf, MissingValue, StatedValue
 
 
@@ -101,31 +97,4 @@ def run_absent_cases(
                 usage=run.reply.usage,
             )
         )
-    return outcomes
-
-
-@dataclass(slots=True)
-class SampleOutcome:
-    name: str
-    score: Score
-    usage: ModelUsage
-
-
-def run_sample(
-    model: StructuredModel, sample_dir: Path, docs_root: Path, *, low_confidence: float = 0.7
-) -> list[SampleOutcome]:
-    outcomes = []
-    for path in sorted(sample_dir.glob("*.labels.json")):
-        labels = load_labels(path)
-        pages = pages_for(labels, docs_root)
-        run = run_task(
-            labels.task,
-            model=model,
-            municipality_id=labels.municipality,
-            document=labels.document,
-            pages=pages,
-            low_confidence=low_confidence,
-        )
-        expected = result_from_labels(labels, pages)
-        outcomes.append(SampleOutcome(labels.name, compare(run.result, expected), run.reply.usage))
     return outcomes

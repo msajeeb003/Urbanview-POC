@@ -114,7 +114,7 @@ class RowPlace(_Strict):
     )
     period_as_printed: str | None = None
     confidence: float = 1.0
-    method: Literal["exact", "alias", "municipality", "table", "llm"] = "exact"
+    method: Literal["exact", "alias", "municipality", "table"] = "exact"
     reason: str | None = None
 
 
@@ -126,7 +126,7 @@ class SheetMapping(_Strict):
     table_geography: str | None = None
     table_period_as_printed: str | None = None
     table_unit_as_printed: str | None = None
-    method: Literal["rules", "llm", "rules+llm"] = "rules"
+    method: Literal["rules"] = "rules"
     notes: str | None = None
 
     def column(self, index: int) -> ColumnRole | None:
@@ -199,7 +199,6 @@ class NormaliseResult:
     mappings: list[SheetMapping]
     normaliser: str
     issues: list[str] = field(default_factory=list)
-    llm: dict[str, Any] | None = None
 
     def report(self) -> dict[str, Any]:
         by_reason: dict[str, int] = {}
@@ -214,5 +213,4 @@ class NormaliseResult:
             "skipped_by_reason": by_reason,
             "issues": self.issues,
             "mappings": [m.model_dump(mode="json") for m in self.mappings],
-            "llm": self.llm,
         }

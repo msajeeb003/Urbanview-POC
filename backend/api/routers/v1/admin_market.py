@@ -131,7 +131,7 @@ async def list_market_inputs(
     import_id: Annotated[int | None, Query(gt=0)] = None,
     flag: Annotated[
         str | None,
-        Query(max_length=60, pattern=r"^[a-z_]+$", description="e.g. zone_mapped_by_ai"),
+        Query(max_length=60, pattern=r"^[a-z_]+$", description="e.g. range_derived"),
     ] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,

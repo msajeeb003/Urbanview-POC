@@ -9,9 +9,8 @@ are the pilot's. The path:
    is read as it is (:mod:`core.market.readers`) into ``market_imports`` with its source,
    retrieval date and checksum (the same content twice is one import);
 2. **normalise** (job ``import_market_data``, :mod:`core.market.normalise`): the rules
-   (:mod:`core.market.rules`, the profile's ``[market]`` words) and, where they cannot, the LLM
-   (:mod:`core.market.llm_map`: which column is which metric and bound, which zone an area name
-   is, period and unit labels as printed; never a figure) map the table; code reads the figures,
+   (:mod:`core.market.rules`, the profile's ``[market]`` words) map the table (no AI: a sheet or
+   an area name they cannot map is skipped with its reason); code reads the figures,
    converts units and derives missing ranges only from configured range factors. One
    ``market_data`` row per zone and metric, ``pending_review``, with its source, reference date,
    confidence, flags and the raw cells;

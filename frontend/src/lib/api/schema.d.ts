@@ -4054,7 +4054,7 @@ export interface components {
             status: "received" | "normalised" | "failed";
             /**
              * Normaliser
-             * @description rules, or rules+llm:<model>@<prompt version>
+             * @description rules
              */
             normaliser?: string | null;
             /** Error */
@@ -9491,7 +9491,7 @@ export interface operations {
                 zone_id?: number | null;
                 metric?: ("land_rate" | "build_rate" | "design_rate" | "sale_rate") | null;
                 import_id?: number | null;
-                /** @description e.g. zone_mapped_by_ai */
+                /** @description e.g. range_derived */
                 flag?: string | null;
                 limit?: number;
                 offset?: number;

@@ -1,5 +1,5 @@
-"""Market-data imports (core.market): reading, parsing, rule mapping, the LLM step with a scripted
-model and range completion. No database: zones and configured range factors are given directly
+"""Market-data imports (core.market): reading, parsing, rule mapping (no AI) and range
+completion. No database: zones and configured range factors are given directly
 (the PostGIS path is ``tests/integration/test_market_postgis.py``).
 
 Fixtures: ``tests/fixtures/market/monstat_new_dwellings_q4_2025_synthetic.csv`` (the layout of a
@@ -16,8 +16,6 @@ from pathlib import Path
 
 import pytest
 
-from core.extraction.llm import ModelRefused, ScriptedModel
-from core.market.llm_map import PLACES_SCHEMA, STRUCTURE_SCHEMA
 from core.market.model import RangeFactors, RawTable, Sheet, ZoneRef
 from core.market.normalise import NormaliseContext, normalise_table
 from core.market.parse import parse_amount, parse_number_token, parse_period, parse_unit
@@ -41,7 +39,6 @@ def context(kind: str = "statistics", **overrides) -> NormaliseContext:
         zones=list(ZONES),
         profile=PROFILE,
         factors=dict(FACTORS),
-        mode="never",
     )
     values.update(overrides)
     return NormaliseContext(**values)
@@ -304,7 +301,7 @@ def test_units_are_converted_and_other_currencies_refused():
     assert reasons(result)["currency_not_eur"]
 
 
-# --- the LLM step ---------------------------------------------------------------------------------
+# --- what the rules cannot map ----------------------------------------------------------------
 
 
 MESSY = Sheet(
@@ -318,147 +315,12 @@ MESSY = Sheet(
 )
 
 
-def llm_script(system, user, schema):
-    if schema is PLACES_SCHEMA or "places" in schema.get("properties", {}):
-        return {
-            "places": [
-                {
-                    "name": "Blok 5",
-                    "applies_to": "zone",
-                    "zone_id": 2,
-                    "confidence": 0.8,
-                    "reason": "Blok 5 lies next to Stari Aerodrom",
-                },
-                {
-                    "name": "Zabjelo",
-                    "applies_to": "zone",
-                    "zone_id": 2,
-                    "confidence": 0.4,
-                    "reason": "not sure",
-                },
-            ]
-        }
-    return {
-        "header_rows": [0],
-        "columns": [
-            {
-                "column": 0,
-                "role": "geography",
-                "metric": None,
-                "bound": None,
-                "unit_as_printed": None,
-                "period_as_printed": None,
-                "reason": None,
-            },
-            {
-                "column": 1,
-                "role": "value",
-                "metric": "sale_rate",
-                "bound": "low",
-                "unit_as_printed": "psm",
-                "period_as_printed": None,
-                "reason": None,
-            },
-            {
-                "column": 2,
-                "role": "value",
-                "metric": "sale_rate",
-                "bound": "expected",
-                "unit_as_printed": "psm",
-                "period_as_printed": None,
-                "reason": None,
-            },
-            {
-                "column": 3,
-                "role": "value",
-                "metric": "sale_rate",
-                "bound": "high",
-                "unit_as_printed": "psm",
-                "period_as_printed": None,
-                "reason": None,
-            },
-            {
-                "column": 4,
-                "role": "ignore",
-                "metric": None,
-                "bound": None,
-                "unit_as_printed": None,
-                "period_as_printed": None,
-                "reason": "listing count",
-            },
-            {
-                "column": 9,
-                "role": "value",
-                "metric": "land_rate",
-                "bound": "expected",
-                "unit_as_printed": None,
-                "period_as_printed": None,
-                "reason": None,
-            },
-        ],
-        "row_metrics": [],
-        "non_data_rows": [],
-        "table_geography": None,
-        "table_period_as_printed": "Q2 2026",
-        "table_unit_as_printed": "EUR per m2",
-        "notes": None,
-    }
-
-
-def test_the_llm_maps_what_the_rules_cannot_and_code_reads_every_figure():
-    model = ScriptedModel(llm_script, name="claude-test")
-    result = normalise_table(
-        RawTable("xlsx", [MESSY]), context("client_ranges", mode="auto"), model
-    )
-    items = by_key(result)
-    centar = items[(1, "sale_rate")]
-    assert (centar.low, centar.expected, centar.high) == (2000, 2300, 2600)
-    assert centar.source_date == date(2026, 6, 30)  # the label the model copied, parsed by code
-    assert "columns_mapped_by_ai" in centar.flags and "zone_mapped_by_ai" not in centar.flags
-    placed = items[(2, "sale_rate")]  # "Blok 5", placed by the model
-    assert placed.expected == 1700 and "zone_mapped_by_ai" in placed.flags
-    assert placed.confidence == 0.8
-    assert result.normaliser == "rules+llm:claude-test@market-1.0"
-    assert result.llm["calls"] == 2
-    why = reasons(result)
-    assert why["no_zone_match"][0].detail.startswith("'Zabjelo'")  # 0.4: stays unplaced
-    assert any("column 9" in note for note in result.llm["notes"])  # out of range: dropped
-    # the model is asked for meanings only: no field of either answer holds a figure
-    column = STRUCTURE_SCHEMA["$defs"]["OutColumn"]["properties"]
-    assert set(column) == {
-        "column",
-        "role",
-        "metric",
-        "bound",
-        "unit_as_printed",
-        "period_as_printed",
-        "reason",
-    }
-    place = PLACES_SCHEMA["$defs"]["OutPlace"]["properties"]
-    assert set(place) == {"name", "applies_to", "zone_id", "confidence", "reason"}
-
-
-def test_without_the_llm_an_unreadable_sheet_is_reported_not_guessed():
-    result = normalise_table(RawTable("xlsx", [MESSY]), context("client_ranges", mode="never"))
+def test_a_sheet_the_rules_cannot_map_is_reported_not_guessed():
+    result = normalise_table(RawTable("xlsx", [MESSY]), context("client_ranges"))
     assert result.inputs == []
     assert reasons(result)["structure_not_recognised"]
-    auto = ScriptedModel(lambda *a: pytest.fail("not needed"))
     clean = normalise_table(
         read_table("rasponi.xlsx", client_sheet()),
-        context("client_ranges", mode="auto", zones=ZONES + [ZoneRef(3, "Zagorič")]),
-        auto,
+        context("client_ranges", zones=ZONES + [ZoneRef(3, "Zagorič")]),
     )
-    assert auto.calls == [] and clean.normaliser == "rules"  # the rules read it all
-
-
-def test_a_refusing_model_leaves_the_rules_result_and_says_so():
-    def refuse(system, user, schema):
-        raise ModelRefused("declined")
-
-    result = normalise_table(
-        read_table(MONSTAT.name, MONSTAT.read_bytes()),
-        context(mode="auto"),
-        ScriptedModel(refuse),
-    )
-    assert len(result.inputs) == 4
-    assert any("could not place" in issue for issue in result.issues)
+    assert clean.inputs and clean.normaliser == "rules"

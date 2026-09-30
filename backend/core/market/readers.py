@@ -1,7 +1,7 @@
 """Read market tables as they are: CSV (encoding and delimiter detected) and XLSX (every sheet,
 merged ranges filled from their first cell, dates as ISO text). Nothing is interpreted here: the
-cells land in ``market_imports.raw`` untouched and :mod:`core.market.rules` /
-:mod:`core.market.llm_map` say what they mean."""
+cells land in ``market_imports.raw`` untouched and :mod:`core.market.rules` say what they
+mean."""
 
 from __future__ import annotations
 

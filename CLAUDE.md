@@ -168,6 +168,19 @@ the POC check of Group 2 asked for it).
   zones or documents because the client's plans state them per urban parcel (the pilot's
   `parameter_set` is per block); blocks carry no `document_id` (matched by label and
   overlap); no `sample_size` per market input.
+- **Workers check (2026-09-30):** removed the market import's LLM mapping (`core/market/llm_map.py`,
+  `MARKET_NORMALISE_LLM` / `MARKET_MODEL` / `MARKET_EFFORT` / `MARKET_MAX_TOKENS` /
+  `MARKET_LLM_MAX_ROWS`: the profile's rules map Monstat and the client's range sheets, a sheet
+  they cannot map is reported), the unused `system.ping` task and the hand-labelled extraction
+  sample (`core/extraction/sample.py`, `check-sample`, `eval --sample`: the corpus replaces it).
+  Accepted deviations: jobs are `pipeline_jobs` (cost in EUR, statuses + retrying / cancelled);
+  the schema and the model adapter live in `core/extraction/` (no `packages/schema`,
+  `packages/llm`); an approved market input writes an effective-dated assumptions version at
+  once (the pilot's `serving.market_input` on publish; the v2 stack keeps assumptions in
+  `public`); the height heatmap is the maximum floor count (the plans state floors, not metres);
+  runtime thresholds are `Settings` (`LOCATE_MIN_OVERLAP_*`, `LINK_*`) and place data the
+  profile (CRS, layer patterns), not one file. REMOVE-DEFERRED: prompt set 1.0 (the never-guessed
+  cases replay 1.0-shaped replies).
 - **Open (S3 check):** a separate `land_use_code` in Group 1 and a `sample_size` per market
   input: neither is in the data yet (`docs/specs/frontend-design.md` §10 item 22).
 
@@ -843,12 +856,10 @@ the POC check of Group 2 asked for it).
   (`PAYLOAD_READERS`); keep the old reader when a major version changes.
 - **Evaluation**: `cases.py` holds five never-guessed cases (FAR from coverage x floors, height
   from floors, area from GFA / FAR, a neighbour's parking rule, an adoption date from the plan's
-  date). `python -m core.extraction eval [--sample DIR] [--dry-run]` asks the configured model
-  (costs tokens; a case passes only when the model returns not_found itself);
-  `check-sample DIR` builds the hand-labelled sample (2 pages per POC document, stored with the
-  client documents in `docs/gis/source/extraction-sample/`, not in the repository) into the
-  contract. Tests: `tests/test_extraction_contract.py` (schema files, prompts, normalisation,
-  never-guessed, flags, staging, frozen 1.0 item, the sample when present) and
+  date). `python -m core.extraction eval [--dry-run]` asks the configured model
+  (costs tokens; a case passes only when the model returns not_found itself); accuracy on the
+  client's documents is the corpus (below). Tests: `tests/test_extraction_contract.py` (schema files, prompts, normalisation,
+  never-guessed, flags, staging, frozen 1.0 item) and
   `tests/test_extraction_llm.py` (request shape, reply, error classes, the wire request through
   the real SDK on a mock transport).
 
@@ -941,7 +952,13 @@ the POC check of Group 2 asked for it).
   `extraction.finish` (entity `extraction_run`, actor `worker:extract_document`). Nothing touches
   the serving tables. Live model runs need `ANTHROPIC_API_KEY` (`backend/.env`, git-ignored) and
   `ANTHROPIC_BASE_URL` (`anthropic_base_url`, default `https://api.anthropic.com`: the key never
-  goes to a proxy the shell environment may name).
+  goes to a proxy the shell environment may name; the shell's own `ANTHROPIC_BASE_URL` beats
+  `.env`, so run live commands with `env -u ANTHROPIC_BASE_URL`). **Since 2026-09-30 local and
+  production run through Cheaper Inference** (`ANTHROPIC_BASE_URL=https://api.cheaperinference.com`,
+  a `ci_live_` key; its Anthropic-compatible `/v1/messages` accepts `output_config`, adaptive
+  thinking and effort unchanged; `claude-sonnet-5` at USD 1.40 / 7.00 per MTok, 30 % under list:
+  the cheapest model with thinking and effort; Stara Varoš p. 24 read live at 100 %). Job costs
+  still use `LLM_PRICE_*` (list prices) until set to the discounted rates.
 - Tests: `tests/test_extraction_job_unit.py` and `tests/integration/test_extraction_job_postgis.py`
   with `tests/extraction_script.Transcriber` (a scripted model that copies parameter tables).
 
@@ -1232,7 +1249,6 @@ the POC check of Group 2 asked for it).
   never a stored address), `import_zones` (geo; a zone GeoPackage from QGIS). `process_geometry`
   stages a document's GIS drawing and answers a PDF drawing with what it needs (see "Staff
   pipeline API" Jobs); `extract_document` runs (see "Extraction job").
-  `system.ping` is the broker smoke test.
 - **API** (reads: roles `admin` and `reviewer`; retry: `admin`): `GET /v1/admin/jobs` (filters `type`, `status`, `target=document:12`
   | `file:` | `publish_run:` | `email:`, `document_id`, `file_id`; `total`),
   `GET /v1/admin/jobs/{id}` (the status URL), `POST /v1/admin/jobs/{id}/retry` (failed / cancelled →

@@ -1,18 +1,17 @@
 """Normalisation: from a table as read to zone-level market inputs.
 
-For a table: the rules map each sheet (:mod:`core.market.rules`); the LLM maps what they cannot
-(``MARKET_NORMALISE_LLM``: ``auto`` = only then, ``always``, ``never``) and places the area names
-they cannot (:mod:`core.market.llm_map`); then code reads every figure from the mapped cells,
-converts units to EUR per m² and picks, per zone and metric, one figure: a zone's own row before
-a municipality-wide one, the latest period first. Every row, column or figure left out is in the
-report with its reason; nothing is dropped silently.
+For a table: the rules map each sheet (:mod:`core.market.rules`, the profile's ``[market]``
+words; a sheet or an area name they cannot map is skipped with its reason); code reads every
+figure from the mapped cells, converts units to EUR per m² and picks, per zone and metric, one
+figure: a zone's own row before a municipality-wide one, the latest period first. Every row,
+column or figure left out is in the report with its reason; nothing is dropped silently.
 
 Ranges, never invented: a stated range (low / high columns, or a range in one cell) is kept
 (``stated``; no expected figure → the midpoint, flagged ``expected_midpoint``); a single figure
 takes the configured range factors of the zone's current assumptions (else the municipality-wide
 row's): ``derived``, flagged ``range_derived``; with none configured the range stays empty
 (``unavailable``, flagged ``range_unavailable``) and approving needs a reviewer's amendment.
-The AI interprets; every number is code arithmetic.
+No AI: every mapping is a rule, every number is code arithmetic.
 """
 
 from __future__ import annotations
@@ -20,16 +19,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Literal
 
-from core.extraction.llm import ModelError, StructuredModel
-from core.market.llm_map import (
-    MARKET_PROMPT_VERSION,
-    AiPlace,
-    LlmLog,
-    map_structure,
-    place_names,
-)
 from core.market.model import (
     Bound,
     ColumnRole,
@@ -57,16 +47,12 @@ from core.market.parse import (
 )
 from core.market.rules import (
     HeaderRules,
-    SheetAnalysis,
     SheetReader,
     ZoneMatcher,
     allowed_metrics,
     column_skips,
 )
 from core.municipality import MarketProfile
-
-LlmMode = Literal["auto", "never", "always"]
-MIN_AI_CONFIDENCE = 0.6  # an AI placement below it stays unplaced
 
 
 @dataclass(slots=True)
@@ -78,9 +64,7 @@ class NormaliseContext:
     zones: list[ZoneRef]
     profile: MarketProfile
     factors: dict[int | None, RangeFactors] = field(default_factory=dict)
-    mode: LlmMode = "auto"
     low_confidence: float = 0.7
-    llm_max_rows: int = 150
 
 
 @dataclass(slots=True)
@@ -101,19 +85,16 @@ class Candidate:
     structure: str
 
 
-def _normaliser(log: LlmLog) -> str:
-    return "rules" if log.calls == 0 else f"rules+llm:{log.model}@{MARKET_PROMPT_VERSION}"
+NORMALISER = "rules"
 
 
 class Normaliser:
-    def __init__(self, ctx: NormaliseContext, model: StructuredModel | None = None) -> None:
+    def __init__(self, ctx: NormaliseContext) -> None:
         self.ctx = ctx
-        self.model = model if ctx.mode != "never" else None
         self.rules = HeaderRules(ctx.profile)
         self.matcher = ZoneMatcher(ctx.zones, ctx.profile)
         self.allowed = allowed_metrics(ctx.profile, ctx.kind)
         self.reader = SheetReader(self.rules, self.matcher, self.allowed)
-        self.log = LlmLog()
         self.skipped: list[Skipped] = []
         self.issues: list[str] = []
 
@@ -126,7 +107,6 @@ class Normaliser:
             if mapping is not None:
                 mappings.append(mapping)
                 self.skipped.extend(column_skips(mapping))
-        self._place_unresolved(mappings)
         candidates: list[Candidate] = []
         for mapping in mappings:
             candidates.extend(self._candidates(table.sheets[mapping.sheet], mapping))
@@ -135,48 +115,13 @@ class Normaliser:
             inputs=inputs,
             skipped=self.skipped,
             mappings=mappings,
-            normaliser=_normaliser(self.log),
+            normaliser=NORMALISER,
             issues=self.issues,
-            llm=self.log.to_json() if self.log.calls else None,
         )
 
     def _map_sheet(self, sheet: Sheet, index: int) -> SheetMapping | None:
         analysis = self.reader.map_sheet(sheet, index)
-        rules_skipped = analysis.skipped
         mapping = analysis.mapping
-        if self.model is not None and (mapping is None or self.ctx.mode == "always"):
-            try:
-                llm_mapping, row_metrics, non_data = map_structure(
-                    self.model,
-                    sheet,
-                    index,
-                    kind=self.ctx.kind,
-                    source=self.ctx.source,
-                    allowed=self.allowed,
-                    zones=self.ctx.zones,
-                    municipality=self.ctx.municipality,
-                    max_rows=self.ctx.llm_max_rows,
-                    log=self.log,
-                )
-            except ModelError as exc:
-                self.issues.append(f"sheet {sheet.name!r}: the LLM could not map it ({exc})")
-            else:
-                if any(c.role == "value" for c in llm_mapping.columns):
-                    sub = SheetAnalysis(None)
-                    first = max(llm_mapping.header_rows, default=-1) + 1
-                    llm_mapping.rows = self.reader.place_rows(
-                        sheet,
-                        index,
-                        llm_mapping,
-                        first,
-                        sub,
-                        row_metrics=row_metrics,
-                        skip_rows=non_data,
-                    )
-                    rules_skipped = sub.skipped
-                    mapping = llm_mapping
-                else:
-                    self.issues.append(f"sheet {sheet.name!r}: the LLM found no figure column")
         if mapping is None:
             self.issues.extend(analysis.issues)
             self.skipped.append(
@@ -187,45 +132,8 @@ class Normaliser:
                 )
             )
             return None
-        self.skipped.extend(rules_skipped)
+        self.skipped.extend(analysis.skipped)
         return mapping
-
-    def _place_unresolved(self, mappings: list[SheetMapping]) -> None:
-        names = sorted(
-            {
-                row.geography_as_printed
-                for m in mappings
-                for row in m.rows
-                if row.applies_to == "none" and row.geography_as_printed
-            }
-        )
-        placed = self._ask_places(names)
-        for m in mappings:
-            changed = False
-            for i, row in enumerate(m.rows):
-                ai = placed.get(row.geography_as_printed or "")
-                if row.applies_to != "none" or ai is None:
-                    continue
-                m.rows[i] = _ai_row(row, ai)
-                changed = changed or m.rows[i].method == "llm"
-            if changed and m.method == "rules":
-                m.method = "rules+llm"
-
-    def _ask_places(self, names: list[str]) -> dict[str, AiPlace]:
-        if not names or self.model is None:
-            return {}
-        try:
-            return place_names(
-                self.model,
-                names,
-                zones=self.ctx.zones,
-                municipality=self.ctx.municipality,
-                municipality_names=self.ctx.profile.municipality_names,
-                log=self.log,
-            )
-        except ModelError as exc:
-            self.issues.append(f"the LLM could not place {len(names)} area names ({exc})")
-            return {}
 
     def _candidates(self, sheet: Sheet, mapping: SheetMapping) -> list[Candidate]:
         values = [c for c in mapping.columns if c.role == "value"]
@@ -387,7 +295,6 @@ class Normaliser:
         for candidate in candidates:
             for zone_id in candidate.zone_ids:
                 by_key[(zone_id, candidate.metric)].append(candidate)
-        normaliser = _normaliser(self.log)
         inputs = []
         for (zone_id, metric), group in sorted(by_key.items()):
             ranked = sorted(
@@ -415,12 +322,12 @@ class Normaliser:
                         reason, sheet=other.sheet, row=other.row, detail=f"zone {zone_id} {metric}"
                     )
                 )
-            built = self._build(winner, zone_id, normaliser)
+            built = self._build(winner, zone_id)
             if built is not None:
                 inputs.append(built)
         return inputs
 
-    def _build(self, c: Candidate, zone_id: int, normaliser: str) -> MarketInput | None:
+    def _build(self, c: Candidate, zone_id: int) -> MarketInput | None:
         low, expected, high = c.values.get("low"), c.values.get("expected"), c.values.get("high")
         flags: list[str] = []
         if expected is None and low is not None and high is not None:
@@ -439,10 +346,6 @@ class Normaliser:
         low, high, basis, range_info = self.complete_range(zone_id, expected, low, high, flags)
         if c.scope == "municipality":
             flags.append("municipality_level")
-        if c.place.method == "llm":
-            flags.append("zone_mapped_by_ai")
-        if c.structure == "llm":
-            flags.append("columns_mapped_by_ai")
         if c.range_in_cell:
             flags.append("range_in_one_cell")
         if not (c.unit.per or c.unit.currency):
@@ -498,7 +401,7 @@ class Normaliser:
                 },
                 "range": range_info,
             },
-            normaliser=normaliser,
+            normaliser=NORMALISER,
         )
 
     def _as_of(self, day: date | None) -> date:
@@ -552,22 +455,5 @@ class Normaliser:
             flags.append("low_confidence")
 
 
-def _ai_row(row: RowPlace, ai: AiPlace) -> RowPlace:
-    if ai.applies_to == "none" or (ai.applies_to == "zone" and ai.confidence < MIN_AI_CONFIDENCE):
-        reason = f"the LLM could not place it: {ai.reason}" if ai.reason else "ai_unsure"
-        return row.model_copy(update={"reason": reason})
-    return row.model_copy(
-        update={
-            "applies_to": ai.applies_to,
-            "zone_id": ai.zone_id,
-            "confidence": ai.confidence,
-            "method": "llm",
-            "reason": ai.reason,
-        }
-    )
-
-
-def normalise_table(
-    table: RawTable, ctx: NormaliseContext, model: StructuredModel | None = None
-) -> NormaliseResult:
-    return Normaliser(ctx, model).table(table)
+def normalise_table(table: RawTable, ctx: NormaliseContext) -> NormaliseResult:
+    return Normaliser(ctx).table(table)

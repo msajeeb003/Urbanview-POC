@@ -1,14 +1,13 @@
 """Market-data imports from the command line (run from ``backend/``, which reads ``.env``).
 
     python -m core.market import FILE --kind statistics|client_ranges [--source S]
-                                      [--retrieved YYYY-MM-DD] [--notes TEXT] [--llm MODE]
+                                      [--retrieved YYYY-MM-DD] [--notes TEXT]
                                       [--dry-run]
 
 ``import`` records the table in ``market_imports`` and normalises it inline into ``market_data``
 rows waiting for review, like the ``import_market_data`` job (the API path also keeps the
 original file in the bucket). ``--dry-run`` reads, maps and prints the normalised inputs and
-the report without writing anything. ``--llm never`` keeps the LLM out (rules only); the
-default follows ``MARKET_NORMALISE_LLM``. Approving happens in the review queue
+the report without writing anything. Approving happens in the review queue
 (``/v1/admin/review/market-inputs``), never here.
 """
 
@@ -27,7 +26,6 @@ from core.market.pipeline import (
     MarketImporter,
     MarketImportError,
     load_context,
-    model_from_settings,
 )
 from core.market.readers import ReadError, read_table
 
@@ -43,7 +41,6 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--source", default=None)
     p.add_argument("--retrieved", type=date.fromisoformat, default=date.today())
     p.add_argument("--notes", default=None)
-    p.add_argument("--llm", choices=("auto", "never", "always"), default=None)
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--kind", choices=("statistics", "client_ranges"), required=True)
     return parser
@@ -78,14 +75,11 @@ async def _run(args: argparse.Namespace) -> int:
     engine = create_engine(settings)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     try:
-        mode = args.llm or settings.market_normalise_llm
-        settings = settings.model_copy(update={"market_normalise_llm": mode})
         importer = MarketImporter(
             sessions,
             municipality_id=municipality.id,
             municipality_name=municipality.name,
             settings=settings,
-            model_factory=lambda: model_from_settings(settings),
         )
         data = args.file.read_bytes()
         source = args.source or (
@@ -105,17 +99,14 @@ async def _run(args: argparse.Namespace) -> int:
                     kind=args.kind,
                     source=source,
                     retrieved_on=args.retrieved,
-                    mode=mode,
                     low_confidence=settings.market_low_confidence,
-                    llm_max_rows=settings.market_llm_max_rows,
                 )
-            model = model_from_settings(settings) if mode != "never" else None
             try:
                 table = read_table(args.file.name, data, max_rows=settings.market_max_rows)
             except ReadError as exc:
                 print(f"cannot read {args.file}: {exc}", file=sys.stderr)
                 return 2
-            result = normalise_table(table, ctx, model)
+            result = normalise_table(table, ctx)
             _print_result(result)
             return 0
         async with sessions() as session:

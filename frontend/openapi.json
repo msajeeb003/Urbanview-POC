@@ -3505,10 +3505,10 @@
                   "type": "null"
                 }
               ],
-              "description": "e.g. zone_mapped_by_ai",
+              "description": "e.g. range_derived",
               "title": "Flag"
             },
-            "description": "e.g. zone_mapped_by_ai"
+            "description": "e.g. range_derived"
           },
           {
             "name": "limit",
@@ -13844,7 +13844,7 @@
               }
             ],
             "title": "Normaliser",
-            "description": "rules, or rules+llm:<model>@<prompt version>"
+            "description": "rules"
           },
           "error": {
             "anyOf": [

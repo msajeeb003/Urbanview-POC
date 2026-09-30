@@ -74,7 +74,7 @@ class MarketImportOut(BaseModel):
     row_count: int
     status: ImportStatus
     normaliser: str | None = Field(
-        default=None, description="rules, or rules+llm:<model>@<prompt version>"
+        default=None, description="rules"
     )
     error: str | None = None
     notes: str | None = None

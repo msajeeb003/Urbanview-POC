@@ -23,7 +23,6 @@ celery_app = Celery(
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
     include=[
-        "jobs.tasks.system",
         "jobs.tasks.ingestion",
         "jobs.tasks.extraction",
         "jobs.tasks.market",

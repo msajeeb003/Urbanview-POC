@@ -2,9 +2,7 @@
 range sheet uploaded, imported and normalised into pending inputs (nothing on the panel yet);
 approve / amend / reject writing assumption versions with provenance and effective dates; a
 zone without assumptions waiting for all four metrics; the range refusals; the audit trail.
-The LLM stays off (``MARKET_NORMALISE_LLM=never``): the
-rules path is what runs here, the LLM step is covered with a scripted model in
-``tests/test_market_import.py``."""
+The mapping rules themselves are covered in ``tests/test_market_import.py``."""
 
 from __future__ import annotations
 
@@ -124,7 +122,6 @@ def market_app(postgis_url, monkeypatch):
         database_url=postgis_url,
         rate_limit_requests=100_000,
         admin_api_tokens=f"{TOKEN}:admin:ops,{REVIEWER}:reviewer:rev",
-        market_normalise_llm="never",
     )
     configure_market(database_url=postgis_url, settings=settings)
     storage = MarketStorage()
