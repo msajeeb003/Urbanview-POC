@@ -10,8 +10,9 @@ import { redirect } from "next/navigation";
 
 import { ApiError, apiRequest, type Query } from "@/lib/api/client";
 
+import { openAccessToken } from "./open-access";
 import { SIGN_IN_PATH } from "./sections";
-import { staffApiToken } from "./session";
+import { consoleApiToken } from "./session";
 import { bearer } from "./staff-api";
 
 export class AdminAccessDenied extends Error {
@@ -21,8 +22,17 @@ export class AdminAccessDenied extends Error {
   }
 }
 
+/** A 401: the session ended, sign in again. With open access the sign-in page sends the visitor
+ * straight back, so a refused open-access token is an error here, not a redirect loop. */
+function sessionEnded(): never {
+  if (openAccessToken()) {
+    throw new Error("The API refused ADMIN_OPEN_ACCESS_TOKEN: it must be an admin entry of ADMIN_API_TOKENS");
+  }
+  redirect(`${SIGN_IN_PATH}?expired=1`);
+}
+
 export async function adminGet<T>(path: string, query?: Query): Promise<T> {
-  const token = await staffApiToken();
+  const token = await consoleApiToken();
   if (!token) redirect(SIGN_IN_PATH);
   try {
     const { data } = await apiRequest<T>(path, {
@@ -33,7 +43,7 @@ export async function adminGet<T>(path: string, query?: Query): Promise<T> {
     });
     return data;
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) redirect(`${SIGN_IN_PATH}?expired=1`);
+    if (err instanceof ApiError && err.status === 401) sessionEnded();
     if (err instanceof ApiError && err.status === 403) throw new AdminAccessDenied();
     throw err;
   }
@@ -55,7 +65,7 @@ export async function adminSend<T>(
   body?: unknown,
   query?: Query,
 ): Promise<AdminWrite<T>> {
-  const token = await staffApiToken();
+  const token = await consoleApiToken();
   if (!token) redirect(SIGN_IN_PATH);
   try {
     const { data, status } = await apiRequest<T>(path, {
@@ -69,7 +79,7 @@ export async function adminSend<T>(
     return { ok: true, status, data };
   } catch (err) {
     if (err instanceof ApiError) {
-      if (err.status === 401) redirect(`${SIGN_IN_PATH}?expired=1`);
+      if (err.status === 401) sessionEnded();
       return { ok: false, status: err.status, code: err.code, message: err.message, details: err.details };
     }
     throw err;

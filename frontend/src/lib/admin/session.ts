@@ -8,6 +8,7 @@ import { decode } from "next-auth/jwt";
 
 import { auth } from "@/auth";
 
+import { OPEN_ACCESS_STAFF, openAccessToken } from "./open-access";
 import { isStaffRole, type StaffRole } from "./sections";
 
 // Auth.js's session cookie: the secure name over https, the plain one on http (development);
@@ -18,9 +19,12 @@ export interface StaffUser {
   email: string | null;
   name: string | null;
   role: StaffRole;
+  /** The temporary open access (`open-access.ts`), not a signed-in member. */
+  openAccess?: boolean;
 }
 
 export async function currentStaff(): Promise<StaffUser | null> {
+  if (openAccessToken()) return OPEN_ACCESS_STAFF;
   const session = await auth();
   const role = session?.user?.role;
   if (!session || !isStaffRole(role)) return null;
@@ -54,4 +58,10 @@ export async function staffApiToken(): Promise<string | null> {
     }
   }
   return null;
+}
+
+/** The bearer token of this request's console calls: the open-access token while the sign-in is
+ * switched off (`open-access.ts`), else the signed-in member's. */
+export async function consoleApiToken(): Promise<string | null> {
+  return openAccessToken() ?? (await staffApiToken());
 }

@@ -21,6 +21,8 @@ export interface FrameUser {
   email: string | null;
   name: string | null;
   role: StaffRole;
+  /** The temporary open access (`lib/admin/open-access.ts`): no one is signed in. */
+  openAccess?: boolean;
 }
 
 export function AdminFrame({ user, children }: { user: FrameUser | null; children: ReactNode }) {

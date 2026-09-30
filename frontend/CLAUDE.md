@@ -609,6 +609,13 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   action) clears the cookie and the `signOut` event revokes the backend session
   (`POST /v1/auth/sign-out`). Env: `AUTH_SECRET` (server only), `AUTH_URL` / `AUTH_TRUST_HOST`
   behind Caddy, `API_INTERNAL_BASE_URL`.
+- **Open access (temporary, `lib/admin/open-access.ts`, off by default).** While the server cannot
+  mail the links (no SMTP details yet), `ADMIN_OPEN_ACCESS_TOKEN` (server only; an admin entry of
+  the API's `ADMIN_API_TOKENS`) skips the sign-in: the proxy, the pages and the server actions take
+  every visitor as the admin "Open access" (`currentStaff`), every console call carries that token
+  (`consoleApiToken`), the sign-in page redirects to the console, the account menu has no sign-out
+  and a refused token is an error, not a redirect loop (`api.ts`). Unset = the magic links above,
+  unchanged. Switch it off once `SMTP_HOST` is set.
 - **Roles** (`lib/admin/sections.ts`, the one table the proxy, the tab row and the pages read;
   the pilot technical scope's, auth check 2026-09-29): admin = every tab + users; reviewer
   ("planning expert approving extractions") = Documents (read: no upload, register, job or live

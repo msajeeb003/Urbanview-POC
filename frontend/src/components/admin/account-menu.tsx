@@ -60,8 +60,10 @@ export function AccountMenu({ user, links }: { user: FrameUser; links: Section[]
       {open && place && (
         <div ref={menu} className="admin-menu" role="menu" style={{ top: place.top, right: place.right }}>
           <div className="admin-menu-head">
-            <span className="mono">{user.email ?? "service token"}</span>
-            <span className="admin-menu-role">Signed in as {user.role}</span>
+            <span className="mono">{user.openAccess ? "open access" : (user.email ?? "service token")}</span>
+            <span className="admin-menu-role">
+              {user.openAccess ? `Sign-in is switched off · ${user.role}` : `Signed in as ${user.role}`}
+            </span>
           </div>
           {links.map((l) => (
             <button
@@ -76,11 +78,13 @@ export function AccountMenu({ user, links }: { user: FrameUser; links: Section[]
               {l.label}
             </button>
           ))}
-          <form action={signOutAction}>
-            <button type="submit" role="menuitem">
-              Sign out
-            </button>
-          </form>
+          {!user.openAccess && (
+            <form action={signOutAction}>
+              <button type="submit" role="menuitem">
+                Sign out
+              </button>
+            </form>
+          )}
         </div>
       )}
     </>

@@ -72,6 +72,8 @@ services:
       AUTH_URL: https://${SITE_DOMAIN}
       AUTH_TRUST_HOST: "true"
       AUTH_SESSION_MAX_AGE: ${AUTH_SESSION_MAX_AGE:-86400}
+      # temporary: set = the console opens without sign-in (frontend/src/lib/admin/open-access.ts)
+      ADMIN_OPEN_ACCESS_TOKEN: ${ADMIN_OPEN_ACCESS_TOKEN:-}
     depends_on:
       - api
 

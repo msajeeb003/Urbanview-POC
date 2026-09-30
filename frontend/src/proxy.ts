@@ -12,11 +12,17 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
+import { OPEN_ACCESS_STAFF, openAccessToken } from "@/lib/admin/open-access";
 import { accessFor, homeFor, isStaffRole, SIGN_IN_PATH } from "@/lib/admin/sections";
 
 export default auth((request) => {
   const { pathname, search } = request.nextUrl;
-  const role = isStaffRole(request.auth?.user?.role) ? request.auth.user.role : null;
+  // open access (lib/admin/open-access.ts): every visitor is its admin, the sign-in page goes home
+  const role = openAccessToken()
+    ? OPEN_ACCESS_STAFF.role
+    : isStaffRole(request.auth?.user?.role)
+      ? request.auth.user.role
+      : null;
 
   if (pathname.replace(/\/+$/, "") === SIGN_IN_PATH) {
     // a signed-in visitor opening the sign-in page goes home, unless a new link is being used

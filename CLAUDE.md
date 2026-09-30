@@ -1163,6 +1163,9 @@ demand: the analytics districts place them by their point.
   role from; `POST /v1/auth/sign-out` (bearer) revokes that staff session (204 whatever the token,
   audited `auth.logout`). There is no Overview dashboard (not in the POC plan): the console opens
   on Documents (Orders for an expert). Tests: `tests/integration/test_admin_console_postgis.py`.
+  Temporary: with `ADMIN_OPEN_ACCESS_TOKEN` set in the web container (an admin entry of
+  `ADMIN_API_TOKENS`) the console skips the sign-in and serves every visitor as that admin, for as
+  long as the server cannot mail the links (`frontend/CLAUDE.md`, "Open access").
 - Tests: `tests/test_mail_unit.py` (every template against fixture data, policy, MIME, provider
   ids, the job body on the in-memory repository) and `tests/integration/test_mail_postgis.py`
   (through the API with eager Celery and a transport double: log rows with provider ids, jobs,

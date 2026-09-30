@@ -11,7 +11,7 @@
 import { apiBaseUrl, buildUrl, newRequestId } from "@/lib/api/client";
 
 import { canOpen, isReadOnly, type SectionId } from "./sections";
-import { currentStaff, staffApiToken } from "./session";
+import { consoleApiToken, currentStaff } from "./session";
 
 const UPLOAD_TIMEOUT_MS = 10 * 60_000;
 
@@ -34,7 +34,7 @@ function sameOrigin(request: Request): boolean {
 export async function proxyUpload(request: Request, apiPath: string, section: SectionId): Promise<Response> {
   if (!sameOrigin(request)) return refuse(403, "forbidden", "Uploads are accepted from the admin console only");
   const staff = await currentStaff();
-  const token = await staffApiToken();
+  const token = await consoleApiToken();
   if (!staff || !token) return refuse(401, "unauthorized", "Sign in again to upload files");
   if (!canOpen(staff.role, section) || isReadOnly(staff.role, section)) {
     return refuse(403, "forbidden", "Your role cannot upload files here");
