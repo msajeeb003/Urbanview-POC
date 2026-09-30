@@ -61,7 +61,6 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://localhost:6379/2"
 
     # background jobs (jobs/): lifecycle, retries with exponential backoff, LLM cost tracking
-    celery_task_always_eager: bool = False  # run tasks inline in the caller (tests only)
     job_max_attempts: int = Field(default=3, ge=1)
     job_retry_base_seconds: int = Field(default=30, ge=1)
     job_retry_max_seconds: int = Field(default=900, ge=1)
@@ -78,17 +77,9 @@ class Settings(BaseSettings):
     extraction_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "high"
     extraction_adaptive_thinking: bool = True
     extraction_max_tokens: int = Field(default=32_000, ge=1024, le=128_000)
-    # server-side refusal fallback (fallbacks "default", beta server-side-fallback-2026-07-01);
-    # documented for Opus 5 / Fable 5.1, off for the Sonnet default (planning text is not refused)
-    extraction_refusal_fallback: bool = False
     extraction_timeout_seconds: int = Field(default=600, ge=10)
     # items below this confidence stay in the queue, flagged low_confidence for the reviewer
     extraction_low_confidence: float = Field(default=0.7, ge=0, le=1)
-    # OCR of scanned pages: none (pages stay flagged for manual handling) | tesseract (needs
-    # Tesseract + language data, TESSDATA_PREFIX); srp_latn+srp reads Montenegrin in both scripts
-    extraction_ocr_backend: Literal["none", "tesseract"] = "none"
-    extraction_ocr_languages: str = "srp_latn+srp"
-    extraction_ocr_dpi: int = Field(default=300, ge=72, le=600)
     # the extract_document job (jobs.extraction_runner): a request that meets a transient model
     # error (overload, timeout, 429) is retried in the job with backoff, then the job retries;
     # an answer that does not fit the schema is asked again once with the error; a run reads at
@@ -99,12 +90,7 @@ class Settings(BaseSettings):
     extraction_max_chunks: int = Field(default=400, ge=1)
 
     # PDF pre-processing (core.extraction.preprocess, the extraction / geometry jobs' first
-    # stage), cached by checksum
-    preprocess_page_image_dpi: int = Field(default=150, ge=36, le=600)
-    preprocess_page_image_max_pixels: int = Field(default=25_000_000, ge=1_000_000)
-    # true: the source viewer serves the rendered PNGs (page_images_rendered); the public viewer
-    # highlights cited values only on the PDF, so the default keeps serving the PDF
-    preprocess_serve_page_images: bool = False
+    # stage), cached by checksum; scanned pages are listed for manual handling, never OCRed
     preprocess_chunk_token_budget: int = Field(default=6000, ge=500, le=100_000)
     preprocess_chars_per_token: float = Field(default=3.0, gt=0.5, le=10)
     preprocess_min_text_density: float = Field(default=2.0, ge=0)  # chars per 10 000 pt²
@@ -142,7 +128,7 @@ class Settings(BaseSettings):
     mail_reply_to: str | None = None  # None = ORDER_SUPPORT_EMAIL
     # addresses or @domains that may be mailed; enforced in staging (empty = nothing goes out)
     mail_allowlist: Annotated[list[str], NoDecode] = []
-    admin_base_url: str = "http://localhost:3001"  # magic links point here
+    admin_base_url: str = "http://localhost:3000/admin"  # magic links point here (the console)
     magic_link_expires_seconds: int = Field(default=900, ge=60, le=3600)
     # the admin console's backend session (magic-link exchange): as long as its sign-in,
     # AUTH_SESSION_MAX_AGE (24 h)
@@ -160,7 +146,7 @@ class Settings(BaseSettings):
     # http
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
     slow_request_ms: int = Field(default=2000, ge=1)
-    # display-shaped panels (GET /v1/parcels/{id}/panel, /v1/zones/{id}/panel): Redis entries per
+    # the display-shaped parcel panel (GET /v1/parcels/{id}/panel): Redis entries per
     # entity per data state; keys change on every publish or admin change, 0 disables the cache
     panel_cache_ttl_seconds: int = Field(default=3600, ge=0, le=7 * 86400)
 

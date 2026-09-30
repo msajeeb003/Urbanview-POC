@@ -57,9 +57,9 @@ class ReviewPrevious(BaseModel):
 
 
 class PageLinkOut(BaseModel):
-    url: str = Field(description="Signed, short-lived URL to the cited page (image or PDF#page)")
-    kind: Literal["page_image", "pdf_page"]
-    content_type: Literal["image/png", "application/pdf"]
+    url: str = Field(description="Signed, short-lived URL to the cited page (PDF#page)")
+    kind: Literal["pdf_page"]
+    content_type: Literal["application/pdf"]
     expires_at: datetime
 
 

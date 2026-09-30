@@ -105,14 +105,6 @@ export const IconAsk = (p: P) => (
   </svg>
 );
 
-/** CTA "Unlock full market data" padlock (the wireframe's lock, 15×15). */
-export const IconLock = (p: P) => (
-  <svg width="15" height="15" viewBox="0 0 18 18" fill="none" aria-hidden {...p}>
-    <rect x="3" y="8" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M6 8V5a3 3 0 016 0v3" stroke="currentColor" strokeWidth="1.5" />
-  </svg>
-);
-
 /** CTA "How we analyze …" steps glyph (15×15). */
 export const IconSteps = (p: P) => (
   <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden {...p}>

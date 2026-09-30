@@ -178,7 +178,7 @@ DISCLAIMER_STATUS = "placeholder"  # "client_approved" once the lawyer signs the
 DISCLAIMER_VERSION = "poc-1"
 
 
-# --- display-shaped panels (GET /v1/parcels/{id}/panel, GET /v1/zones/{id}/panel) ------------
+# --- the display-shaped parcel panel (GET /v1/parcels/{id}/panel) ----------------------------
 
 PANEL_SECTIONS: dict[str, Bilingual] = {
     "group1": Bilingual("Planning parameters", "Planski parametri"),
@@ -186,7 +186,6 @@ PANEL_SECTIONS: dict[str, Bilingual] = {
     "assumptions": Bilingual("Assumptions", "Pretpostavke"),
     "group2": Bilingual("Financial feasibility", "Finansijska izvodljivost"),
 }
-ZONE_SUMMARY_LABEL = Bilingual("General planning summary", "Opšti planski sažetak")
 
 # Why a Group 1 value is null (never a default).
 FIELD_GAP_REASONS: dict[str, Bilingual] = {

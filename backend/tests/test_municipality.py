@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from core.municipality import UnknownMunicipalityError, list_municipality_ids, load_profile
+from core.municipality import UnknownMunicipalityError, load_profile
 
 
 def test_podgorica_profile_loads():
@@ -20,7 +20,6 @@ def test_podgorica_profile_loads():
         "uzn_geoportal",
         "monstat",
     }
-    assert "podgorica" in list_municipality_ids()
 
 
 def test_unknown_municipality_raises():

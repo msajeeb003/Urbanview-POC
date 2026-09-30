@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import Depends, Header, Request
 
@@ -26,7 +26,6 @@ from core.auth import Principal, Role, TokenAuthenticator
 from core.config import Settings
 from core.errors import ForbiddenError, ServiceUnavailableError, UnauthorizedError
 from core.municipality import MunicipalityProfile
-from core.storage import ObjectStorage
 
 
 def get_settings_dep(request: Request) -> Settings:
@@ -35,14 +34,6 @@ def get_settings_dep(request: Request) -> Settings:
 
 def get_municipality(request: Request) -> MunicipalityProfile:
     return request.app.state.municipality
-
-
-def get_redis(request: Request) -> Any:
-    return request.app.state.redis
-
-
-def get_storage(request: Request) -> ObjectStorage:
-    return request.app.state.storage
 
 
 def get_resolver(request: Request) -> LocationResolver:
@@ -220,9 +211,8 @@ StaffPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.revi
 # The pilot technical scope's roles: admin (everything), reviewer ("planning expert approving
 # extractions": the review queue, publish, read-only documents), expert ("produces paid reports":
 # the orders assigned to them and the report upload).
-# Expert review (A2): admins and reviewers decide; the audit trail is theirs to read.
+# Expert review (A2): admins and reviewers decide; the audit trail is the admins' (A7).
 ReviewerPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
-AuditReaderPrincipal = Annotated[Principal, Depends(require_role(Role.admin, Role.reviewer))]
 # The data pipeline (A1: files, document versions and their files, jobs, the coverage switch):
 # admins change it; reviewers read documents, files and jobs.
 PipelinePrincipal = Annotated[Principal, Depends(require_role(Role.admin))]

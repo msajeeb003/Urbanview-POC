@@ -5,9 +5,9 @@ Two sources, both presented as ``Authorization: Bearer <token>``:
 - **configured tokens** (``ADMIN_API_TOKENS="<token>:<role>[:<subject>],..."``): service access for
   the client dashboard and for bootstrapping before anyone has logged in;
 - **staff sessions** (``staff_sessions`` joined to ``staff_users``, migration 0006): the users /
-  roles model. The magic-link login item issues a session after verifying an e-mail link
-  (``core.staff.issue_session``); here the session is only verified: not revoked, not expired,
-  user active, same municipality.
+  roles model. The magic-link exchange (``api.services.auth``) issues a session after verifying
+  an e-mail link; here the session is only verified: not revoked, not expired, user active, same
+  municipality.
 
 Roles are ``admin`` / ``reviewer`` / ``expert``; a route states the roles it accepts
 (``api.deps.require_role``). Tokens are compared in constant time or looked up by SHA-256, and

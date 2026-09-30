@@ -2,7 +2,7 @@
   "name": "@urbanview/frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "UrbanView public map: Next.js (App Router) + TypeScript + Tailwind + shadcn/ui, reproducing the approved wireframe.",
+  "description": "UrbanView public map and staff console: Next.js (App Router) + TypeScript + Radix (shadcn/ui primitives), styled by the approved wireframe stylesheet.",
   "scripts": {
     "predev": "node scripts/build-map-provider.mjs && node scripts/copy-pdf-worker.mjs",
     "dev": "next dev",
@@ -32,7 +32,6 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -40,7 +39,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "openapi-typescript": "^7.13.0",
-    "tailwindcss": "^4.3.3",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"
   }

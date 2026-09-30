@@ -14,7 +14,6 @@ import {
   parseReviewFilters,
   payloadLines,
   progressOf,
-  reviewHrefFor,
   reviewQuery,
   sourceLine,
   statusChip,
@@ -119,7 +118,6 @@ describe("filters and refusals", () => {
     const filters = parseReviewFilters({ document: "3", file: "9", status: "pending", entity: "block", page: "14", sort: "confidence", zone: "x" });
     expect(filters).toEqual({ document: 3, file: 9, status: "pending", zone: null, entity: "block", page: 14, sort: "confidence" });
     expect(reviewQuery(filters, 200)).toMatchObject({ document_id: 3, file_id: 9, entity_type: "block", source_page: 14, sort: "confidence", offset: 200 });
-    expect(reviewHrefFor(filters)).toBe("/admin/review?document=3&file=9&status=pending&entity=block&page=14&sort=confidence");
     expect(parseReviewFilters({}).sort).toBe("pending");
   });
 

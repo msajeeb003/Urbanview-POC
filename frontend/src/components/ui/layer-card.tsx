@@ -12,8 +12,6 @@ export function swatchStyle(sw: Swatch): CSSProperties {
       return { background: "conic-gradient(#B5744A,#BE9A44,#8A7A8E,#5E8A82,#7C8A4F)" };
     case "dash":
       return { background: "#fff", border: "1.5px dashed #B5613B" };
-    case "docdash":
-      return { background: "#fff", border: "2px dashed #B3A894" };
     case "blockdash":
       return { background: "#fff", border: "1.5px dotted #B3A894" };
     case "heat1":
@@ -30,8 +28,6 @@ export interface LayerCardProps {
   swatch: Swatch;
   /** Visible (brand check, brand-dark name). */
   on: boolean;
-  /** Core layer: always on, muted check, not toggleable (◆ marker kept in the markup). */
-  core?: boolean;
   /** Optional mono sub-label under the name. */
   sub?: string;
   /**
@@ -49,7 +45,6 @@ export function LayerCard({
   name,
   swatch,
   on,
-  core = false,
   sub,
   note,
   noteKind = "no_data",
@@ -59,10 +54,9 @@ export function LayerCard({
   return (
     <button
       type="button"
-      className={cn("lyr", on && "on", core && "core")}
+      className={cn("lyr", on && "on")}
       title={title}
-      aria-pressed={core ? undefined : on}
-      aria-disabled={core || undefined}
+      aria-pressed={on}
       onClick={onClick}
     >
       <div className="swatch" style={swatchStyle(swatch)} />
@@ -74,7 +68,6 @@ export function LayerCard({
       <span className="chk">
         <IconCheckTiny />
       </span>
-      {core && <span className="lock">◆</span>}
     </button>
   );
 }

@@ -1,6 +1,6 @@
 # Build context is the repo root (see docker-compose.yml) so the image carries backend/,
-# database/ (migrations, seeds) and packages/. The GIS track (GDAL, tippecanoe) will get its own
-# worker image later; keep this one slim so the public API stays fast to build and start.
+# database/ (migrations, seeds) and packages/. The worker image (Dockerfile.worker) adds GDAL,
+# tippecanoe and the extraction model client; keep this one slim so the API builds and starts fast.
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

@@ -3,13 +3,13 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
 
-from api.schemas.analytics import AnalyticsEvent
 from api.services.analytics import DashboardRows, Range
 from core.auth import Principal, Role, TokenAuthenticator, parse_api_tokens
 from tests.helpers import make_app, make_client, make_redis, make_settings
@@ -20,33 +20,19 @@ REVIEWER = "review-token-1"
 TOKENS = f"{ADMIN}:admin:client-dashboard, {REVIEWER}:reviewer:ana"
 
 ROWS = DashboardRows(
-    totals={
-        "events": 40,
-        "sessions": 4,
-        "clients": 2,
-        "by_name": {
-            "map_loaded": 4,
-            "panel_viewed": 4,
-            "financials_viewed": 2,
-            "checkout_completed": 1,
-        },
-    },
     funnel={
         "map_loaded": 4,
-        "searched_or_selected": 3,
-        "panel_viewed": 3,
-        "financials_viewed": 2,
-        "order_started": 1,
-        "checkout_completed": 1,
+        "parcel_resolved": 3,
+        "panel_opened": 3,
+        "order_started": 2,
+        "order_submitted": 1,
+        "paid": 1,
     },
-    orders={
-        "order_started_events": 2,
-        "orders_started": 1,
-        "orders_completed": 1,
-        "revenue_eur": Decimal("49.00"),
-        "by_product": [{"product": "expert_report", "orders": 1, "revenue_eur": 49}],
-    },
-    districts=[
+    orders=[
+        {"status": "pending_payment", "orders": 2, "amount_eur": Decimal("300.00")},
+        {"status": "paid", "orders": 1, "amount_eur": Decimal("100.00")},
+    ],
+    top_zones=[
         {
             "zone_id": 1,
             "zone_name": "Centar",
@@ -76,26 +62,14 @@ ROWS = DashboardRows(
             "sessions": 1,
         },
     ],
-    repeat_usage={
-        "sessions": 4,
-        "returning_sessions": 2,
-        "clients": 2,
-        "clients_at_target": 0,
-        "sessions_per_client": Decimal("1.5"),
-        "reported_users": 1,
-        "reported_users_at_target": 0,
-        "reported_sessions_per_user": Decimal("2"),
-    },
-    interest={"market_events": 3, "market_sessions": 2, "ai_events": 1, "ai_sessions": 1},
-    panel_to_financials={
-        "panel_views": 4,
-        "panel_view_pairs": 4,
-        "pairs_reaching_financials": 2,
-        "panel_sessions": 3,
-        "panel_sessions_reaching_financials": 2,
-    },
+    uncovered_hits=[
+        {"lat": Decimal("42.460"), "lng": Decimal("19.281"), "searches": 2, "sessions": 1},
+        {"lat": Decimal("42.401"), "lng": Decimal("19.230"), "searches": 1, "sessions": 1},
+    ],
+    repeat_sessions={"sessions": 5, "visitors": 2, "repeat_visitors": 1, "repeat_sessions": 3},
+    intent={"market_events": 3, "market_sessions": 2, "ai_events": 1, "ai_sessions": 1},
 )
-EMPTY = DashboardRows(totals={}, funnel={}, orders={})
+EMPTY = DashboardRows(funnel={})
 
 
 class FakeAnalyticsRepository:
@@ -106,8 +80,8 @@ class FakeAnalyticsRepository:
     async def insert_events(self, rows):
         return len(rows)
 
-    async def collect(self, rng, *, districts_limit, target):
-        self.calls.append((rng, districts_limit, target))
+    async def collect(self, rng, *, limit, min_sessions):
+        self.calls.append((rng, limit, min_sessions))
         return self.rows
 
 
@@ -198,23 +172,46 @@ def test_malformed_token_settings_fail_at_startup():
 # --- assembly ----------------------------------------------------------------------------------
 
 
-async def test_funnel_conversions_are_session_ratios():
+async def test_the_payload_holds_exactly_the_plan_aggregates_and_no_customer_data():
     body = (await get(build())).json()
-    funnel = body["funnel"]
+    assert set(body) == {
+        "municipality_id",
+        "range",
+        "generated_at",
+        "funnel",
+        "orders",
+        "top_zones",
+        "uncovered_hits",
+        "repeat_sessions",
+        "intent_counts",
+    }
+    text = json.dumps(body)
+    assert "@" not in text and "email" not in text and "first_name" not in text
+
+
+async def test_funnel_from_map_to_paid_with_conversions():
+    funnel = (await get(build())).json()["funnel"]
     assert funnel["basis"] == "sessions"
     steps = funnel["steps"]
     assert [s["step"] for s in steps] == [
         "map_loaded",
-        "searched_or_selected",
-        "panel_viewed",
-        "financials_viewed",
+        "parcel_resolved",
+        "panel_opened",
         "order_started",
-        "checkout_completed",
+        "order_submitted",
+        "paid",
     ]
-    assert steps[1]["event_names"] == ["search_performed", "parcel_selected"]
+    assert [s["event_names"] for s in steps] == [
+        ["map_loaded"],
+        ["parcel_selected"],
+        ["panel_viewed"],
+        ["order_started"],
+        ["checkout_completed"],
+        [],  # the orders table: the submitted order has been paid
+    ]
     assert [s["sessions"] for s in steps] == [4, 3, 3, 2, 1, 1]
     assert [s["conversion_from_previous_pct"] for s in steps] == [
-        None,
+        100.0,
         75.0,
         100.0,
         66.7,
@@ -232,23 +229,24 @@ async def test_funnel_conversions_are_session_ratios():
     assert funnel["overall_conversion_pct"] == 25.0
 
 
-async def test_orders_and_revenue():
+async def test_orders_by_status_list_every_status_in_flow_order():
     orders = (await get(build())).json()["orders"]
     assert orders == {
-        "source": "analytics_events",
-        "order_started_events": 2,
-        "orders_started": 1,
-        "orders_completed": 1,
-        "revenue_eur": 49.0,
-        "average_order_eur": 49.0,
-        "completion_pct": 100.0,
-        "by_product": [{"product": "expert_report", "orders": 1, "revenue_eur": 49.0}],
+        "placed": 3,
+        "by_status": [
+            {"status": "pending_payment", "orders": 2, "amount_eur": 300.0},
+            {"status": "paid", "orders": 1, "amount_eur": 100.0},
+            {"status": "payment_failed", "orders": 0, "amount_eur": 0.0},
+            {"status": "in_progress", "orders": 0, "amount_eur": 0.0},
+            {"status": "delivered", "orders": 0, "amount_eur": 0.0},
+            {"status": "refunded", "orders": 0, "amount_eur": 0.0},
+        ],
     }
 
 
-async def test_most_searched_districts_with_shares():
-    districts = (await get(build())).json()["districts"]
-    assert districts == [
+async def test_top_zones_with_shares_and_uncovered_hits_by_position():
+    body = (await get(build())).json()
+    assert body["top_zones"] == [
         {
             "zone_id": 1,
             "zone_name": "Centar",
@@ -284,65 +282,56 @@ async def test_most_searched_districts_with_shares():
             "share_pct": 16.7,
         },
     ]
+    assert body["uncovered_hits"] == [
+        {"lat": 42.46, "lng": 19.281, "searches": 2, "sessions": 1},
+        {"lat": 42.401, "lng": 19.23, "searches": 1, "sessions": 1},
+    ]
 
 
-async def test_repeat_usage_against_the_prototype_target():
-    repeat = (await get(build())).json()["repeat_usage"]
-    assert repeat == {
-        "target_sessions_per_user": 3,
-        "sessions": 4,
-        "returning_sessions": 2,
-        "repeat_usage_rate_pct": 50.0,
-        "clients": 2,
-        "sessions_per_client": 1.5,
-        "clients_at_target": 0,
-        "clients_at_target_pct": 0.0,
-        "reported": {
-            "users": 1,
-            "users_at_target": 0,
-            "users_at_target_pct": 0.0,
-            "sessions_per_user": 2.0,
-        },
-    }
-
-
-async def test_interest_counts_and_panel_views_reaching_financials():
+async def test_repeat_sessions_are_visitors_with_three_or_more_and_intent_counts():
     body = (await get(build())).json()
-    assert body["interest"] == {
+    assert body["repeat_sessions"] == {
+        "min_sessions": 3,
+        "sessions": 5,
+        "visitors": 2,
+        "repeat_visitors": 1,
+        "repeat_visitors_pct": 50.0,
+        "repeat_sessions": 3,
+    }
+    assert body["intent_counts"] == {
         "market_data_interest": {"events": 3, "sessions": 2},
         "ai_interest": {"events": 1, "sessions": 1},
     }
-    assert body["panel_to_financials"] == {
-        "panel_views": 4,
-        "panel_view_pairs": 4,
-        "pairs_reaching_financials": 2,
-        "reaching_financials_pct": 50.0,
-        "panel_sessions": 3,
-        "panel_sessions_reaching_financials": 2,
-        "sessions_reaching_financials_pct": 66.7,
-    }
 
 
-async def test_totals_list_every_event_name():
-    totals = (await get(build())).json()["totals"]
-    assert (totals["events"], totals["sessions"], totals["clients"]) == (40, 4, 2)
-    assert set(totals["by_name"]) == {name.value for name in AnalyticsEvent}
-    assert totals["by_name"]["map_loaded"] == 4
-    assert totals["by_name"]["source_reference_opened"] == 0
-
-
-async def test_an_empty_range_has_no_division_errors():
+async def test_an_empty_range_answers_zeros():
     body = (await get(build(FakeAnalyticsRepository(EMPTY)))).json()
-    assert body["totals"]["events"] == 0
-    assert all(s["sessions"] == 0 for s in body["funnel"]["steps"])
-    assert body["funnel"]["overall_conversion_pct"] is None
-    assert body["funnel"]["steps"][0]["conversion_from_start_pct"] is None
-    assert body["orders"]["average_order_eur"] is None
-    assert body["orders"]["completion_pct"] is None
-    assert body["districts"] == []
-    assert body["repeat_usage"]["repeat_usage_rate_pct"] is None
-    assert body["repeat_usage"]["sessions_per_client"] is None
-    assert body["panel_to_financials"]["reaching_financials_pct"] is None
+    steps = body["funnel"]["steps"]
+    assert all(s["sessions"] == 0 for s in steps)
+    assert all(s["conversion_from_previous_pct"] == 0.0 for s in steps)
+    assert all(s["conversion_from_start_pct"] == 0.0 for s in steps)
+    assert body["funnel"]["overall_conversion_pct"] == 0.0
+    assert body["orders"]["placed"] == 0
+    assert [s["orders"] for s in body["orders"]["by_status"]] == [0] * 6
+    assert body["top_zones"] == [] and body["uncovered_hits"] == []
+    assert body["repeat_sessions"] == {
+        "min_sessions": 3,
+        "sessions": 0,
+        "visitors": 0,
+        "repeat_visitors": 0,
+        "repeat_visitors_pct": 0.0,
+        "repeat_sessions": 0,
+    }
+    assert body["intent_counts"]["ai_interest"] == {"events": 0, "sessions": 0}
+
+
+async def test_a_zero_length_range_is_zeros_without_a_query():
+    repository = FakeAnalyticsRepository()
+    r = await get(build(repository), params={"from": "2026-09-22", "to": "2026-09-22"})
+    assert r.status_code == 200, r.text
+    assert repository.calls == []
+    assert r.json()["funnel"]["overall_conversion_pct"] == 0.0
+    assert r.json()["range"]["days"] == 0.0
 
 
 # --- date range --------------------------------------------------------------------------------
@@ -380,12 +369,11 @@ async def test_explicit_range_accepts_dates_and_naive_datetimes_as_utc():
 @pytest.mark.parametrize(
     "params",
     [
-        {"from": "2026-09-22", "to": "2026-09-22"},
         {"from": "2026-09-23", "to": "2026-09-22"},
         {"from": "2025-01-01", "to": "2026-09-22"},
         {"from": "yesterday"},
     ],
-    ids=["empty range", "reversed", "over 366 days", "garbage"],
+    ids=["reversed", "over 366 days", "garbage"],
 )
 async def test_bad_ranges_are_422(params):
     r = await get(build(), params=params)

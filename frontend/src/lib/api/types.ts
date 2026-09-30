@@ -10,8 +10,6 @@ type S = components["schemas"];
 export type MunicipalityProfile = S["MunicipalityProfile"];
 
 export type LocationResolution = S["LocationResolution"];
-export type LatLng = S["LatLng"];
-export type CoverageReason = S["CoverageReason"];
 
 export type GeocodeResponse = S["GeocodeResponse"];
 export type GeocodeResult = S["GeocodeResult"];
@@ -25,12 +23,8 @@ export type DocumentPanel = S["DocumentPanel"];
 export type CadastralPanel = S["CadastralPanel"];
 export type UrbanPanel = S["UrbanPanel"];
 export type Panel = ZonePanel | DocumentPanel | CadastralPanel | UrbanPanel;
-export type PanelType = paths["/v1/panel"]["get"]["parameters"]["query"]["type"];
 export type PanelQuery = paths["/v1/panel"]["get"]["parameters"]["query"];
 
-export type FeasibilityRequest = S["FeasibilityRequest"];
-export type FeasibilityResponse = S["FeasibilityResponse"];
-export type EditedAssumptions = S["EditedAssumptions"];
 
 export type SourcePage = S["SourcePage"];
 
@@ -50,7 +44,6 @@ export type OrderPublic = S["OrderPublic"];
 export type OrderPricing = S["OrderPricing"];
 
 export type PlanningField = S["PlanningField"];
-export type Areas = S["Areas"];
 export type UrbanLink = S["UrbanLink"];
 
 // --- the admin console (staff routes; called from the Next server with the staff session) ---
@@ -68,7 +61,6 @@ export type AdminDocumentFile = S["DocumentFileOut"];
 export type AdminDocumentList = S["DocumentList"];
 export type AdminJob = S["JobOut"];
 export type AdminJobList = S["JobList"];
-export type AdminVersionRef = S["VersionRef"];
 export type AdminGeoreference = S["GeoreferenceOut"];
 export type StoredFile = S["StoredFileOut"];
 export type UploadResult = S["UploadResult"];
@@ -76,6 +68,7 @@ export type DocumentState = NonNullable<S["DocumentOut"]["state"]>;
 export type DocumentStatus = S["DocumentOut"]["status"];
 export type ExtractionState = NonNullable<S["DocumentFileOut"]["extraction_state"]>;
 export type FileRole = S["DocumentFileOut"]["role"];
+export type StaffRoleName = S["Role"];
 export type JobStateFilter = NonNullable<
   NonNullable<paths["/v1/admin/documents"]["get"]["parameters"]["query"]>["job_state"]
 >;
@@ -97,7 +90,6 @@ export type GeometryDraft = S["GeometryDraft"];
 export type GeometryPage = S["GeometryPage"];
 export type GeometryCounts = S["GeometryCounts"];
 export type GeometryFeatures = S["GeometryFeatures"];
-export type GeometryBlocker = S["GeometryBlocker"];
 export type QaIssue = S["QaIssueOut"];
 export type GeometryOrigin = NonNullable<S["GeometryDraft"]["origin"]>;
 export type GeometryReviewStatus = NonNullable<S["GeometryDraft"]["review_status"]>;
@@ -117,7 +109,6 @@ export type AssumptionSetList = S["AssumptionsList"];
 export type FormulaVersion = S["FormulaVersionOut"];
 export type AssumptionSetIn = S["AssumptionsIn"];
 export type AssumptionStatus = S["AssumptionsOut"]["status"];
-export type RateIn = S["RateIn"];
 export type RateRange = S["RateRange"];
 export type AssumptionsBatchOut = S["AssumptionsBatchOut"];
 export type DataSource = S["DataSource"];

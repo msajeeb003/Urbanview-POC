@@ -2,7 +2,7 @@
 
 Session setup (once): probe ``TEST_DATABASE_URL`` (skip everything if unreachable), reset the
 ``public`` schema, run the migrations up, down to base and up again (they must round-trip), then
-load ``database/seeds/podgorica_sample`` plus synthetic volume. Tests then get an app wired to the
+load ``database/seeds/podgorica_sample``. Tests then get an app wired to the
 real resolver, an HTTP client and a raw connection for EXPLAIN.
 """
 
@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, async_sessionmaker, create_a
 from sqlalchemy.pool import NullPool
 
 from core.config import Settings
-from core.seeds import load_sample, load_synthetic_bulk
+from core.seeds import load_sample
 from tests.helpers import make_app, make_client, make_settings
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -59,16 +59,13 @@ async def _reset_schema(url: str) -> None:
         await engine.dispose()
 
 
-async def _seed(url: str) -> tuple[dict[str, int], dict[str, int]]:
-    """The hand-made sample plus synthetic volume (300 documents, 10k cadastral + 10k planned
-    parcels east of the sample) so plans and latencies are measured on realistic table sizes."""
+async def _seed(url: str) -> dict[str, int]:
+    """The hand-made sample."""
     engine = create_async_engine(url, poolclass=NullPool)
     try:
         factory = async_sessionmaker(engine, expire_on_commit=False)
         async with factory() as session:
-            sample = await load_sample(session, "podgorica_sample")
-            bulk = await load_synthetic_bulk(session)
-            return sample, bulk
+            return await load_sample(session, "podgorica_sample")
     finally:
         await engine.dispose()
 
@@ -87,11 +84,9 @@ def postgis_url() -> str:
     command.upgrade(cfg, "head")
     command.downgrade(cfg, "base")  # migrations must round-trip
     command.upgrade(cfg, "head")
-    sample, bulk = asyncio.run(_seed(TEST_DATABASE_URL))
+    sample = asyncio.run(_seed(TEST_DATABASE_URL))
     assert sample["cadastral_parcels"] == 7 and sample["planning_documents"] == 5
     assert sample["urban_parcels"] == 6
-    assert bulk["cadastral_parcels"] == 10_000 and bulk["planning_documents"] == 300
-    assert bulk["urban_parcels"] >= 10_000
     return TEST_DATABASE_URL
 
 

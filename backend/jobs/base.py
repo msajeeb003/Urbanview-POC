@@ -38,7 +38,6 @@ from sqlalchemy.pool import NullPool
 
 log = logging.getLogger("urbanview.jobs")
 
-ACTIVE_STATUSES: tuple[str, ...] = ("queued", "running", "retrying")
 FINAL_STATUSES: tuple[str, ...] = ("succeeded", "failed", "cancelled")
 
 

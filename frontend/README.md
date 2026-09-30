@@ -1,7 +1,8 @@
 # frontend/ — UrbanView public map
 
-Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Radix), Mapbox GL JS, TanStack
-Query. Reproduces the client-approved wireframe exactly; rules, tokens, dimensions, layer list and
+Next.js 16 (App Router) + TypeScript + Radix (shadcn/ui primitives), Mapbox GL JS, TanStack
+Query, styled by the wireframe stylesheet (`src/styles/wireframe.css` = `docs/wireframe/wireframe.css`,
+plus `overrides.css`). Reproduces the client-approved wireframe; rules, tokens, dimensions, layer list and
 panel fields are in `CLAUDE.md` here, the design contract in `docs/specs/frontend-design.md`.
 
 ## Run

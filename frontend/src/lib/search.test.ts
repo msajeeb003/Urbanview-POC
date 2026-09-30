@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import type { GeocodeResult, ZoneIndexEntry } from "./api/types";
 import {
-  NO_MATCH_TEXT,
   OUTSIDE_COVERAGE_SUB,
   RECENT_KEY,
   addressItem,
@@ -178,9 +177,8 @@ describe("buildSuggestions", () => {
     expect(parcel).toBeNull();
     expect(items.map((i) => i.icon)).toEqual(["▤", "⌂"]);
   });
-  it("has no rows for text nothing matches (the box shows the wireframe's copy)", () => {
+  it("has no rows for text nothing matches", () => {
     expect(buildSuggestions({ query: "xyzzy", kos: KOS, zones: ZONES, hits: [] }).items).toEqual([]);
-    expect(NO_MATCH_TEXT).toBe("No match. The client will supply available data locations.");
   });
 });
 

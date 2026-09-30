@@ -7,17 +7,14 @@
  * the default next to it, the other rates in use and their source, the market version and the
  * date it applies from, and "Reset to defaults". Edits go to the store (`assumptionEdits`, in
  * memory: a reload returns to the defaults); the market section recalculates from them. An edit
- * back on the default value stops being an edit, so Reset and "slide back" agree. Each assumption
- * sends one `assumption_edited` once its slider has settled (`editEventQueue`).
+ * back on the default value stops being an edit, so Reset and "slide back" agree. Edits send no
+ * event: the plan's 13 events have none for them.
  */
-import { useEffect, useId, useMemo } from "react";
+import { useId } from "react";
 
-import { useTrack } from "@/lib/analytics/react";
-import type { EventProperties } from "@/lib/analytics/tracker";
 import {
   SLIDERS,
   defaultsOf,
-  editEventQueue,
   fromSlider,
   hasEdits,
   sliderBounds,
@@ -35,20 +32,14 @@ function show(key: EditKey, value: number): string {
 export function AssumptionSandbox({
   data,
   errors,
-  ids,
 }: {
   data: UrbanPanel;
   errors: Partial<Record<EditKey, string>>;
-  /** The parcel's event ids (`urban_parcel_id`, `parcel_id`, `zone_id`). */
-  ids: EventProperties;
 }) {
   const id = useId();
   const edits = useShell((s) => s.assumptionEdits);
   const setAssumptionEdit = useShell((s) => s.setAssumptionEdit);
   const resetAssumptions = useShell((s) => s.resetAssumptions);
-  const track = useTrack();
-  const events = useMemo(() => editEventQueue((props) => track("assumption_edited", props)), [track]);
-  useEffect(() => () => events.flush(), [events]);
   const a = data.assumptions;
   const defaults = defaultsOf(a);
   const marketAvailable = data.market_inputs?.available !== false && !!data.engine;
@@ -57,9 +48,6 @@ export function AssumptionSandbox({
   const versionDate = a?.data_version_date ? formatDate(a.data_version_date) : null;
   const market = a?.market_version;
   const marketFrom = market?.effective_from ? formatDate(market.effective_from) : null;
-
-  const record = (key: EditKey, value: number, reset = false) =>
-    events.push(key, { ...ids, assumption: key, assumption_value: value, ...(reset ? { reset: true } : {}) });
 
   return (
     <div className="assum">
@@ -95,7 +83,6 @@ export function AssumptionSandbox({
                   const next = fromSlider(slider.key, Number(e.target.value));
                   // back on the default value: no longer an edit
                   setAssumptionEdit(slider.key, def != null && next === def ? undefined : next);
-                  record(slider.key, next);
                 }}
               />
               <span className="av">{value != null ? show(slider.key, value) : "—"}</span>
@@ -127,10 +114,6 @@ export function AssumptionSandbox({
         aria-disabled={!edited}
         onClick={() => {
           if (!edited) return;
-          for (const slider of SLIDERS) {
-            const def = defaults[slider.key];
-            if (edits[slider.key] !== undefined && def != null) record(slider.key, def, true);
-          }
           resetAssumptions();
         }}
       >

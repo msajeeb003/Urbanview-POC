@@ -8,7 +8,7 @@
  * GIS drawing, a zone import, a cadastral import), the pilot scope's `staging.geometry_draft`.
  */
 import type { ChipTone } from "@/components/admin/parts";
-import type { GeometryBlocker, GeometryDraft, GeometryFeatures, GeometryOrigin, GeometryReviewStatus, QaIssue } from "@/lib/api/types";
+import type { GeometryDraft, GeometryFeatures, GeometryOrigin, GeometryReviewStatus, QaIssue } from "@/lib/api/types";
 
 export const ORIGINS: readonly { value: GeometryOrigin; label: string; note: string }[] = [
   { value: "vector_pdf", label: "Vector plan PDF", note: "drawing layers read from the plan's PDF and georeferenced" },
@@ -233,13 +233,6 @@ export function projectFeatures(
     };
   });
   return { shapes };
-}
-
-/** "3 geometry batches wait for review" (null when none). */
-export function geometryBlockersText(blockers: readonly GeometryBlocker[] | null | undefined): string | null {
-  if (!blockers?.length) return null;
-  const n = blockers.length;
-  return `${n} geometry batch${n === 1 ? "" : "es"} wait${n === 1 ? "s" : ""} for review`;
 }
 
 // --- refusals in plain words ---------------------------------------------------------------------

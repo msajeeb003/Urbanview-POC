@@ -1,13 +1,11 @@
 import { calculate, type EngineInputs, type EngineResult, type FixtureFile } from "@urbanview/feasibility-engine";
 import fixtureJson from "@urbanview/feasibility-engine/fixtures/feasibility-cases.json";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { UrbanPanel } from "./api/types";
 import {
   SLIDERS,
   defaultsOf,
-  EDIT_EVENT_DELAY_MS,
-  editEventQueue,
   editErrors,
   fromSlider,
   recalculateFeasibility,
@@ -159,37 +157,5 @@ describe("sliders and bounds", () => {
     });
     expect(editErrors({ saleable_share: 1.2 }, defaults).saleable_share).toBe("Out of range: use 55–85%.");
     expect(editErrors({ construction_cost_eur_m2: -1 }, defaults).construction_cost_eur_m2).toBeTruthy();
-  });
-});
-
-describe("assumption_edited events", () => {
-  it("sends one event per assumption once its slider has settled, with the last value", () => {
-    vi.useFakeTimers();
-    try {
-      const sent: unknown[] = [];
-      const queue = editEventQueue((props) => sent.push(props));
-      for (const value of [900, 950, 960]) queue.push("construction_cost_eur_m2", { assumption_value: value });
-      queue.push("saleable_share", { assumption_value: 0.65 });
-      vi.advanceTimersByTime(EDIT_EVENT_DELAY_MS - 1);
-      expect(sent).toEqual([]);
-      vi.advanceTimersByTime(1);
-      expect(sent).toEqual([{ assumption_value: 960 }, { assumption_value: 0.65 }]);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("sends what is still waiting when flushed (the panel closing), and nothing twice", () => {
-    vi.useFakeTimers();
-    try {
-      const sent: unknown[] = [];
-      const queue = editEventQueue((props) => sent.push(props));
-      queue.push("sale_price_eur_m2", { assumption_value: 2600 });
-      queue.flush();
-      vi.advanceTimersByTime(EDIT_EVENT_DELAY_MS * 2);
-      expect(sent).toEqual([{ assumption_value: 2600 }]);
-    } finally {
-      vi.useRealTimers();
-    }
   });
 });

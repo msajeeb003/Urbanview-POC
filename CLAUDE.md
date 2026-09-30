@@ -18,7 +18,7 @@ wireframe, brand SVGs, specs; the client's planning PDFs in `docs/gis/source/`).
 |---|---|
 | `backend/` | FastAPI app (`api/`: app factory, routers under `/v1`, schemas, services), `core/` (settings, logging, errors, middleware, db, models, `engine/` feasibility formulas, `geocode/` geocoding providers, `gis/` geometry assessment, `cadastre/` cadastral base loader, `extraction/` the AI extraction contract, redis, storage, mail, municipality profiles, seeds loader), `jobs/` (Celery: ingestion, extraction, publish), `municipalities/<id>.toml`, `tests/` (unit) and `tests/integration/` (PostGIS). Python venv: `backend/.venv`. |
 | `database/` | Alembic (`alembic.ini`, `migrations/`), seed datasets (`seeds/podgorica_sample/*.geojson` for the geometry tables, `*.json` for the panel tables), compose init SQL (`docker/initdb/`), `scripts/dev_postgis.py` (portable PostGIS for Docker-less machines). |
-| `frontend/` | Public map and the staff console (`/admin/*`, Auth.js magic links, roles admin / reviewer / expert): Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (Radix) + Mapbox GL JS + TanStack Query, npm workspace `@urbanview/frontend`. Its own `frontend/CLAUDE.md` holds the tokens, dimensions, layer list, panel field lists and frontend rules. |
+| `frontend/` | Public map and the staff console (`/admin/*`, Auth.js magic links, roles admin / reviewer / expert): Next.js 16 (App Router) + TypeScript + Radix (shadcn/ui primitives) + Mapbox GL JS + TanStack Query, styled by the wireframe stylesheet (no Tailwind), npm workspace `@urbanview/frontend`. Its own `frontend/CLAUDE.md` holds the tokens, dimensions, layer list, panel field lists and frontend rules. |
 | `packages/` | `feasibility-engine/`: the shared TypeScript feasibility engine (npm workspace of the root `package.json`) and `fixtures/feasibility-cases.json`, the fixture file both engines are held to. |
 | `deploy/` | Production on one server (Hetzner Cloud): `compose.yml` (Caddy HTTPS → web / api / MinIO; worker, PostGIS, Redis internal), `Caddyfile`, `.env.example`, `server-setup.sh`, `deploy.sh` (pull + rebuild + migrate), `README.md` (step by step). |
 | root | `docker-compose.yml`, `Makefile`, `ruff.toml`, `package.json` (npm workspaces: `packages/*`, `frontend`), `README.md`, this file. |
@@ -88,11 +88,12 @@ catalogue, the heatmap job and the zone index); the map shows a neutral pill for
 the pin's note "no adopted plan published here yet". Uncovered searches still count as location
 demand: the analytics districts place them by their point.
 
-**Analytics events:** `map_loaded`, `search_performed`, `parcel_selected`, `layer_toggled`,
+**Analytics events (13):** `map_loaded`, `search_performed`, `parcel_selected`, `layer_toggled`,
 `panel_viewed`, `financials_viewed`, `source_reference_opened`, `order_started`,
-`checkout_completed`, `return_visit`, `sessions_per_user`, `market_data_interest`, `ai_interest`,
-`assumption_edited` (enum in `backend/api/schemas/analytics.py`; the last is not in BRD §6.2:
-the POC check of Group 2 asked for it).
+`checkout_completed`, `return_visit`, `sessions_per_user` (BRD §6.2's eleven), `market_data_interest`,
+`ai_interest` (the pilot scope's two intent buttons). One list: `core.models.analytics.AnalyticsEvent`
+(the API validates against it, `ck_analytics_events_name` is built from it). The Group 2 check's
+`assumption_edited` was removed on 2026-10-01 (not in the plan's list; migration 0038).
 
 **Performance target:** under 2 seconds from query to populated panel. Requests slower than
 `SLOW_REQUEST_MS` are logged at WARNING with the route template.
@@ -106,8 +107,8 @@ the POC check of Group 2 asked for it).
   pilot scope's two intent buttons, intent check 2026-09-28); hosted card checkout
   (bank transfer only); a zone editor (zones are drawn in QGIS, `core/zones`); ownership /
   restitution map layers (no toggles, no tile layers; the cadastral flags stay null until a
-  confirmed eKatastar extract loads them); the planned-traffic
-  layer (extraction may read the drawing layer, but it is not staged, published or drawn); 3D / AR.
+  confirmed eKatastar extract loads them; the tiles do not carry them); the planned-traffic
+  layer (not extracted from the drawings, not staged, published or drawn); 3D / AR.
 - **Accepted deviations from the plan's stack:** one `public` schema, staging and serving told
   apart by table (`planning_parameter_extractions`, `staging_geometry`, `geometry_batches`,
   `staging_zone_documents` vs `planning_parameter_values`, `parcel_links`, `layer_features`,
@@ -144,9 +145,8 @@ the POC check of Group 2 asked for it).
   (`POST /v1/admin/files/{id}/jobs/preprocess` and job type `preprocess_file`: the extraction
   and geometry jobs run the stage first) and the `/order/<ref>` redirect. Migration 0036 adds
   `formula_versions` and drops the `ai_check` / `preprocess_file` job types and the `email_log`
-  bounce columns. Deferred removal: table `app_secrets` (the removed AI settings page's; it holds
-  the Anthropic key saved on 2026-09-28, encrypted, read by nothing) goes once the key is in the
-  server's settings (`ANTHROPIC_API_KEY`). The nav is Documents, AI review queue, Publish, Financial
+  bounce columns. Table `app_secrets` (the removed AI settings page's) was dropped by 0038 once
+  the server's settings held `ANTHROPIC_API_KEY`. The nav is Documents, AI review queue, Publish, Financial
   assumptions, Orders, Analytics, Audit log (+ Users in the account menu, back to the map).
 - **API surface and schema check (2026-09-30):** `tests/test_api_surface.py` holds the exact
   route list, each route with the plan item that needs it (a route outside it fails the
@@ -179,8 +179,24 @@ the POC check of Group 2 asked for it).
   once (the pilot's `serving.market_input` on publish; the v2 stack keeps assumptions in
   `public`); the height heatmap is the maximum floor count (the plans state floors, not metres);
   runtime thresholds are `Settings` (`LOCATE_MIN_OVERLAP_*`, `LINK_*`) and place data the
-  profile (CRS, layer patterns), not one file. REMOVE-DEFERRED: prompt set 1.0 (the never-guessed
-  cases replay 1.0-shaped replies).
+  profile (CRS, layer patterns), not one file. Prompt set 1.0 was deleted on 2026-10-01 (1.1 is
+  the only set; `eval --dry-run`, which replayed 1.0-shaped answers, went with it).
+- **Analytics / audit brief and excess sweep (2026-10-01):** the analytics endpoint returns the
+  brief's aggregates (funnel to paid, orders by status, top zones + uncovered hits, repeat
+  sessions, intent counts; zeros on an empty range), `POST /v1/events` judges rows one by one
+  (13 events: `assumption_edited` gone), the audit list is admins-only and filters action +
+  actor. Removed as outside the funded rows: OCR (Tesseract option), the server-side refusal
+  fallback, page images (`page_images_rendered`, 0038), prompt set 1.0 and `eval --dry-run`, the
+  planned-traffic extraction, topology QA (georef `parcel_overlaps`, zone overlaps / gaps), the
+  synthetic 10 000-parcel volume and the p95 / latency tests, the ownership flags in the tiles,
+  `app_secrets` (0038), the unaudited `core.staff add|token|revoke`, the payment-provider seam,
+  `CELERY_TASK_ALWAYS_EAGER`, the frontend's Tailwind setup, the unfunded wireframe CSS (AI,
+  plans, locks, badges, card payment, KPI tiles, tablet / phone layouts) and screenshots, the
+  third intent button ("Ask about this document"), the review item's audit widget, dead exports
+  and copy that promised later phases, subscriptions or a learning engine. The urban panel shows
+  the plan's Group 1 only (building line and setbacks are extracted, not shown). Server note:
+  production's `deploy/.env` still carries the placeholder bank beneficiary / IBAN (the client's
+  account is needed; `deploy/.env.example` now says `change-me`).
 - **Open (S3 check):** a separate `land_use_code` in Group 1 and a `sample_size` per market
   input: neither is in the data yet (`docs/specs/frontend-design.md` §10 item 22).
 
@@ -201,8 +217,10 @@ the POC check of Group 2 asked for it).
 - Parcel lookup: `ko` is required and case-insensitive; `number` may be `1042/3`; the reference
   point is `ST_PointOnSurface` of the parcel; `centroid` is where the map pans.
 - Points outside the municipality bounds (profile) short-circuit to `outside_municipality`.
-- Every access path is index-backed; `tests/integration` proves it with `EXPLAIN` under
-  `enable_seqscan = off`, checks one statement per call, and measures latency.
+- Every access path is index-backed (GiST on the geometries, the unique KO + number index);
+  `tests/integration` checks one statement per call. There is no load or latency testing in the
+  POC (the synthetic 10 000-parcel volume and the p95 / latency budgets were removed on
+  2026-10-01).
 
 ## Information panel (`backend/api/services/panel.py`, `panel_sql.py`, `panel_text.py`)
 
@@ -404,7 +422,7 @@ the POC check of Group 2 asked for it).
 - Tests: `tests/test_parcel_panel_unit.py` (builders on canned rows, engine equality, cache) and
   `tests/integration/test_parcel_panel_postgis.py` (sources open the cited page, missing height,
   split / fallback / cadastral / uncovered, both engines and `/v1/panel` agree, zone panel, cache
-  keys after admin changes, one statement per hit, index-backed plans, p95 < 200 ms cold and warm,
+  keys after admin changes, one statement per hit, index paths for the values and gaps,
   `rejected` after a publish).
 
 ## Parcel links (`backend/core/parcel_links.py`, migrations 0011 / 0026)
@@ -438,28 +456,27 @@ the POC check of Group 2 asked for it).
   agreed limit) it logs a warning. Coverage switched live after a publish reaches the links at the
   next publish or a `recompute`.
 - Tests: `tests/integration/test_parcel_links_postgis.py` (one fixture per relation drawn in the
-  metric CRS, shares of a split parcel summing to 100 %, the three panels, the QA command, the
-  logged recompute over the 10 000-parcel synthetic volume).
+  metric CRS, shares of a split parcel summing to 100 %, the three panels, the QA command, a
+  logged full recompute stored on the version).
 
 ## Source viewer (`api/services/source.py`, `api/routers/v1/source.py`)
 
 - Every planning value is traceable to its document in one click: the panel's `Source` carries
   `value_id` and `viewer_url = /v1/source/value/{value_id}`. `GET /v1/source/value/{value_id}`
   and `GET /v1/source/{document_id}/page/{page}` answer with **one short-lived signed URL** into
-  the private bucket (`SOURCE_URL_EXPIRES_SECONDS`, default 900): the rendered page image
-  (`{municipality}/planning-documents/{id}/pages/NNNN.png`, `kind: page_image`, PNG) when
-  `planning_documents.page_images_rendered`, otherwise the PDF with a `#page=N` anchor
-  (`kind: pdf_page`). Object keys never leave the API, the bucket stays private, responses are
+  the private bucket (`SOURCE_URL_EXPIRES_SECONDS`, default 900): the PDF with a `#page=N`
+  anchor (`kind: pdf_page`; page images were removed on 2026-10-01, 0038). Object keys never
+  leave the API, the bucket stays private, responses are
   `Cache-Control: no-store`, `expires_at` says when the link dies. The value route adds the
   value's `bbox` (PDF points, origin bottom-left), `note`, field labels and the value itself, and
   opens the file the value cites (`planning_parameter_values.source_file_id`, set by the publish
-  job from the item's run, migration 0022; null = the document's `file_key`; page images only for
-  the primary file). The review queue's page link follows the item's run file the same way
+  job from the item's run, migration 0022; null = the document's `file_key`). The review queue's
+  page link follows the item's run file the same way
   (`source.file_id` / `file_name`, filter `file_id`); the parcel panel's `source.file_id` too.
 - **Existence is decided by the database, never by probing storage** (migration 0004, set by the
-  ingestion job): `planning_documents.file_key` (null = not stored), `page_count` (null =
-  unknown: any page ≥ 1 of the PDF is served; page images need a known count),
-  `page_images_rendered`. 404 `not_found` only when the document, value or page truly does not
+  ingestion job): `planning_documents.file_key` (null = not stored) and `page_count` (null =
+  unknown: any page ≥ 1 of the PDF is served). 404 `not_found` only when the document, value or
+  page truly does not
   exist (`details.reason = not_stored` for a document without a file); storage or credential
   trouble is 503 `service_unavailable`. Values are read from the serving table only, the
   current version's (an earlier version's value id is a 404).
@@ -545,7 +562,7 @@ the POC check of Group 2 asked for it).
 - **Roles (the pilot technical scope's, auth check 2026-09-29; `api/deps.py`, every `/v1/admin/*`
   route through `require_role`):** `admin` = everything; `reviewer` ("planning expert approving
   extractions") = the review queue (A2: read, approve, amend, reject, market inputs), publish (A4),
-  read-only documents / files / jobs, the overview and the audit trail (read); `expert` ("produces paid reports") = the orders assigned to them and the
+  read-only documents / files / jobs; `expert` ("produces paid reports") = the orders assigned to them and the
   report upload (A6), `users/me`. Reviewers have no order access; experts none to the review
   queue or the pipeline.
 - **Principals** (writes on the routes below: role `admin`, `PipelinePrincipal`; the listings and
@@ -554,10 +571,12 @@ the POC check of Group 2 asked for it).
   (`ADMIN_API_TOKENS`) or **staff sessions**, the users / roles model of migration 0006
   (`staff_users`: e-mail, role admin | reviewer | expert, active flag; `staff_sessions`: SHA-256
   token hashes with expiry / revocation). `api.deps.require_role` tries the config tokens, then
-  `core.auth.StaffSessionAuthenticator`. The magic-link login item creates sessions with
-  `core.staff.issue_session`; until then `python -m core.staff add|token|revoke|list`. `python -m
+  `core.auth.StaffSessionAuthenticator`. The magic-link exchange creates sessions with
+  `core.staff.issue_session`; users are managed on the console's Users page (audited). `python -m
   core.staff login-link --email … [--create --role admin]` prints a one-time console sign-in link
-  without SMTP (audited `auth.login_link_issued`).
+  without SMTP (audited `auth.login_link_issued`, and `user.create` with `--create`); `python -m
+  core.staff list` lists the staff. (The unaudited `add` / `token` / `revoke` commands were removed
+  on 2026-10-01.)
 - **Files.** `POST /v1/admin/files` (multipart `file` + `kind` planning_document | gis |
   cadastral_extract) validates extension, declared type and file signature per kind, caps the
   size (`ADMIN_UPLOAD_MAX_MB`), hashes while reading and stores the object at
@@ -633,7 +652,7 @@ the POC check of Group 2 asked for it).
   `planning_documents.coverage_live` (only the current version, only with a coverage geometry;
   409 otherwise). Location resolution and the panel take **adopted AND live** documents only
   (`locate_sql`, `panel_sql`; the urban panel's `covered` too). The sample's adopted documents
-  are seeded live; synthetic bulk documents are live.
+  are seeded live.
 - **Audit.** Every action writes `audit_log` (actor subject + user id, action `file.upload`,
   `file.upload_duplicate`, `document.register`, `document.update`, `coverage.set_live`,
   `job.enqueue`, `job.enqueue_failed`, `zones.import` (actor `worker:import_zones`), entity type
@@ -753,8 +772,10 @@ the POC check of Group 2 asked for it).
   created_at. Every review decision and every admin change writes a row through
   `api.services.audit.write_audit` (assumption versions with the previous
   and new figures, users, documents, coverage, jobs, files; order status joins when the
-  payment item lands). `GET /v1/admin/audit` (admin, reviewer) filters by entity type / id,
-  actor, action prefix and time. Test fixtures never delete audit rows.
+  payment item lands). `GET /v1/admin/audit` (admins only: the pilot scope's A7) lists the
+  rows newest first (actor, action, entity type and id, before / after, note, created_at),
+  filtered by action prefix and exact actor, 50 a page. Test fixtures never delete audit rows
+  (integration tests read an entity's trail straight from `audit_log`, `tests.helpers.audit_trail`).
 - **Geometry review** (`api/services/geometry_review.py`, `api/routers/v1/admin_geometry.py`,
   `core/geometry_qa.py`, migration 0033; the pilot scope's `staging.geometry_draft`, A2 check
   2026-09-29): staged geometry is reviewed like the values before the publish job may apply it.
@@ -822,7 +843,7 @@ the POC check of Group 2 asked for it).
   lines (interleaved with its neighbours in the page text) still verifies; a citation of the
   empty cell of a row a merged value spans resolves to the cell it is printed in
   (`pages.merged_origin`).
-- **Prompts** (`prompts.py`, `prompt_sets/v1.1/`, `PROMPT_VERSION = "1.1"`; 1.0 stays loadable):
+- **Prompts** (`prompts.py`, `prompt_sets/v1.1/`, `PROMPT_VERSION = "1.1"`, the only set):
   1.1 asks for **compact answers** (`compact.py`: per entity only the fields the pages state, flat
   entries without unions, `to_legacy()` turns them into the 1.0 response models the validator
   reads; the API refused 1.0's nested schema as too complex). Manifest + Jinja2
@@ -836,15 +857,14 @@ the POC check of Group 2 asked for it).
   message. A changed prompt is a new directory; regenerate schemas with
   `python -m core.extraction export` (a test compares them).
 - **Model** (`llm.py`): `ClaudeModel` (Anthropic SDK, `ai` extra, installed in the worker image
-  only): streaming, `output_config` {format json_schema, effort}, adaptive thinking; server-side
-  refusal fallback (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) only when
-  switched on (documented for Opus 5 / Fable 5.1). **Default model Claude Sonnet 5** (product
+  only): streaming, `output_config` {format json_schema, effort}, adaptive thinking (no
+  server-side refusal fallback: removed 2026-10-01, never switched on). **Default model Claude Sonnet 5** (product
   owner, 2026-09-26: Opus not required): reads the tables well, supports adaptive thinking and
   effort and caches the prompt; Haiku 4.5 has neither thinking mode nor effort and caches only
   4096+ token prompts; `claude-opus-5` stays one setting away for hard pages. Settings
   `ANTHROPIC_API_KEY`, `EXTRACTION_MODEL` (claude-sonnet-5), `EXTRACTION_EFFORT`,
-  `EXTRACTION_ADAPTIVE_THINKING`, `EXTRACTION_MAX_TOKENS`, `EXTRACTION_REFUSAL_FALLBACK`,
-  `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_LOW_CONFIDENCE`. `ModelUnavailable` /
+  `EXTRACTION_ADAPTIVE_THINKING`, `EXTRACTION_MAX_TOKENS`, `EXTRACTION_TIMEOUT_SECONDS`,
+  `EXTRACTION_LOW_CONFIDENCE`. `ModelUnavailable` /
   `ModelRateLimited` are retryable (the job maps them to `TransientError` / `RateLimited`);
   `ModelRefused`, `ModelOutputInvalid`, `ModelError` are final. `ScriptedModel` for tests.
 - **Staging** (`staging.py`, migration 0017): only stated planning-field values become
@@ -856,7 +876,7 @@ the POC check of Group 2 asked for it).
   (`PAYLOAD_READERS`); keep the old reader when a major version changes.
 - **Evaluation**: `cases.py` holds five never-guessed cases (FAR from coverage x floors, height
   from floors, area from GFA / FAR, a neighbour's parking rule, an adoption date from the plan's
-  date). `python -m core.extraction eval [--dry-run]` asks the configured model
+  date). `python -m core.extraction eval` asks the configured model
   (costs tokens; a case passes only when the model returns not_found itself); accuracy on the
   client's documents is the corpus (below). Tests: `tests/test_extraction_contract.py` (schema files, prompts, normalisation,
   never-guessed, flags, staging, frozen 1.0 item) and
@@ -883,9 +903,9 @@ the POC check of Group 2 asked for it).
   Varoš's `D3078` had been "decoded" to `aPMTU`). Table finding is skipped on drawing sheets
   (`PREPROCESS_TABLE_MAX_PATHS`, > A2). In the model's table view a merged cell (printed once
   for several rows) shows as `cM: ^rK` in the rows it spans below row K.
-- **Never made up**: a scanned page is read only by a configured OCR backend
-  (`EXTRACTION_OCR_BACKEND=tesseract`, `srp_latn+srp`; default `none`, OCR is outside the POC);
-  otherwise it stays unread, gets no chunk and is listed (`unread_pages`) for manual handling.
+- **Never made up**: a scanned page is never read (OCR is outside the POC; the Tesseract option
+  was removed on 2026-10-01): it stays unread, gets no chunk and is listed (`unread_pages`,
+  `redraw_pages`) for a QGIS redraw or manual handling.
 - **Stitching**: a header-less table with the columns of the table before it continues it and
   takes its column names (`continues`, `header_from`); its chunk shows those columns.
 - **Sections** (methodology 2a–d) from headings (numbered / larger / bold / upper-case short
@@ -900,14 +920,12 @@ the POC check of Group 2 asked for it).
   geometry job for a PDF drawing; there is no separate trigger): skips the analysis
   when `stored_files.preprocess` (migration 0018) is current for the SHA-256, version and options
   key; else stores the page data as gzip JSON next to the upload and the manifest (pages,
-  tables, chunk plan, page image keys, `summary`) on the file record. Renders page images
-  (`PREPROCESS_PAGE_IMAGE_DPI`, capped at `..._MAX_PIXELS`) for each document version on the file
-  that lacks them, at the source viewer's keys; served (`page_images_rendered`) only with
-  `PREPROCESS_SERVE_PAGE_IMAGES=true`, because the public viewer highlights values on the PDF.
+  tables, chunk plan, `summary`) on the file record. No page images are rendered (removed
+  2026-10-01: they were never served; the viewer highlights values on the PDF).
 - Tests: `tests/test_extraction_preprocess.py` (a generated PDF, `tests/pdf_synthetic.py`: ruled
   table with wrapped cells, continuation, image-only page, Cyrillic, blank, glyph-shifted label;
   plus the POC documents when present) and `tests/integration/test_preprocess_postgis.py` (job
-  through the API: manifest, document record, images, cache, force, serving, refusals).
+  through the API: manifest, document record, cache, force, the viewer's `#page=`, refusals).
 
 ## Extraction job (`jobs/extraction_runner.py`, `core/extraction/runs.py`, `docs/specs/extraction-job.md`)
 
@@ -1152,13 +1170,18 @@ the POC check of Group 2 asked for it).
 
 ## Analytics (`api/services/analytics.py`, `api/routers/v1/events.py`, `admin_analytics.py`)
 
-- The prototype is a validation instrument: `POST /v1/events` ingests batches (≤ 100) of the
-  14 product events into `analytics_events` (migration 0005, `assumption_edited` added by 0029;
-  model `core/models/analytics.py`; CHECK on the name, `EVENT_NAMES` = the API's enum, a test
-  holds them together; indexes on municipality + name + time, session, zone). Each event:
-  `name`, anonymous client-generated `session_id`, optional anonymous persistent `client_id`
-  (repeat usage), optional `event_id` (retried batches are de-duplicated, never errors),
-  tz-aware `occurred_at` (not in the future), and a small flat `properties` object.
+- The prototype is a validation instrument: `POST /v1/events` ingests batches (1 to 100) of the
+  13 product events into `analytics_events` (migration 0005; model `core/models/analytics.py`,
+  whose `AnalyticsEvent` is the one list: the API's enum and `ck_analytics_events_name` (0038);
+  indexes on municipality + name + time, session, zone). Each event: `name`, anonymous
+  client-generated `session_id`, optional anonymous persistent `client_id` (repeat usage),
+  optional `event_id` (retried batches are de-duplicated, never errors), tz-aware `occurred_at`
+  (not in the future), and a small flat `properties` object.
+- **Rows are judged one by one** (`EventBatch`'s wrap validator): a malformed row (unknown name,
+  malformed id, bad or personal properties, a timestamp in the future) is rejected and listed in
+  the reply's `rejected` (`index` + `problems`: `loc`, `msg`, `type`; the sent values are never
+  echoed) while the valid rows are stored (202). Only a malformed batch (no `events` list, 0 or
+  more than 100 rows, unknown top-level keys) or a batch whose every row is malformed is a 422.
 - **Append-only** at the database level (migration 0030, as `audit_log`: a trigger raises on
   UPDATE, DELETE and TRUNCATE for every role); the API only inserts. The map's `session_id` and
   `client_id` are UUID v4 (the pilot scope's `session_id uuid`; the id rule `^[A-Za-z0-9_-]{8,64}$`
@@ -1169,45 +1192,45 @@ the POC check of Group 2 asked for it).
   `properties` (kept after the analytics check of 2026-09-28).
 - **Never personal data.** Unknown names, malformed ids, nested / oversized properties, a
   denylist of keys (name, email, phone, ip, user_agent, address …) and string values that look
-  like an e-mail or IP address reject the whole batch with 422. Request IPs are never stored.
+  like an e-mail or IP address reject the row. Request IPs are never stored.
   Known properties are typed (`parcel_id`, `zone_id`, `document_id`, `page` … positive ints;
   `search_kind` ∈ address | click | parcel_number, `result` ∈ address | zone | parcel, booleans
   `matched` / `recent` / `visible` / `on`; `panel_type`; `amount_eur` ≥ 0; `lat` −90…90 and
   `lng` −180…180, where a search landed, which the map sends rounded to 4 decimals; `sessions`;
-  `assumption` ∈ construction_cost_eur_m2 | sale_price_eur_m2 | saleable_share with
-  `assumption_value` 0…100 000 and boolean `reset`; `coverage` ∈ covered | no_parcel | uncovered |
-  failed on `search_performed`: what a point search, map click, parcel lookup or zone pick found,
-  so an outside-coverage hit (S6) is `uncovered`) and some are required
-  (`search_performed.search_kind`, `layer_toggled.layer_id`, `source_reference_opened.document_id
-  + page`, `checkout_completed.amount_eur`, `assumption_edited.assumption`). `zone_id` and
+  `coverage` ∈ covered | no_parcel | uncovered | failed on `search_performed`: what a point
+  search, map click, parcel lookup or zone pick found, so an outside-coverage hit (S6) is
+  `uncovered`) and some are required (`search_performed.search_kind`, `layer_toggled.layer_id`,
+  `source_reference_opened.document_id + page`, `checkout_completed.amount_eur`). `zone_id` and
   `parcel_id` are copied into columns for grouping (no FKs).
 - `GET /v1/admin/analytics?from=&to=` (role `admin`; `[from, to)`, default last 30 days, max
-  366) returns: funnel conversion per step (map_loaded → search_performed / parcel_selected →
-  panel_viewed → financials_viewed → order_started → checkout_completed; a session counts at a
-  step when it emitted one of its events in the range, conversions are session ratios), orders
-  and revenue (from `order_started` / `checkout_completed` events: distinct `order_id`,
-  `amount_eur` summed once per order, by product; an orders table replaces this later), most
-  searched districts (`search_performed` + `parcel_selected` by zone: the event's `zone_id`, else
-  the smallest zone containing its `properties.lat` / `lng`, so a search outside coverage, which
-  locate answers with `zone: null`, counts for the district it was made in (BRD §2.10 location
-  demand, §6.2; S6 check 2026-09-29); each district row carries `covered` (the zone has a live
-  plan, `core.coverage.ZONE_COVERED`) and `uncovered_searches` (`coverage: uncovered`); a hit in
-  no zone is the `zone_id: null` row), repeat usage (`return_visit` sessions / sessions; sessions per `client_id` against the
-  prototype target of 3+, plus what `sessions_per_user` events report), `market_data_interest`
-  / `ai_interest` counts, and panel views reaching financials (distinct (session, parcel) pairs
-  with `panel_viewed` that also have `financials_viewed` for the same parcel, plus the session
-  view). One SQL statement per aggregate; assembly (percentages, 1 decimal) in Python. The admin
-  console shows it on `/admin/analytics` (the pilot scope's A7, admins; see `frontend/CLAUDE.md`).
-  Responses are `Cache-Control: no-store`.
+  366; `from` = `to` is an empty range, `from` after `to` a 422) returns, grouped in SQL (one
+  statement per aggregate, percentages in Python, 1 decimal, 0 when there is nothing to divide
+  by, so an empty range answers zeros): the **funnel** map_loaded → parcel_resolved
+  (`parcel_selected`) → panel_opened (`panel_viewed`) → order_started → order_submitted
+  (`checkout_completed`) → paid (the order its `order_id` names has `orders.paid_at`), a session
+  counting at a step when it emitted that step's event and every earlier one in the range, with
+  the conversion from the previous step and from the start; **orders by status** (the orders
+  placed in the range, every status in flow order with count and summed price; no customer
+  data); **top zones** (`search_performed` + `parcel_selected` by zone: the event's `zone_id`,
+  else the smallest zone containing its `properties.lat` / `lng`, so a search outside coverage,
+  which locate answers with `zone: null`, counts for the district it was made in (BRD §2.10
+  location demand; S6 check 2026-09-29); each row carries `covered` (`core.coverage.ZONE_COVERED`)
+  and `uncovered_searches`; a hit in no zone is the `zone_id: null` row); **uncovered hits**
+  (`search_performed` with `coverage: uncovered` grouped by `lat` / `lng` at 3 decimals, ≈ 110 m,
+  the 20 most frequent); **repeat sessions** (anonymous visitors (`client_id`) with 3+ sessions in
+  the range and their sessions); **intent counts** (`market_data_interest` / `ai_interest` events
+  and sessions). No names or e-mails. The admin console shows it on `/admin/analytics` as plain
+  tables (the pilot scope's A7, admins; see `frontend/CLAUDE.md`). Responses are
+  `Cache-Control: no-store`.
 - **Role gate** (`core/auth.py`, `api.deps.require_role`): `ADMIN_API_TOKENS` =
   `token:role[:subject],...` (roles admin | reviewer | expert; validated at startup). The admin
   tool's server side sends `Authorization: Bearer <token>`; missing / unknown → 401 with
   `WWW-Authenticate: Bearer`, wrong role → 403 with `required_roles`. No tokens configured =
   every staff route answers 401. Constant-time comparison; tokens are never logged.
-- Tests: `tests/test_events_ingest.py` (validation, storage, de-duplication with a fake
-  repository), `tests/test_admin_analytics.py` (gate, assembly of every aggregate from canned
-  rows, ranges), `tests/integration/test_analytics_postgis.py` (SQL of every aggregate on a
-  crafted event set, index use).
+- Tests: `tests/test_events_ingest.py` (the 13 names, row-by-row validation, storage,
+  de-duplication with a fake repository), `tests/test_admin_analytics.py` (gate, assembly of
+  every aggregate from canned rows, zeros, ranges), `tests/integration/test_analytics_postgis.py`
+  (SQL of every aggregate on a crafted event set and a paid order, zeros, index use).
 
 ## Background jobs (`jobs/`, `api/services/jobs.py`, `api/routers/v1/admin_jobs.py`)
 
@@ -1221,8 +1244,8 @@ the POC check of Group 2 asked for it).
   `llm_tokens_in/out`, `estimated_cost_eur`) delivered to a worker as `(job_id, municipality_id)`.
   Celery app `jobs/celery_app.py`: queues `default`, `extraction` (LLM, PDF pre-processing),
   `geo` (geometry),
-  `publish`, `email`, routed by task module; `CELERY_TASK_ALWAYS_EAGER=true` runs tasks inline
-  (tests only).
+  `publish`, `email`, routed by task module; tests run tasks inline by setting Celery's own
+  `task_always_eager` on `celery_app.conf`.
 - **Base task** `jobs.base.JobTask`: a task function `(self, job_id, municipality_id)` hands its
   body `work(job: JobContext) -> JobResult | dict | None` to `self.execute(...)`, which runs
   `run_job_async` on a store (`SqlJobStore` in workers, `MemoryJobStore` in unit tests;
@@ -1431,8 +1454,9 @@ the POC check of Group 2 asked for it).
   current zones) and the `.qgz` (categorized symbology, forms with value maps / value relation,
   constraints, the zones -> documents relation, a "Zone review" atlas layout);
   `data/zones/qgis/build_project.py` rebuilds the project with PyQGIS inside QGIS; `validate`
-  (`validate.py`, no database) checks geometry validity, slugs, names, types, overlaps and gaps
-  (tolerances in m², approximate on geographic data), >= 1 adopted document per zone unless
+  (`validate.py`, no database) checks geometry validity, slugs, names, types (no topology QA:
+  overlaps and gaps between zones are QGIS's job, whose project snaps with "avoid overlap";
+  removed 2026-10-01), >= 1 adopted document per zone unless
   `no_adopted_plan`, each document in exactly one zone (eRegistri id, else name + listed year),
   document types / statuses / dates; errors refuse the import.
 - **Import** (`staging.py`, migration 0021): one `zone_datasets` row per import (`dataset_version`
@@ -1500,9 +1524,9 @@ the POC check of Group 2 asked for it).
   dataset published, the previous one superseded.
 - **Ownership flags** `public_ownership` / `restitution_or_legal_burden` are nullable: null = not
   loaded (only a confirmed eKatastar extract sets them, from explicit values; never derived). The
-  API answers null (`bool | None`); the flags travel as properties of the `cadastral_parcels` tile
-  layer and there are no ownership map layers (not in the POC plan). The seeded sample states
-  its flags. Flags belong to the dataset that loaded them.
+  API answers null (`bool | None`); no map layer shows them and the tiles do not carry them (not
+  in the POC plan). The seeded sample states its flags. Flags belong to the dataset that loaded
+  them.
 - **KOs** `cadastral_municipalities` (name, code, boundary `delivered | derived_from_parcels`,
   parcel count; unique per municipality on `lower(ko_name)`); the KO list the search box uses comes from the profile
   (public, `max-age=300`) lists KOs with parcels for the search dropdown; the seed loader derives
@@ -1537,14 +1561,14 @@ the POC check of Group 2 asked for it).
   vertices and near misses (1–3 tolerances); the mean vector to the cadastre over the close
   vertices is the overlay check (`systematic_offset_m`). Validation: errors `outside_extent`
   (profile bounds), `no_cadastral_overlap` (cadastral parcels around, zero overlap), `no_features`
-  -> dataset `invalid`, nothing staged, exit 1; warnings `no_cadastral_base`, `parcel_overlaps`
-  (> 1 m²), `unnumbered_parcels`, `repeated_parcel_numbers`, `systematic_offset` (> half the
+  -> dataset `invalid`, nothing staged, exit 1; warnings `no_cadastral_base`,
+  `unnumbered_parcels`, `repeated_parcel_numbers`, `systematic_offset` (> half the
   tolerance over ≥ 5 vertices), `no_common_vertices`. Batches: `document_coverage` (key = document
   id), `urban_parcels` (`<doc>|UP <n>`, the profile's `urban_parcel.abbreviation`),
   `urban_blocks` (the plan's label; publish matches a block by label AND overlap, since labels
   recur across plans), `land_use` (generic: the batch carries the other documents' features from
   the newest staged batch or the current version; a re-run replaces the document's own; the
-  plan's traffic network is not staged). Every feature has `document_id`, `dataset_version`.
+  plan's traffic network is not extracted). Every feature has `document_id`, `dataset_version`.
 - **Record** `georef_datasets` (`geo-<doc>-<yyyymmdd>-<n>`, staged | invalid | published |
   superseded, source extraction | manual_redraw | gis_file (0032: a GIS drawing staged by the
   geometry job, method `native`, `rmse_m` null), CRS, method, transform JSON with residuals,
@@ -1617,13 +1641,18 @@ the POC check of Group 2 asked for it).
   `python -m api.export_openapi` (backend) and turned into TypeScript types with
   `npm run api:types` (frontend); never hand-write API types.
 - **The public map reproduces the wireframe exactly** (product owner, 2026-09-24; overrides the
-  BRQ's "not strictly"). Port `docs/wireframe/wireframe.css` verbatim as the global stylesheet
-  (its late override passes set the effective sizes and the 8 px radius on every classed
-  element), keep the mock's class names and markup per component (templates in
+  BRQ's "not strictly"). `docs/wireframe/wireframe.css` is the global stylesheet, byte-identical
+  in `frontend/src/styles/wireframe.css` (`npm run design:check`): the mock's CSS minus the rules
+  of the components the POC does not build (AI assistant, subscription plans, locks and paid
+  states, badges, card payment, KPI tiles, the phase strip, dependency notes, the 860 / 760 px
+  tablet and phone layouts; removed 2026-10-01; `wireframe-decoded.html` keeps the original).
+  Its late override passes set the effective sizes and the 8 px radius on every classed
+  element. There is no Tailwind (it was imported but unused). Keep the mock's class names and markup per component (templates in
   `docs/wireframe/wireframe.js`), copy its inline SVG icons and copy strings. Fonts: Schibsted
   Grotesk 400–800 and JetBrains Mono 400 / 500 / 700, self-hosted.
-- Acceptance: `docs/wireframe/screens/<state>.png` (one per state, 1440×900 plus three narrow
-  widths) and `docs/wireframe/computed-styles.json` (effective styles of 257 selectors);
+- Acceptance: `docs/wireframe/screens/<state>.png` (one per state the POC builds, 1440×900 and
+  the 1100 px width; `urban.png` shows Group 2 unlocked) and `docs/wireframe/computed-styles.json`
+  (effective styles of 202 selectors);
   `python docs/wireframe/make_screens.py [state…] [--dump]` regenerates both with headless
   Chrome / Edge.
 - Allowed deviations only (spec §9): Mapbox + PMTiles instead of the SVG city; API data (all 13

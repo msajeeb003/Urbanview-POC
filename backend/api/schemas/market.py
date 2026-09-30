@@ -73,9 +73,7 @@ class MarketImportOut(BaseModel):
     sha256: str
     row_count: int
     status: ImportStatus
-    normaliser: str | None = Field(
-        default=None, description="rules"
-    )
+    normaliser: str | None = Field(default=None, description="rules")
     error: str | None = None
     notes: str | None = None
     job_id: int | None = None
@@ -86,8 +84,8 @@ class MarketImportOut(BaseModel):
     report: dict[str, Any] | None = Field(
         default=None,
         description=(
-            "Detail only: items made, every row / column left out with its reason, issues, the "
-            "sheet mappings and the LLM's calls and tokens"
+            "Detail only: items made, every row / column left out with its reason, issues and "
+            "the sheet mappings"
         ),
     )
     raw: dict[str, Any] | None = Field(default=None, description="Detail only: the file as read")

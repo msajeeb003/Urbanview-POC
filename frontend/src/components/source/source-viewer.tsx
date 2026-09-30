@@ -14,8 +14,7 @@
  *   requests with auto-fetch off: only the bytes of the requested page are loaded.
  * - Opens at the cited page; the bbox (PDF points, origin bottom-left) becomes a translucent brand
  *   rectangle over the canvas (two corners through `viewport.convertToViewportPoint`), scrolled
- *   into view. Pages rendered as images (`kind: page_image`) are shown as images, without a
- *   rectangle (their pixel size says nothing about the page's points).
+ *   into view.
  * - Previous / next, a page number input, zoom − / +, "Open PDF" (a fresh signed link in a new
  *   tab); ← / → turn pages. A page the document does not have is refused with a note beside the
  *   page number ("This document has 24 pages."). A signed link that expired (403) is fetched again
@@ -26,7 +25,7 @@
  *   document and page the opener named (`target.hint`).
  */
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from "pdfjs-dist";
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { useTrack } from "@/lib/analytics/react";
 import { api } from "@/lib/api/endpoints";
@@ -67,7 +66,6 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [zoom, setZoom] = useState<number | null>(null); // null = fit to width
   const [shownScale, setShownScale] = useState(1);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const docRef = useRef<PDFDocumentProxy | null>(null);
   const loadingRef = useRef<PDFDocumentLoadingTask | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -94,12 +92,6 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
             page: source.page,
             ...(source.value ? { value_id: source.value.value_id } : {}),
           });
-        }
-        if (source.kind === "page_image") {
-          setImageUrl(source.url);
-          setNumPages(source.page_count);
-          setState("ready");
-          return;
         }
         const pdfjs = await loadPdfJs();
         const open = (url: string) => {
@@ -199,23 +191,6 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
     };
   }, [state, pageNo, zoom, meta]);
 
-  // page images: another page is another signed image
-  const goToImagePage = useCallback(
-    async (n: number) => {
-      if (!meta) return;
-      setState("loading");
-      try {
-        const next = await api.sourcePage(meta.document_id, n);
-        setImageUrl(next.url);
-        setState("ready");
-      } catch (error) {
-        setFailure(sourceFailure(error, target.hint));
-        setState("failed");
-      }
-    },
-    [meta, target],
-  );
-
   const total = numPages ?? meta?.page_count ?? null;
   const goTo = (n: number) => {
     if (n < 1 || (total != null && n > total)) {
@@ -227,7 +202,6 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
     setPageNote(null);
     setPageNo(n);
     setPageInput(String(n));
-    if (meta?.kind === "page_image") void goToImagePage(n);
   };
   const usable = meta != null && state !== "failed";
   const zoomBy = (factor: number) => setZoom(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, (zoom ?? shownScale) * factor)));
@@ -262,7 +236,6 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
         ? null
         : (hint?.label ?? null);
   const note = value?.note ?? (meta ? null : hint?.note);
-  const zoomable = usable && meta?.kind !== "page_image";
 
   return (
     <div className="srcviewer" onKeyDown={onKeyDown}>
@@ -317,11 +290,11 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
           {pageNote}
         </span>
         <span className="srcspace" />
-        <button type="button" className="srcbtn" aria-label="Zoom out" disabled={!zoomable} onClick={() => zoomBy(0.8)}>
+        <button type="button" className="srcbtn" aria-label="Zoom out" disabled={!usable} onClick={() => zoomBy(0.8)}>
           −
         </button>
         <span className="srczoom mono">{Math.round(shownScale * 100)}%</span>
-        <button type="button" className="srcbtn" aria-label="Zoom in" disabled={!zoomable} onClick={() => zoomBy(1.25)}>
+        <button type="button" className="srcbtn" aria-label="Zoom in" disabled={!usable} onClick={() => zoomBy(1.25)}>
           +
         </button>
         <button type="button" className="srcbtn srcopen" disabled={!usable} onClick={() => void openPdf()}>
@@ -356,15 +329,10 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
         ) : (
           <>
             {state === "loading" && <div className="srcskel" aria-busy="true" aria-label="Loading the page" />}
-            {meta?.kind === "page_image" && imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- a signed, short-lived image URL
-              <img className="srcimg" src={imageUrl} alt={`${meta.document_name}, page ${pageNo}`} hidden={state !== "ready"} />
-            ) : (
-              <div className="srcsheet" hidden={state !== "ready"}>
-                <canvas ref={canvasRef} />
-                <div className="srchl" ref={highlightRef} hidden aria-hidden />
-              </div>
-            )}
+            <div className="srcsheet" hidden={state !== "ready"}>
+              <canvas ref={canvasRef} />
+              <div className="srchl" ref={highlightRef} hidden aria-hidden />
+            </div>
           </>
         )}
       </div>

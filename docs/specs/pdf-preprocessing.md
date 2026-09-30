@@ -12,7 +12,7 @@ Per page: `number`, `width` / `height` / `rotation` (PDF user space), `text` (th
 reading order, top to bottom then left to right), `blocks[]` `{id, text, bbox, words range,
 font_size, bold, table, decoded, section}`, `words[]` `{text, bbox}`, `tables[]`, `char_count`,
 `image_coverage`, `largest_image_pct`, `path_count`, `raster`, `scanned` + `scanned_reason`,
-`blank`, `method` (text | ocr |
+`blank`, `method` (text |
 none), `script` (latin | cyrillic | mixed | none), `headings[]`, `sections[]`.
 
 - **Boxes** are PDF points with the origin bottom-left, rotation undone (the review queue's and
@@ -32,10 +32,9 @@ none), `script` (latin | cyrillic | mixed | none), `headings[]`, `sections[]`.
   edges within 3 pt) continues it (`continues`) and takes its column names (`header_from`).
 - **Scanned**: images cover ≥ `PREPROCESS_SCANNED_IMAGE_COVERAGE` (0.5) of the page, at most 200
   vector paths, and no text layer (`no_text_layer`) or fewer than `PREPROCESS_MIN_TEXT_DENSITY`
-  (2) characters per 10 000 pt² (`low_text_density`). A scanned page is read only by a configured
-  OCR backend (`EXTRACTION_OCR_BACKEND=tesseract`, languages `srp_latn+srp`, method `ocr`);
-  otherwise it stays unread (method `none`) and is listed for manual handling. Text is never made
-  up. OCR is outside the POC scope: the default is `none`.
+  (2) characters per 10 000 pt² (`low_text_density`). A scanned page is flagged and never read:
+  it stays unread (method `none`), gets no chunk and is listed (`unread_pages`) for manual handling
+  (its geometry is redrawn in QGIS). Text is never made up; there is no OCR.
 - **Raster sheet** (version 1.2, the A1 check of 2026-09-29): the week-1 geometry assessment's
   own rule, shared from `core.gis.sheets` (`is_raster_sheet`): the largest single image covers ≥
   60 % of the page (`largest_image_pct`) and fewer than 1000 vector paths are drawn on it. Such a
@@ -62,24 +61,18 @@ none), `script` (latin | cyrillic | mixed | none), `headings[]`, `sections[]`.
   reads (`=== Page N ===` markers, `[Table p2t1: continues p1t1; columns from p1t1 on page 1: …]`,
   one line per row `r4 | c0: A | c1: UP 12 | …`).
 
-## 3. Manifest, cache, page images (`manifest.py`, `jobs/preprocessing.py`)
+## 3. Manifest and cache (`manifest.py`, `jobs/preprocessing.py`)
 
 The extraction job runs the stage first when the file's manifest is missing or stale, and the
 geometry job runs it for a PDF drawing (`jobs.tasks.extraction.run_preprocess`; planning-document
-PDFs only; there is no separate trigger since 2026-09-30). The stage:
-
-1. skips the analysis when `stored_files.preprocess` is current (same SHA-256,
-   `PREPROCESS_VERSION` and options key); otherwise reads the PDF (checksum verified), analyses
-   it, stores the page data as gzip JSON next to the upload
-   (`{m}/uploads/planning_document/{sha256}/preprocess-v1.0.json.gz`) and the manifest (migration
-   0018) on the file record: pages, tables, chunk plan in reading priority, page image keys per
-   document, and `summary` (page count, vector pages, scanned / OCR / unread / blank / redraw pages,
-   tables, chunks, sections with their pages, scripts);
-2. renders page images (PNG at `PREPROCESS_PAGE_IMAGE_DPI` 150, large sheets capped at
-   `PREPROCESS_PAGE_IMAGE_MAX_PIXELS` 25 Mpx) for every document version registered on the file
-   that lacks them, at the source viewer's keys. They are served (`page_images_rendered`) only
-   with `PREPROCESS_SERVE_PAGE_IMAGES=true`: the public source viewer highlights a cited value on
-   the PDF, not on an image.
+PDFs only; there is no separate trigger since 2026-09-30). The stage skips the analysis when
+`stored_files.preprocess` is current (same SHA-256, `PREPROCESS_VERSION` and options key);
+otherwise it reads the PDF (checksum verified), analyses it, stores the page data as gzip JSON
+next to the upload (`{m}/uploads/planning_document/{sha256}/preprocess-v{PREPROCESS_VERSION}.json.gz`)
+and the manifest (migration 0018) on the file record: pages, tables, chunk plan in reading
+priority, and `summary` (page count, vector pages, scanned / unread / blank / redraw pages,
+tables, chunks, sections with their pages, scripts). No page images are rendered: the source
+viewer and the review queue show the PDF page itself (`#page=N`) with the value's box.
 
 The upload reply (`POST /v1/admin/files`) and `GET /v1/admin/documents/{id}` carry
 `preprocessing` (the summary), so a document lists its scanned pages. The extraction job starts from the manifest

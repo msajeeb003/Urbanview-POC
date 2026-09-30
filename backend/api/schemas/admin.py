@@ -48,7 +48,7 @@ JobType = Literal[
     "import_zones",
 ]
 JobStatus = Literal["queued", "running", "retrying", "succeeded", "failed", "cancelled"]
-TARGET_PATTERN = r"^(document|file|publish_run|email):[0-9]+$"
+TARGET_PATTERN = r"^(document|file|publish_run|email|market_import):[0-9]+$"
 
 
 class FileKind(StrEnum):

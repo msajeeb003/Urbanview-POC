@@ -1,6 +1,6 @@
 """Expert review queue (roles admin and reviewer: the pilot scope's "planning expert approving
 extractions"; experts produce the paid reports and have no review access) and the audit trail
-(admin, reviewer).
+(admins only).
 
 - ``GET /v1/admin/review`` — paged queue of staged extracted items with everything needed to open
   the cited page and check the value (with the extraction validator's flags); filters: document,
@@ -9,18 +9,18 @@ extractions"; experts produce the paid reports and have no review access) and th
   ``can_publish`` (no pending items and something approved);
 - ``POST /v1/admin/review/{id}/approve | amend | reject`` — one decision, one audit row with the
   state before and after; amend keeps the AI value and stores the correction alongside;
-- ``GET /v1/admin/audit`` — who changed what and when, filterable by entity, actor, action, time.
+- ``GET /v1/admin/audit`` — who changed what and when, newest first, filterable by action and
+  actor.
 Nothing here writes to the serving tables; publishing is a separate job.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Path, Query, Response
 
-from api.deps import AuditReaderPrincipal, ReviewerPrincipal, ReviewServiceDep
+from api.deps import AdminPrincipal, ReviewerPrincipal, ReviewServiceDep
 from api.schemas.review import (
     AmendIn,
     ApproveIn,
@@ -189,30 +189,15 @@ async def reject_item(
 @router.get(
     "/audit",
     response_model=AuditPage,
-    summary="Who changed what and when (append-only audit trail)",
+    summary="Who changed what and when, newest first (append-only audit trail; admin role)",
     tags=["admin"],
 )
 async def list_audit(
-    principal: AuditReaderPrincipal,
+    principal: AdminPrincipal,
     service: ReviewServiceDep,
-    entity_type: Annotated[str | None, Query(max_length=60)] = None,
-    entity_id: Annotated[int | None, Query(gt=0)] = None,
-    actor: Annotated[str | None, Query(max_length=254)] = None,
-    actor_user_id: Annotated[int | None, Query(gt=0)] = None,
     action: Annotated[str | None, Query(max_length=60, description="Prefix, e.g. review.")] = None,
-    from_: Annotated[datetime | None, Query(alias="from")] = None,
-    to: Annotated[datetime | None, Query()] = None,
+    actor: Annotated[str | None, Query(max_length=254, description="Exact actor")] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> AuditPage:
-    return await service.list_audit(
-        entity_type=entity_type,
-        entity_id=entity_id,
-        actor=actor,
-        actor_user_id=actor_user_id,
-        action=action,
-        from_=from_,
-        to=to,
-        limit=limit,
-        offset=offset,
-    )
+    return await service.list_audit(action=action, actor=actor, limit=limit, offset=offset)

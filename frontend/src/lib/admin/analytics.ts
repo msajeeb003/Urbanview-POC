@@ -1,28 +1,30 @@
 /**
  * The rules of the Analytics page (`/admin/analytics`, the pilot scope's A7 "Analytics and audit":
  * funnel, orders, districts, repeat usage, intent counts), kept pure and unit-tested: the date
- * range of the GET form, the words of the funnel steps, the district rows (searches outside
- * coverage count for the district they were made in; the API places them by their point), and
- * the percentages as the page prints them. The figures are `GET /v1/admin/analytics`'s, never
+ * range of the GET form, the words of the funnel steps, the zone rows (searches outside coverage
+ * count for the district they were made in; the API places them by their point), and the
+ * percentages as the page prints them. The figures are `GET /v1/admin/analytics`'s, never
  * recomputed here.
  */
 import type { ChipTone } from "@/components/admin/parts";
 import type { AnalyticsDashboard } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
 
-export type District = AnalyticsDashboard["districts"][number];
+export type ZoneHits = AnalyticsDashboard["top_zones"][number];
+export type UncoveredHit = AnalyticsDashboard["uncovered_hits"][number];
 export type FunnelStep = AnalyticsDashboard["funnel"]["steps"][number];
+export type OrderStatusCount = AnalyticsDashboard["orders"]["by_status"][number];
 
 /** The API's default window when the form sends no dates. */
 export const DEFAULT_DAYS = 30;
 
 const STEP_LABELS: Record<string, string> = {
   map_loaded: "Map loaded",
-  searched_or_selected: "Searched or picked a parcel",
-  panel_viewed: "Opened a panel",
-  financials_viewed: "Saw the financials",
+  parcel_resolved: "Picked a parcel",
+  panel_opened: "Opened its panel",
   order_started: "Started an order",
-  checkout_completed: "Placed an order",
+  order_submitted: "Placed an order",
+  paid: "Paid",
 };
 
 export function stepLabel(step: string): string {
@@ -40,9 +42,11 @@ export function count(n: number, singular: string, plural = `${singular}s`): str
   return `${n.toLocaleString("en-US")} ${n === 1 ? singular : plural}`;
 }
 
-/** `2.3`, `—` for null. */
-export function ratioText(value: number | null | undefined): string {
-  return value == null || Number.isNaN(value) ? "—" : value.toFixed(1);
+/** `42.460° N · 19.281° E` for a position of the uncovered hits. */
+export function positionText(hit: Pick<UncoveredHit, "lat" | "lng">): string {
+  const lat = `${Math.abs(hit.lat).toFixed(3)}° ${hit.lat < 0 ? "S" : "N"}`;
+  const lng = `${Math.abs(hit.lng).toFixed(3)}° ${hit.lng < 0 ? "W" : "E"}`;
+  return `${lat} · ${lng}`;
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -85,28 +89,14 @@ export function rangeLabel(range: AnalyticsDashboard["range"]): string {
   return `${formatDate(range.from) ?? "—"} – ${formatDate(lastDay) ?? "—"}`;
 }
 
-/** The district's name, or what a row without a zone stands for. */
-export function districtName(d: Pick<District, "zone_id" | "zone_name">): string {
+/** The zone's name, or what a row without a zone stands for. */
+export function districtName(d: Pick<ZoneHits, "zone_id" | "zone_name">): string {
   if (d.zone_id == null) return "Outside every district";
   return d.zone_name ?? `Zone #${d.zone_id}`;
 }
 
-/** Coverage of a district: an adopted, live plan, or none yet (the S6 demand the pilot measures). */
-export function districtChip(d: Pick<District, "zone_id" | "covered">): { tone: ChipTone; label: string } | null {
+/** Coverage of a zone: an adopted, live plan, or none yet (the S6 demand the pilot measures). */
+export function districtChip(d: Pick<ZoneHits, "zone_id" | "covered">): { tone: ChipTone; label: string } | null {
   if (d.zone_id == null || d.covered == null) return null;
   return d.covered ? { tone: "ok", label: "Covered" } : { tone: "rev", label: "No adopted plan" };
-}
-
-/** Searches made where no adopted plan covers the point, summed over the districts. */
-export function uncoveredDemand(districts: readonly District[]): { searches: number; districts: number } {
-  let searches = 0;
-  let count = 0;
-  for (const d of districts) {
-    const n = d.uncovered_searches ?? 0;
-    if (n > 0) {
-      searches += n;
-      if (d.zone_id != null) count += 1;
-    }
-  }
-  return { searches, districts: count };
 }

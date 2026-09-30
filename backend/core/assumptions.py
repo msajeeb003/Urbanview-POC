@@ -13,7 +13,7 @@ market figures until a later version takes effect. ``is_current`` marks the newe
 zone (the head of its history, what an update builds on), not what applies today.
 
 The rule is SQL shared by every reader: the panels (``api.services.panel_sql``), the panel cache
-stamp, the publish job's heatmap cells, market coverage and the admin listing. Statements bind the
+stamp, the publish job's heatmap cells and the admin listing. Statements bind the
 municipality id and ``:tz`` (the profile's time zone). A zone holds a handful of versions: the
 lookup is index-backed by ``ix_financial_assumptions_history`` (municipality, zone, version).
 """

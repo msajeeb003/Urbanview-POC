@@ -1,23 +1,29 @@
-"""Analytics: batch ingest (``POST /v1/events``) and the client dashboard aggregates
+"""Analytics: batch ingest (``POST /v1/events``) and the dashboard aggregates
 (``GET /v1/admin/analytics``).
 
 The repository does the SQL (one statement per aggregate, all filtered by municipality and the
-``[from, to)`` range); the service turns rows into the dashboard payload with the percentages, so
-the assembly is unit-tested on canned rows and the SQL on PostGIS. Definitions:
+``[from, to)`` range, grouped in the database, never in the browser); the service turns rows into
+the dashboard payload with the percentages, so the assembly is unit-tested on canned rows and the
+SQL on PostGIS. An empty range (no events, no orders, or ``from`` = ``to``) answers zeros.
+Definitions:
 
-- funnel: a session counts at a step when it emitted one of the step's events inside the range
-  (presence, not strict ordering); conversions are session ratios;
-- orders and revenue come from ``order_started`` / ``checkout_completed`` events (distinct
-  ``order_id``; ``amount_eur`` summed once per order) until an orders table exists;
-- districts: ``search_performed`` + ``parcel_selected`` grouped by zone: the event's ``zone_id``,
+- funnel: map_loaded → parcel_resolved (``parcel_selected``) → panel_opened (``panel_viewed``) →
+  order_started → order_submitted (``checkout_completed``) → paid (the order that
+  ``checkout_completed.order_id`` names has been paid: ``orders.paid_at``). A session counts at a
+  step when it emitted that step's event and every earlier step's inside the range (in any
+  order), so the counts never grow along the funnel; conversions are session ratios;
+- orders by status: the orders placed in the range grouped by their status (count and sum of the
+  prices; no customer data);
+- top zones: ``search_performed`` + ``parcel_selected`` grouped by zone: the event's ``zone_id``,
   else the zone containing its ``lat`` / ``lng`` (the smallest one), so a search outside coverage
   (``coverage: uncovered``, which locate answers with ``zone: null``) still counts for the district
-  it was made in (BRD §2.10 location demand, §6.2 most-searched districts); each district says
-  whether it is covered and how many of its searches were uncovered;
-- repeat usage: ``return_visit`` sessions over all sessions, plus sessions per anonymous
-  ``client_id`` against the prototype target (3+), and what ``sessions_per_user`` events report;
-- panel views reaching financials: distinct (session, parcel) pairs with ``panel_viewed`` that
-  also have ``financials_viewed`` for the same parcel.
+  it was made in (BRD §2.10 location demand); each zone says whether it is covered and how many of
+  its searches were uncovered;
+- uncovered hits: ``search_performed`` with ``coverage: uncovered`` grouped by ``lat`` / ``lng``
+  (3 decimals, ≈ 110 m);
+- repeat sessions: anonymous visitors (``client_id``) with at least 3 sessions in the range (the
+  prototype target), and their sessions;
+- intent counts: the two intent buttons' events and sessions.
 """
 
 from __future__ import annotations
@@ -34,38 +40,38 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from api.schemas.analytics import (
     AnalyticsDashboard,
-    AnalyticsEvent,
     DateRange,
-    District,
     EventBatch,
     Funnel,
     FunnelStep,
     IngestResult,
-    Interest,
-    InterestCount,
+    IntentCount,
+    IntentCounts,
     Orders,
-    PanelToFinancials,
-    ProductRevenue,
-    RepeatUsage,
-    ReportedSessions,
-    Totals,
+    OrderStatusCount,
+    RepeatSessions,
+    UncoveredHit,
+    ZoneHits,
 )
 from core.coverage import ZONE_COVERED
 from core.errors import AppError
 from core.models.analytics import AnalyticsEventRecord
+from core.models.orders import ORDER_STATUSES
 
 DEFAULT_RANGE_DAYS = 30
 MAX_RANGE_DAYS = 366
-TARGET_SESSIONS_PER_USER = 3
-DISTRICTS_LIMIT = 10
+REPEAT_MIN_SESSIONS = 3
+TOP_ZONES_LIMIT = 10
+UNCOVERED_HITS_LIMIT = 20
 
+# (step, the events that put a session there); ``paid`` comes from the orders table
 FUNNEL_STEPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("map_loaded", ("map_loaded",)),
-    ("searched_or_selected", ("search_performed", "parcel_selected")),
-    ("panel_viewed", ("panel_viewed",)),
-    ("financials_viewed", ("financials_viewed",)),
+    ("parcel_resolved", ("parcel_selected",)),
+    ("panel_opened", ("panel_viewed",)),
     ("order_started", ("order_started",)),
-    ("checkout_completed", ("checkout_completed",)),
+    ("order_submitted", ("checkout_completed",)),
+    ("paid", ()),
 )
 
 
@@ -79,19 +85,18 @@ class Range:
 class DashboardRows:
     """Raw aggregate rows (plain dicts / lists) as the repository returns them."""
 
-    totals: Mapping[str, Any]
     funnel: Mapping[str, Any]
-    orders: Mapping[str, Any]
-    districts: list[Mapping[str, Any]] = field(default_factory=list)
-    repeat_usage: Mapping[str, Any] = field(default_factory=dict)
-    interest: Mapping[str, Any] = field(default_factory=dict)
-    panel_to_financials: Mapping[str, Any] = field(default_factory=dict)
+    orders: list[Mapping[str, Any]] = field(default_factory=list)
+    top_zones: list[Mapping[str, Any]] = field(default_factory=list)
+    uncovered_hits: list[Mapping[str, Any]] = field(default_factory=list)
+    repeat_sessions: Mapping[str, Any] = field(default_factory=dict)
+    intent: Mapping[str, Any] = field(default_factory=dict)
 
 
 class AnalyticsRepository(Protocol):
     async def insert_events(self, rows: list[dict[str, Any]]) -> int: ...
 
-    async def collect(self, rng: Range, *, districts_limit: int, target: int) -> DashboardRows: ...
+    async def collect(self, rng: Range, *, limit: int, min_sessions: int) -> DashboardRows: ...
 
 
 # --- SQL repository ------------------------------------------------------------------------------
@@ -99,54 +104,46 @@ class AnalyticsRepository(Protocol):
 RANGE = "municipality_id = :m AND occurred_at >= :start_at AND occurred_at < :end_at"
 RANGE_E = "e.municipality_id = :m AND e.occurred_at >= :start_at AND e.occurred_at < :end_at"
 
-TOTALS_SQL = text(f"""
-    SELECT count(*) AS events,
-           count(DISTINCT session_id) AS sessions,
-           count(DISTINCT client_id) AS clients,
-           COALESCE((SELECT jsonb_object_agg(name, n)
-                     FROM (SELECT name, count(*) AS n FROM analytics_events
-                           WHERE {RANGE} GROUP BY name) t), '{{}}'::jsonb) AS by_name
-    FROM analytics_events WHERE {RANGE}
-""")
-
 FUNNEL_SQL = text(f"""
-    SELECT
-      count(DISTINCT session_id) FILTER (WHERE name = 'map_loaded') AS map_loaded,
-      count(DISTINCT session_id) FILTER (WHERE name IN ('search_performed', 'parcel_selected'))
-          AS searched_or_selected,
-      count(DISTINCT session_id) FILTER (WHERE name = 'panel_viewed') AS panel_viewed,
-      count(DISTINCT session_id) FILTER (WHERE name = 'financials_viewed') AS financials_viewed,
-      count(DISTINCT session_id) FILTER (WHERE name = 'order_started') AS order_started,
-      count(DISTINCT session_id) FILTER (WHERE name = 'checkout_completed') AS checkout_completed
-    FROM analytics_events WHERE {RANGE}
-""")
-
-ORDERS_SQL = text(f"""
     WITH e AS (
-        SELECT id, name, properties FROM analytics_events
-        WHERE {RANGE} AND name IN ('order_started', 'checkout_completed')
+        SELECT name, session_id, properties FROM analytics_events
+        WHERE {RANGE}
+          AND name IN ('map_loaded', 'parcel_selected', 'panel_viewed', 'order_started',
+                       'checkout_completed')
     ),
-    completed AS (
-        SELECT COALESCE(properties->>'order_id', 'event:' || id::text) AS order_key,
-               max((properties->>'amount_eur')::numeric) AS amount_eur,
-               max(properties->>'product') AS product
-        FROM e WHERE name = 'checkout_completed' GROUP BY 1
+    paid AS (
+        SELECT DISTINCT e.session_id
+        FROM e
+        JOIN orders o ON o.municipality_id = :m
+                     AND o.reference = upper(e.properties ->> 'order_id')
+                     AND o.paid_at IS NOT NULL
+        WHERE e.name = 'checkout_completed'
     ),
-    by_product AS (
-        SELECT COALESCE(product, 'unknown') AS product, count(*) AS orders,
-               COALESCE(sum(amount_eur), 0) AS revenue_eur
-        FROM completed GROUP BY 1
+    s AS (
+        SELECT session_id,
+               bool_or(name = 'map_loaded') AS s1,
+               bool_or(name = 'parcel_selected') AS s2,
+               bool_or(name = 'panel_viewed') AS s3,
+               bool_or(name = 'order_started') AS s4,
+               bool_or(name = 'checkout_completed') AS s5
+        FROM e GROUP BY session_id
     )
     SELECT
-      (SELECT count(*) FROM e WHERE name = 'order_started') AS order_started_events,
-      (SELECT count(DISTINCT COALESCE(properties->>'order_id', 'event:' || id::text))
-       FROM e WHERE name = 'order_started') AS orders_started,
-      (SELECT count(*) FROM completed) AS orders_completed,
-      (SELECT COALESCE(sum(amount_eur), 0) FROM completed) AS revenue_eur,
-      (SELECT COALESCE(jsonb_agg(jsonb_build_object('product', product, 'orders', orders,
-                                                    'revenue_eur', revenue_eur)
-                                 ORDER BY revenue_eur DESC, product), '[]'::jsonb)
-       FROM by_product) AS by_product
+      count(*) FILTER (WHERE s1) AS map_loaded,
+      count(*) FILTER (WHERE s1 AND s2) AS parcel_resolved,
+      count(*) FILTER (WHERE s1 AND s2 AND s3) AS panel_opened,
+      count(*) FILTER (WHERE s1 AND s2 AND s3 AND s4) AS order_started,
+      count(*) FILTER (WHERE s1 AND s2 AND s3 AND s4 AND s5) AS order_submitted,
+      count(*) FILTER (WHERE s1 AND s2 AND s3 AND s4 AND s5
+                       AND session_id IN (SELECT session_id FROM paid)) AS paid
+    FROM s
+""")
+
+ORDERS_SQL = text("""
+    SELECT status, count(*) AS orders, COALESCE(sum(price_eur), 0) AS amount_eur
+    FROM orders
+    WHERE municipality_id = :m AND placed_at >= :start_at AND placed_at < :end_at
+    GROUP BY status
 """)
 
 # the zone an event is counted for: its own zone_id, else the smallest zone containing the point
@@ -162,7 +159,7 @@ _EVENT_ZONE = """COALESCE(e.zone_id, (
         ORDER BY ST_Area(z.geom), z.id
         LIMIT 1))"""
 
-DISTRICTS_SQL = text(f"""
+TOP_ZONES_SQL = text(f"""
     WITH hits AS (
         SELECT e.name, e.session_id, e.properties ->> 'coverage' AS coverage,
                {_EVENT_ZONE} AS zone_id
@@ -185,34 +182,38 @@ DISTRICTS_SQL = text(f"""
     LIMIT :limit
 """)
 
+UNCOVERED_HITS_SQL = text(f"""
+    SELECT round(CAST(properties ->> 'lat' AS numeric), 3) AS lat,
+           round(CAST(properties ->> 'lng' AS numeric), 3) AS lng,
+           count(*) AS searches,
+           count(DISTINCT session_id) AS sessions
+    FROM analytics_events
+    WHERE {RANGE}
+      AND name = 'search_performed'
+      AND properties ->> 'coverage' = 'uncovered'
+      AND jsonb_typeof(properties -> 'lat') = 'number'
+      AND jsonb_typeof(properties -> 'lng') = 'number'
+    GROUP BY 1, 2
+    ORDER BY searches DESC, sessions DESC, lat, lng
+    LIMIT :limit
+""")
+
 REPEAT_SQL = text(f"""
     WITH s AS (
-        SELECT session_id, min(client_id) AS client_id,
-               bool_or(name = 'return_visit') AS is_returning
+        SELECT session_id, min(client_id) AS client_id
         FROM analytics_events WHERE {RANGE} GROUP BY session_id
     ),
     c AS (
         SELECT client_id, count(*) AS sessions FROM s WHERE client_id IS NOT NULL GROUP BY client_id
-    ),
-    reported AS (
-        SELECT COALESCE(client_id, session_id) AS who,
-               max((properties->>'sessions')::int) AS sessions
-        FROM analytics_events
-        WHERE {RANGE} AND name = 'sessions_per_user' AND properties ? 'sessions'
-        GROUP BY 1
     )
     SELECT
       (SELECT count(*) FROM s) AS sessions,
-      (SELECT count(*) FROM s WHERE is_returning) AS returning_sessions,
-      (SELECT count(*) FROM c) AS clients,
-      (SELECT count(*) FROM c WHERE sessions >= :target) AS clients_at_target,
-      (SELECT avg(sessions) FROM c) AS sessions_per_client,
-      (SELECT count(*) FROM reported) AS reported_users,
-      (SELECT count(*) FROM reported WHERE sessions >= :target) AS reported_users_at_target,
-      (SELECT avg(sessions) FROM reported) AS reported_sessions_per_user
+      (SELECT count(*) FROM c) AS visitors,
+      (SELECT count(*) FROM c WHERE sessions >= :min_sessions) AS repeat_visitors,
+      (SELECT COALESCE(sum(sessions), 0) FROM c WHERE sessions >= :min_sessions) AS repeat_sessions
 """)
 
-INTEREST_SQL = text(f"""
+INTENT_SQL = text(f"""
     SELECT
       count(*) FILTER (WHERE name = 'market_data_interest') AS market_events,
       count(DISTINCT session_id) FILTER (WHERE name = 'market_data_interest') AS market_sessions,
@@ -220,29 +221,6 @@ INTEREST_SQL = text(f"""
       count(DISTINCT session_id) FILTER (WHERE name = 'ai_interest') AS ai_sessions
     FROM analytics_events
     WHERE {RANGE} AND name IN ('market_data_interest', 'ai_interest')
-""")
-
-PANEL_FINANCIALS_SQL = text(f"""
-    WITH p AS (
-        SELECT session_id, parcel_id FROM analytics_events
-        WHERE {RANGE} AND name = 'panel_viewed'
-    ),
-    f AS (
-        SELECT DISTINCT session_id, parcel_id FROM analytics_events
-        WHERE {RANGE} AND name = 'financials_viewed'
-    ),
-    pairs AS (SELECT DISTINCT session_id, parcel_id FROM p)
-    SELECT
-      (SELECT count(*) FROM p) AS panel_views,
-      (SELECT count(*) FROM pairs) AS panel_view_pairs,
-      (SELECT count(*) FROM pairs pr
-       WHERE EXISTS (SELECT 1 FROM f WHERE f.session_id = pr.session_id
-                     AND f.parcel_id IS NOT DISTINCT FROM pr.parcel_id))
-          AS pairs_reaching_financials,
-      (SELECT count(DISTINCT session_id) FROM p) AS panel_sessions,
-      (SELECT count(DISTINCT p.session_id) FROM p
-       WHERE EXISTS (SELECT 1 FROM f WHERE f.session_id = p.session_id))
-          AS panel_sessions_reaching_financials
 """)
 
 
@@ -267,39 +245,37 @@ class SqlAnalyticsRepository:
             await session.commit()
         return inserted
 
-    async def collect(self, rng: Range, *, districts_limit: int, target: int) -> DashboardRows:
+    async def collect(self, rng: Range, *, limit: int, min_sessions: int) -> DashboardRows:
         params = {"m": self.municipality_id, "start_at": rng.start, "end_at": rng.end}
         async with self.session_factory() as session:
-            totals = (await session.execute(TOTALS_SQL, params)).mappings().one()
-            funnel = (await session.execute(FUNNEL_SQL, params)).mappings().one()
-            orders = (await session.execute(ORDERS_SQL, params)).mappings().one()
-            districts = (
-                (await session.execute(DISTRICTS_SQL, {**params, "limit": districts_limit}))
-                .mappings()
-                .all()
-            )
-            repeat = (
-                (await session.execute(REPEAT_SQL, {**params, "target": target})).mappings().one()
-            )
-            interest = (await session.execute(INTEREST_SQL, params)).mappings().one()
-            panel = (await session.execute(PANEL_FINANCIALS_SQL, params)).mappings().one()
+
+            async def rows(statement: Any, **extra: Any) -> list[dict[str, Any]]:
+                result = await session.execute(statement, {**params, **extra})
+                return [dict(row) for row in result.mappings().all()]
+
+            funnel = await rows(FUNNEL_SQL)
+            orders = await rows(ORDERS_SQL)
+            top_zones = await rows(TOP_ZONES_SQL, limit=limit)
+            uncovered = await rows(UNCOVERED_HITS_SQL, limit=UNCOVERED_HITS_LIMIT)
+            repeat = await rows(REPEAT_SQL, min_sessions=min_sessions)
+            intent = await rows(INTENT_SQL)
         return DashboardRows(
-            totals=dict(totals),
-            funnel=dict(funnel),
-            orders=dict(orders),
-            districts=[dict(row) for row in districts],
-            repeat_usage=dict(repeat),
-            interest=dict(interest),
-            panel_to_financials=dict(panel),
+            funnel=funnel[0],
+            orders=orders,
+            top_zones=top_zones,
+            uncovered_hits=uncovered,
+            repeat_sessions=repeat[0],
+            intent=intent[0],
         )
 
 
 # --- service -------------------------------------------------------------------------------------
 
 
-def pct(part: Any, whole: Any) -> float | None:
+def pct(part: Any, whole: Any) -> float:
+    """``part / whole × 100`` with 1 decimal; 0 when there is nothing to divide by."""
     whole = _num(whole)
-    return None if not whole else round(100.0 * _num(part) / whole, 1)
+    return 0.0 if not whole else round(100.0 * _num(part) / whole, 1)
 
 
 def _num(value: Any) -> float:
@@ -314,10 +290,6 @@ def _int(value: Any) -> int:
     return int(value or 0)
 
 
-def _avg(value: Any) -> float | None:
-    return None if value is None else round(_num(value), 2)
-
-
 def resolve_range(
     from_: datetime | None,
     to: datetime | None,
@@ -326,12 +298,13 @@ def resolve_range(
     default_days: int = DEFAULT_RANGE_DAYS,
     max_days: int = MAX_RANGE_DAYS,
 ) -> Range:
-    """``[from, to)`` in UTC (naive = UTC); defaults to the last ``default_days`` days."""
+    """``[from, to)`` in UTC (naive = UTC); defaults to the last ``default_days`` days. ``from`` =
+    ``to`` is an empty range (zeros), ``from`` after ``to`` a 422."""
     end = _utc(to) if to is not None else now
     start = _utc(from_) if from_ is not None else end - timedelta(days=default_days)
     problems = []
-    if start >= end:
-        problems.append({"loc": ["query", "from"], "msg": "'from' must be before 'to'"})
+    if start > end:
+        problems.append({"loc": ["query", "from"], "msg": "'from' must not be after 'to'"})
     elif end - start > timedelta(days=max_days):
         problems.append({"loc": ["query", "to"], "msg": f"range longer than {max_days} days"})
     if problems:
@@ -354,20 +327,25 @@ class AnalyticsService:
         repository: AnalyticsRepository,
         *,
         municipality_id: str,
-        districts_limit: int = DISTRICTS_LIMIT,
-        target_sessions_per_user: int = TARGET_SESSIONS_PER_USER,
+        top_zones_limit: int = TOP_ZONES_LIMIT,
+        repeat_min_sessions: int = REPEAT_MIN_SESSIONS,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.repository = repository
         self.municipality_id = municipality_id
-        self.districts_limit = int(districts_limit)
-        self.target = int(target_sessions_per_user)
+        self.top_zones_limit = int(top_zones_limit)
+        self.min_sessions = int(repeat_min_sessions)
         self.clock = clock
 
     async def ingest(self, batch: EventBatch) -> IngestResult:
         rows = [self._row(event) for event in batch.events]
-        inserted = await self.repository.insert_events(rows)
-        return IngestResult(received=len(rows), accepted=inserted, duplicates=len(rows) - inserted)
+        inserted = await self.repository.insert_events(rows) if rows else 0
+        return IngestResult(
+            received=len(rows) + len(batch.rejected),
+            accepted=inserted,
+            duplicates=len(rows) - inserted,
+            rejected=batch.rejected,
+        )
 
     def _row(self, event: Any) -> dict[str, Any]:
         props = dict(event.properties)
@@ -386,9 +364,12 @@ class AnalyticsService:
     async def dashboard(self, from_: datetime | None, to: datetime | None) -> AnalyticsDashboard:
         now = self.clock()
         rng = resolve_range(from_, to, now=now)
-        rows = await self.repository.collect(
-            rng, districts_limit=self.districts_limit, target=self.target
-        )
+        if rng.start == rng.end:
+            rows = DashboardRows(funnel={})
+        else:
+            rows = await self.repository.collect(
+                rng, limit=self.top_zones_limit, min_sessions=self.min_sessions
+            )
         return self.assemble(rows, rng, generated_at=now)
 
     def assemble(
@@ -402,25 +383,21 @@ class AnalyticsService:
                 days=round((rng.end - rng.start).total_seconds() / 86400, 2),
             ),
             generated_at=generated_at,
-            totals=_totals(rows.totals),
             funnel=_funnel(rows.funnel),
             orders=_orders(rows.orders),
-            districts=_districts(rows.districts),
-            repeat_usage=_repeat_usage(rows.repeat_usage, self.target),
-            interest=_interest(rows.interest),
-            panel_to_financials=_panel_to_financials(rows.panel_to_financials),
+            top_zones=_top_zones(rows.top_zones),
+            uncovered_hits=[
+                UncoveredHit(
+                    lat=_num(r.get("lat")),
+                    lng=_num(r.get("lng")),
+                    searches=_int(r.get("searches")),
+                    sessions=_int(r.get("sessions")),
+                )
+                for r in rows.uncovered_hits
+            ],
+            repeat_sessions=_repeat_sessions(rows.repeat_sessions, self.min_sessions),
+            intent_counts=_intent(rows.intent),
         )
-
-
-def _totals(row: Mapping[str, Any]) -> Totals:
-    by_name = {name.value: 0 for name in AnalyticsEvent}
-    by_name.update({k: _int(v) for k, v in (row.get("by_name") or {}).items()})
-    return Totals(
-        events=_int(row.get("events")),
-        sessions=_int(row.get("sessions")),
-        clients=_int(row.get("clients")),
-        by_name=by_name,
-    )
 
 
 def _funnel(row: Mapping[str, Any]) -> Funnel:
@@ -435,7 +412,7 @@ def _funnel(row: Mapping[str, Any]) -> Funnel:
                 event_names=list(names),
                 sessions=sessions,
                 conversion_from_previous_pct=(
-                    None if previous is None else pct(sessions, previous)
+                    100.0 if previous is None and sessions else pct(sessions, previous)
                 ),
                 conversion_from_start_pct=pct(sessions, start),
             )
@@ -444,31 +421,23 @@ def _funnel(row: Mapping[str, Any]) -> Funnel:
     return Funnel(steps=steps, overall_conversion_pct=pct(steps[-1].sessions, start))
 
 
-def _orders(row: Mapping[str, Any]) -> Orders:
-    completed = _int(row.get("orders_completed"))
-    revenue = round(_num(row.get("revenue_eur")), 2)
-    return Orders(
-        order_started_events=_int(row.get("order_started_events")),
-        orders_started=_int(row.get("orders_started")),
-        orders_completed=completed,
-        revenue_eur=revenue,
-        average_order_eur=round(revenue / completed, 2) if completed else None,
-        completion_pct=pct(completed, row.get("orders_started")),
-        by_product=[
-            ProductRevenue(
-                product=str(item.get("product") or "unknown"),
-                orders=_int(item.get("orders")),
-                revenue_eur=round(_num(item.get("revenue_eur")), 2),
-            )
-            for item in (row.get("by_product") or [])
-        ],
-    )
+def _orders(rows: list[Mapping[str, Any]]) -> Orders:
+    by_status = {str(r.get("status")): r for r in rows}
+    counts = [
+        OrderStatusCount(
+            status=status,
+            orders=_int(by_status.get(status, {}).get("orders")),
+            amount_eur=round(_num(by_status.get(status, {}).get("amount_eur")), 2),
+        )
+        for status in ORDER_STATUSES
+    ]
+    return Orders(placed=sum(c.orders for c in counts), by_status=counts)
 
 
-def _districts(rows: list[Mapping[str, Any]]) -> list[District]:
+def _top_zones(rows: list[Mapping[str, Any]]) -> list[ZoneHits]:
     total = sum(_int(r.get("events")) for r in rows)
     return [
-        District(
+        ZoneHits(
             zone_id=r.get("zone_id"),
             zone_name=r.get("zone_name"),
             covered=r.get("covered"),
@@ -477,53 +446,29 @@ def _districts(rows: list[Mapping[str, Any]]) -> list[District]:
             uncovered_searches=_int(r.get("uncovered_searches")),
             selections=_int(r.get("selections")),
             sessions=_int(r.get("sessions")),
-            share_pct=pct(r.get("events"), total) or 0.0,
+            share_pct=pct(r.get("events"), total),
         )
         for r in rows
     ]
 
 
-def _repeat_usage(row: Mapping[str, Any], target: int) -> RepeatUsage:
-    return RepeatUsage(
-        target_sessions_per_user=target,
+def _repeat_sessions(row: Mapping[str, Any], min_sessions: int) -> RepeatSessions:
+    return RepeatSessions(
+        min_sessions=min_sessions,
         sessions=_int(row.get("sessions")),
-        returning_sessions=_int(row.get("returning_sessions")),
-        repeat_usage_rate_pct=pct(row.get("returning_sessions"), row.get("sessions")),
-        clients=_int(row.get("clients")),
-        sessions_per_client=_avg(row.get("sessions_per_client")),
-        clients_at_target=_int(row.get("clients_at_target")),
-        clients_at_target_pct=pct(row.get("clients_at_target"), row.get("clients")),
-        reported=ReportedSessions(
-            users=_int(row.get("reported_users")),
-            users_at_target=_int(row.get("reported_users_at_target")),
-            users_at_target_pct=pct(row.get("reported_users_at_target"), row.get("reported_users")),
-            sessions_per_user=_avg(row.get("reported_sessions_per_user")),
-        ),
+        visitors=_int(row.get("visitors")),
+        repeat_visitors=_int(row.get("repeat_visitors")),
+        repeat_visitors_pct=pct(row.get("repeat_visitors"), row.get("visitors")),
+        repeat_sessions=_int(row.get("repeat_sessions")),
     )
 
 
-def _interest(row: Mapping[str, Any]) -> Interest:
-    return Interest(
-        market_data_interest=InterestCount(
+def _intent(row: Mapping[str, Any]) -> IntentCounts:
+    return IntentCounts(
+        market_data_interest=IntentCount(
             events=_int(row.get("market_events")), sessions=_int(row.get("market_sessions"))
         ),
-        ai_interest=InterestCount(
+        ai_interest=IntentCount(
             events=_int(row.get("ai_events")), sessions=_int(row.get("ai_sessions"))
-        ),
-    )
-
-
-def _panel_to_financials(row: Mapping[str, Any]) -> PanelToFinancials:
-    return PanelToFinancials(
-        panel_views=_int(row.get("panel_views")),
-        panel_view_pairs=_int(row.get("panel_view_pairs")),
-        pairs_reaching_financials=_int(row.get("pairs_reaching_financials")),
-        reaching_financials_pct=pct(
-            row.get("pairs_reaching_financials"), row.get("panel_view_pairs")
-        ),
-        panel_sessions=_int(row.get("panel_sessions")),
-        panel_sessions_reaching_financials=_int(row.get("panel_sessions_reaching_financials")),
-        sessions_reaching_financials_pct=pct(
-            row.get("panel_sessions_reaching_financials"), row.get("panel_sessions")
         ),
     )

@@ -10,5 +10,5 @@ Every feature also carries its sheet, page, raw path ids and a source bbox in th
 PDF points (origin bottom-left, like the review queue), so a reviewer can trace it on the page.
 
 Cadastral parcels never come out of here: they are imported from UZN into their own table. The
-planned (urban) parcels, blocks, land use and traffic network are separate layers, never merged.
+planned (urban) parcels, blocks and land use are separate layers, never merged.
 """

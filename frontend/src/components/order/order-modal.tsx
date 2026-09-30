@@ -346,7 +346,7 @@ function OrderModal({ target }: { target: OrderTarget }) {
           </div>
 
           <p style={{ fontSize: 11, color: "var(--ink-2)", lineHeight: 1.5, marginTop: 12 }}>
-            No account needed — guest checkout. You&apos;ll get the report and an order reference by email.
+            No account needed — order as a guest. You&apos;ll get the report and an order reference by email.
           </p>
           {failure && (
             <p className="orderfail" role="alert" ref={failureRef}>

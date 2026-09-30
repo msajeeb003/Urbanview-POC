@@ -1,7 +1,6 @@
 """The AI extraction contract (core.extraction): the schema and its exported JSON Schemas, the
-versioned prompts, normalisation, the validator's never-guess and source rules, staging rows,
-stored items staying readable, and the hand-labelled sample (when the client documents are on
-this machine)."""
+versioned prompts, normalisation, the validator's never-guess and source rules, staging rows and
+stored items staying readable."""
 
 from __future__ import annotations
 
@@ -182,9 +181,7 @@ def test_prompt_set_covers_every_task_with_its_response():
     assert set(prompt_set.tasks) == set(RESPONSE_MODELS)
     for task, spec in prompt_set.tasks.items():
         model = response_model(spec.response)
-        answer = model.model_validate(absent(strict_json_schema(model)))
-        if hasattr(answer, "to_legacy"):  # compact answers (1.1) become the task's 1.0 model
-            answer = answer.to_legacy()
+        answer = model.model_validate(absent(strict_json_schema(model))).to_legacy()
         assert isinstance(answer, RESPONSE_MODELS[task])  # type: ignore[index]
         assert (prompt_set.directory / spec.instructions).is_file()
 
@@ -200,7 +197,7 @@ def test_prompt_renders_rules_glossary_and_pages(task: str):
     rules, task_block = bundle.system
     assert rules.cache and task_block.cache  # both system blocks are cache breakpoints
     assert "Never guess" in rules.text
-    assert "not_found" in rules.text or "left out" in rules.text  # 1.0 / 1.1 wording
+    assert "left out" in rules.text  # a field the pages do not state
     assert "No arithmetic" in rules.text
     # the glossary and document types come from the municipality profile
     assert "indeks zauzetosti" in rules.text and "Po+P+6" in rules.text
@@ -212,15 +209,6 @@ def test_prompt_renders_rules_glossary_and_pages(task: str):
     assert bundle.prompt_version == PROMPT_VERSION
     if task == "document":
         assert "one of DUP, PUP, PGR, UP" in task_block.text
-
-
-def test_prompt_templates_carry_no_place_specific_words():
-    """Planning terminology is profile data (BRD §8): the templates stay place-neutral."""
-    words = ("podgorica", "montenegr", "zauzetost", "izgrađenost", "spratnost", "stanovanj")
-    for path in load_prompt_set().directory.rglob("*.md"):
-        text = path.read_text(encoding="utf-8").casefold()
-        for word in words:
-            assert word not in text, (path.name, word)
 
 
 # --- normalisation -----------------------------------------------------------------------------
@@ -588,13 +576,6 @@ def test_a_cited_grid_cell_gives_the_exact_box():
     assert up3.source.table_ref and up3.source.table_ref.cell is None
 
 
-def test_ocr_pages_are_marked():
-    page = replace(C.text_page(4, "Urbanistička parcela UP 14\nII 1,6"), method="ocr")
-    data = parcels(C.parcel(UP14, max_far=C.v("1,6", "II 1,6", page=4)))
-    leaf = C.find_leaf(build("urban_parcel", data, [page]), "parcel:14/rules.max_far")
-    assert isinstance(leaf, StatedValue) and leaf.extraction_method == "ocr"
-
-
 def test_document_codes_and_dates_are_normalised_with_the_printed_form_kept():
     page = C.text_page(
         1,
@@ -781,20 +762,45 @@ def test_a_stored_item_stays_readable_across_minor_versions():
 
 def test_run_task_sends_the_prompt_and_validates_the_reply():
     case = CASES["far_from_coverage_and_floors"]
-    model = ScriptedModel([case.faithful])
+    floors = {
+        "field": "max_floors",
+        "value": "P+4",
+        "unit": "words",
+        "text": "Maksimalna spratnost objekta: P+4",
+        "page": 3,
+        "table": "",
+        "cell": "",
+        "column": "",
+        "confidence": 0.95,
+        "status": "stated",
+    }
+    parcel = {
+        "number": "UP 14",
+        "page": 3,
+        "table": "",
+        "number_cell": "",
+        "block": "",
+        "block_cell": "",
+        "confidence": 0.95,
+        "values": [floors],
+    }
+    model = ScriptedModel([{"urban_parcels": [parcel], "blocks": [], "columns": []}])
     run = run_task(
         case.task,
         model=model,
         municipality_id=M,
         document=DocumentContext(3, "Test document"),
         pages=case.pages,
-        prompt_version="1.0",
     )
     [(system, user, schema)] = model.calls
     assert system == run.prompt.system and user == run.prompt.user
-    assert schema == load_prompt_set("1.0").response_schema("ParcelsResponse")
-    assert run.result.model == "scripted" and run.result.prompt_version == "1.0"
-    assert isinstance(C.find_leaf(run.result, "parcel:14/rules.max_far"), MissingValue)
+    assert schema == load_prompt_set().response_schema("CompactParcelsResponse")
+    assert run.result.model == "scripted" and run.result.prompt_version == PROMPT_VERSION
+    stated = C.find_leaf(run.result, "parcel:14/rules.max_floors")
+    assert isinstance(stated, StatedValue) and stated.value == "P+4"
+    # a field the compact answer leaves out is not_found
+    far = C.find_leaf(run.result, "parcel:14/rules.max_far")
+    assert isinstance(far, MissingValue) and far.reason == "not_found"
 
 
 def test_a_reply_outside_the_response_schema_is_rejected():

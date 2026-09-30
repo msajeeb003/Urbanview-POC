@@ -1,7 +1,7 @@
 """Per-document extraction rules (YAML), one file per planning document.
 
 Every plan is drawn differently, so which PDF layers, styles and labels make up the parcels,
-blocks, land use and traffic network is configuration, not code: a rules file per document,
+blocks and land use is configuration, not code: a rules file per document,
 written with the style-cluster helper (``python -m core.gis.extract styles``) and the assessment
 report, versioned next to the municipality profile (``municipalities/<id>/extraction/*.yaml``).
 Manual fixes (an offset, an excluded legend, a label override) are recorded here too, never by
@@ -31,16 +31,13 @@ TARGET_LAYERS = (
     "urban_parcels",
     "urban_blocks",
     "planned_land_use",
-    "planned_traffic",
 )
 STAGED_AS = {
     "plan_boundary": "document_coverage",
     "urban_parcels": "urban_parcels",
     "urban_blocks": "urban_blocks",
     "planned_land_use": "land_use",
-    "planned_traffic": "traffic_network",
 }
-LINE_LAYERS = {"planned_traffic"}
 RULES_SUFFIXES = (".yaml", ".yml")
 
 
@@ -106,7 +103,7 @@ class LabelRule(_Model):
 
 
 class Category(_Model):
-    """A land-use (or road) category: the paths that draw it and the code it stands for."""
+    """A land-use category: the paths that draw it and the code it stands for."""
 
     select: list[Selector]
     code: str
@@ -123,11 +120,10 @@ class LayerRule(_Model):
     grown back are the faces), ``fills`` (union of the filled pieces of each category),
     ``classify`` (the polygons of ``classify_from``, each coded by the category covering most of
     it, hatch lines counted ``gap_mm`` wide, or by a code label inside it), ``derive`` (union of
-    ``derive_from`` features grouped by ``derive_by``), ``lines`` (linework merged into lines,
-    dash gaps up to ``gap_mm`` bridged).
+    ``derive_from`` features grouped by ``derive_by``).
     """
 
-    method: Literal["polygonize", "holes", "fills", "classify", "derive", "lines"]
+    method: Literal["polygonize", "holes", "fills", "classify", "derive"]
     select: list[Selector] = Field(default_factory=list)
     closing: list[str] = Field(default_factory=list)  # target layers closing the faces
     fallback: list[Selector] = Field(default_factory=list)  # extra linework for unmatched labels
@@ -137,7 +133,6 @@ class LayerRule(_Model):
     snap_mm: float = 0.05
     min_area_m2: float = 2.0
     max_area_m2: float | None = None
-    min_length_m: float = 1.0  # lines shorter than this are annotation
     labels: LabelRule | None = None
     keep: Literal["all", "labelled"] = "all"
     categories: list[Category] = Field(default_factory=list)
@@ -147,12 +142,11 @@ class LayerRule(_Model):
     derive_by: str | None = None
     close_m: float = 0.0  # derive: morphological closing that joins parts across narrow gaps
     clip: bool = True  # clip to the plan boundary (drops legends, title blocks, neighbours)
-    road_class: str | None = None  # lines: constant attribute
 
     @model_validator(mode="after")
     def _method_needs(self) -> LayerRule:
         m = self.method
-        if m in ("polygonize", "holes", "lines") and not self.select:
+        if m in ("polygonize", "holes") and not self.select:
             raise ValueError(f"method {m} needs `select`")
         if m == "fills" and not self.categories and not self.select:
             raise ValueError("method fills needs `categories` or `select`")

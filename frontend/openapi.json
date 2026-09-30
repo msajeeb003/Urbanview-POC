@@ -373,7 +373,7 @@
         ],
         "responses": {
           "200": {
-            "description": "One payload per type, discriminated by ``type``. Cadastral and urban panels carry the planning block (free) and the market / assumptions / feasibility blocks (paid), or null with ``covered: false`` when no adopted document governs the object.",
+            "description": "One payload per type, discriminated by ``type``. Cadastral and urban panels carry the planning block and the market / assumptions / feasibility blocks (shown to everyone), or null with ``covered: false`` when no adopted document governs the object.",
             "content": {
               "application/json": {
                 "schema": {
@@ -692,7 +692,7 @@
         },
         "responses": {
           "202": {
-            "description": "Accepted: every event in the batch was valid and stored (or a retry)",
+            "description": "Accepted: the valid rows were stored (or were retries); malformed rows are listed in `rejected`",
             "content": {
               "application/json": {
                 "schema": {
@@ -702,7 +702,7 @@
             }
           },
           "422": {
-            "description": "The batch was rejected as a whole (`validation_error`)"
+            "description": "The batch is malformed, or every row is (`validation_error`, one problem per row and field)"
           },
           "503": {
             "description": "The events database is unavailable (`service_unavailable`)"
@@ -791,7 +791,7 @@
             "description": "The token's role may not read analytics (`forbidden`)"
           },
           "422": {
-            "description": "`from` not before `to`, or a range over 366 days"
+            "description": "`from` after `to`, or a range over 366 days"
           },
           "503": {
             "description": "The events database is unavailable (`service_unavailable`)"
@@ -1970,7 +1970,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(document|file|publish_run|email):[0-9]+$"
+                  "pattern": "^(document|file|publish_run|email|market_import):[0-9]+$"
                 },
                 {
                   "type": "null"
@@ -4600,77 +4600,9 @@
           "review",
           "admin"
         ],
-        "summary": "Who changed what and when (append-only audit trail)",
+        "summary": "Who changed what and when, newest first (append-only audit trail; admin role)",
         "operationId": "list_audit_v1_admin_audit_get",
         "parameters": [
-          {
-            "name": "entity_type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "maxLength": 60
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Entity Type"
-            }
-          },
-          {
-            "name": "entity_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "exclusiveMinimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Entity Id"
-            }
-          },
-          {
-            "name": "actor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "maxLength": 254
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Actor"
-            }
-          },
-          {
-            "name": "actor_user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "exclusiveMinimum": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Actor User Id"
-            }
-          },
           {
             "name": "action",
             "in": "query",
@@ -4691,38 +4623,23 @@
             "description": "Prefix, e.g. review."
           },
           {
-            "name": "from",
+            "name": "actor",
             "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
                   "type": "string",
-                  "format": "date-time"
+                  "maxLength": 254
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "From"
-            }
-          },
-          {
-            "name": "to",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date-time"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "To"
-            }
+              "description": "Exact actor",
+              "title": "Actor"
+            },
+            "description": "Exact actor"
           },
           {
             "name": "limit",
@@ -6194,31 +6111,33 @@
             "format": "date-time",
             "title": "Generated At"
           },
-          "totals": {
-            "$ref": "#/components/schemas/Totals"
-          },
           "funnel": {
             "$ref": "#/components/schemas/Funnel"
           },
           "orders": {
             "$ref": "#/components/schemas/Orders"
           },
-          "districts": {
+          "top_zones": {
             "items": {
-              "$ref": "#/components/schemas/District"
+              "$ref": "#/components/schemas/ZoneHits"
             },
             "type": "array",
-            "title": "Districts",
+            "title": "Top Zones",
             "description": "Most searched / selected zones, descending"
           },
-          "repeat_usage": {
-            "$ref": "#/components/schemas/RepeatUsage"
+          "uncovered_hits": {
+            "items": {
+              "$ref": "#/components/schemas/UncoveredHit"
+            },
+            "type": "array",
+            "title": "Uncovered Hits",
+            "description": "Where searches outside coverage landed, most frequent first"
           },
-          "interest": {
-            "$ref": "#/components/schemas/Interest"
+          "repeat_sessions": {
+            "$ref": "#/components/schemas/RepeatSessions"
           },
-          "panel_to_financials": {
-            "$ref": "#/components/schemas/PanelToFinancials"
+          "intent_counts": {
+            "$ref": "#/components/schemas/IntentCounts"
           }
         },
         "type": "object",
@@ -6226,13 +6145,12 @@
           "municipality_id",
           "range",
           "generated_at",
-          "totals",
           "funnel",
           "orders",
-          "districts",
-          "repeat_usage",
-          "interest",
-          "panel_to_financials"
+          "top_zones",
+          "uncovered_hits",
+          "repeat_sessions",
+          "intent_counts"
         ],
         "title": "AnalyticsDashboard"
       },
@@ -6251,10 +6169,10 @@
           "return_visit",
           "sessions_per_user",
           "market_data_interest",
-          "ai_interest",
-          "assumption_edited"
+          "ai_interest"
         ],
-        "title": "AnalyticsEvent"
+        "title": "AnalyticsEvent",
+        "description": "The 13 product events, the one list of them: BRD §6.2's eleven and the pilot scope's two\nintent buttons (``market_data_interest``, ``ai_interest``). The API validates against it and\n``ck_analytics_events_name`` is built from it (migration 0038)."
       },
       "ApproveIn": {
         "properties": {
@@ -8662,84 +8580,6 @@
         ],
         "title": "Disclaimer"
       },
-      "District": {
-        "properties": {
-          "zone_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Zone Id",
-            "description": "null = events with no zone_id and no point inside any zone"
-          },
-          "zone_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Zone Name"
-          },
-          "covered": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Covered",
-            "description": "The zone has an adopted, live plan (null without a zone)"
-          },
-          "events": {
-            "type": "integer",
-            "title": "Events",
-            "description": "search_performed + parcel_selected"
-          },
-          "searches": {
-            "type": "integer",
-            "title": "Searches"
-          },
-          "uncovered_searches": {
-            "type": "integer",
-            "title": "Uncovered Searches",
-            "description": "search_performed with coverage 'uncovered' (S6: no adopted plan there)",
-            "default": 0
-          },
-          "selections": {
-            "type": "integer",
-            "title": "Selections"
-          },
-          "sessions": {
-            "type": "integer",
-            "title": "Sessions"
-          },
-          "share_pct": {
-            "type": "number",
-            "title": "Share Pct"
-          }
-        },
-        "type": "object",
-        "required": [
-          "zone_id",
-          "zone_name",
-          "events",
-          "searches",
-          "selections",
-          "sessions",
-          "share_pct"
-        ],
-        "title": "District",
-        "description": "A zone (UrbanView's district) by the events made in it: the event's ``zone_id``, else the\nzone containing its ``lat`` / ``lng``, so searches outside coverage count too."
-      },
       "DocumentCounts": {
         "properties": {
           "documents": {
@@ -10116,7 +9956,8 @@
         "required": [
           "events"
         ],
-        "title": "EventBatch"
+        "title": "EventBatch",
+        "description": "1 to 100 events. Rows are validated one by one (see the module docstring): the valid ones\nland in ``events``, the malformed ones in ``rejected``."
       },
       "EventIn": {
         "properties": {
@@ -10994,16 +10835,9 @@
             "title": "Steps"
           },
           "overall_conversion_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "number",
             "title": "Overall Conversion Pct",
-            "description": "checkout_completed sessions / map_loaded sessions × 100"
+            "description": "paid sessions / map_loaded sessions × 100"
           }
         },
         "type": "object",
@@ -11017,41 +10851,29 @@
         "properties": {
           "step": {
             "type": "string",
-            "title": "Step"
+            "title": "Step",
+            "description": "map_loaded | parcel_resolved | panel_opened | order_started | order_submitted | paid"
           },
           "event_names": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Event Names"
+            "title": "Event Names",
+            "description": "The events that put a session at this step (none for paid: the orders table)"
           },
           "sessions": {
             "type": "integer",
             "title": "Sessions",
-            "description": "Sessions with at least one of the step's events"
+            "description": "Sessions that reached the step and every earlier one in the range"
           },
           "conversion_from_previous_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "number",
             "title": "Conversion From Previous Pct",
-            "description": "sessions / previous step's sessions × 100; null when the previous step is 0"
+            "description": "sessions / previous step's sessions × 100 (0 when the previous step is 0)"
           },
           "conversion_from_start_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "number",
             "title": "Conversion From Start Pct"
           }
         },
@@ -12691,7 +12513,15 @@
           "duplicates": {
             "type": "integer",
             "title": "Duplicates",
-            "description": "Events whose event_id was already stored (retries)"
+            "description": "Valid rows whose event_id was already stored (retries)"
+          },
+          "rejected": {
+            "items": {
+              "$ref": "#/components/schemas/RejectedEvent"
+            },
+            "type": "array",
+            "title": "Rejected",
+            "description": "Malformed rows, not stored; the valid rows were"
           }
         },
         "type": "object",
@@ -12760,23 +12590,7 @@
         ],
         "title": "InputFlag"
       },
-      "Interest": {
-        "properties": {
-          "market_data_interest": {
-            "$ref": "#/components/schemas/InterestCount"
-          },
-          "ai_interest": {
-            "$ref": "#/components/schemas/InterestCount"
-          }
-        },
-        "type": "object",
-        "required": [
-          "market_data_interest",
-          "ai_interest"
-        ],
-        "title": "Interest"
-      },
-      "InterestCount": {
+      "IntentCount": {
         "properties": {
           "events": {
             "type": "integer",
@@ -12792,7 +12606,23 @@
           "events",
           "sessions"
         ],
-        "title": "InterestCount"
+        "title": "IntentCount"
+      },
+      "IntentCounts": {
+        "properties": {
+          "market_data_interest": {
+            "$ref": "#/components/schemas/IntentCount"
+          },
+          "ai_interest": {
+            "$ref": "#/components/schemas/IntentCount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "market_data_interest",
+          "ai_interest"
+        ],
+        "title": "IntentCounts"
       },
       "JobCostOut": {
         "properties": {
@@ -13914,7 +13744,7 @@
               }
             ],
             "title": "Report",
-            "description": "Detail only: items made, every row / column left out with its reason, issues, the sheet mappings and the LLM's calls and tokens"
+            "description": "Detail only: items made, every row / column left out with its reason, issues and the sheet mappings"
           },
           "raw": {
             "anyOf": [
@@ -15721,6 +15551,30 @@
         "title": "OrderPublic",
         "description": "The confirmation page data (``GET /v1/orders/{reference}``): what the S5 confirmation and\nthe public order page show, from the reference alone. Never personal data."
       },
+      "OrderStatusCount": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "orders": {
+            "type": "integer",
+            "title": "Orders"
+          },
+          "amount_eur": {
+            "type": "number",
+            "title": "Amount Eur",
+            "description": "Sum of the orders' prices"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "orders",
+          "amount_eur"
+        ],
+        "title": "OrderStatusCount"
+      },
       "OrderSummary": {
         "properties": {
           "id": {
@@ -15890,71 +15744,24 @@
       },
       "Orders": {
         "properties": {
-          "source": {
-            "type": "string",
-            "const": "analytics_events",
-            "title": "Source",
-            "description": "Derived from order_started / checkout_completed events (no orders table yet)",
-            "default": "analytics_events"
-          },
-          "order_started_events": {
+          "placed": {
             "type": "integer",
-            "title": "Order Started Events"
+            "title": "Placed",
+            "description": "Orders placed in the range"
           },
-          "orders_started": {
-            "type": "integer",
-            "title": "Orders Started",
-            "description": "Distinct order_id (events without one count singly)"
-          },
-          "orders_completed": {
-            "type": "integer",
-            "title": "Orders Completed"
-          },
-          "revenue_eur": {
-            "type": "number",
-            "title": "Revenue Eur",
-            "description": "Sum of checkout_completed.amount_eur per order"
-          },
-          "average_order_eur": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Average Order Eur"
-          },
-          "completion_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Completion Pct",
-            "description": "orders_completed / orders_started × 100"
-          },
-          "by_product": {
+          "by_status": {
             "items": {
-              "$ref": "#/components/schemas/ProductRevenue"
+              "$ref": "#/components/schemas/OrderStatusCount"
             },
             "type": "array",
-            "title": "By Product"
+            "title": "By Status",
+            "description": "Every order status in flow order, 0 when none; no customer data"
           }
         },
         "type": "object",
         "required": [
-          "order_started_events",
-          "orders_started",
-          "orders_completed",
-          "revenue_eur",
-          "average_order_eur",
-          "completion_pct",
-          "by_product"
+          "placed",
+          "by_status"
         ],
         "title": "Orders"
       },
@@ -16016,22 +15823,16 @@
           "url": {
             "type": "string",
             "title": "Url",
-            "description": "Signed, short-lived URL to the cited page (image or PDF#page)"
+            "description": "Signed, short-lived URL to the cited page (PDF#page)"
           },
           "kind": {
             "type": "string",
-            "enum": [
-              "page_image",
-              "pdf_page"
-            ],
+            "const": "pdf_page",
             "title": "Kind"
           },
           "content_type": {
             "type": "string",
-            "enum": [
-              "image/png",
-              "application/pdf"
-            ],
+            "const": "application/pdf",
             "title": "Content Type"
           },
           "expires_at": {
@@ -16102,67 +15903,6 @@
         ],
         "title": "PanelEngine",
         "description": "The shared engine's exact inputs behind ``feasibility``: ``calculate(inputs)`` in the browser\ngives the same figures, ``recalculate(inputs, edits)`` applies a visitor's edits (keys of\n``edit_keys``) without a server round trip."
-      },
-      "PanelToFinancials": {
-        "properties": {
-          "panel_views": {
-            "type": "integer",
-            "title": "Panel Views",
-            "description": "panel_viewed events"
-          },
-          "panel_view_pairs": {
-            "type": "integer",
-            "title": "Panel View Pairs",
-            "description": "Distinct (session, parcel) pairs with a panel view"
-          },
-          "pairs_reaching_financials": {
-            "type": "integer",
-            "title": "Pairs Reaching Financials",
-            "description": "Pairs that also viewed financials for the same parcel"
-          },
-          "reaching_financials_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reaching Financials Pct",
-            "description": "pairs_reaching_financials / panel_view_pairs × 100"
-          },
-          "panel_sessions": {
-            "type": "integer",
-            "title": "Panel Sessions"
-          },
-          "panel_sessions_reaching_financials": {
-            "type": "integer",
-            "title": "Panel Sessions Reaching Financials"
-          },
-          "sessions_reaching_financials_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sessions Reaching Financials Pct"
-          }
-        },
-        "type": "object",
-        "required": [
-          "panel_views",
-          "panel_view_pairs",
-          "pairs_reaching_financials",
-          "reaching_financials_pct",
-          "panel_sessions",
-          "panel_sessions_reaching_financials",
-          "sessions_reaching_financials_pct"
-        ],
-        "title": "PanelToFinancials"
       },
       "ParcelAreas": {
         "properties": {
@@ -17081,20 +16821,13 @@
             "title": "Scanned Pages",
             "description": "Raster pages: geometry needs manual redraw"
           },
-          "ocr_pages": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Ocr Pages"
-          },
           "unread_pages": {
             "items": {
               "type": "integer"
             },
             "type": "array",
             "title": "Unread Pages",
-            "description": "Scanned pages nobody has read yet (no OCR backend)"
+            "description": "Scanned pages nobody has read (for manual handling)"
           },
           "blank_pages": {
             "items": {
@@ -17142,14 +16875,6 @@
             },
             "type": "object",
             "title": "Scripts"
-          },
-          "page_images": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Page Images",
-            "description": "Documents whose page images are rendered"
           }
         },
         "additionalProperties": false,
@@ -17246,29 +16971,6 @@
           "currency"
         ],
         "title": "PricingOut"
-      },
-      "ProductRevenue": {
-        "properties": {
-          "product": {
-            "type": "string",
-            "title": "Product"
-          },
-          "orders": {
-            "type": "integer",
-            "title": "Orders"
-          },
-          "revenue_eur": {
-            "type": "number",
-            "title": "Revenue Eur"
-          }
-        },
-        "type": "object",
-        "required": [
-          "product",
-          "orders",
-          "revenue_eur"
-        ],
-        "title": "ProductRevenue"
       },
       "PublishBlocker": {
         "properties": {
@@ -17844,82 +17546,70 @@
         ],
         "title": "RejectIn"
       },
-      "RepeatUsage": {
+      "RejectedEvent": {
         "properties": {
-          "target_sessions_per_user": {
+          "index": {
             "type": "integer",
-            "title": "Target Sessions Per User"
+            "title": "Index",
+            "description": "Position of the row in the batch (0-based)"
           },
-          "sessions": {
-            "type": "integer",
-            "title": "Sessions"
-          },
-          "returning_sessions": {
-            "type": "integer",
-            "title": "Returning Sessions",
-            "description": "Sessions that emitted return_visit"
-          },
-          "repeat_usage_rate_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Repeat Usage Rate Pct",
-            "description": "returning_sessions / sessions × 100"
-          },
-          "clients": {
-            "type": "integer",
-            "title": "Clients",
-            "description": "Distinct client_id"
-          },
-          "sessions_per_client": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sessions Per Client"
-          },
-          "clients_at_target": {
-            "type": "integer",
-            "title": "Clients At Target",
-            "description": "Clients with ≥ target sessions in the range"
-          },
-          "clients_at_target_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Clients At Target Pct"
-          },
-          "reported": {
-            "$ref": "#/components/schemas/ReportedSessions"
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/RowProblem"
+            },
+            "type": "array",
+            "title": "Problems"
           }
         },
         "type": "object",
         "required": [
-          "target_sessions_per_user",
-          "sessions",
-          "returning_sessions",
-          "repeat_usage_rate_pct",
-          "clients",
-          "sessions_per_client",
-          "clients_at_target",
-          "clients_at_target_pct",
-          "reported"
+          "index",
+          "problems"
         ],
-        "title": "RepeatUsage"
+        "title": "RejectedEvent"
+      },
+      "RepeatSessions": {
+        "properties": {
+          "min_sessions": {
+            "type": "integer",
+            "title": "Min Sessions",
+            "description": "Visits that make a repeat visitor (the target: 3)"
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions",
+            "description": "Distinct sessions in the range"
+          },
+          "visitors": {
+            "type": "integer",
+            "title": "Visitors",
+            "description": "Distinct anonymous client ids"
+          },
+          "repeat_visitors": {
+            "type": "integer",
+            "title": "Repeat Visitors",
+            "description": "Visitors with ≥ min_sessions sessions"
+          },
+          "repeat_visitors_pct": {
+            "type": "number",
+            "title": "Repeat Visitors Pct"
+          },
+          "repeat_sessions": {
+            "type": "integer",
+            "title": "Repeat Sessions",
+            "description": "Sessions of the repeat visitors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min_sessions",
+          "sessions",
+          "visitors",
+          "repeat_visitors",
+          "repeat_visitors_pct",
+          "repeat_sessions"
+        ],
+        "title": "RepeatSessions"
       },
       "ReportFileOut": {
         "properties": {
@@ -17968,49 +17658,6 @@
           "uploaded_at"
         ],
         "title": "ReportFileOut"
-      },
-      "ReportedSessions": {
-        "properties": {
-          "users": {
-            "type": "integer",
-            "title": "Users"
-          },
-          "users_at_target": {
-            "type": "integer",
-            "title": "Users At Target"
-          },
-          "users_at_target_pct": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Users At Target Pct"
-          },
-          "sessions_per_user": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sessions Per User"
-          }
-        },
-        "type": "object",
-        "required": [
-          "users",
-          "users_at_target",
-          "users_at_target_pct",
-          "sessions_per_user"
-        ],
-        "title": "ReportedSessions",
-        "description": "What the client itself reports through ``sessions_per_user`` events."
       },
       "ReviewCounters": {
         "properties": {
@@ -19088,6 +18735,40 @@
         ],
         "title": "Role"
       },
+      "RowProblem": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Loc",
+            "description": "Where in the row, e.g. [\"properties\"]"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Msg"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "RowProblem"
+      },
       "SessionOut": {
         "properties": {
           "token": {
@@ -19273,12 +18954,9 @@
           },
           "kind": {
             "type": "string",
-            "enum": [
-              "page_image",
-              "pdf_page"
-            ],
+            "const": "pdf_page",
             "title": "Kind",
-            "description": "page_image: a PNG of that page; pdf_page: the whole PDF, url ends with #page=N"
+            "description": "pdf_page: the whole PDF, url ends with #page=N (the viewer shows that page)"
           },
           "url": {
             "type": "string",
@@ -19287,10 +18965,7 @@
           },
           "content_type": {
             "type": "string",
-            "enum": [
-              "image/png",
-              "application/pdf"
-            ],
+            "const": "application/pdf",
             "title": "Content Type"
           },
           "expires_at": {
@@ -19991,40 +19666,6 @@
         ],
         "title": "TilesCurrent"
       },
-      "Totals": {
-        "properties": {
-          "events": {
-            "type": "integer",
-            "title": "Events"
-          },
-          "sessions": {
-            "type": "integer",
-            "title": "Sessions",
-            "description": "Distinct anonymous session ids"
-          },
-          "clients": {
-            "type": "integer",
-            "title": "Clients",
-            "description": "Distinct anonymous client ids (events that carried one)"
-          },
-          "by_name": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object",
-            "title": "By Name",
-            "description": "Event counts, every name present (0 when none)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "events",
-          "sessions",
-          "clients",
-          "by_name"
-        ],
-        "title": "Totals"
-      },
       "TurnaroundOut": {
         "properties": {
           "business_days": {
@@ -20053,6 +19694,35 @@
           "note_me"
         ],
         "title": "TurnaroundOut"
+      },
+      "UncoveredHit": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          },
+          "searches": {
+            "type": "integer",
+            "title": "Searches"
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lng",
+          "searches",
+          "sessions"
+        ],
+        "title": "UncoveredHit",
+        "description": "Searches and map clicks that landed where no adopted plan covers the point, grouped by\ntheir position (3 decimals, ≈ 110 m)."
       },
       "UploadResult": {
         "properties": {
@@ -20777,6 +20447,84 @@
           "subtitle_me"
         ],
         "title": "ZoneHeader"
+      },
+      "ZoneHits": {
+        "properties": {
+          "zone_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone Id",
+            "description": "null = events with no zone_id and no point inside any zone"
+          },
+          "zone_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone Name"
+          },
+          "covered": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Covered",
+            "description": "The zone has an adopted, live plan (null without a zone)"
+          },
+          "events": {
+            "type": "integer",
+            "title": "Events",
+            "description": "search_performed + parcel_selected"
+          },
+          "searches": {
+            "type": "integer",
+            "title": "Searches"
+          },
+          "uncovered_searches": {
+            "type": "integer",
+            "title": "Uncovered Searches",
+            "description": "search_performed with coverage 'uncovered' (S6: no adopted plan there)"
+          },
+          "selections": {
+            "type": "integer",
+            "title": "Selections"
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions"
+          },
+          "share_pct": {
+            "type": "number",
+            "title": "Share Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "zone_id",
+          "zone_name",
+          "events",
+          "searches",
+          "uncovered_searches",
+          "selections",
+          "sessions",
+          "share_pct"
+        ],
+        "title": "ZoneHits",
+        "description": "A zone by the searches and parcel picks made in it: the event's ``zone_id``, else the zone\ncontaining its ``lat`` / ``lng``, so searches outside coverage count for their district."
       },
       "ZoneImportIn": {
         "properties": {

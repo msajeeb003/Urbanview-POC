@@ -66,18 +66,16 @@ def run_task(
         prompt = replace(prompt, user=prompt.user + FEEDBACK.format(error=error))
     reply = model.complete(system=prompt.system, user=prompt.user, schema=prompt.schema)
     try:
-        response = response_model(prompt.response_name).model_validate(reply.data)
+        answer = response_model(prompt.response_name).model_validate(reply.data)
     except ValidationError as exc:
         raise ModelOutputInvalid(
             f"the response does not fit {prompt.response_name}: {exc}",
             usage=reply.usage,
             model=reply.model,
         ) from exc
-    if hasattr(response, "to_legacy"):  # a compact answer (prompt set 1.1 onwards)
-        response = response.to_legacy()
     result = assemble(
         task,
-        response,
+        answer.to_legacy(),  # the compact answer as the task's response model
         pages=pages,
         document_id=document.id,
         municipality_id=municipality_id,

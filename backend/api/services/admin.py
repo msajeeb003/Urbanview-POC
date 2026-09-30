@@ -21,8 +21,8 @@ values that cite them stay with them.
 Files of a version (``planning_document_files``, migration 0022): a version has any number of
 stored files, each with a role (``text`` = read by the extraction job, ``drawing`` = by the
 geometry job, ``both``), and each file is extracted by its own run. ``planning_documents.file_id``
-stays the primary file (the first text / both PDF) for the document-level source viewer route and
-the page images. Files are added to the current version and removed from it until an item read
+stays the primary file (the first text / both PDF) for the document-level source viewer route.
+Files are added to the current version and removed from it until an item read
 from them is approved (removal supersedes the file's open items). ``DocumentOut.state`` says where
 the version stands: no_files, processing, ready_for_review, failed, published, reviewed,
 not_extracted.
@@ -477,15 +477,14 @@ INSERT_DOCUMENT_SQL = text(
     INSERT INTO planning_documents (
         municipality_id, name, short_code, type, status, source, source_url, zone_id,
         amends_document_id,
-        coverage_geom, file_id, file_key, page_count, page_images_rendered, lineage_id, version,
-        is_current_version, licence_note, adopted_on, registered_by, registered_at,
-        dataset_version)
+        coverage_geom, file_id, file_key, page_count, lineage_id, version, is_current_version,
+        licence_note, adopted_on, registered_by, registered_at, dataset_version)
     VALUES (
         :m, :name, :short_code, :type, CAST(:status AS planning_document_status), :source,
         :source_url,
         :zone_id, :amends_document_id,
         (SELECT p.coverage_geom FROM planning_documents p WHERE p.id = :previous_id),
-        :file_id, :file_key, :page_count, false, :lineage_id, :version, true, :licence_note,
+        :file_id, :file_key, :page_count, :lineage_id, :version, true, :licence_note,
         CAST(:adopted_on AS date), :registered_by, :registered_at, NULL)
     RETURNING id
     """
@@ -540,13 +539,12 @@ SET_ROLE_SQL = text(
 DELETE_LINK_SQL = text(
     "DELETE FROM planning_document_files WHERE document_id = :document_id AND file_id = :file_id"
 )
-# The version's primary file follows its files (the first text / both PDF); page images were
-# rendered for the previous one, so they are no longer served.
+# The version's primary file follows its files (the first text / both PDF).
 SET_PRIMARY_SQL = text(
     """
     UPDATE planning_documents
     SET file_id = CAST(:file_id AS bigint), file_key = CAST(:file_key AS text),
-        page_count = CAST(:page_count AS integer), page_images_rendered = false
+        page_count = CAST(:page_count AS integer)
     WHERE id = :id AND file_id IS DISTINCT FROM CAST(:file_id AS bigint)
     """
 )

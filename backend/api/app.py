@@ -80,7 +80,6 @@ def create_app(
     analytics_repository: AnalyticsRepository | None = None,
     admin_dispatcher: JobDispatcher | None = None,
     staff_authenticator: Any | None = None,
-    payment_provider: BankTransferProvider | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings)
@@ -280,17 +279,13 @@ def create_app(
     app.state.review_service = None
     app.state.geometry_review_service = None
     app.state.order_service = None
-    # Orders: the payment seam (bank transfer in the POC; a card provider plugs in here).
-    # Transactional mail is a job (jobs.tasks.email) queued by EmailService below.
-    app.state.payment_provider = (
-        payment_provider
-        if payment_provider is not None
-        else BankTransferProvider(
-            beneficiary=settings.order_bank_beneficiary,
-            iban=settings.order_bank_iban,
-            bank_name=settings.order_bank_name,
-            swift=settings.order_bank_swift,
-        )
+    # Orders are paid by bank transfer (the instructions below); transactional mail is a job
+    # (jobs.tasks.email) queued by EmailService below.
+    app.state.payment_provider = BankTransferProvider(
+        beneficiary=settings.order_bank_beneficiary,
+        iban=settings.order_bank_iban,
+        bank_name=settings.order_bank_name,
+        swift=settings.order_bank_swift,
     )
     app.state.staff_authenticator = staff_authenticator  # tests inject one; else PostGIS
     # Staff routes: bearer tokens from configuration (core.auth); none configured = 401 everywhere.

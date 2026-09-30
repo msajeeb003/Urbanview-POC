@@ -2,9 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Schibsted_Grotesk } from "next/font/google";
 import { cookies } from "next/headers";
 
-// Order matters: Tailwind (layered) → the wireframe stylesheet verbatim (unlayered, wins) →
-// documented overrides.
-import "./globals.css";
+// Order matters: the wireframe stylesheet (docs/wireframe/wireframe.css) → documented overrides.
 import "@/styles/wireframe.css";
 import "@/styles/overrides.css";
 

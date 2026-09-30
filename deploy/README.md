@@ -8,7 +8,7 @@ Everything runs on one server with Docker Compose (`deploy/compose.yml`):
 | `web` | the public map (Next.js, `frontend/Dockerfile`) | `https://SITE_DOMAIN` |
 | `api` | the API (FastAPI, `backend/Dockerfile`) | `https://API_DOMAIN` |
 | `minio` | private file bucket (planning PDFs, map tiles, expert reports) | signed links on `https://FILES_DOMAIN` |
-| `worker` | background jobs: e-mails, the publish job (tippecanoe) | internal |
+| `worker` | background jobs: extraction, geometry, the publish job (tippecanoe), e-mails | internal |
 | `postgres` | PostgreSQL 16 + PostGIS | internal |
 | `redis` | job queue, caches, rate limiting | internal |
 | `migrate`, `storage-init` | one-shot: database migrations, bucket creation (every `up`) | — |
@@ -107,33 +107,14 @@ already exists (`--role reviewer` or `expert` creates other staff the same way).
 (the running container) rather than `run --rm api`, which starts the one-shot `migrate` /
 `storage-init` services again. Issuing a link is recorded in the audit log.
 
-## 7. Load the sample data (the pilot's Podgorica sample)
+## 7. First data and the first publish
 
-```bash
-docker compose -f deploy/compose.yml --env-file deploy/.env run --rm api \
-  python -m core.seeds podgorica_sample --upload-files
-```
+Register the planning documents and upload their files in the console (Documents), let the
+extraction and geometry jobs run, review every value and geometry batch, then publish (Publish).
+The first publish builds the tile archive; until then the map shows the base map only.
+`/v1/tiles/current` then answers `published` with an `archive_url` on `FILES_DOMAIN`.
 
-This loads zones, documents, parcels and the published values (version 1) and uploads the
-placeholder PDFs, so search, map clicks, the panels, the source viewer and orders work.
-
-## 8. Publish the map layers (parcel outlines on the map)
-
-The sample's version 1 has no tile archive, so the map shows the base map only. One publish run
-builds it (the worker runs tippecanoe):
-
-```bash
-curl -s -X POST https://API_DOMAIN/v1/admin/publish \
-  -H "Authorization: Bearer ADMIN_TOKEN" -H "Content-Type: application/json" \
-  -d '{"label": "first-publish"}'
-curl -s https://API_DOMAIN/v1/admin/publish -H "Authorization: Bearer ADMIN_TOKEN"
-curl -s https://API_DOMAIN/v1/tiles/current
-```
-
-`/v1/tiles/current` then answers `published` with an `archive_url` on `FILES_DOMAIN`, and the map
-draws zones, coverage areas and parcels.
-
-## 9. Updating (after every push to GitHub)
+## 8. Updating (after every push to GitHub)
 
 ```bash
 bash /opt/urbanview/deploy/deploy.sh

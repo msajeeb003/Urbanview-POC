@@ -1,7 +1,8 @@
 # UrbanView frontend — working notes for Claude
 
-The public map of UrbanView (Podgorica pilot). Next.js 16 (App Router) + TypeScript + Tailwind v4 +
-shadcn/ui (`radix-nova`, Radix primitives), Mapbox GL JS, TanStack Query, zustand. Product rules,
+The public map of UrbanView (Podgorica pilot). Next.js 16 (App Router) + TypeScript + Radix
+primitives (shadcn/ui's), Mapbox GL JS, TanStack Query, zustand; styled by the wireframe stylesheet
+(no Tailwind: it was imported but no utility class was used; removed 2026-10-01). Product rules,
 API contracts and backend conventions are in the root `CLAUDE.md`; the full design contract is
 `docs/specs/frontend-design.md`. This file is what the frontend tasks reference.
 
@@ -9,19 +10,22 @@ API contracts and backend conventions are in the root `CLAUDE.md`; the full desi
 
 **The UI reproduces the client-approved interactive wireframe exactly** (structure, labels,
 tokens, sizes, copy, states). The BRQ's "not strictly" does not apply: this build is the approved
-design. Proof, not taste: `docs/wireframe/screens/*.png` are the acceptance references and
-`docs/wireframe/computed-styles.json` holds the effective style of 257 selectors.
+design. Proof, not taste: `docs/wireframe/screens/*.png` are the acceptance references (the
+states the POC builds) and `docs/wireframe/computed-styles.json` holds the effective style of 202
+selectors.
 
 - `src/styles/wireframe.css` is a **byte-for-byte copy** of `docs/wireframe/wireframe.css`
-  (`npm run design:check` fails otherwise). Never edit it. Its late override passes ("luxe",
+  (`npm run design:check` fails otherwise), which is the mock's stylesheet minus the rules of the
+  components the POC does not build (AI assistant, subscription plans, locks and paid states,
+  badges, card payment, admin KPI tiles, the phase strip, dependency notes, the 860 / 760 px
+  tablet and phone layouts; removed 2026-10-01). Never edit one copy alone. Its late override passes ("luxe",
   "type consolidation", "font roles") set the effective sizes, and
   `[class][class][class]{border-radius:8px}` gives every classed element an 8 px radius: that is
   load-bearing, do not "clean it up".
 - Every deviation lives in `src/styles/overrides.css`, one commented block per reason (fonts,
   a11y helpers, Mapbox).
-- **No Tailwind Preflight** (`globals.css` imports only `theme.css` + `utilities.css`): Preflight's
-  `line-height: 1.5`, block SVGs and heading resets change the design. The wireframe CSS is
-  unlayered, so it beats every Tailwind layer; utilities are for layout glue only.
+- **No Tailwind, no reset**: the wireframe stylesheet ships its own reset; `app/layout.tsx`
+  imports `wireframe.css` then `overrides.css`, nothing else.
 - Components render the wireframe's own markup and class names (templates in
   `docs/wireframe/wireframe.js`): `.phead > .pclose + .peyebrow + .ptitle + .psub`,
   `.idgrid > .idcell > .k + .v`, `.prow > .pk + .pv > .u`, `.cta.gold` … Do not restyle a component
@@ -37,7 +41,7 @@ Check a change visually against the reference: `npm run build && npm run start`,
 chrome regions against `docs/wireframe/screens/<state>.png` (topbar, rail, panel, legend,
 coordinates and zoom tools were pixel-identical at setup).
 
-## Tokens (`:root` of wireframe.css; Tailwind names in `globals.css` → `@theme inline`)
+## Tokens (`:root` of wireframe.css; the third column is the old Tailwind alias, for reference)
 
 | Token | Value | Tailwind | Use |
 |---|---|---|---|
@@ -48,7 +52,7 @@ coordinates and zoom tools were pixel-identical at setup).
 | `--paper-2` | `#ECE4D6` | `paper-2` | list dividers, range track, icon tiles |
 | `--line` | `#DDD3C3` | `line` | every hairline |
 | `--white` | `#FBF8F2` | `white` | rail, panel, legend, modal, cards |
-| `--brand` | `#B5613B` | `brand` | terracotta: primary action, selection, eyebrows, free badge, focus |
+| `--brand` | `#B5613B` | `brand` | terracotta: primary action, selection, eyebrows, focus |
 | `--brand-dark` | `#8F472A` | `brand-dark` | brand hover, planned-parcel outline, "on" layer name, computed GFA |
 | `--brand-tint` | `rgba(181,97,59,.11)` | `brand-tint` | tinted chips, hovers |
 | `--paid` | `#B08A2E` | `paid` | gold: the order CTA and the urban-parcel card (no subscription badge or locks in the POC) |
@@ -165,7 +169,7 @@ Planned traffic (an MVP layer; not published).
   off. 1.0× = the city framing of the map's box; zoom 0.4× of it … 19; the max bounds are the
   field the 0.4× view shows around the city's centre, so zooming all the way out ends on the whole
   city, centred (the wireframe's rule), and panning closer in stops at that field. Framing, zoom
-  range and field are measured again on every resize of the box (rail, panel, window, sheet);
+  range and field are measured again on every resize of the box (rail, panel, window);
   reset returns to 1.0×. Fit options never carry `maxZoom: undefined` (`lib/map/camera.ts`:
   Mapbox spreads it over its default, the fitted zoom turns NaN and the fit is dropped, which once
   opened the map on a corner of its bounds over Skadar Lake), and the padding shrinks to the box
@@ -337,11 +341,10 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   chip (the PDF's page 1 through the source viewer when stored, else the registry entry): name,
   type, status, `Adopted` date when known, source (`PDF · eRegistri`, the registry name a link to
   its entry), amendments in progress;
-  "General planning information" = the zone's summary (else the mock's generic text);
-  "Coverage": zones spanned, cadastral and urban parcel counts; CTA stack: ghost "Ask about this document" (an intent button:
-  `ai_interest {trigger: document_panel, document_id}` and the toast "The assistant is not
-  available in the pilot yet. We have noted your interest."; nothing opens) and line "How we read
-  a planning document" (the methodology modal, step 2).
+  "General planning information" = the zone's summary (else a neutral note that none is written);
+  "Coverage": zones spanned, cadastral and urban parcel counts; CTA stack: line "How we read
+  a planning document" (the methodology modal, step 2); no intent button (the pilot scope's two
+  are on the parcel panels).
 - **Methodology** (`shell/methodology-modal.tsx`, the wireframe's wide `.method` modal): six steps
   with the mock's copy and diagrams, Back / Next step; the last step's gold "Order this analysis
   →" calls `onOrder` (the order form for the parcel on screen) or says "Pick a parcel on the map to
@@ -359,7 +362,7 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   git-ignored); range requests with auto-fetch and streaming off (64 KB chunks), so only the
   requested page's bytes are read. The page fits the width (× device pixel ratio); the value's
   `bbox` (PDF points, origin bottom-left) is a translucent brand rectangle scrolled into view.
-  `kind: page_image` → the PNG, no rectangle, no zoom. Controls: ‹ page input "of N" ›, − zoom %
+  Controls: ‹ page input "of N" ›, − zoom %
   + (50–400 %), ← → keys, "Open PDF ↗" (the whole document at `#page=N` in a new tab; a fresh
   link when the current one expires within a minute); a typed page beyond the last snaps back
   with "This document has 24 pages." beside the input. An expired link (403) is re-fetched once,
@@ -400,10 +403,11 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   Land use designation, Max building height (`27.5 m · P+8`: metres and floors, each with its
   source), Max site coverage (IZ) %, Floor Area Ratio (II), Planned parcel area (the plan's
   stated value, else the geometry's area with a tooltip), Max Gross Floor Area (brand-dark),
-  Max coverage area — then the plan's other Group 1 fields (building line, setback to
-  neighbours; API labels). Parking, green area and utilities are extracted and reviewed but not
-  shown: the pilot scope's Group 1 does not list them (`NOT_IN_PLAN`, public-app check
-  2026-09-30). The data version line follows the section. Every stated value ends with a source icon (`.rowsrc`,
+  Max coverage area (the engine's output): the plan's Group 1 (BRD: Parcel ID, planning
+  document, land use, urban block, urban parcel number and area, max height / floors, IZ, FAR,
+  max GFA; the identification ones in the IdGrid), an explicit list, nothing else. Building line,
+  setback, parking, green area and utilities are extracted and reviewed but not shown (sweep
+  2026-10-01). The data version line follows the section. Every stated value ends with a source icon (`.rowsrc`,
   `RowSource`): the cited page through the source viewer (`/v1/source/value/{value_id}`),
   `source_reference_opened`; its title and accessible name are the reference itself
   (`sourceRefText`: `Max number of floors: DUP Centar – Zona C2, page 14 · table 3 – UP 12`, +
@@ -415,10 +419,11 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   server's rule, so the price shown is the price charged; the click opens the S4 order form,
   see "Orders"), the pilot scope's two intent buttons, which log interest and say so in a toast,
   never opening, unlocking or changing anything (intent check 2026-09-28): ghost "Unlock full
-  market data" on the urban parcel panel, where Group 2 shows (`market_data_interest {…ids,
-  trigger: parcel_panel, panel_type}`, "Thanks — noted. Market data is free for everyone during
-  the pilot.") and ghost "Ask about this site" on both parcel panels (`ai_interest {…ids,
-  trigger: parcel_panel, panel_type}`, the string table's `ai.notYet`); then line "How we analyze
+  market data" (no padlock icon) on the urban parcel panel, where Group 2 shows
+  (`market_data_interest {…ids, trigger: parcel_panel, panel_type}`, "Thanks — we have noted your
+  interest in more market data.") and ghost "Ask about this site" on both parcel panels
+  (`ai_interest {…ids, trigger: parcel_panel, panel_type}`, the string table's `ai.noted`:
+  nothing is promised); then line "How we analyze
   this parcel" (methodology, step 1, context `Parcel #1042 · Podgorica I`). The POC has no AI
   assistant: no fab, chat panel, quota or chips.
 - `panel_viewed`: cadastral `{panel_type, parcel_id, zone_id}`, urban `{panel_type,
@@ -427,7 +432,7 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   planning parameters; wireframe `marketHTML`), shown to everyone: the POC has no subscription
   or paywall, so the wireframe's locked state (`LOCKED` chips, "Unlock →", the paid badge) is not
   built (scope audit 2026-09-28). ROI hero (ink, radius 16: expected %, "range low% — high% ·
-  expected n%", spark), range rows (land value, construction, market value, profit: expected
+  expected n%"; no decorative trend line), range rows (land value, construction, market value, profit: expected
   value, the 6 px `.rangebar` with the marker at the expected position, low / "expected" / high),
   design & documentation as a plain row with its range underneath (no single money figure),
   saleable area (deterministic), the assumption sandbox (below), the engine strip, the
@@ -456,15 +461,13 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   and the cross-engine test). Edits live in the store (`assumptionEdits`, only the edited keys),
   in memory for the page: moving to another parcel keeps them (the other keys take that zone's
   defaults) and an order carries them; a reload returns to the defaults, and nothing is saved
-  on the server. An edit that returns to the default value stops being an edit. Each
-  assumption sends one `assumption_edited {assumption, assumption_value, …ids}` once its slider
-  has rested 800 ms (`editEventQueue`; Reset sends one per edited assumption with `reset:
-  true`; what is still waiting goes out when the panel closes). No market data for the zone:
-  the sliders are disabled.
+  on the server. An edit that returns to the default value stops being an edit. Edits send no
+  analytics event (the plan's 13 events have none; `assumption_edited` was removed 2026-10-01).
+  No market data for the zone: the sliders are disabled.
 - **"How the figures are calculated"** (`shell/engine-modal.tsx`, wireframe `openEngine`, from
   the engine strip): the poc-1 formulas table (name, expression, source), input
-  data (planning documents, cadastre, the zone's market source, the visitor's assumptions), the
-  mock's growth note, "Indicative ranges, not investment advice. Deterministic calculation — no
+  data (planning documents, cadastre, the zone's market source or "no market data for this zone
+  yet", the visitor's assumptions), "Indicative ranges, not investment advice. Deterministic calculation — no
   language model generates or edits these figures.", footer with engine and formula
   versions.
 - **Orders: S4 "Order expert analysis" and S5 "Order confirmed"** (`components/order/*`,
@@ -487,7 +490,7 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
     entity (the pilot scope's guest form, not the mock's: first / last name, telephone, email;
     "Legal entity" adds company name and `PIB` above them, both `optional`; switching keeps what
     was typed), the methodology card (opens the wizard; its last step returns to the form), the
-    guest note; footer `€200 · 5 working days`, Cancel, gold "Place
+    guest note ("order as a guest"); footer `€200 · 5 working days`, Cancel, gold "Place
     order →" (the mock's "Continue to payment →": there is no payment step).
   - *Validation* (`validateDraft`, the API's rules): first name, telephone and email for both
     types (last name, company name and PIB optional); the server's email and telephone patterns
@@ -538,8 +541,8 @@ urban parcel" (`Cadastral a m² → urban b m². −d% taken for roads / public 
 calculations use the urban parcel area."), the cadastral panel the gold "Corresponding urban
 parcel" card or "Not defined". Any area mismatch is always shown (`area_comparison`).
 
-**Group 1: planning parameters (free)**, `source` chip, all 13 fields of the
-dictionary in this order (`planning.fields`), every stated value with its source (document +
+**Group 1: planning parameters**, `source` chip. The payload's `planning.fields` carries all 13 fields of the
+dictionary in this order (the panel shows the plan's Group 1 of them, see "Urban parcel"), every stated value with its source (document +
 page, one click to the cited page via `viewer_url`); `not_stated` renders `—`:
 
 | Key | Label | Unit |
@@ -617,16 +620,18 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   `guard(section)`, and the API's own 403 on every `/v1/admin/*` route.
 - **Data** comes from the Next server (`lib/admin/api.ts` `adminGet`: the staff bearer token, 401
   → sign-in, 403 → no access); nothing staff-only reaches the browser. Orders (below);
-  Audit log `GET /v1/admin/audit` (filters entity type and actor as a GET
-  form, 50 per page, before → after as the changed keys); **Analytics** (`/admin/analytics`,
-  admins; `lib/admin/analytics.ts`, no mock screen: plain tables, no dashboard: the POC plan funds
-  the funnel, districts and intent counts) `GET /v1/admin/analytics` with a from / to GET form
-  (default the API's last 30 days; `to` inclusive on the form, sent as the exclusive next day):
-  the funnel (step, events, sessions, from previous, from start), most-searched
-  districts (district, Covered / No adopted plan chip, searches, outside coverage, parcel picks,
-  sessions, share; searches outside coverage count for the district of their point, a point in
-  no zone is "Outside every district"), and repeat usage /
-  intent counts / panels reaching the financials; Users `GET /v1/admin/users`; Financial
+  Audit log (admins) `GET /v1/admin/audit`, one table, newest first (time, actor, action,
+  entity, before → after as the changed keys), filters action prefix and actor as a GET form, 50
+  per page; **Analytics** (`/admin/analytics`, admins; `lib/admin/analytics.ts`, no mock screen:
+  plain tables, no dashboard) `GET /v1/admin/analytics` with a from / to GET form (default the
+  API's last 30 days; `to` inclusive on the form, sent as the exclusive next day): the funnel
+  (map loaded → picked a parcel → opened its panel → started an order → placed an order → paid:
+  step, counted from, sessions, from previous, from start), orders by status (status, orders,
+  amount), most-searched districts (district, Covered / No adopted plan chip, searches, outside
+  coverage, parcel picks, sessions, share; searches outside coverage count for the district of
+  their point, a point in no zone is "Outside every district"), searches outside coverage by
+  position (≈ 110 m), and repeat visitors (3+ sessions) / the two intent counts; Users
+  `GET /v1/admin/users`; Financial
   assumptions (below). Action buttons are hidden for
   read-only roles.
 - **AI review queue** (`/admin/review`; `components/admin/review/*`, rules in
@@ -646,8 +651,8 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   staged payload (`payloadLines`: as printed, normalised with its rules, floors, land-use class,
   table cell), confidence and the checker's flags, source page and file, the run's job and cost,
   the last
-  decision's actor, time and note, the item's audit trail on demand; one decision per item, no
-  bulk approval) and the cited page (`components/source/pdf-page-view.tsx`: PDF.js
+  decision's actor, time and note (the whole trail is the admins' Audit log); one decision per
+  item, no bulk approval) and the cited page (`components/source/pdf-page-view.tsx`: PDF.js
   from the item's signed link, the value's box, prev / next, zoom, fit, "Cited p.N", Open PDF; a
   document is loaded once per file, `lib/pdf.ts`). Keyboard: j / k or ↓ / ↑ move, Enter approves
   and moves to the next pending item at once (sent in the background, undone with a toast if
@@ -820,8 +825,9 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   when the map has loaded (see "Map"), `return_visit` (+ `days_since_last`) and `sessions_per_user` when a session starts;
   a 4xx batch is dropped, network / 429 / 5xx retried with backoff. **Never** personal data in
   properties (the API rejects name, email, phone, address … keys and e-mail / IP-looking values).
-  The 14 event names are the API's enum (`assumption_edited` is not in the BRD's list: the POC
-  check of Group 2 asked for it).
+  The 13 event names are the API's enum (BRD §6.2's eleven + `market_data_interest`,
+  `ai_interest`). A batch is judged row by row: malformed rows come back in `rejected`, the valid
+  ones are stored.
 - The selection flow (`src/lib/selection.ts`): map click (feature or empty), address suggestion,
   zone suggestion, KO + parcel number or `?parcel=` link → `/v1/locate`, `/v1/locate/parcel`
   or `/v1/parcels/{id}/panel` (cached under `queryKeys`, where panels read it) → selection +
@@ -859,9 +865,9 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
 
 | Path | What |
 |---|---|
-| `src/app/layout.tsx` | fonts, CSS order (globals → wireframe → overrides), providers |
+| `src/app/layout.tsx` | fonts, CSS order (wireframe → overrides), providers |
 | `src/app/page.tsx` | server-reads `/v1/municipality` (1.5 s timeout, never blocks) → `AppShell` |
-| `src/components/shell/*` | `app-shell` (frame, ⌘K, intro toast, `?parcel=` sync), `topbar`, `search-box`, `layer-rail`, `legend`, `map-view` (Mapbox + PMTiles, click / hover / highlight, `map_loaded`), `map-chrome`, `info-panel` (selection → panel variant, empty state, bottom sheet), `methodology-modal`, `engine-modal` ("How the figures are calculated"), `admin-overlay` (the `/admin` routes' container), `hosts` (modal + toast) |
+| `src/components/shell/*` | `app-shell` (frame, ⌘K, intro toast, `?parcel=` sync), `topbar`, `search-box`, `layer-rail`, `legend`, `map-view` (Mapbox + PMTiles, click / hover / highlight, `map_loaded`), `map-chrome`, `info-panel` (selection → panel variant, empty state), `methodology-modal`, `engine-modal` ("How the figures are calculated"), `admin-overlay` (the `/admin` routes' container), `hosts` (modal + toast) |
 | `src/components/panel/*` | S3 panel variants: `zone-panel`, `document-panel`, `cadastral-panel`, `urban-panel`, `panel-parts` (header, loading / unavailable, status chip, `panel_viewed`, meta and height text), `parcel-parts` (comparison card, row source icon, parcel CTA stack, zone type), `market-section` (Group 2 figures), `assumption-sandbox` ("◐ Test your own assumptions") |
 | `src/lib/assumptions.ts` | the sandbox's sliders, bounds and validation, and the live recalculation through the shared engine package (`recalculateFeasibility`) |
 | `src/lib/order.ts` | `requestOrder`: every order button → the S4 modal for the parcel on screen, `order_started` |
@@ -870,9 +876,9 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
 | `src/app/orders/[reference]/page.tsx` | the public order page route |
 | `src/lib/pricing.ts` | the order price of a parcel from the configured tiers (`GET /v1/orders/pricing`), the server's `price_for` rule |
 | `src/lib/map/*` | `style` (UrbanView layers per registry entry, visibility, choropleth paint, highlight filters), `classes` (choropleth colours, legend rows, expressions from served classes), `pick` (click priority, centroid), `tiles` (pointer → source, provider registration), `camera` (fit options, padding for the box), `use-layer-states` (every card's `layerState` for the rail and legend), `pmtiles-provider` (worker module), `provider-name` |
-| `src/components/ui/*` | shared: `LayerCard`, `Badge`, `PanelRow`, `IdGrid`, `Cta` (primary / gold / ghost / line), `SourceRef`, `Modal` + `ModalHead` (Radix Dialog with wireframe classes), `Disclaimer`, `icons` |
+| `src/components/ui/*` | shared: `LayerCard`, `PanelRow`, `IdGrid`, `Cta` (primary / gold / ghost / line), `SourceRef`, `Modal` + `ModalHead` (Radix Dialog with wireframe classes), `Disclaimer`, `icons` |
 | `src/lib/api/*` | `client.ts` (fetch wrapper: base URL, `X-Request-ID`, `X-Session-ID`, error envelope → `ApiError`, timeouts, 429 retries), `endpoints.ts` (one function per route), `hooks.ts` (React Query: `useMunicipality`, `useLocate`, `useLocateParcel`, `useGeocode`, `useZones`, `usePanel`, `useSourceValue` / `useSourcePage`, `useTilesCurrent`, `useCreateOrder`, `useOrderStatus`, `useTrack`), `types.ts` (aliases), `schema.d.ts` (generated) |
-| `src/lib/store.ts` | shell state (zustand): rail, layers, view, sheet, selection (point / parcel / feature / zone), pin, toast, modal, map controller |
+| `src/lib/store.ts` | shell state (zustand): rail, layers, view, selection (point / parcel / feature / zone), pin, toast, modal, map controller |
 | `src/components/source/source-viewer.tsx` | the source viewer: signed link → PDF.js page (lazy), bbox highlight, pages, zoom, Open PDF, retry, `source_reference_opened` |
 | `src/lib/source.tsx` | `useOpenSource`: opens the source viewer for a value or a document page (with a `hint`) |
 | `src/lib/source-text.ts` | the source reference label (`sourceRefText`), the viewer's failure words (`sourceFailure`) and page-range note |

@@ -37,22 +37,6 @@ import {
   useZoneTypeName,
 } from "./parcel-parts";
 
-/** Keys the mock's seven rows show (height and floors share "Max building height"). */
-const MOCK_KEYS = new Set([
-  "land_use",
-  "max_height_m",
-  "max_floors",
-  "max_site_coverage_pct",
-  "max_far",
-  "planned_parcel_area_m2",
-  "max_gfa_m2",
-  "max_coverage_area_m2",
-]);
-
-/** Dictionary fields the POC plan's Group 1 does not list (pilot technical scope: land use,
- * floors, height, coverage, FAR, the two setbacks, planned area, max GFA, max coverage area). */
-const NOT_IN_PLAN = new Set(["parking_requirement", "min_green_area_pct", "utilities"]);
-
 function Eyebrow({ typeName }: { typeName?: string | null }) {
   return (
     <>
@@ -124,8 +108,6 @@ function PlanningRows({ data }: { data: UrbanPanelData }) {
   const plannedStated = planned?.status === "stated";
   const geometryArea = data.areas.urban_parcel_area_m2;
 
-  const others = fields.filter((f) => !MOCK_KEYS.has(f.key) && !NOT_IN_PLAN.has(f.key));
-
   return (
     <>
       <FieldRow label="Land use designation" field={byKey.get("land_use")} />
@@ -151,9 +133,6 @@ function PlanningRows({ data }: { data: UrbanPanelData }) {
       )}
       <FieldRow label="Max Gross Floor Area" field={byKey.get("max_gfa_m2")} accent />
       <FieldRow label="Max coverage area" field={byKey.get("max_coverage_area_m2")} />
-      {others.map((f) => (
-        <FieldRow key={f.key} label={f.label_en} field={f} />
-      ))}
     </>
   );
 }

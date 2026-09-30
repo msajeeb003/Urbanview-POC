@@ -1,13 +1,11 @@
-"""Staff accounts: create users, issue and revoke bearer sessions, one-time sign-in links.
+"""Staff accounts: users, bearer sessions, one-time sign-in links.
 
-The admin console signs staff in with e-mailed magic links (``api.services.auth``); for
-bootstrapping (a server without staff users or without SMTP) the CLI does the same from a shell:
+The admin console signs staff in with e-mailed magic links (``api.services.auth``) and manages
+users on its Users page (``/v1/admin/users``, audited); for bootstrapping (a server without staff
+users or without SMTP) the CLI prints a sign-in link from a shell:
 
     python -m core.staff login-link --email ana@example.com [--create --role admin --name "Ana"] \
         [--minutes 15]                           # prints a one-time sign-in link (no SMTP needed)
-    python -m core.staff add --email ana@example.com --role admin --name "Ana"
-    python -m core.staff token --email ana@example.com --days 1      # prints the bearer token once
-    python -m core.staff revoke --email ana@example.com
     python -m core.staff list
 
 ``login-link`` mints the same single-use token the ``magic_link`` e-mail carries
@@ -301,26 +299,6 @@ async def _main(args: argparse.Namespace) -> int:
             expires = link.expires_at.astimezone(UTC).strftime("%H:%M")
             print(f"Sign-in link for {link.email} (single use, expires {expires} UTC):")
             print(link.url)
-        elif args.command == "add":
-            user_id = await create_user(
-                factory,
-                municipality_id=municipality_id,
-                email=args.email,
-                role=args.role,
-                display_name=args.name,
-            )
-            print(f"created staff user {args.email} ({args.role}) id={user_id}")
-        elif args.command == "token":
-            token = await issue_session(
-                factory,
-                municipality_id=municipality_id,
-                email=args.email,
-                ttl=timedelta(days=args.days),
-            )
-            print(token)
-        elif args.command == "revoke":
-            n = await revoke_sessions(factory, municipality_id=municipality_id, email=args.email)
-            print(f"revoked {n} session(s)")
         elif args.command == "list":
             for user in await list_users(factory, municipality_id=municipality_id):
                 state = "active" if user["is_active"] else "inactive"
@@ -331,7 +309,7 @@ async def _main(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Manage staff users and sessions.")
+    parser = argparse.ArgumentParser(description="Bootstrap sign-in links and the staff list.")
     sub = parser.add_subparsers(dest="command", required=True)
     login = sub.add_parser("login-link", help="print a one-time sign-in link for the admin console")
     login.add_argument("--email", required=True)
@@ -346,15 +324,6 @@ def build_parser() -> argparse.ArgumentParser:
     login.add_argument(
         "--minutes", type=int, default=None, help="link lifetime (default: the e-mailed link's)"
     )
-    add = sub.add_parser("add", help="create a staff user")
-    add.add_argument("--email", required=True)
-    add.add_argument("--role", required=True, choices=[r.value for r in Role])
-    add.add_argument("--name", default=None)
-    token = sub.add_parser("token", help="issue a bearer session token for a user")
-    token.add_argument("--email", required=True)
-    token.add_argument("--days", type=int, default=1)
-    revoke = sub.add_parser("revoke", help="revoke every open session of a user")
-    revoke.add_argument("--email", required=True)
     sub.add_parser("list", help="list staff users")
     return parser
 

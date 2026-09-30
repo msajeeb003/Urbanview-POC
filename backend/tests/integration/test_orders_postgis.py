@@ -17,7 +17,7 @@ from core.seeds import placeholder_pdf
 from core.staff import create_user, issue_session
 from jobs.base import SqlJobStore, configure_job_store
 from jobs.tasks.email import configure_email
-from tests.helpers import make_app, make_client, make_settings
+from tests.helpers import audit_trail, make_app, make_client, make_settings
 from tests.integration.test_admin_pipeline_postgis import FakeStorage
 
 pytestmark = pytest.mark.integration
@@ -455,11 +455,7 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
         queue = await client.get("/v1/admin/orders", params={"status": "delivered"}, headers=auth())
         found = await client.get("/v1/admin/orders", params={"search": "novak"}, headers=auth())
         confirm_done = await client.get(f"/v1/orders/{reference}")
-        trail = await client.get(
-            "/v1/admin/audit",
-            params={"entity_type": "order", "entity_id": oid, "limit": 50},
-            headers=auth(),
-        )
+        entries = await audit_trail(app, "order", oid)  # newest first
 
     assert too_early.status_code == 409
     assert too_early.json()["error"]["details"]["allowed"] == ["paid", "payment_failed"]
@@ -515,7 +511,7 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
         app, "SELECT template, status FROM email_log WHERE order_id = :o ORDER BY id", o=oid
     )
     assert [entry["template"] for entry in log] == ["payment_instructions", "order_delivered"]
-    actions = [e["action"] for e in trail.json()["items"]]  # newest first
+    actions = [e["action"] for e in entries]
     assert actions == [
         "order.status",
         "order.report",
@@ -526,7 +522,6 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
         "order.payment_check",
         "order.create",
     ]
-    entries = trail.json()["items"]
     assert entries[0]["before"] == {"status": "in_progress"} and entries[0]["after"] == {
         "status": "delivered"
     }

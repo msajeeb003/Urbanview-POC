@@ -49,10 +49,7 @@ export function priceNote(pricing: OrderPricing | undefined): string | null {
     if (t.up_to_m2 != null) return `${price} up to ${m2(t.up_to_m2)}`;
     return i === 0 ? `${price} for any size` : `${price} above`;
   });
-  return (
-    `Prototype pricing is set by parcel size alone — ${parts.join(", ")}. Later phases can also weigh the ` +
-    "planning-document area and other factors affecting the complexity of the analysis."
-  );
+  return `Prototype pricing is set by parcel size alone — ${parts.join(", ")}.`;
 }
 
 /** `5 working days` (the configured turnaround, counted from the payment). */

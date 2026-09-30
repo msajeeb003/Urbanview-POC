@@ -14,7 +14,6 @@ from __future__ import annotations
 
 RASTER_IMAGE_COVER_PCT = 60.0  # the largest single image covers this share of the page, or more
 RASTER_MAX_PATHS = 1000  # ... and fewer vector paths than this are drawn on it
-NEEDS_REDRAW = "C"
 
 
 def is_raster_sheet(image_cover_pct: float, paths: int) -> bool:

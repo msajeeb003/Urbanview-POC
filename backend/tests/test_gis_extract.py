@@ -2,8 +2,8 @@
 
 ``tests/gis_synthetic.py`` draws a layered 1:1000 sheet: a plan boundary, parcels UP 1-4 (the
 UP 3 / UP 4 edge only on the cadastral fallback layer, a stray sliver line in UP 1, a legend
-outside the boundary), block A as a dotted line of filled circles, a dashed road centreline and a
-land-use fill; and a sheet whose labels are filled glyph outlines.
+outside the boundary), block A as a dotted line of filled circles and a land-use fill; and a
+sheet whose labels are filled glyph outlines.
 """
 
 from __future__ import annotations
@@ -134,7 +134,7 @@ def test_sheet_keeps_layers_styles_and_frames(sheet_a: bytes) -> None:
     rule = SheetRule(id="a", file="a.pdf", scale=1000, offset_m=(10.0, 20.0), layers=[])
     sheet = load_sheet(sheet_a, rule)
     layers = {p.layer for p in sheet.paths}
-    assert {"GRANICA", "PARCELE", "KATASTAR", "BLOKOVI", "SAOBRACAJ", "NAMJENA_SS"} <= layers
+    assert {"GRANICA", "PARCELE", "KATASTAR", "BLOKOVI", "NAMJENA_SS"} <= layers
     assert {t.text for t in sheet.texts if t.layer == "OZNAKE"} >= {"UP 1", "UP 2", "UP 9"}
     # page (100, 100) -> local: x = 100 k + 10, y = (420 - 100) k + 20
     p = sheet.to_local(Point(100, 100))
@@ -152,7 +152,7 @@ def test_style_clusters_count_paths_per_style(sheet_a: bytes) -> None:
     rows = {(r["layer"], r["dash"]): r for r in style_clusters(sheet)}
     dots = rows[("BLOKOVI", "solid")]
     assert dots["paths"] == 98 and dots["fill"] == "#666666" and dots["max_size_mm"] <= 1.0
-    assert rows[("SAOBRACAJ", "solid")]["paths"] == 28
+    assert rows[("KATASTAR", "solid")]["paths"] == 3
     assert rows[("OZNAKE", "text")]["texts"][:1]  # a text-only layer is listed with samples
 
 
@@ -189,7 +189,7 @@ def test_parcels_polygonize_with_numbers(extraction) -> None:
     assert "block_ref" not in parcels["3"].attrs  # 20 % inside block A only
 
 
-def test_blocks_roads_land_use_and_boundary(extraction) -> None:
+def test_blocks_land_use_and_boundary(extraction) -> None:
     (boundary,) = extraction.layers["plan_boundary"]
     assert boundary.key == "coverage"
     assert boundary.geom.area == pytest.approx(500 * 320 * M2, rel=1e-3)
@@ -197,10 +197,12 @@ def test_blocks_roads_land_use_and_boundary(extraction) -> None:
     assert block.key == "A" and block.attrs == {"block_ref": "A"}
     assert block.geom.area == pytest.approx(320 * 170 * M2, rel=2e-3)  # dots bridged on centres
     assert len(block.source_paths) == 98
-    (road,) = extraction.layers["planned_traffic"]
-    assert road.geom.geom_type == "MultiLineString" and len(road.geom.geoms) == 1
-    assert road.geom.length == pytest.approx(498 * syn.K, rel=1e-3)  # 28 dashes, gaps bridged
-    assert road.attrs["road_class"] == "street"
+    assert set(extraction.layers) == {
+        "plan_boundary",
+        "urban_parcels",
+        "urban_blocks",
+        "planned_land_use",
+    }
     (use,) = extraction.layers["planned_land_use"]
     assert use.attrs["code"] == "SS" and use.attrs["name"] == "Stanovanje"
     assert use.geom.area == pytest.approx(150 * 150 * M2, rel=1e-3)  # two triangles unioned
@@ -218,8 +220,7 @@ def test_qa_summary_counts_and_zero_slivers(extraction) -> None:
     assert parcels["area_m2"] == pytest.approx(
         sum(f.geom.area for f in extraction.layers["urban_parcels"]), abs=0.5
     )
-    assert qa["layers"]["planned_traffic"]["length_m"] == pytest.approx(498 * syn.K, abs=0.5)
-    assert qa["totals"] == {"features": 8, "invalid_after_cleanup": 0, "slivers_after_cleanup": 0}
+    assert qa["totals"] == {"features": 7, "invalid_after_cleanup": 0, "slivers_after_cleanup": 0}
     assert qa["sheets"]["a"]["invalid_after_cleanup"] == 0
     assert qa["sheets"]["a"]["slivers_after_cleanup"] == 0
     assert qa["sheets"]["a"]["features"]["urban_parcels"] == 4
@@ -298,7 +299,6 @@ def test_second_sheet_offset_estimate_and_merge(sheet_a: bytes) -> None:
     assert sorted(_by_key(ex, "urban_parcels")) == ["1", "2", "3", "4"]
     assert len(ex.layers["urban_blocks"]) == 1
     assert len(ex.layers["planned_land_use"]) == 1
-    assert len(ex.layers["planned_traffic"]) == 1
     # the four parcels and the unlabelled ring around them (dropped afterwards: keep labelled)
     assert ex.qa["layers"]["urban_parcels"]["duplicates_removed"] == 5
     assert ex.qa["totals"]["slivers_after_cleanup"] == 0
@@ -454,14 +454,11 @@ def test_geopackage_round_trip(tmp_path: Path, extraction) -> None:
         "urban_parcels": 4,
         "urban_blocks": 1,
         "planned_land_use": 1,
-        "planned_traffic": 1,
     }
     con = sqlite3.connect(path)
     assert con.execute("PRAGMA application_id").fetchone()[0] == APPLICATION_ID
     types = dict(con.execute("SELECT table_name, geometry_type_name FROM gpkg_geometry_columns"))
-    assert (
-        types["urban_parcels"] == "MULTIPOLYGON" and types["planned_traffic"] == "MULTILINESTRING"
-    )
+    assert set(types.values()) == {"MULTIPOLYGON"} and len(types) == 4
     blob = con.execute("SELECT geom FROM urban_parcels ORDER BY fid LIMIT 1").fetchone()[0]
     con.close()
     assert blob[:2] == b"GP" and parse_blob(blob).geom_type == "MultiPolygon"

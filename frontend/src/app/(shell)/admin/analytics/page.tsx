@@ -6,22 +6,25 @@ import {
   districtName,
   parseRange,
   pctText,
+  positionText,
   rangeLabel,
   rangeQuery,
-  ratioText,
   stepLabel,
-  uncoveredDemand,
-  type District,
   type FunnelStep,
+  type OrderStatusCount,
+  type UncoveredHit,
+  type ZoneHits,
 } from "@/lib/admin/analytics";
 import { AdminAccessDenied, adminGet } from "@/lib/admin/api";
+import { statusLabel } from "@/lib/admin/orders";
 import { guard } from "@/lib/admin/guard";
 import type { AnalyticsDashboard } from "@/lib/api/types";
+import { formatEur } from "@/lib/format";
 
-// Analytics (admins; the POC plan's aggregates: funnel, districts, intent counts, from
-// GET /v1/admin/analytics) as plain tables, no dashboard. The dates are a plain GET form, so a view is a
-// link. Most-searched districts include searches outside coverage, placed by their point (S6
-// demand: where people look for plans that are not published yet).
+// Analytics (admins; the POC plan's aggregates from GET /v1/admin/analytics) as plain tables, no
+// dashboard: the funnel from map to paid order, orders by status, the top zones and where searches
+// outside coverage landed (S6 demand), repeat visitors and the two intent buttons. The dates are a
+// plain GET form, so a view is a link.
 
 type Params = Record<string, string | string[] | undefined>;
 
@@ -39,14 +42,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     if (err instanceof AdminAccessDenied) return null;
     return <AdminUnavailable what="Analytics" />;
   }
-  const { totals, funnel, repeat_usage: repeat, interest, panel_to_financials: panels } = data;
-  const demand = uncoveredDemand(data.districts);
+  const { funnel, orders, repeat_sessions: repeat, intent_counts: intent } = data;
 
   return (
     <>
       <AdminCard
         title="Analytics"
-        sub={`${rangeLabel(data.range)} · ${count(totals.sessions, "session")} · anonymous events, no personal data`}
+        sub={`${rangeLabel(data.range)} · ${count(repeat.sessions, "session")} · anonymous events, no personal data`}
         action={
           <form className="audit-filters" method="get" action="/admin/analytics">
             <input type="date" name="from" defaultValue={range.from} aria-label="From" />
@@ -71,7 +73,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           empty="No sessions in this range."
           columns={[
             { key: "step", label: "Step", render: (s) => stepLabel(s.step) },
-            { key: "events", label: "Events", mono: true, render: (s) => s.event_names.join(" · ") },
+            {
+              key: "events",
+              label: "Counted from",
+              mono: true,
+              render: (s) => (s.event_names.length ? s.event_names.join(" · ") : "orders marked paid"),
+            },
             { key: "sessions", label: "Sessions", mono: true, render: (s) => int(s.sessions) },
             { key: "prev", label: "From previous", mono: true, render: (s) => pctText(s.conversion_from_previous_pct) },
             { key: "start", label: "From start", mono: true, render: (s) => pctText(s.conversion_from_start_pct) },
@@ -79,16 +86,22 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         />
       </AdminCard>
 
-      <AdminCard
-        title="Most-searched districts"
-        sub={
-          demand.searches
-            ? `Searches and parcel picks per district · ${count(demand.searches, "search", "searches")} outside coverage, in ${count(demand.districts, "district")}`
-            : "Searches and parcel picks per district"
-        }
-      >
-        <DataTable<District>
-          rows={data.districts}
+      <AdminCard title="Orders by status" sub={`${count(orders.placed, "order")} placed in this range`}>
+        <DataTable<OrderStatusCount>
+          rows={orders.by_status}
+          rowKey={(o) => o.status}
+          empty="No orders in this range."
+          columns={[
+            { key: "status", label: "Status", render: (o) => statusLabel(o.status) },
+            { key: "orders", label: "Orders", mono: true, render: (o) => int(o.orders) },
+            { key: "amount", label: "Amount", mono: true, render: (o) => formatEur(o.amount_eur) },
+          ]}
+        />
+      </AdminCard>
+
+      <AdminCard title="Most-searched districts" sub="Searches and parcel picks per district, searches outside coverage placed by their point">
+        <DataTable<ZoneHits>
+          rows={data.top_zones}
           rowKey={(d) => d.zone_id ?? "none"}
           empty="No searches in this range."
           columns={[
@@ -102,7 +115,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
               },
             },
             { key: "searches", label: "Searches", mono: true, render: (d) => int(d.searches) },
-            { key: "uncovered", label: "Outside coverage", mono: true, render: (d) => int(d.uncovered_searches ?? 0) },
+            { key: "uncovered", label: "Outside coverage", mono: true, render: (d) => int(d.uncovered_searches) },
             { key: "selections", label: "Parcel picks", mono: true, render: (d) => int(d.selections) },
             { key: "sessions", label: "Sessions", mono: true, render: (d) => int(d.sessions) },
             { key: "share", label: "Share", mono: true, render: (d) => pctText(d.share_pct) },
@@ -110,38 +123,39 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         />
       </AdminCard>
 
-      <AdminCard title="Repeat usage and interest" sub="Validation signals of the pilot">
+      <AdminCard title="Searches outside coverage" sub="Where visitors looked for a plan that is not published: by position, ≈ 110 m">
+        <DataTable<UncoveredHit>
+          rows={data.uncovered_hits}
+          rowKey={(h) => `${h.lat},${h.lng}`}
+          empty="No searches outside coverage in this range."
+          columns={[
+            { key: "position", label: "Position", mono: true, render: (h) => positionText(h) },
+            { key: "searches", label: "Searches", mono: true, render: (h) => int(h.searches) },
+            { key: "sessions", label: "Sessions", mono: true, render: (h) => int(h.sessions) },
+          ]}
+        />
+      </AdminCard>
+
+      <AdminCard title="Repeat visits and interest" sub="Validation signals of the pilot">
         <DataTable<{ key: string; label: string; value: string; note: string }>
           rows={[
             {
-              key: "returning",
-              label: "Returning sessions",
-              value: `${int(repeat.returning_sessions)} of ${int(repeat.sessions)}`,
-              note: pctText(repeat.repeat_usage_rate_pct),
-            },
-            {
-              key: "per-client",
-              label: "Sessions per browser",
-              value: ratioText(repeat.sessions_per_client),
-              note: `${int(repeat.clients_at_target)} of ${int(repeat.clients)} at ${repeat.target_sessions_per_user}+ (${pctText(repeat.clients_at_target_pct)})`,
+              key: "repeat",
+              label: `Visitors with ${repeat.min_sessions}+ sessions`,
+              value: `${int(repeat.repeat_visitors)} of ${int(repeat.visitors)}`,
+              note: `${pctText(repeat.repeat_visitors_pct)} · ${count(repeat.repeat_sessions, "session")}`,
             },
             {
               key: "market",
               label: "“Unlock full market data”",
-              value: int(interest.market_data_interest.events),
-              note: count(interest.market_data_interest.sessions, "session"),
+              value: int(intent.market_data_interest.events),
+              note: count(intent.market_data_interest.sessions, "session"),
             },
             {
               key: "ai",
               label: "“Ask about this site”",
-              value: int(interest.ai_interest.events),
-              note: count(interest.ai_interest.sessions, "session"),
-            },
-            {
-              key: "financials",
-              label: "Parcel panels reaching the financials",
-              value: `${int(panels.pairs_reaching_financials)} of ${int(panels.panel_view_pairs)}`,
-              note: pctText(panels.reaching_financials_pct),
+              value: int(intent.ai_interest.events),
+              note: count(intent.ai_interest.sessions, "session"),
             },
           ]}
           rowKey={(r) => r.key}

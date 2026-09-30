@@ -211,10 +211,6 @@ class UnknownMunicipalityError(LookupError):
     pass
 
 
-def list_municipality_ids() -> list[str]:
-    return sorted(p.stem for p in PROFILES_DIR.glob("*.toml"))
-
-
 def _read_profile(municipality_id: str) -> dict:
     path = PROFILES_DIR / f"{municipality_id}.toml"
     if not path.is_file():
@@ -269,7 +265,7 @@ def load_extraction_profile(municipality_id: str) -> ExtractionProfile | None:
 
 @cache
 def load_market_profile(municipality_id: str) -> MarketProfile:
-    """The profile's [market] table (core.market); an empty profile when there is none (every
-    table then needs the LLM step or fails to map)."""
+    """The profile's [market] table (core.market); an empty profile when there is none (a
+    table it cannot map is reported)."""
     table = _read_profile(municipality_id).get("market")
     return MarketProfile() if table is None else MarketProfile.model_validate(table)

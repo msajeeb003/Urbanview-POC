@@ -59,3 +59,22 @@ def make_app(
 def make_client(app: FastAPI, client_ip: str = "127.0.0.1") -> AsyncClient:
     transport = ASGITransport(app=app, raise_app_exceptions=False, client=(client_ip, 12345))
     return AsyncClient(transport=transport, base_url="http://testserver")
+
+
+async def audit_trail(app: FastAPI, entity_type: str, entity_id: int) -> list[dict[str, Any]]:
+    """An entity's ``audit_log`` rows, newest first (integration tests: the audit list route
+    filters by action and actor only)."""
+    from sqlalchemy import text
+
+    async with app.state.session_factory() as session:
+        rows = (
+            await session.execute(
+                text(
+                    "SELECT action, actor, actor_user_id, before, after, note, details "
+                    "FROM audit_log WHERE entity_type = :t AND entity_id = :id "
+                    "ORDER BY created_at DESC, id DESC"
+                ),
+                {"t": entity_type, "id": entity_id},
+            )
+        ).mappings()
+        return [{**row, "details": row["details"] or {}} for row in rows]

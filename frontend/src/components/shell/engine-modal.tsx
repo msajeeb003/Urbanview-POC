@@ -2,7 +2,7 @@
 
 /**
  * "How the figures are calculated" (wireframe `openEngine`, wide modal): the formulas table
- * (name, expression, source), the input data list and the growth note, from the market
+ * (name, expression, source) and the input data list, from the market
  * section's engine strip. The mock's table (engine v1.4, land value × 0.55, "banded" ROI) is
  * replaced by the client-owned formulas the shared engine implements (`@urbanview/feasibility-engine`,
  * `FORMULA_VERSION`), as the design spec's §9 allows; the market source is the zone's own.
@@ -30,7 +30,7 @@ export function EngineModal({ marketSource }: { marketSource?: string | null }) 
   const inputs: [string, string][] = [
     ["Adopted planning documents", "DUP / PUP source PDFs — FAR, site coverage and height read per urban parcel, each with its page"],
     ["Cadastre", "parcel geometry and area; the planned urban parcel area is used first, the cadastral area as fallback"],
-    ["Market sources", `${marketSource ?? "Monstat, Realitica, Estitor"} — land, build, design and sale rates per zone, with low / high bounds`],
+    ["Market sources", `${marketSource ?? "no market data for this zone yet"} — land, build, design and sale rates per zone, with low / high bounds`],
     ["Your assumptions", "construction cost, sale price and saleable share, when you change them"],
   ];
   return (
@@ -69,12 +69,6 @@ export function EngineModal({ marketSource }: { marketSource?: string | null }) 
               <span className="id2">{description}</span>
             </div>
           ))}
-        </div>
-        <div className="growbox">
-          <b>The engine gets more precise over time.</b>
-          Each completed analysis adds realised areas, fees and build rates back into the input data, and new formulas are
-          added as we cover more structure types and municipalities. Figures are published as ranges, and those ranges
-          narrow as the evidence behind them grows.
         </div>
         <p style={{ fontSize: "10.5px", color: "var(--ink-2)", opacity: 0.8, marginTop: 12, lineHeight: 1.5 }}>
           Indicative ranges, not investment advice. Deterministic calculation — no language model generates or edits

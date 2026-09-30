@@ -4,10 +4,9 @@ the ``zone_documents`` list (``core.zones.schema``).
 The import refuses a dataset with errors, so every rule the product relies on is checked here:
 
 - zones: a polygonal, valid, non-empty geometry; a stable slug id and a name, both unique; a zone
-  type from the map palette (missing = drawn neutral, a warning);
-- the partition: no two zones overlap and there are no holes inside the zones' union (plus, when
-  the configuration names an extent such as the POC area, nothing of it left uncovered). Slivers up
-  to the configured tolerance (m²) are digitising noise: warnings, not errors;
+  type from the map palette (missing = drawn neutral, a warning). Geometry validity is the only
+  geometric check: overlaps and gaps between zones are the reviewer's eye on the preview (the POC
+  plan funds no topology QA);
 - documents: every row in a known zone, with a name, a document type of the municipality profile
   and a status; each document in exactly one row (``schema.document_identity``: the eRegistri id,
   else the folded name plus the listed year), dates that parse and are not in the future;
@@ -19,13 +18,6 @@ Reading never raises for a bad cell: a value that does not parse becomes a :clas
 record and the value is left empty, so the client's session gets the whole list at once. Only a
 file that cannot be read as a dataset (wrong format, missing layer, missing required columns)
 raises ``ValueError``.
-
-Areas are square metres. A projected CRS (the editing CRS, e.g. EPSG:25834 or EPSG:3908) is taken
-as metric and its planar areas are used as they are. A geographic CRS (:data:`GEOGRAPHIC_SRS`) is
-scaled at each geometry's centroid latitude by ``111 320 * cos(lat)`` m per degree of longitude
-and ``110 574`` m per degree of latitude: an equirectangular approximation, good to well under a
-percent over a city, which is all a sliver tolerance needs. No pyproj: this runs where only the
-backend's Python is installed.
 """
 
 from __future__ import annotations
@@ -33,7 +25,6 @@ from __future__ import annotations
 import csv
 import io
 import json
-import math
 import re
 from collections import Counter, defaultdict
 from collections.abc import Collection, Iterable, Mapping
@@ -53,21 +44,14 @@ from core.zones.config import ValidationConfig
 
 Severity = Literal["error", "warning"]
 
-# Geographic CRSs (degrees) the tolerances must be scaled for: WGS 84, ETRS89, GRS 1980 and the
-# GeoPackage "undefined geographic" id 0. Anything else is treated as metric: the zone tooling
-# only ever sees WGS 84 (GeoJSON) or the municipality's projected editing / state CRS.
+# Geographic CRSs (degrees): WGS 84, ETRS89, GRS 1980 and the GeoPackage "undefined geographic"
+# id 0; a location in them is rounded to 7 decimals, a metric one to 2. Anything else is treated as
+# metric: the zone tooling only ever sees WGS 84 (GeoJSON) or the municipality's projected editing
+# / state CRS.
 GEOGRAPHIC_SRS = frozenset({0, 4019, 4258, 4326})
 # GeoPackage's "undefined cartesian" (-1) and "undefined geographic" (0): a layer QGIS saved
 # without a CRS. The import cannot reproject it, so it is an error.
 UNDEFINED_SRS = frozenset({-1, 0})
-
-M_PER_DEG_LON_AT_EQUATOR = 111_320.0
-M_PER_DEG_LAT = 110_574.0
-
-# Below this an overlap or hole is floating-point noise from the union / intersection (shared
-# vertices that differ in the last digits), not something drawn: it is not reported at all. The
-# configured tolerances decide between warning and error above it.
-NEGLIGIBLE_M2 = 1e-4
 
 # How the national registry (eRegistri) marks a plan it no longer considers valid, in its
 # free-text note. The CLI passes the configured markers (zones.toml [eregistri] invalid_markers);
@@ -93,10 +77,9 @@ class Problem:
     message: str
     zone_id: str | None = None
     document: str | None = None  # the document's label, e.g. "row 12: DUP Momišići C"
-    area_m2: float | None = None
     location: tuple[float, float] | None = None  # a point on it, in the dataset CRS
-    # Every zone involved when there are several (an overlapping pair, the zones around a gap,
-    # duplicated ids); ``zone_id`` is then the first of them.
+    # Every zone involved when there are several (duplicated ids or names, a document listed in
+    # several zones); ``zone_id`` is then the first of them.
     zone_ids: tuple[str, ...] = ()
 
     def to_json(self) -> dict[str, Any]:
@@ -107,7 +90,6 @@ class Problem:
             "zone_id": self.zone_id,
             "zone_ids": list(self.zone_ids),
             "document": self.document,
-            "area_m2": self.area_m2,
             "location": list(self.location) if self.location else None,
         }
 
@@ -247,35 +229,6 @@ def read_dataset(
     else:
         raise ValueError(f"{documents_path}: documents must be a GeoPackage table or a CSV file")
     return ZoneDataset(zones, documents, srs_id, zones_path, documents_path)
-
-
-def read_extent(path: Path, *, layer: str | None = None) -> tuple[BaseGeometry, int]:
-    """An extent polygon (e.g. the POC area) and its srs id, from GeoJSON (a FeatureCollection, a
-    Feature or a bare geometry) or a GeoPackage feature layer (``layer``, else the first one). All
-    polygonal parts are merged. ``validate`` needs it in the dataset's CRS."""
-    path = Path(path)
-    if _is_geopackage(path):
-        if layer is None:
-            names = [n for n, kind, _ in gpkg.list_layers(path) if kind == "features"]
-            if not names:
-                raise ValueError(f"{path}: no feature layer")
-            layer = names[0]
-        data = gpkg.read_layer(path, layer)
-        geoms = [f.geometry for f in data.features if f.geometry is not None]
-        srs_id = data.srs_id if data.srs_id is not None else -1
-    else:
-        doc = json.loads(path.read_text(encoding="utf-8-sig"))
-        srs_id = _geojson_srs(doc, path)
-        if doc.get("type") == "FeatureCollection":
-            geoms = [shape(f["geometry"]) for f in doc.get("features", []) if f.get("geometry")]
-        elif doc.get("type") == "Feature":
-            geoms = [shape(doc["geometry"])] if doc.get("geometry") else []
-        else:
-            geoms = [shape(doc)]
-    parts = [p for g in geoms for p in _polygon_parts(shapely.make_valid(shapely.force_2d(g)))]
-    if not parts:
-        raise ValueError(f"{path}: no polygon in the extent")
-    return shapely.union_all(parts), srs_id
 
 
 def _is_geopackage(path: Path) -> bool:
@@ -515,34 +468,6 @@ def is_geographic(srs_id: int) -> bool:
     return srs_id in GEOGRAPHIC_SRS
 
 
-def area_m2(geom: BaseGeometry | None, *, geographic: bool) -> float:
-    """Square metres: planar area in a metric CRS, the centroid-latitude approximation in degrees
-    (module docstring)."""
-    if geom is None or geom.is_empty:
-        return 0.0
-    if not geographic:
-        return float(geom.area)
-    lat = math.radians(geom.centroid.y)
-    return float(geom.area) * M_PER_DEG_LON_AT_EQUATOR * math.cos(lat) * M_PER_DEG_LAT
-
-
-def _polygon_parts(geom: BaseGeometry | None) -> list[Polygon]:
-    if geom is None or geom.is_empty:
-        return []
-    if isinstance(geom, Polygon):
-        return [geom]
-    if hasattr(geom, "geoms"):
-        return [p for g in geom.geoms for p in _polygon_parts(g)]
-    return []  # points and lines of an intersection or a repair
-
-
-def _polygonal(geom: BaseGeometry | None) -> BaseGeometry:
-    parts = _polygon_parts(geom)
-    if not parts:
-        return Polygon()
-    return parts[0] if len(parts) == 1 else MultiPolygon(parts)
-
-
 def _as_polygonal(geom: BaseGeometry | None) -> tuple[BaseGeometry | None, str | None]:
     """(the geometry if polygonal, else None; the offending type name). A collection whose parts
     are all polygons (some editors save one) becomes a MultiPolygon."""
@@ -566,18 +491,6 @@ def _leaves(geom: BaseGeometry) -> Iterable[BaseGeometry]:
         yield geom
 
 
-def _point(geom: BaseGeometry, geographic: bool) -> tuple[float, float] | None:
-    if geom.is_empty:
-        return None
-    p = geom.representative_point()
-    digits = 7 if geographic else 2
-    return (round(p.x, digits), round(p.y, digits))
-
-
-def _fmt_area(value: float) -> str:
-    return f"{value:,.2f} m²" if value < 100 else f"{value:,.0f} m²"
-
-
 # --- validation -----------------------------------------------------------------------------------
 
 
@@ -586,21 +499,13 @@ def validate(
     *,
     document_types: Collection[str],
     config: ValidationConfig,
-    extent: BaseGeometry | None = None,
-    extent_srs_id: int | None = None,
     invalid_markers: Collection[str] | None = None,
     today: date | None = None,
 ) -> ValidationReport:
     """Every check of the module docstring; the report lists errors before warnings.
 
-    ``document_types`` are the municipality profile's type keys; ``extent`` (in the dataset's CRS;
-    pass ``extent_srs_id`` to have that checked) must be covered completely; ``invalid_markers``
-    default to :data:`DEFAULT_INVALID_MARKERS`; ``today`` is for tests."""
-    if extent is not None and extent_srs_id is not None and extent_srs_id != dataset.srs_id:
-        raise ValueError(
-            f"the extent is in EPSG:{extent_srs_id}, the zones in EPSG:{dataset.srs_id}: "
-            "reproject one of them first"
-        )
+    ``document_types`` are the municipality profile's type keys; ``invalid_markers`` default to
+    :data:`DEFAULT_INVALID_MARKERS`; ``today`` is for tests."""
     geographic = is_geographic(dataset.srs_id)
     problems: list[Problem] = []
     if dataset.srs_id in UNDEFINED_SRS:
@@ -617,8 +522,7 @@ def validate(
     for zone in dataset.zones:
         problems.extend(zone.problems)
     problems.extend(_check_zone_attributes(dataset.zones))
-    shapes = _check_zone_geometries(dataset.zones, geographic, problems)
-    topology = _check_topology(shapes, config, geographic, extent, problems)
+    with_geometry = _check_zone_geometries(dataset.zones, geographic, problems)
     for document in dataset.documents:
         problems.extend(document.problems)
     markers = DEFAULT_INVALID_MARKERS if invalid_markers is None else tuple(invalid_markers)
@@ -633,15 +537,11 @@ def validate(
         documents_by_status["other"] = sum(by_status.values())
     stats = {
         "srs_id": dataset.srs_id,
-        "area_method": "geographic_approximation" if geographic else "planar",
         "zones": len(dataset.zones),
-        "zones_with_geometry": len(shapes),
+        "zones_with_geometry": with_geometry,
         "documents": len(dataset.documents),
         "documents_by_status": documents_by_status,
         "adopted_per_zone": adopted,
-        "total_area_m2": round(topology["total_area_m2"], 1),
-        "overlap_pairs": topology["overlap_pairs"],
-        "gaps": topology["gaps"],
     }
     ordered = sorted(problems, key=lambda p: p.severity != "error")  # stable: errors first
     return ValidationReport(problems=ordered, stats=stats)
@@ -726,11 +626,10 @@ def _check_zone_attributes(zones: list[ZoneRecord]) -> list[Problem]:
 
 def _check_zone_geometries(
     zones: list[ZoneRecord], geographic: bool, problems: list[Problem]
-) -> list[tuple[ZoneRecord, BaseGeometry]]:
-    """Per-zone geometry checks; returns the zones usable for the topology checks, an invalid
-    one repaired (``make_valid``) so its overlaps and gaps are still reported next to the
-    validity error."""
-    shapes: list[tuple[ZoneRecord, BaseGeometry]] = []
+) -> int:
+    """Per-zone geometry validity; returns how many zones have a polygonal geometry with an
+    area (an invalid one included: its error says what to fix)."""
+    with_geometry = 0
     for zone in zones:
         label, geom = zone.label, zone.geometry
         if geom is None:
@@ -771,88 +670,13 @@ def _check_zone_geometries(
                     location=location,
                 )
             )
-            geom = _polygonal(shapely.make_valid(geom))
-            if not geom.is_empty:
-                shapes.append((zone, geom))
+            with_geometry += 1
             continue
         if geom.area <= 0:
             problems.append(Problem("error", "zone_empty", f"zone {label} has no area", label))
             continue
-        shapes.append((zone, geom))
-    return shapes
-
-
-def _check_topology(
-    shapes: list[tuple[ZoneRecord, BaseGeometry]],
-    config: ValidationConfig,
-    geographic: bool,
-    extent: BaseGeometry | None,
-    problems: list[Problem],
-) -> dict[str, Any]:
-    result = {"total_area_m2": 0.0, "overlap_pairs": 0, "gaps": 0}
-    if not shapes:
-        return result
-    geoms = [g for _, g in shapes]
-    tree = shapely.STRtree(geoms)
-
-    # Overlaps: every intersecting pair once, in input order.
-    left, right = tree.query(geoms, predicate="intersects")
-    for i, j in sorted({(int(a), int(b)) for a, b in zip(left, right, strict=True) if a < b}):
-        overlap = _polygonal(geoms[i].intersection(geoms[j]))
-        area = area_m2(overlap, geographic=geographic)
-        if area <= NEGLIGIBLE_M2:
-            continue  # touching along an edge or a vertex
-        a, b = shapes[i][0].label, shapes[j][0].label
-        above = area > config.overlap_tolerance_m2
-        result["overlap_pairs"] += 1
-        problems.append(
-            Problem(
-                "error" if above else "warning",
-                "zones_overlap",
-                f"zones {a} and {b} overlap by {_fmt_area(area)} "
-                f"({'above' if above else 'within'} the {config.overlap_tolerance_m2:g} m² "
-                "tolerance)",
-                a,
-                area_m2=round(area, 2),
-                location=_point(overlap, geographic),
-                zone_ids=(a, b),
-            )
-        )
-
-    # Gaps: holes inside the zones' union (whatever is enclosed by zones but in none), then the
-    # part of the extent outside every zone's outline.
-    union = shapely.union_all(geoms)
-    result["total_area_m2"] = sum(area_m2(p, geographic=geographic) for p in _polygon_parts(union))
-    filled = shapely.union_all([Polygon(p.exterior) for p in _polygon_parts(union)])
-    gaps: list[tuple[BaseGeometry, str]] = [
-        (part, "hole inside the zones") for part in _polygon_parts(filled.difference(union))
-    ]
-    if extent is not None:
-        outside = _polygonal(extent).difference(filled)
-        gaps += [(part, "part of the extent in no zone") for part in _polygon_parts(outside)]
-    for part, kind in gaps:
-        area = area_m2(part, geographic=geographic)
-        if area <= NEGLIGIBLE_M2:
-            continue
-        neighbours = tuple(
-            shapes[int(k)][0].label for k in sorted(tree.query(part, predicate="intersects"))
-        )
-        above = area > config.gap_tolerance_m2
-        between = f" next to {', '.join(neighbours[:6])}" if neighbours else ""
-        result["gaps"] += 1
-        problems.append(
-            Problem(
-                "error" if above else "warning",
-                "zones_gap",
-                f"{kind}: {_fmt_area(area)}{between} "
-                f"({'above' if above else 'within'} the {config.gap_tolerance_m2:g} m² tolerance)",
-                neighbours[0] if neighbours else None,
-                area_m2=round(area, 2),
-                location=_point(part, geographic),
-                zone_ids=neighbours,
-            )
-        )
-    return result
+        with_geometry += 1
+    return with_geometry
 
 
 def _is_http_url(value: str) -> bool:

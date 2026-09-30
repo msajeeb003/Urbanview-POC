@@ -1,19 +1,17 @@
 """Source viewer: every planning value traceable to its document page in one click.
 
 ``GET /v1/source/{document_id}/page/{page}`` and ``GET /v1/source/value/{value_id}`` answer with
-one short-lived signed URL into the private bucket: the rendered page image when the ingestion
-job produced one, otherwise the PDF itself with a ``#page=N`` anchor. Nothing else leaves the
-API: object keys stay internal, the bucket stays private and the URL dies after
-``SOURCE_URL_EXPIRES_SECONDS``.
+one short-lived signed URL into the private bucket: the PDF with a ``#page=N`` anchor (the
+viewer draws the cited value's box on that page). Nothing else leaves the API: object keys stay
+internal, the bucket stays private and the URL dies after ``SOURCE_URL_EXPIRES_SECONDS``.
 
 What exists is decided by the database, never by probing storage: ``planning_documents.file_key``
-(null = not stored), ``page_count`` (null = unknown, so any page >= 1 of the PDF is served) and
-``page_images_rendered`` (page images only for a page within a known page count). A value is
-looked up in the serving table only, among the current version's values; its page is the page
-it cites. 404 ``not_found`` is for a document, value or page that truly does not exist (a
-value of an earlier version included); storage trouble is 503
-``service_unavailable``. The client emits ``source_reference_opened`` itself: ``document_id`` and
-``page`` are in every response for that.
+(null = not stored) and ``page_count`` (null = unknown, so any page >= 1 of the PDF is served).
+A value is looked up in the serving table only, among the current version's values; its page is
+the page it cites. 404 ``not_found`` is for a document, value or page that truly does not exist
+(a value of an earlier version included); storage trouble is 503 ``service_unavailable``. The
+client emits ``source_reference_opened`` itself: ``document_id`` and ``page`` are in every
+response for that.
 """
 
 from __future__ import annotations
@@ -31,9 +29,10 @@ from starlette.concurrency import run_in_threadpool
 
 from api.schemas.source import SourcePage, SourceValue
 from core.errors import NotFoundError, ServiceUnavailableError
-from core.storage import ObjectStorage
 
 log = logging.getLogger("urbanview.source")
+
+PDF_CONTENT_TYPE = "application/pdf"
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,7 +43,6 @@ class DocumentRow:
     registry_url: str | None
     file_key: str | None
     page_count: int | None
-    page_images_rendered: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,7 +83,7 @@ class StorageSigner(Protocol):
 DOCUMENT_SQL = text(
     """
     SELECT d.id, d.name, d.status::text AS status, d.source_url AS registry_url,
-           d.file_key, d.page_count, d.page_images_rendered
+           d.file_key, d.page_count
     FROM planning_documents d
     WHERE d.id = :document_id AND d.municipality_id = :municipality_id
     """
@@ -98,9 +96,7 @@ VALUE_SQL = text(
            v.source_note,
            d.id, d.name, d.status::text AS status, d.source_url AS registry_url,
            COALESCE(sf.object_key, d.file_key) AS file_key,
-           CASE WHEN sf.id IS NULL THEN d.page_count ELSE sf.page_count END AS page_count,
-           (d.page_images_rendered AND (sf.id IS NULL OR sf.id = d.file_id))
-               AS page_images_rendered
+           CASE WHEN sf.id IS NULL THEN d.page_count ELSE sf.page_count END AS page_count
     FROM planning_parameter_values v
     JOIN planning_documents d ON d.id = v.document_id
     JOIN planning_fields f ON f.key = v.field_key
@@ -121,7 +117,6 @@ def _document(row: Mapping[str, Any]) -> DocumentRow:
         registry_url=row.get("registry_url"),
         file_key=row.get("file_key"),
         page_count=row.get("page_count"),
-        page_images_rendered=bool(row.get("page_images_rendered")),
     )
 
 
@@ -163,34 +158,26 @@ class SqlSourceRepository:
 
 def signed_page_link(
     storage: StorageSigner,
-    municipality_id: str,
     *,
-    document_id: int,
     file_key: str | None,
     page_count: int | None,
-    page_images_rendered: bool,
     page: int | None,
     expires_in_seconds: int,
     now: datetime,
 ) -> dict[str, Any] | None:
-    """The same decision as the source viewer, as data: the page image when rendered within a
-    known page count, else the PDF with a ``#page=N`` anchor; ``None`` when nothing is stored or
-    the page is unknown / beyond the document."""
+    """The same decision as the source viewer, as data: the PDF with a ``#page=N`` anchor;
+    ``None`` when nothing is stored or the page is unknown / beyond the document."""
     if not file_key or page is None or page < 1:
         return None
     if page_count is not None and page > page_count:
         return None
-    if page_images_rendered and page_count is not None:
-        key = ObjectStorage.page_image_key(municipality_id, document_id, page)
-        kind, content_type, fragment = "page_image", "image/png", ""
-    else:
-        key = file_key
-        kind, content_type, fragment = "pdf_page", "application/pdf", f"#page={page}"
-    url = storage.presigned_get_url(key, expires_in_seconds, content_type=content_type, inline=True)
+    url = storage.presigned_get_url(
+        file_key, expires_in_seconds, content_type=PDF_CONTENT_TYPE, inline=True
+    )
     return {
-        "url": url + fragment,
-        "kind": kind,
-        "content_type": content_type,
+        "url": f"{url}#page={page}",
+        "kind": "pdf_page",
+        "content_type": PDF_CONTENT_TYPE,
         "expires_at": now + timedelta(seconds=expires_in_seconds),
     }
 
@@ -258,21 +245,13 @@ class SourceService:
                     "page_count": document.page_count,
                 },
             )
-        # Page images are addressed by convention; they are only trusted within a known page count.
-        if document.page_images_rendered and document.page_count is not None:
-            key = ObjectStorage.page_image_key(self.municipality_id, document.id, page)
-            kind, content_type, fragment = "page_image", "image/png", ""
-        else:
-            key = document.file_key
-            kind, content_type, fragment = "pdf_page", "application/pdf", f"#page={page}"
-
         issued_at = self.clock()
         try:
             url = await run_in_threadpool(
                 self.storage.presigned_get_url,
-                key,
+                document.file_key,
                 self.expires_in_seconds,
-                content_type=content_type,
+                content_type=PDF_CONTENT_TYPE,
                 inline=True,
             )
         except (BotoCoreError, ClientError) as exc:
@@ -290,9 +269,9 @@ class SourceService:
             document_status=document.status,  # type: ignore[arg-type]
             page=page,
             page_count=document.page_count,
-            kind=kind,  # type: ignore[arg-type]
-            url=url + fragment,
-            content_type=content_type,  # type: ignore[arg-type]
+            kind="pdf_page",
+            url=f"{url}#page={page}",
+            content_type=PDF_CONTENT_TYPE,
             expires_at=issued_at + timedelta(seconds=self.expires_in_seconds),
             expires_in_seconds=self.expires_in_seconds,
             registry_url=document.registry_url,

@@ -14,7 +14,6 @@ import { unstable_rethrow } from "next/navigation";
 
 import type {
   AdminJob,
-  AuditPage,
   PublishStatus,
   ReviewCounters,
   ReviewItem,
@@ -168,18 +167,4 @@ export async function publishAction(label?: string, notes?: string): Promise<Res
     return { ok: false, message: explainReviewProblem(result) };
   }
   return { ok: true, message: result.status === 202 ? "Publishing started" : "A publish is already running", data: result.data };
-}
-
-
-/** The item's audit trail (`GET /v1/admin/audit`, entity `extraction_item`): every decision. */
-export async function historyAction(itemId: number): Promise<Result<AuditPage>> {
-  const denied = await reviewer();
-  if (denied) return { ok: false, message: denied };
-  try {
-    const data = await adminGet<AuditPage>("/v1/admin/audit", { entity_type: "extraction_item", entity_id: itemId, limit: 20 });
-    return { ok: true, message: "", data };
-  } catch (err) {
-    unstable_rethrow(err);
-    return { ok: false, message: "The history could not be loaded." };
-  }
 }

@@ -31,7 +31,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from core.db import Base
 from core.models.planning import gist_index, multipolygon
 
-CHOROPLETH_LAYERS = ("coverage", "far", "height", "gfa", "sale_price")
 _LAYER_CHECK = "layer IN ('coverage', 'far', 'height', 'gfa', 'sale_price')"
 
 

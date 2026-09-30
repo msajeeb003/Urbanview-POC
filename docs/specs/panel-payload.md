@@ -34,7 +34,7 @@ GET /v1/panel?type=zone|document|cadastral|urban&id=<int>
 - One SQL statement per panel type (one round trip), same style as `api/services/locate_sql.py`
   (CTEs + `jsonb_build_object` / `jsonb_agg`, parameters cast explicitly), read from the serving
   tables only. The service caches nothing between requests (admin changes must show immediately).
-- Performance: well inside the 2 s budget; integration tests assert execution time and index use.
+- Performance: well inside the 2 s budget; integration tests count one statement per call.
 
 Routing: `api/routers/v1/panel.py`, registered in `api/routers/v1/__init__.py`. Service:
 `api/services/panel.py` (assembly) + `api/services/panel_sql.py` (statements) +
@@ -224,7 +224,6 @@ every parameter for a typed column is bound as `CAST(:col AS <type>)` and list/d
 zones, planning_documents (allowed set gains `amends_document_id`), urban_blocks, urban_parcels,
 cadastral_parcels, publish_versions, financial_assumptions, planning_parameter_values,
 planning_parameter_extractions. `replace` deletes in reverse order by municipality;
-`load_synthetic_bulk` / `delete_dataset` keep iterating `TABLES` (all have `dataset_version`);
 sequences re-synced for every table. `planning_fields` is not in `TABLES`.
 
 Sample content (municipality `podgorica`):
@@ -386,8 +385,9 @@ confirms the numbers; never regenerate it from an engine.
                    urban_block: BlockRef | null,          // primary urban parcel's block, else block containing ST_PointOnSurface(geom)
                    cadastral_area_m2, governing_document: DocumentRef | null, zone: ZoneRef | null},
   header: Header,
-  flags: {public_ownership: bool, restitution_or_legal_burden: bool,
-          note_en: "false means not flagged in the cadastral extract", note_me: "false znači da nije označeno u katastarskom izvodu"},
+  flags: {public_ownership: bool | null, restitution_or_legal_burden: bool | null,   // null until a confirmed eKatastar extract loads them; panel fields only (no map layer, not in the tiles)
+          note_en: "false means not flagged in the cadastral extract; no value means the data is not available",
+          note_me: "false znači da nije označeno u katastarskom izvodu; bez vrijednosti znači da podatak nije dostupan"},
   urban_parcel_defined: bool,
   urban_parcel: UrbanLink | null,          // primary (rank 1): largest overlap, then smallest planned area, then lowest id
   urban_parcels: [UrbanLink],              // every published link of the current version, rank order
@@ -536,8 +536,7 @@ else `not_stated`. For a cadastral-basis panel: document-level values of the gov
   - document not adopted: set document 4 status `superseded` (commit), fresh client: urban 3 →
     `covered` false, planning/feasibility null; restore in `finally`.
   - 404 for `id=999999` of each type; 422 for `type=foo`, missing id, `saleable_share=2`.
-  - one statement per panel call (event listener on `pg_app.state.engine.sync_engine`);
-    EXPLAIN ANALYZE execution < 250 ms for the cadastral and urban statements.
+  - one statement per panel call (event listener on `pg_app.state.engine.sync_engine`).
   - conftest sample counts updated (7 cadastral, 6 urban parcels); locate tests unchanged and green.
 
 ## 7. Documentation
@@ -551,8 +550,8 @@ else `not_stated`. For a cadastral-basis panel: document-level values of the gov
 2. Formulas, range model (rate × low/high factors) and Montenegrin labels/reasons await client
    validation; the disclaimer wording awaits the lawyer.
 3. Market inputs are admin-published, not versioned with `data_version` (POC decision).
-4. Free/paid: the paid blocks are served without entitlement checks in the POC (no `tier` markers
-   since 2026-09-29).
+4. Market blocks (Group 2) are shown to everyone: the POC sells no subscription and has no
+   paywall or entitlement check (no `tier` markers since 2026-09-29).
 
 ## 9. `POST /v1/feasibility` — server-side recalculation (added 2026-09-23)
 
@@ -583,18 +582,19 @@ One click from a planning value to the page it cites. Both routes answer:
 
 ```
 SourcePage = {document_id, document_name, document_status, page, page_count: int | null,
-  kind: "page_image" | "pdf_page",     // rendered PNG of the page, or the PDF with url ending in #page=N
+  kind: "pdf_page",                     // always the PDF, url ending in #page=N (no page images are rendered)
   url,                                  // signed, short-lived URL into the private bucket (the only storage fact that leaves the API)
-  content_type: "image/png" | "application/pdf", expires_at, expires_in_seconds,
+  content_type: "application/pdf", expires_at, expires_in_seconds,
   registry_url,                         // public registry page of the document
   value: SourceValue | null }           // only on /source/value/{value_id}
 SourceValue = {value_id, field_key, label_en, label_me, value, unit, urban_parcel_id,
   bbox, bbox_space: "pdf-points-bottom-left", note}
 ```
 
-- Schema: migration `0004_document_files` adds `planning_documents.file_key` (null = not stored),
-  `page_count` (null = unknown) and `page_images_rendered` (default false); the ingestion job sets
-  them. Existence is decided from these columns, never by probing the bucket.
+- Schema: migration `0004_document_files` adds `planning_documents.file_key` (null = not stored)
+  and `page_count` (null = unknown); the ingestion job sets them. Existence is decided from these
+  columns, never by probing the bucket. Page images are not rendered or served (removed
+  2026-10-01): the viewer shows the PDF page with the value's `bbox`.
 - Errors: 404 `not_found` for an unknown document / value, a page beyond `page_count`, or a
   document without a file (`details.reason = "not_stored"`); 422 for non-positive ids / pages;
   503 when storage cannot sign or the planning database is absent.
@@ -659,9 +659,10 @@ field is `not_stated`.
 - Source layers (one per map layer, toggled independently): `zones`, `document_coverage`,
   `urban_blocks`, `urban_parcels` (properties: parcel number, area, block, document, effective
   `max_far`, `max_site_coverage_pct`, `max_height_m`, `max_floors`, `land_use`, `max_gfa_m2`),
-  `cadastral_parcels` (number, sub-number, KO, address, area, ownership and burden flags,
+  `cadastral_parcels` (number, sub-number, KO, address, area,
   `has_urban_parcel`, `no_urban_parcel`, `relation`, `reduction_pct`,
-  `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`), `land_use`, and one layer per
+  `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`, `zone_id`, `zone_type`,
+  `covered`; no ownership or burden flags: those are panel fields only), `land_use`, and one layer per
   heatmap: `heat_coverage`,
   `heat_far`, `heat_height`, `heat_gfa` (every urban block: `value`, `band`, `unit`, `label` = the
   floor notation for height, `parcel_count`; no `value` = not covered) and `heat_sale_price`
@@ -772,12 +773,15 @@ English and Montenegrin on every item (the frontend hard-codes none). Numbers ar
   `engine_edit_key` of each edited item; no server round trip is needed. `input_flags` name the
   Group 1 inputs that are missing and what they affect (max height and floors are not formula
   inputs: the figures still compute, the flag says the height rule was not verified).
+- **Header flags** (`public_ownership`, `restitution_or_legal_burden`): null until a confirmed
+  bulk eKatastar extract loads them (the seeded sample states them, as above); shown in the
+  panel only: no map layer draws them and the tiles do not carry them.
 - **Uncovered parcel:** 200 with `covered: false`, a neutral note, `group1`, `market`,
   `assumptions`, `group2` and `engine` null, the header still filled. Unknown id: 404.
 - **Caching:** the response carries a strong `ETag` and `Cache-Control: no-cache`; send
   `If-None-Match` to get 304 while nothing changed. `X-Panel-Cache` says hit / miss / bypass /
-  revalidated. Any publish, coverage switch, document registration, assumption or zone
-  parameter change produces a new ETag.
+  revalidated. Any publish, coverage switch, document registration or edit, or assumption change
+  produces a new ETag.
 
 
 ## 14. Zone and document panels for the public map's S3 variants (added 2026-09-28)

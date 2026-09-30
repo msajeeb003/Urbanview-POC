@@ -41,10 +41,6 @@ INSERT_CHUNK = 2000
 DIFF_CLASSES = ("added", "removed", "geometry_changed", "attributes_changed", "unchanged")
 
 
-class LargeChangeRefused(RuntimeError):
-    """The new version would remove too many parcels of the previous one."""
-
-
 @dataclass
 class Finding:
     code: str

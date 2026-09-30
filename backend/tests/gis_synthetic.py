@@ -11,7 +11,6 @@ Page 600 x 420 pt at 1:1000 (1 pt = 0.3528 m on the ground), drawn with pymupdf:
 - ``OZNAKE``: the parcel numbers as text ("UP 9" sits in the legend);
 - ``BLOKOVI``: block A as a dotted line of small filled circles 10 pt apart, (90, 90)-(410, 260),
   labelled "BLOK A" on ``BLOK_OZNAKE``;
-- ``SAOBRACAJ``: a road centreline y = 310 as separate 12 pt dashes with 6 pt gaps;
 - ``NAMJENA_SS``: land use SS over UP 1, filled as two triangles;
 - ``BROJEVI``: glyph labels (``glyph_sheet``): text drawn as filled outlines.
 
@@ -34,7 +33,7 @@ sheets:
   - id: a
     file: sheet-a.pdf
     scale: 1000
-    layers: [plan_boundary, urban_parcels, urban_blocks, planned_land_use, planned_traffic]
+    layers: [plan_boundary, urban_parcels, urban_blocks, planned_land_use]
 layers:
   plan_boundary:
     method: polygonize
@@ -62,11 +61,6 @@ layers:
     method: fills
     categories:
       - {select: [{layer: NAMJENA_SS}], code: SS, name: Stanovanje}
-  planned_traffic:
-    method: lines
-    select: [{layer: SAOBRACAJ}]
-    gap_mm: 3
-    road_class: street
 """
 
 
@@ -98,7 +92,6 @@ def plan_sheet(shift: tuple[float, float] = (0.0, 0.0)) -> bytes:
             "OZNAKE",
             "BLOKOVI",
             "BLOK_OZNAKE",
-            "SAOBRACAJ",
             "NAMJENA_SS",
         ],
     )
@@ -131,11 +124,6 @@ def plan_sheet(shift: tuple[float, float] = (0.0, 0.0)) -> bytes:
             shape.finish(color=None, fill=(0.4, 0.4, 0.4), oc=oc["BLOKOVI"])
             shape.commit()
     page.insert_text(pymupdf.Point(*t(150, 230)), "BLOK A", fontsize=12, oc=oc["BLOK_OZNAKE"])
-    # road centreline: 12 pt dashes, 6 pt gaps
-    x = 50.0
-    while x < 550:
-        _line(page, [t(x, 310), t(min(x + 12, 550), 310)], oc["SAOBRACAJ"], 0.5)
-        x += 18
     # land use SS over UP 1 as two filled triangles (a tessellated solid hatch)
     for tri in ([(100, 100), (250, 100), (250, 250)], [(100, 100), (250, 250), (100, 250)]):
         shape = page.new_shape()

@@ -8,7 +8,6 @@ import {
   draftTitle,
   emptyGeometryText,
   explainGeometryProblem,
-  geometryBlockersText,
   geometryQuery,
   issueName,
   nextPendingDraft,
@@ -92,11 +91,7 @@ describe("the queue", () => {
     expect(emptyGeometryText(filters)).toBe("No staged geometry matches these filters.");
   });
 
-  it("says what publishing waits for and why a decision was refused", () => {
-    expect(geometryBlockersText([])).toBeNull();
-    const blocker = { batch_id: 1, layer_id: "zones", layer_label: "Zones" };
-    expect(geometryBlockersText([blocker])).toBe("1 geometry batch waits for review");
-    expect(geometryBlockersText([blocker, { ...blocker, batch_id: 2 }])).toBe("2 geometry batches wait for review");
+  it("says why a decision was refused", () => {
     expect(explainGeometryProblem({ status: 409, details: { reason: "qa_failed" } })).toMatch(/checks fail/);
     expect(explainGeometryProblem({ status: 409, details: { reason: "rejected" } })).toMatch(/stage it again/);
     expect(explainGeometryProblem({ status: 403 })).toBe("Your role cannot do this.");

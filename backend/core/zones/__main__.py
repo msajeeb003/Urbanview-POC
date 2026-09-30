@@ -129,20 +129,6 @@ def _inputs(cfg: ZoneSetConfig, args: argparse.Namespace) -> tuple[Path, Path]:
     return zones, documents
 
 
-def _load_extent(cfg: ZoneSetConfig, srs_id: int) -> Any:
-    """The configured extent polygon, when it is in the dataset's CRS (no reprojection here)."""
-    if cfg.validation.extent is None:
-        return None
-    from core.zones.validate import read_extent
-
-    geometry, extent_srs = read_extent(cfg.validation.extent)
-    if extent_srs != srs_id:
-        name = cfg.validation.extent.name
-        print(f"  ! extent {name} is in EPSG:{extent_srs}, the zones in EPSG:{srs_id}: skipped")
-        return None
-    return geometry
-
-
 def _validate(cfg: ZoneSetConfig, args: argparse.Namespace):
     from core.zones.validate import read_dataset, validate
 
@@ -157,12 +143,10 @@ def _validate(cfg: ZoneSetConfig, args: argparse.Namespace):
         dataset,
         document_types=_document_types(cfg.municipality_id),
         config=config,
-        extent=_load_extent(cfg, dataset.srs_id),
     )
     for problem in report.problems:
         where = " ".join(x for x in (problem.zone_id, problem.document) if x)
-        area = f" ({problem.area_m2:.1f} m²)" if problem.area_m2 else ""
-        print(f"  {problem.severity:7} {problem.code}: {problem.message}{area} {where}".rstrip())
+        print(f"  {problem.severity:7} {problem.code}: {problem.message} {where}".rstrip())
     print(
         f"{len(report.errors)} error(s), {len(report.warnings)} warning(s); "
         + ", ".join(f"{k}={v}" for k, v in report.stats.items() if not isinstance(v, dict))

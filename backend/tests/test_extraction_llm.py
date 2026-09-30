@@ -1,5 +1,5 @@
 """The model seam of AI extraction (core.extraction.llm): the Claude request (structured output,
-cached system blocks, adaptive thinking, refusal fallback), reading the reply, and classifying
+cached system blocks, adaptive thinking), reading the reply, and classifying
 failures into retryable and final ones. No network: fake clients and a mock HTTP transport."""
 
 from __future__ import annotations
@@ -11,7 +11,6 @@ from typing import Any
 import pytest
 
 from core.extraction.llm import (
-    FALLBACK_BETA,
     ClaudeModel,
     ModelError,
     ModelOutputInvalid,
@@ -56,9 +55,9 @@ class _Messages:
         return self._stream
 
 
-def _fake(message: Any = None, error: Exception | None = None) -> tuple[Any, _Messages, _Messages]:
-    beta, plain = _Messages(_Stream(message, error)), _Messages(_Stream(message, error))
-    return SimpleNamespace(beta=SimpleNamespace(messages=beta), messages=plain), beta, plain
+def _fake(message: Any = None, error: Exception | None = None) -> tuple[Any, _Messages]:
+    messages = _Messages(_Stream(message, error))
+    return SimpleNamespace(messages=messages), messages
 
 
 def _message(text: str = '{"entries": []}', stop: str = "end_turn") -> Any:
@@ -88,34 +87,21 @@ def test_the_request_asks_for_the_schema_with_cached_rules():
     assert params["thinking"] == {"type": "adaptive"}
     assert [block["cache_control"] for block in params["system"]] == [{"type": "ephemeral"}] * 2
     assert params["messages"] == [{"role": "user", "content": "the pages"}]
-    assert "betas" not in params and "fallbacks" not in params  # off unless switched on
-    opus = ClaudeModel("claude-opus-5", client=object(), refusal_fallback=True)
-    with_fallback = opus.request(SYSTEM, "the pages", SCHEMA)
-    assert with_fallback["betas"] == [FALLBACK_BETA] and with_fallback["fallbacks"] == "default"
     plain = ClaudeModel(
-        "claude-haiku-4-5",
-        client=object(),
-        effort=None,
-        adaptive_thinking=False,
-        refusal_fallback=False,
+        "claude-haiku-4-5", client=object(), effort=None, adaptive_thinking=False
     ).request((SystemBlock("rules"),), "p", SCHEMA)
     assert plain["model"] == "claude-haiku-4-5" and "cache_control" not in plain["system"][0]
-    assert "thinking" not in plain and "betas" not in plain and "fallbacks" not in plain
+    assert "thinking" not in plain
     assert plain["output_config"] == {"format": {"type": "json_schema", "schema": SCHEMA}}
 
 
 def test_a_reply_is_read_from_its_text_block_with_usage():
-    client, beta, plain = _fake(_message('{"entries": ["SS"]}'))
+    client, messages = _fake(_message('{"entries": ["SS"]}'))
     reply = ClaudeModel(client=client).complete(system=SYSTEM, user="p", schema=SCHEMA)
     assert reply.data == {"entries": ["SS"]} and reply.model == "claude-sonnet-5"
     assert (reply.usage.input_tokens, reply.usage.output_tokens) == (120, 40)
     assert reply.usage.cache_read_tokens == 900 and reply.usage.tokens_in == 1020
-    assert plain.params is not None and beta.params is None
-    client, beta, plain = _fake(_message())
-    ClaudeModel(client=client, refusal_fallback=True).complete(
-        system=SYSTEM, user="p", schema=SCHEMA
-    )
-    assert beta.params is not None and plain.params is None  # the fallback needs the beta API
+    assert messages.params is not None
 
 
 @pytest.mark.parametrize(
@@ -127,7 +113,7 @@ def test_a_reply_is_read_from_its_text_block_with_usage():
     ],
 )
 def test_refusals_and_broken_output_are_final(stop, text, error):
-    client, _, _ = _fake(_message(text, stop))
+    client, _ = _fake(_message(text, stop))
     with pytest.raises(error):
         ClaudeModel(client=client).complete(system=SYSTEM, user="p", schema=SCHEMA)
     assert not issubclass(error, ModelUnavailable)  # not retried
@@ -151,7 +137,7 @@ def test_api_errors_are_classified_for_retries():
         (status(anthropic.AuthenticationError, 401), ModelError),
     ]
     for raised, mapped in expected:
-        client, _, _ = _fake(error=raised)
+        client, _ = _fake(error=raised)
         with pytest.raises(mapped) as caught:
             ClaudeModel(client=client).complete(system=SYSTEM, user="p", schema=SCHEMA)
         retryable = isinstance(caught.value, ModelUnavailable)
@@ -235,15 +221,9 @@ def test_the_wire_request_through_the_real_sdk():
     assert reply.data == {"entries": ["a"]} and reply.model == "claude-sonnet-5"
     assert (reply.usage.input_tokens, reply.usage.cache_read_tokens) == (100, 50)
     assert seen["url"] == "https://api.example.invalid/v1/messages"
-    assert seen["beta"] is None and "fallbacks" not in seen["body"]
-    assert seen["body"]["model"] == "claude-sonnet-5"
-    ClaudeModel("claude-opus-5", client=client, refusal_fallback=True).complete(
-        system=SYSTEM, user="the pages", schema=SCHEMA
-    )
-    assert seen["url"].startswith("https://api.example.invalid/v1/messages")
-    assert seen["beta"] == FALLBACK_BETA
+    assert seen["beta"] is None
     body = seen["body"]
-    assert body["stream"] is True and body["fallbacks"] == "default"
+    assert body["model"] == "claude-sonnet-5" and body["stream"] is True
     assert body["output_config"]["format"] == {"type": "json_schema", "schema": SCHEMA}
     assert body["thinking"] == {"type": "adaptive"}
     assert body["system"][0] == {

@@ -24,7 +24,7 @@ pytest.importorskip("shapely")
 import numpy as np  # noqa: E402
 import pymupdf  # noqa: E402
 import yaml  # noqa: E402
-from shapely.geometry import LineString, MultiLineString, MultiPolygon, Polygon  # noqa: E402
+from shapely.geometry import MultiPolygon, Polygon  # noqa: E402
 
 from core.cadastre.ogr import find_ogr2ogr  # noqa: E402
 from core.gis.extract.gpkg import read_gpkg, write_gpkg  # noqa: E402
@@ -340,7 +340,7 @@ def test_a_sheet_drawn_north_right_down_or_left_needs_its_rule(north, quarter) -
 
 
 def world_features() -> dict[str, list[tuple[object, dict]]]:
-    """The plan in UTM 34N: boundary, one parcel, its block, land use and a road."""
+    """The plan in UTM 34N: boundary, one parcel, its block and land use."""
     e, n = E0 + 120.0, N0 + 80.0
 
     def poly(*pts: tuple[float, float]) -> MultiPolygon:
@@ -373,12 +373,6 @@ def world_features() -> dict[str, list[tuple[object, dict]]]:
         ],
         "planned_land_use": [
             (parcel, {**base, "feature_key": "UP 1", "code": "SS", "name": "Stanovanje"})
-        ],
-        "planned_traffic": [
-            (
-                MultiLineString([LineString([(e - 10, n - 10), (e + 70, n - 10)])]),
-                {**base, "feature_key": "line-0001", "road_class": "street"},
-            )
         ],
     }
 

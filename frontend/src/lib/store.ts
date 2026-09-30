@@ -126,7 +126,6 @@ interface ShellState {
   coverWarn: boolean;
   coverReason: UncoveredReason;
   focus: CameraFocus | null;
-  /** Data version of the tiles on the map (`/v1/tiles/current`), `"unpublished"` before a publish. */
 
   zoomLabel: string;
   scale: { label: string; widthPx: number };

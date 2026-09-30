@@ -7,15 +7,14 @@
   re-parcelling is the plan's point, not noise. Each feature carries ``vertices``,
   ``snapped_vertices`` and ``snapped_ratio``; the log lists every moved vertex and every near miss
   (a cadastral vertex beyond the tolerance but within three tolerances, not moved) for review.
-- **Validation**: every feature inside the municipality's extent; the planned parcels overlap the
-  cadastral parcels under them (none at all while cadastral parcels are there = a bad transform);
-  planned parcels of the document overlapping each other by more than 1 m² are reported. Errors
-  refuse the dataset (recorded ``invalid``, nothing staged).
+- **Validation** (checks of the transform, not topology QA): every feature inside the
+  municipality's extent; the planned parcels overlap the cadastral parcels under them (none at all
+  while cadastral parcels are there = a bad transform). Errors refuse the dataset (recorded
+  ``invalid``, nothing staged).
 - **Staging**: one batch per layer (document coverage, planned parcels, blocks, land use),
   ``document_id`` and ``dataset_version`` on every feature. Land use is a generic layer (the
   newest staged batch replaces the layer at publish), so its batch carries the other documents'
-  features forward. The planned traffic network is not staged: it is an MVP layer, outside the
-  POC. A newer run of the document supersedes its staged dataset. The
+  features forward. A newer run of the document supersedes its staged dataset. The
   ``georef_datasets`` row records the CRS, the transform, the RMSE per sheet, the snapping and the
   validation.
 
@@ -42,7 +41,6 @@ from core.geometry_qa import GEOREF_ORIGINS, run_batches_qa
 
 SNAPPED = ("urban_parcels", "urban_blocks")
 GENERIC = (("planned_land_use", "land_use"),)
-OVERLAP_MIN_M2 = 1.0
 NEAR_FACTOR = 3.0
 SAMPLES = 20
 OFFSET_MIN_SAMPLES = 5  # vertices near the cadastre needed to judge a systematic offset
@@ -196,18 +194,6 @@ OVERLAP_SQL = text(
               AND ST_Intersects(c.geom, u.geom)) AS overlap_m2
     """
 )
-TOPOLOGY_SQL = text(
-    """
-    SELECT a.props->>'feature_key' AS a, b.props->>'feature_key' AS b,
-           round(CAST(ST_Area(ST_Transform(ST_Intersection(a.geom, b.geom),
-                                           CAST(:srid AS integer))) AS numeric), 1) AS m2
-    FROM geo_rows a JOIN geo_rows b
-      ON a.row_no < b.row_no AND a.layer = 'urban_parcels' AND b.layer = 'urban_parcels'
-     AND ST_Intersects(a.geom, b.geom)
-    WHERE ST_Area(ST_Transform(ST_Intersection(a.geom, b.geom), CAST(:srid AS integer))) > :min
-    ORDER BY 3 DESC, 1, 2
-    """
-)
 DOCUMENT_SQL = text("SELECT id FROM planning_documents WHERE id = :d AND municipality_id = :m")
 LABEL_TAKEN_SQL = text(
     "SELECT 1 FROM georef_datasets WHERE municipality_id = :m AND dataset_version = :label"
@@ -340,7 +326,6 @@ STAGE_GENERIC_SQL = text(
            CAST(CAST(:d AS bigint) AS text) || '|' || (props->>'feature_key'), geom,
            jsonb_strip_nulls(jsonb_build_object(
                'code', props->>'code', 'name', props->>'name',
-               'road_class', props->>'road_class',
                'urban_parcel_number', props->>'urban_parcel_number',
                'document_id', CAST(:d AS bigint), 'dataset_version', CAST(:label AS text)))
     FROM geo_rows WHERE layer = :layer
@@ -573,22 +558,6 @@ async def _validate(
                 "no cadastral parcels are loaded under the document: the overlap check and the "
                 "snapping had nothing to compare with",
                 0,
-            )
-        )
-    overlaps = [
-        dict(r)
-        for r in (
-            await session.execute(TOPOLOGY_SQL, {"srid": srid, "min": OVERLAP_MIN_M2})
-        ).mappings()
-    ]
-    if overlaps:
-        warnings.append(
-            Finding(
-                "parcel_overlaps",
-                f"planned parcels of the document overlapping each other by more than "
-                f"{OVERLAP_MIN_M2:g} m²",
-                len(overlaps),
-                [{**o, "m2": float(o["m2"])} for o in overlaps[:SAMPLES]],
             )
         )
     numbers: dict[str, int] = defaultdict(int)

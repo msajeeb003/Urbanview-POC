@@ -6,8 +6,8 @@ it lives in `backend/`.
 | Path | Purpose |
 |---|---|
 | `alembic.ini`, `migrations/` | Alembic (async). `env.py` imports the SQLAlchemy models from `backend/core/models`. Run from `backend/`: `alembic -c ../database/alembic.ini upgrade head` (or `make migrate`). |
-| `migrations/versions/` | `0001` enables PostGIS; `0002` the location-resolution schema (zones, planning documents, urban blocks, planned urban parcels, cadastral parcels); `0003` the information-panel schema (publish versions, planning field dictionary, planning parameter values / extractions, financial assumptions, `planning_documents.amends_document_id`). |
-| `seeds/podgorica_sample/` | Hand-made Podgorica sample: one GeoJSON FeatureCollection per geometry table and one plain JSON array per panel table, all with explicit ids. Loaded by `make seed` / `python -m core.seeds podgorica_sample` and by the integration tests. Add `--synthetic-bulk` for 300 synthetic documents and 10k cadastral + 10k planned parcels (load/plan testing; tagged `dataset_version = synthetic-bulk`). |
+| `migrations/versions/` | `0001` … `0038`, one file per schema change; each docstring says what changed and why (`alembic -c ../database/alembic.ini history`). The later ones (0035–0038) remove what the POC plan does not fund. |
+| `seeds/podgorica_sample/` | Hand-made Podgorica sample: one GeoJSON FeatureCollection per geometry table and one plain JSON array per panel table, all with explicit ids. Loaded by `make seed` / `python -m core.seeds podgorica_sample` for development and by the integration tests; never on a server. |
 | `docker/initdb/` | Init SQL for the compose `postgres` service (creates `urbanview_test`). |
 | `scripts/dev_postgis.py` | Portable PostgreSQL + PostGIS for machines without Docker (Windows). |
 
@@ -58,7 +58,6 @@ installer, no Windows service, no PATH changes.
 
 `backend/tests/integration` needs `TEST_DATABASE_URL` (default: the compose database
 `postgresql+asyncpg://urbanview:urbanview@localhost:5432/urbanview_test`). The session fixture
-drops and recreates the `public` schema, runs the migrations up → base → up, loads the sample plus
-the synthetic volume, then checks the location queries (results, `EXPLAIN`-verified GiST index use
-and no sequential scans on the large tables, one statement per call, latency) and `alembic check`
-(models == migrations).
+drops and recreates the `public` schema, runs the migrations up → base → up, loads the sample,
+then checks the queries (results, one statement per call) and `alembic check` (models ==
+migrations).

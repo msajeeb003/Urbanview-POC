@@ -91,7 +91,6 @@ def eager_env(postgis_url, monkeypatch, baseline):
         database_url=postgis_url,
         rate_limit_requests=100_000,
         admin_api_tokens=f"{pipeline.TOKEN}:admin:ops",
-        preprocess_page_image_dpi=40,
     )
     configure_preprocess(database_url=postgis_url, storage=store, settings=settings)
     configure_ingestion(database_url=postgis_url, storage=store)
@@ -372,7 +371,7 @@ async def test_geometry_job_on_a_pdf_drawing_names_what_it_needs(eager_env):
 # --- the zone import ------------------------------------------------------------------------------
 
 
-async def _zone_gpkg(app, tmp_path, *, overlap: bool = False) -> bytes:
+async def _zone_gpkg(app, tmp_path, *, invalid: bool = False) -> bytes:
     import shapely
 
     from core.zones import gpkg, schema
@@ -387,7 +386,9 @@ async def _zone_gpkg(app, tmp_path, *, overlap: bool = False) -> bytes:
     ).one()
     x0, y0, x1, y1 = box[0] - 0.001, box[1] - 0.001, box[2] + 0.001, box[3] + 0.001
     mid = (x0 + x1) / 2
-    west = shapely.box(x0, y0, mid + (0.002 if overlap else 0), y1)
+    west = shapely.box(x0, y0, mid, y1)
+    if invalid:  # a bow tie: self-intersecting, refused by the validity check
+        west = shapely.Polygon([(x0, y0), (mid, y1), (mid, y0), (x0, y1)])
     east = shapely.box(mid, y0, x1, y1)
     path = tmp_path / "zones.gpkg"
     conn = gpkg.create(path)
@@ -432,10 +433,10 @@ async def test_zone_geopackage_import_validates_and_stages(eager_env, tmp_path):
     async with app.router.lifespan_context(app), make_client(app) as client:
         good = await _zone_gpkg(app, tmp_path)
         (tmp_path / "zones.gpkg").unlink()
-        bad = await _zone_gpkg(app, tmp_path, overlap=True)
+        bad = await _zone_gpkg(app, tmp_path, invalid=True)
         mime = "application/geopackage+sqlite3"
         good_file = (await upload(client, good, "zones.gpkg", kind="gis", mime=mime)).json()
-        bad_file = (await upload(client, bad, "zones-overlap.gpkg", kind="gis", mime=mime)).json()
+        bad_file = (await upload(client, bad, "zones-invalid.gpkg", kind="gis", mime=mime)).json()
         pdf = (await upload(client, PDF_A, "a.pdf")).json()["file"]
         dry = await client.post(
             "/v1/admin/zones/import",
@@ -484,7 +485,8 @@ async def test_zone_geopackage_import_validates_and_stages(eager_env, tmp_path):
     assert dataset["status"] == "staged" and dataset["has_report"]
     assert audit["actor"] == "worker:import_zones" and audit["details"]["requested_by"] == "ops"
     assert refused.json()["status"] == "failed"
-    assert "import refused" in refused.json()["error"] and "overlap" in refused.json()["error"]
+    error = refused.json()["error"]
+    assert "import refused" in error and "zone_invalid_geometry" in error
     assert not_gpkg.status_code == 409
     assert not_gpkg.json()["error"]["details"]["reason"] == "not_a_geopackage"
     assert listed.json()["total"] == 3

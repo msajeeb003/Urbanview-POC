@@ -6,14 +6,13 @@ listing. Storage is mocked; every other table is real."""
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
 from core.staff import create_user, issue_session
-from tests.helpers import make_app, make_client, make_settings
+from tests.helpers import audit_trail, make_app, make_client, make_settings
 from tests.integration.test_admin_pipeline_postgis import FakeStorage
 
 pytestmark = pytest.mark.integration
@@ -331,11 +330,7 @@ async def test_approve_amend_reject_keep_the_ai_value_and_write_audit_rows(revie
             )
             await session.commit()
         closed = await client.post(f"/v1/admin/review/{text_id}/approve", headers=auth())
-        trail = await client.get(
-            "/v1/admin/audit",
-            params={"entity_type": "extraction_item", "entity_id": 1},
-            headers=auth(),
-        )
+        entries = await audit_trail(app, "extraction_item", 1)  # newest first
 
     assert approved.status_code == 200, approved.text
     assert approved.json()["status"] == "approved"
@@ -364,8 +359,6 @@ async def test_approve_amend_reject_keep_the_ai_value_and_write_audit_rows(revie
     assert closed.status_code == 409
     assert closed.json()["error"]["details"]["reason"] == "published"
 
-    assert trail.status_code == 200
-    entries = trail.json()["items"]  # newest first
     assert [e["action"] for e in entries] == [
         "review.approve",
         "review.reject",
@@ -426,11 +419,7 @@ async def test_corrections_follow_the_extraction_contract(review_app):
         blank_reason = await client.post(
             f"/v1/admin/review/{far}/reject", json={"note": " \t "}, headers=auth()
         )
-        trail = await client.get(
-            "/v1/admin/audit",
-            params={"entity_type": "extraction_item", "entity_id": far},
-            headers=auth(),
-        )
+        entries = await audit_trail(app, "extraction_item", far)
 
     def refused(response) -> str:
         assert response.status_code == 422, response.text
@@ -454,7 +443,7 @@ async def test_corrections_follow_the_extraction_contract(review_app):
     assert blank_note.status_code == 422 and no_note.status_code == 422
     assert blank_reason.status_code == 422
 
-    entries = trail.json()["items"]  # newest first: the comma correction, then the confirmed one
+    # newest first: the comma correction, then the confirmed one
     assert [e["action"] for e in entries] == ["review.amend", "review.amend"]
     assert entries[0]["details"]["correction"] == {"normalisation": ["decimal_comma"]}
     assert entries[1]["details"]["correction"] == {"out_of_range_confirmed": True}
@@ -544,12 +533,11 @@ async def test_audit_rows_cannot_be_modified_or_removed(review_app):
     assert note == "keep me"
 
 
-async def test_audit_listing_filters_who_changed_what_and_when(review_app):
+async def test_audit_listing_newest_first_by_action_and_actor_admins_only(review_app):
     app = review_app
     async with app.router.lifespan_context(app), make_client(app) as client:
         reviewer = await staff_token(app, "reviewer@example.com", "reviewer")
         expert = await staff_token(app, "expert@example.com", "expert")
-        started = datetime.now(UTC)
         await client.post("/v1/admin/review/1/approve", headers=auth(reviewer))
         created = await client.post(
             "/v1/admin/assumptions",
@@ -566,14 +554,10 @@ async def test_audit_listing_filters_who_changed_what_and_when(review_app):
         by_actor = await client.get(
             "/v1/admin/audit", params={"actor": "reviewer@example.com"}, headers=auth()
         )
-        by_entity = await client.get(
-            "/v1/admin/audit",
-            params={"entity_type": "financial_assumptions", "entity_id": created.json()["id"]},
-            headers=auth(),
+        by_action = await client.get(
+            "/v1/admin/audit", params={"action": "assumptions."}, headers=auth()
         )
-        since = await client.get(
-            "/v1/admin/audit", params={"from": started.isoformat(), "limit": 100}, headers=auth()
-        )
+        newest = await client.get("/v1/admin/audit", params={"limit": 2}, headers=auth())
         paged = await client.get(
             "/v1/admin/audit", params={"limit": 1, "offset": 1}, headers=auth()
         )
@@ -583,17 +567,22 @@ async def test_audit_listing_filters_who_changed_what_and_when(review_app):
     actors = {e["actor"] for e in by_actor.json()["items"]}
     assert actors == {"reviewer@example.com"}
     assert by_actor.json()["items"][0]["action"] == "review.approve"
-    (entry,) = by_entity.json()["items"]
+    entry = by_action.json()["items"][0]
+    # a prefix: the audit log is append-only, so earlier tests' assumptions.* rows are listed too
+    assert all(e["action"].startswith("assumptions.") for e in by_action.json()["items"])
     assert entry["action"] == "assumptions.create" and entry["actor"] == "ops"
+    assert entry["entity_type"] == "financial_assumptions"
+    assert entry["entity_id"] == created.json()["id"]
     assert entry["before"]["version"] == 1 and entry["before"]["land_rate_eur_m2"] == 1350
     assert entry["after"]["version"] == 2 and entry["after"]["land_rate_eur_m2"] == 1400
-    actions = [e["action"] for e in since.json()["items"]]
-    assert actions[:2] == ["assumptions.create", "review.approve"]  # newest first
-    assert since.json()["total"] >= 2  # users made through core.staff write no audit rows
+    actions = [e["action"] for e in newest.json()["items"]]
+    assert actions == ["assumptions.create", "review.approve"]  # newest first
+    assert newest.json()["total"] >= 2  # users made through core.staff write no audit rows
     assert (
         paged.json()["limit"] == 1
         and paged.json()["offset"] == 1
         and len(paged.json()["items"]) == 1
     )
-    assert as_reviewer.status_code == 200
+    # the audit trail is the admins' (A7): reviewers and experts are refused
+    assert as_reviewer.status_code == 403
     assert as_expert.status_code == 403

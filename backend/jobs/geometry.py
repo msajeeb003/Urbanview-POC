@@ -394,7 +394,7 @@ async def import_zones(
     from core.zones.config import ValidationConfig, load_zone_config
     from core.zones.report import build_report
     from core.zones.staging import next_label, stage_dataset
-    from core.zones.validate import read_dataset, read_extent, validate
+    from core.zones.validate import read_dataset, validate
 
     m = municipality_id
     async with session_factory() as session:
@@ -421,15 +421,10 @@ async def import_zones(
             raise GeometryError(
                 f"the GeoPackage could not be read as a zone dataset: {exc}"
             ) from exc
-        extent = None
-        if config.extent is not None and config.extent.is_file():
-            geometry, srs = read_extent(config.extent)
-            extent = geometry if srs == dataset.srs_id else None
         report = validate(
             dataset,
             document_types=dict(load_profile(m).terminology.document_types),
             config=config,
-            extent=extent,
         )
     problems = {
         "errors": [p.to_json() for p in report.errors],

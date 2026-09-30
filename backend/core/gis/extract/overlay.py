@@ -15,7 +15,7 @@ import pymupdf
 from shapely.geometry.base import BaseGeometry
 
 from core.gis.extract.extract import Feature
-from core.gis.extract.geometry import line_parts, polygon_parts
+from core.gis.extract.geometry import polygon_parts
 from core.gis.extract.sheet import Sheet
 
 STYLE = {  # layer -> (stroke rgb, width pt, fill?)
@@ -23,7 +23,6 @@ STYLE = {  # layer -> (stroke rgb, width pt, fill?)
     "urban_blocks": ((0.1, 0.25, 0.85), 1.6, False),
     "urban_parcels": ((0.85, 0.1, 0.1), 0.8, True),
     "planned_land_use": ((0.1, 0.55, 0.2), 0.5, True),
-    "planned_traffic": ((0.95, 0.5, 0.0), 1.2, False),
 }
 
 
@@ -97,9 +96,6 @@ def _draw(shape: pymupdf.Shape, sheet: Sheet, geom: BaseGeometry, layer: str, ke
             even_odd=True,
             closePath=True,
         )
-    for ln in line_parts(local):
-        shape.draw_polyline([pymupdf.Point(x, y) for x, y in ln.coords])
-        shape.finish(color=stroke, width=width, closePath=False)
 
 
 def render_preview(
@@ -114,13 +110,7 @@ def render_preview(
     doc, page = _page(pdf, sheet)
     # one shape and one commit: every commit rewrites the page's (large) content stream
     shape = page.new_shape()
-    order = [
-        "planned_land_use",
-        "urban_parcels",
-        "urban_blocks",
-        "planned_traffic",
-        "plan_boundary",
-    ]
+    order = ["planned_land_use", "urban_parcels", "urban_blocks", "plan_boundary"]
     for layer in order:
         for f in features:
             if f.layer == layer:

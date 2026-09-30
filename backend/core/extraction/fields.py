@@ -39,7 +39,6 @@ class FieldSpec:
     minimum: float | None = None
     maximum: float | None = None
     exclusive_minimum: bool = False
-    planning_field: bool = False  # staged as a review item under ``key``
 
     def in_range(self, value: float) -> bool:
         if self.minimum is not None:
@@ -69,7 +68,7 @@ FIELD_SPECS: dict[str, FieldSpec] = {
     spec.key: spec
     for spec in (
         # --- planning fields (Group 1, staged) ---
-        FieldSpec("land_use", "land_use", planning_field=True),
+        FieldSpec("land_use", "land_use"),
         _number(
             "max_site_coverage_pct",
             "%",
@@ -77,11 +76,8 @@ FIELD_SPECS: dict[str, FieldSpec] = {
             percent=True,
             minimum=0,
             maximum=100,
-            planning_field=True,
         ),
-        _number(
-            "max_far", None, units=("ratio", "none"), minimum=0, maximum=20, planning_field=True
-        ),
+        _number("max_far", None, units=("ratio", "none"), minimum=0, maximum=20),
         _number(
             "max_height_m",
             "m",
@@ -90,9 +86,8 @@ FIELD_SPECS: dict[str, FieldSpec] = {
             minimum=0,
             maximum=300,
             exclusive_minimum=True,
-            planning_field=True,
         ),
-        FieldSpec("max_floors", "floors", planning_field=True),
+        FieldSpec("max_floors", "floors"),
         _number(
             "building_line_m",
             "m",
@@ -100,7 +95,6 @@ FIELD_SPECS: dict[str, FieldSpec] = {
             default_unit="m",
             minimum=0,
             maximum=200,
-            planning_field=True,
         ),
         _number(
             "setback_neighbours_m",
@@ -109,9 +103,8 @@ FIELD_SPECS: dict[str, FieldSpec] = {
             default_unit="m",
             minimum=0,
             maximum=200,
-            planning_field=True,
         ),
-        FieldSpec("parking_requirement", "text", planning_field=True),
+        FieldSpec("parking_requirement", "text"),
         _number(
             "min_green_area_pct",
             "%",
@@ -119,7 +112,6 @@ FIELD_SPECS: dict[str, FieldSpec] = {
             percent=True,
             minimum=0,
             maximum=100,
-            planning_field=True,
         ),
         _number(
             "planned_parcel_area_m2",
@@ -129,9 +121,8 @@ FIELD_SPECS: dict[str, FieldSpec] = {
             minimum=0,
             maximum=10_000_000,
             exclusive_minimum=True,
-            planning_field=True,
         ),
-        FieldSpec("utilities", "text", planning_field=True),
+        FieldSpec("utilities", "text"),
         # --- entity fields (context for the reviewer and the registration check, not staged) ---
         FieldSpec("urban_parcel_number", "text"),
         FieldSpec("block_ref", "text"),
@@ -163,5 +154,3 @@ FIELD_SPECS: dict[str, FieldSpec] = {
         FieldSpec("note", "text"),  # other conditions, notes, descriptions, legend entries
     )
 }
-
-PLANNING_FIELD_KEYS: tuple[str, ...] = tuple(k for k, s in FIELD_SPECS.items() if s.planning_field)

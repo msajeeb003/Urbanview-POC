@@ -28,8 +28,9 @@ owners.
   `ownership_fields.true_values` / `false_values`). Nothing is derived from other data: not from
   owner names, and not from the absence of a burden.
 - Until bulk access is confirmed in P0, both columns stay **null** ("not available", which is
-  different from "no"). The API returns `null` for them; there are no ownership map layers in
-  the POC (the flags ride on the `cadastral_parcels` tile features).
+  different from "no"). The API returns `null` for them. They are panel fields only: no map layer
+  shows them and the tiles do not carry them (the `cadastral_parcels` tile features have no
+  ownership or burden properties).
 - The columns stay in the schema (nullable) rather than being dropped, so the API contract does not
   change when access is granted.
 - If the flags are loaded later, they belong to the dataset that loaded them. Re-importing parcels
@@ -79,7 +80,7 @@ python -m core.cadastre datasets
    Reports: `report.md`, `report.json`, `diff.csv` in `data/cadastre/<m>/<version>/`
    (git-ignored).
 5. **Review, then publish.** Both batches are staged with origin `official_gis` and their
-   topology QA (validity and overlaps; the grid coverage is the import's own check), and wait in
+   geometry QA (validity only, no topology check; the grid coverage is the import's own check), and wait in
    the console's geometry review for a reviewer's decision (publishing waits while they are
    pending). `POST /v1/admin/publish` then applies the approved dataset in the same transaction as
    everything else:
@@ -87,7 +88,8 @@ python -m core.cadastre datasets
    - parcels of the imported KOs that the new version no longer contains are **retired**
      (`retired_at`, `retired_dataset_version`), never deleted. Links of earlier versions and orders
      keep resolving, but nothing retired is served (lookup, map tiles, links, counts);
-   - the KO table (`cadastral_municipalities`, `GET /v1/cadastral-municipalities`) is refreshed;
+   - the KO table (`cadastral_municipalities`) is refreshed (the search box's KO list comes from
+     the municipality profile);
    - the dataset is marked published and the previous one superseded. Batches and dataset rows
      stay as history.
 

@@ -344,7 +344,7 @@ def build_gold(
                         notes=notes,
                     )
                 )
-    document_fields = _document_fields(doc, pages, fields_of_document=True)
+    document_fields = _document_fields(doc, pages)
     return Gold(
         document=doc.id,
         name=doc.name,
@@ -388,9 +388,7 @@ DOCUMENT_FIELDS = (
 )
 
 
-def _document_fields(
-    doc: CorpusDocument, pages: DocumentPages, *, fields_of_document: bool
-) -> dict[str, GoldValue | None]:
+def _document_fields(doc: CorpusDocument, pages: DocumentPages) -> dict[str, GoldValue | None]:
     """The document identity the parameter pages state: the title in the running header (name,
     and the type it designates); status, gazette, decision and area are not in these pages."""
     out: dict[str, GoldValue | None] = {key: None for key in DOCUMENT_FIELDS}

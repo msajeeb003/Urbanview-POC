@@ -20,7 +20,7 @@ sheets:
     sha256: d250b2a53e4ad5ba09df3d2fbd9fdda99d3b6140dae9d396030c13ed1d2a7eca
     # the viewport says 1:500; the 40 grid crosses (X-GEO_SV$0$MREZA) are 200 mm apart, 100 m
     scale: 500
-    layers: [urban_parcels, planned_traffic]
+    layers: [urban_parcels]
   - id: part-2
     file: 03 Stara Varoš/03 Stara Varoš - Urban parcels - Boundaries - Part 2.pdf
     sha256: e43d60c014aefd48ca9afd326778cd2e53b2af57b4695d4868491a1a907baa21
@@ -28,7 +28,7 @@ sheets:
     # `offset --base part-1 --sheet part-2 --pdf-layer '^UP_Urbanisticka parcela_SS$'` (1114 of
     # 1000 sampled vertices agree); the grid crosses of both sheets agree to 1 cm
     offset_m: [-81.195, -368.702]
-    layers: [urban_parcels, planned_traffic]
+    layers: [urban_parcels]
   - id: land-use
     file: 03 Stara Varoš/03 Stara Varoš - Land use.pdf
     sha256: dbf9a7259d36f7b1ce09e4261bd6fbcaa502598f525388d8c0bb4655e0dd2b3f
@@ -110,16 +110,6 @@ layers:
       - {code: DS, name: površine saobraćajne infrastrukture, select: [{layer: "X_Saobracaj_SV$0$UP-Saobracajnice-htch"}]}
       - {code: VPS, name: površinske vode, select: [{layer: UP-Povrsinske vode}]}
       - {code: OP, name: ostale prirodne površine, select: [{layer: Up-Ostale prirodne povrsine}]}
-
-  # street axes (osovine), dash-dot: the dots are zero-length strokes and drop out, leaving
-  # 2.5 mm dashes 2.5 mm apart; gaps up to 3 mm are bridged (a dash and a gap are 5 mm, so the
-  # dashes of one axis never chain into one cluster)
-  planned_traffic:
-    method: lines
-    select: [{layer: "X_Saobracaj_SV$0$17osovine"}]
-    gap_mm: 3.0
-    min_length_m: 5
-    road_class: street_axis
 
 # the parameter table's parcel ids, one text line each: the zone letter, 1-4 digits and an
 # optional letter or /n (A99, A156a, B2914/1), and "TS 5"; the literal space keeps "TS" (the

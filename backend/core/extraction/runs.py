@@ -21,8 +21,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.extraction.prompts import PROMPT_VERSION
 from core.extraction.schema import SCHEMA_VERSION
 
-RUN_STATUSES: tuple[str, ...] = ("queued", "extracting", "ready_for_review", "failed")
-
 
 def run_dedupe_key(
     document_id: int,

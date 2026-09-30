@@ -1,5 +1,5 @@
 """``GET /v1/source/...`` with a mocked storage client and an in-memory repository: only signed
-URLs leave the API, page image vs PDF anchor, configurable expiry, the value's box, and 404 only
+URLs leave the API, the PDF with its page anchor, configurable expiry, the value's box, and 404 only
 for what truly does not exist."""
 
 from __future__ import annotations
@@ -13,23 +13,21 @@ from api.services.source import DocumentRow, ValueRow
 from tests.helpers import make_app, make_client, make_redis, make_settings
 
 REGISTRY = "https://lamp.gov.me/PlanningDocument?m=PG"
-DOC_IMAGES = DocumentRow(
+DOC_CENTAR = DocumentRow(
     id=2,
     name="DUP Centar – Zona C2",
     status="adopted",
     registry_url=REGISTRY,
     file_key="podgorica/planning-documents/2/document.pdf",
     page_count=24,
-    page_images_rendered=True,
 )
-DOC_PDF_ONLY = DocumentRow(
+DOC_AERODROM = DocumentRow(
     id=4,
     name="DUP Stari Aerodrom",
     status="adopted",
     registry_url=None,
     file_key="podgorica/planning-documents/4/original-scan.pdf",
     page_count=16,
-    page_images_rendered=False,
 )
 DOC_NOT_STORED = DocumentRow(
     id=3,
@@ -38,7 +36,6 @@ DOC_NOT_STORED = DocumentRow(
     registry_url=REGISTRY,
     file_key=None,
     page_count=None,
-    page_images_rendered=False,
 )
 DOC_UNKNOWN_PAGES = DocumentRow(
     id=5,
@@ -47,7 +44,6 @@ DOC_UNKNOWN_PAGES = DocumentRow(
     registry_url=None,
     file_key="podgorica/planning-documents/5/document.pdf",
     page_count=None,
-    page_images_rendered=True,
 )
 VALUE_NUMBER = ValueRow(
     id=1,
@@ -61,7 +57,7 @@ VALUE_NUMBER = ValueRow(
     source_page=12,
     source_bbox=[72, 410, 520, 428],
     source_note="table 3 – UP 12",
-    document=DOC_IMAGES,
+    document=DOC_CENTAR,
 )
 VALUE_TEXT = ValueRow(
     id=2,
@@ -75,7 +71,7 @@ VALUE_TEXT = ValueRow(
     source_page=3,
     source_bbox=None,
     source_note=None,
-    document=DOC_PDF_ONLY,
+    document=DOC_AERODROM,
 )
 
 
@@ -113,7 +109,7 @@ def build(*, storage=None, repository=None, **overrides):
     settings = make_settings(rate_limit_requests=100, **overrides)
     if repository is None:
         repository = FakeRepository(
-            [DOC_IMAGES, DOC_PDF_ONLY, DOC_NOT_STORED, DOC_UNKNOWN_PAGES],
+            [DOC_CENTAR, DOC_AERODROM, DOC_NOT_STORED, DOC_UNKNOWN_PAGES],
             [VALUE_NUMBER, VALUE_TEXT],
         )
     return make_app(
@@ -130,17 +126,17 @@ def _remaining(body: dict) -> timedelta:
     return datetime.fromisoformat(body["expires_at"]) - datetime.now(UTC)
 
 
-async def test_rendered_page_is_a_signed_image_url():
+async def test_the_page_is_a_signed_pdf_url_with_a_page_anchor():
     storage = FakeStorage()
     r = await get(build(storage=storage), "/v1/source/2/page/12")
     assert r.status_code == 200, r.text
     assert r.headers["Cache-Control"] == "no-store"
     body = r.json()
-    assert body["kind"] == "page_image"
-    assert body["content_type"] == "image/png"
+    assert body["kind"] == "pdf_page"
+    assert body["content_type"] == "application/pdf"
     assert body["url"] == (
-        "https://minio.test/urbanview-dev/podgorica/planning-documents/2/pages/0012.png"
-        "?X-Amz-Expires=900&X-Amz-Signature=sig"
+        "https://minio.test/urbanview-dev/podgorica/planning-documents/2/document.pdf"
+        "?X-Amz-Expires=900&X-Amz-Signature=sig#page=12"
     )
     assert (body["document_id"], body["page"], body["page_count"]) == (2, 12, 24)
     assert body["document_name"] == "DUP Centar – Zona C2"
@@ -151,9 +147,9 @@ async def test_rendered_page_is_a_signed_image_url():
     assert timedelta(seconds=880) < _remaining(body) <= timedelta(seconds=900)
     assert storage.calls == [
         {
-            "key": "podgorica/planning-documents/2/pages/0012.png",
+            "key": "podgorica/planning-documents/2/document.pdf",
             "expires_in": 900,
-            "content_type": "image/png",
+            "content_type": "application/pdf",
             "inline": True,
         }
     ]
@@ -162,13 +158,11 @@ async def test_rendered_page_is_a_signed_image_url():
     assert not {"file_key", "key", "bucket"} & set(body)
 
 
-async def test_without_page_images_the_pdf_is_served_with_a_page_anchor():
+async def test_the_stored_file_key_is_the_one_signed():
     storage = FakeStorage()
     r = await get(build(storage=storage), "/v1/source/4/page/7")
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["kind"] == "pdf_page"
-    assert body["content_type"] == "application/pdf"
     assert body["url"] == (
         "https://minio.test/urbanview-dev/podgorica/planning-documents/4/original-scan.pdf"
         "?X-Amz-Expires=900&X-Amz-Signature=sig#page=7"
@@ -176,10 +170,9 @@ async def test_without_page_images_the_pdf_is_served_with_a_page_anchor():
     assert (body["document_id"], body["page"], body["page_count"]) == (4, 7, 16)
     assert body["registry_url"] is None
     assert storage.calls[0]["key"] == "podgorica/planning-documents/4/original-scan.pdf"
-    assert storage.calls[0]["content_type"] == "application/pdf"
 
 
-async def test_an_unknown_page_count_serves_the_pdf_even_when_images_are_flagged():
+async def test_an_unknown_page_count_serves_any_page_of_the_pdf():
     r = await get(build(), "/v1/source/5/page/40")
     assert r.status_code == 200, r.text
     body = r.json()
@@ -203,8 +196,8 @@ async def test_value_route_adds_the_box_on_the_cited_page():
     r = await get(build(), "/v1/source/value/1")
     assert r.status_code == 200, r.text
     body = r.json()
-    assert (body["document_id"], body["page"], body["kind"]) == (2, 12, "page_image")
-    assert body["url"].endswith("/2/pages/0012.png?X-Amz-Expires=900&X-Amz-Signature=sig")
+    assert (body["document_id"], body["page"], body["kind"]) == (2, 12, "pdf_page")
+    assert body["url"].endswith("/2/document.pdf?X-Amz-Expires=900&X-Amz-Signature=sig#page=12")
     assert body["value"] == {
         "value_id": 1,
         "field_key": "max_far",

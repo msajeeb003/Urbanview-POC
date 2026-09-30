@@ -483,7 +483,7 @@ class ExtractionRunner:
             )
         if not steps and skipped_pages and len(skipped_pages) == len(manifest.pages):
             raise ExtractionFailed(
-                f"no readable page: {len(skipped_pages)} scanned page(s) need OCR or manual entry"
+                f"no readable page: {len(skipped_pages)} scanned page(s) need manual entry"
             )
 
         tally = Tally(steps=await self._checkpoints(run["id"]))

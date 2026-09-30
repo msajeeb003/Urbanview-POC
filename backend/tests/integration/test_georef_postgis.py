@@ -25,7 +25,7 @@ import numpy as np  # noqa: E402
 import yaml  # noqa: E402
 from shapely import transform as shapely_transform  # noqa: E402
 from shapely import wkt  # noqa: E402
-from shapely.geometry import LineString, MultiLineString, MultiPolygon, Polygon  # noqa: E402
+from shapely.geometry import MultiPolygon, Polygon  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
 from sqlalchemy.pool import NullPool  # noqa: E402
@@ -179,7 +179,6 @@ class Plan:
             (ne[0] + 30, ne[1] + 30),
             (nw[0] - 30, nw[1] + 30),
         ]
-        self.road = [(sw[0] - 20, sw[1] - 10), (se[0] + 20, se[1] - 10)]
 
     def truth(self, x: float, y: float) -> tuple[float, float]:
         c, s = math.cos(THETA), math.sin(THETA)
@@ -226,12 +225,6 @@ class Plan:
                         "name": "Stanovanje",
                         "urban_parcel_number": "1",
                     },
-                )
-            ],
-            "planned_traffic": [
-                (
-                    MultiLineString([LineString(self.road)]),
-                    {**base, "feature_key": "line-0001", "road_class": "street"},
                 )
             ],
         }
@@ -311,7 +304,7 @@ async def test_cli_snaps_stages_and_publishes_a_georeferenced_document(
 
     first = report(tmp_path)
     assert first["status"] == "staged" and first["errors"] == []
-    assert [w["code"] for w in first["warnings"]] == ["parcel_overlaps"]
+    assert first["warnings"] == []  # UP 2 lies inside UP 1: overlaps are not checked
     snap = first["snap"]
     # UP 1: 2 of 4 corners moved, UP 2: none (mid-parcel), the block: all 4
     assert (snap["vertices"], snap["snapped_vertices"], snap["near_misses"]) == (12, 6, 1)
@@ -341,7 +334,7 @@ async def test_cli_snaps_stages_and_publishes_a_georeferenced_document(
         "urban_parcels",
         "urban_blocks",
         "land_use",
-    }  # the sheet's planned traffic is not staged: an MVP layer, outside the POC
+    }
 
     staged = {
         r["feature_key"]: r
@@ -383,7 +376,7 @@ async def test_cli_snaps_stages_and_publishes_a_georeferenced_document(
         assert geo["rmse_m"] < 1e-6 and geo["max_rmse_m"] == 0.5 and geo["points_used"] == 6
         assert geo["sheets"][0]["sheet"] == "a" and geo["sheets"][0]["points"] == 6
         assert geo["snapped_ratio"] == 0.5 and geo["near_misses"] == 1
-        assert geo["warnings"] == ["parcel_overlaps"] and geo["errors"] == []
+        assert geo["warnings"] == [] and geo["errors"] == []
         assert geo["cadastral_overlap_share"] > 0.5
         assert geo["systematic_offset_m"] == snap["systematic_offset_m"]
 
@@ -422,7 +415,6 @@ async def test_cli_snaps_stages_and_publishes_a_georeferenced_document(
             )
         }
         assert ("land_use", f"{doc_id}|UP 1") in served
-        assert not any(layer == "traffic_network" for layer, _ in served)
 
         # the stored transform again: the same georeferenced features, a new dataset version
         assert await run(*apply_args(tmp_path, doc_id, "geo-test-2")) == 0

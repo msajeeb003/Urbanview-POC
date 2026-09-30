@@ -2,8 +2,8 @@
 
 The PDF pre-processing stage (``run_preprocess``, ``jobs.preprocessing.PreprocessRunner``): pages,
 tables, scanned pages and the chunk plan persisted as a manifest on the file record, cached by
-checksum, plus page images per registered document. The extraction job runs it first when the
-manifest is missing or stale; the geometry job runs it for a PDF drawing.
+checksum. The extraction job runs it first when the manifest is missing or stale; the geometry job
+runs it for a PDF drawing.
 
 ``extract_document`` (``POST /v1/admin/documents/{id}/jobs/extract``, target ``document``): one
 extraction run of the document version's file, ``jobs.extraction_runner.ExtractionRunner``: the
@@ -44,7 +44,6 @@ def configure_preprocess(
     database_url: str | None = None,
     storage: Any | None = None,
     settings: Any | None = None,
-    ocr: Any | None = None,
 ) -> None:
     """Override what the pre-processing stage would build from the settings (tests); ``None``
     resets a key."""
@@ -52,7 +51,6 @@ def configure_preprocess(
         ("database_url", database_url),
         ("storage", storage),
         ("settings", settings),
-        ("ocr", ocr),
     ):
         if value is None:
             _config.pop(key, None)
@@ -67,7 +65,7 @@ async def run_preprocess(municipality_id: str, file_id: int, *, force: bool = Fa
     from sqlalchemy.pool import NullPool
 
     from core.extraction.chunking import SectionRules
-    from core.extraction.preprocess import PreprocessOptions, ocr_from_settings
+    from core.extraction.preprocess import PreprocessOptions
     from jobs.preprocessing import PreprocessRunner
 
     settings = _config.get("settings")
@@ -89,10 +87,6 @@ async def run_preprocess(municipality_id: str, file_id: int, *, force: bool = Fa
             storage,
             municipality_id=municipality_id,
             options=PreprocessOptions.from_settings(settings),
-            image_dpi=settings.preprocess_page_image_dpi,
-            image_max_pixels=settings.preprocess_page_image_max_pixels,
-            serve_images=settings.preprocess_serve_page_images,
-            ocr=_config.get("ocr") or ocr_from_settings(settings),
             rules=SectionRules.from_profile(municipality_id),
         )
         return await runner.run(file_id, force=force)
@@ -128,7 +122,7 @@ async def _extract_document(job: JobContext) -> JobResult:
     from sqlalchemy.pool import NullPool
 
     from core.extraction.chunking import SectionRules
-    from core.extraction.preprocess import PreprocessOptions, ocr_from_settings
+    from core.extraction.preprocess import PreprocessOptions
     from jobs.cost import cost_for
     from jobs.extraction_runner import ExtractionRunner
     from jobs.preprocessing import PreprocessRunner
@@ -159,10 +153,6 @@ async def _extract_document(job: JobContext) -> JobResult:
         storage,
         municipality_id=job.municipality_id,
         options=options,
-        image_dpi=settings.preprocess_page_image_dpi,
-        image_max_pixels=settings.preprocess_page_image_max_pixels,
-        serve_images=settings.preprocess_serve_page_images,
-        ocr=_config.get("ocr") or ocr_from_settings(settings),
         rules=SectionRules.from_profile(job.municipality_id),
     )
     runner_kwargs: dict[str, Any] = {}

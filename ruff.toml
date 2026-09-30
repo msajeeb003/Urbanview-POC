@@ -2,7 +2,7 @@
 line-length = 100
 target-version = "py311"
 src = ["backend"]
-extend-exclude = ["database/migrations/versions", "docs", "packages", "frontend", "admin"]
+extend-exclude = ["database/migrations/versions", "docs", "packages", "frontend"]
 
 [lint]
 select = ["E", "F", "I", "B", "UP", "W"]

@@ -55,7 +55,6 @@ celery_app.conf.update(
         "jobs.tasks.publish.*": {"queue": "publish"},
         "jobs.tasks.email.*": {"queue": "email"},
     },
-    task_always_eager=settings.celery_task_always_eager,
     task_eager_propagates=True,
     broker_connection_retry_on_startup=True,
     result_expires=60 * 60 * 24,

@@ -65,7 +65,7 @@ class MarketImport(Base):
         comment="received | normalised | failed",
     )
     normaliser: Mapped[str | None] = mapped_column(
-        Text, comment="rules, or llm:<model> with the prompt version"
+        Text, comment="rules (the profile's mapping rules)"
     )
     report: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, comment="normalisation report: rows mapped, rows not mapped and why, issues"
@@ -144,7 +144,7 @@ class MarketDataItem(Base):
         JSONB,
         comment="how the source geography became the zone (method, printed name, confidence)",
     )
-    normaliser: Mapped[str] = mapped_column(Text, nullable=False, comment="rules or llm:<model>")
+    normaliser: Mapped[str] = mapped_column(Text, nullable=False, comment="rules")
     review_status: Mapped[ReviewState] = mapped_column(
         Enum(
             ReviewState,

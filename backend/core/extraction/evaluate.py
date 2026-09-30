@@ -7,8 +7,7 @@
 
 The accuracy on the client's documents is measured by the corpus (``corpus eval``, ``evalcli``).
 
-A live run needs Anthropic credentials and costs tokens; ``--dry-run`` replays the faithful
-responses through the same pipeline instead.
+A run needs model credentials and costs tokens.
 """
 
 from __future__ import annotations
@@ -33,7 +32,6 @@ def model_from_settings() -> ClaudeModel:
         effort=settings.extraction_effort,
         adaptive_thinking=settings.extraction_adaptive_thinking,
         max_tokens=settings.extraction_max_tokens,
-        refusal_fallback=settings.extraction_refusal_fallback,
         timeout_seconds=settings.extraction_timeout_seconds,
         base_url=settings.anthropic_base_url,
     )

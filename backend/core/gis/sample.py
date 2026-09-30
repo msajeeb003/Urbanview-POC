@@ -13,7 +13,6 @@ Requires shapely (``.[gis]`` extra).
 
 from __future__ import annotations
 
-import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -232,13 +231,3 @@ def round_lattice(spacing_mm: float, scale: float) -> int | None:
     metres = spacing_mm * scale / 1000
     step = min(LATTICE_STEPS_M, key=lambda r: abs(metres - r))
     return step if abs(metres - step) / step <= 0.03 else None
-
-
-def polyline_length_km(paths: list[dict[str, Any]], scale: float | None) -> float | None:
-    if not scale:
-        return None
-    total = 0.0
-    for path in paths:
-        pts = _flatten(path["items"])
-        total += sum(math.dist(a, b) for a, b in zip(pts, pts[1:], strict=False))
-    return round(total * M_PER_PT * scale / 1000, 2)

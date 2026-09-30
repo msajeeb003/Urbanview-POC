@@ -286,7 +286,7 @@
        the mock's `.mhead`, a toolbar, the page on a paper backdrop with the cited value's box in
        translucent brand, a page-shaped skeleton while loading, a plain note beside the page
        number for a page the document does not have, and a plain failure state saying why (the
-       eRegistri link, Retry only for connection trouble). Phones: full screen. */
+       eRegistri link, Retry only for connection trouble). */
 .modal.srcmodal {
   height: 90vh;
 }
@@ -406,13 +406,6 @@
   border: 2px solid var(--brand);
   box-shadow: 0 0 0 4px rgba(181, 97, 59, 0.12);
   pointer-events: none;
-}
-.srcimg {
-  display: block;
-  max-width: 100%;
-  margin: 0 auto;
-  box-shadow: var(--shadow);
-  background: #fff;
 }
 .srcskel {
   width: min(100%, 595px);
@@ -1319,18 +1312,6 @@ textarea.rinput {
   font-family: var(--mono);
   font-size: 12.5px;
   quotes: none;
-}
-.rhistory {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-}
-.rhnote {
-  color: var(--ink-2);
 }
 .rvpdf {
   overflow: hidden;

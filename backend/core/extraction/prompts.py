@@ -4,8 +4,8 @@ A prompt set is a directory ``prompt_sets/v<version>/``: ``manifest.toml`` (the 
 schema version its responses are validated into, one entry per task), Jinja2 templates for the
 system prompt (extraction rules + planning glossary), the field guide, the per-task instructions,
 the document context and the user message, and ``responses/``: the structured-output schemas the
-set sends, exactly as sent (generated from ``core.extraction.response``; a test keeps the current
-set's files in step). Every extraction item records the prompt version that produced it.
+set sends, exactly as sent (generated from the compact answers of ``core.extraction.compact``; a
+test keeps the files in step). Every extraction item records the prompt version that produced it.
 
 The templates carry no place-specific words: the municipality, the documents' language, the
 planning glossary and the document types come from the municipality profile (``[terminology]``
@@ -26,10 +26,10 @@ from pathlib import Path
 from typing import Any
 
 import jinja2
-from pydantic import BaseModel
 
+from core.extraction.compact import COMPACT_MODELS, CompactResponse
 from core.extraction.pages import PageInput, render_pages
-from core.extraction.response import RESPONSE_MODELS, strict_json_schema
+from core.extraction.response import strict_json_schema
 from core.extraction.schema import SCHEMA_VERSION, TaskKind
 from core.municipality import load_extraction_profile, load_profile
 
@@ -123,12 +123,9 @@ def load_prompt_set(version: str = PROMPT_VERSION) -> PromptSet:
     )
 
 
-def response_model(name: str) -> type[BaseModel]:
-    """The response model a prompt set names: 1.0's nested models or the compact ones."""
-    from core.extraction.compact import COMPACT_MODELS
-
-    models = {model.__name__: model for model in RESPONSE_MODELS.values()} | COMPACT_MODELS
-    return models[name]
+def response_model(name: str) -> type[CompactResponse]:
+    """The compact response model a prompt set names (``to_legacy()`` gives the task's model)."""
+    return COMPACT_MODELS[name]
 
 
 def generated_response_schemas(version: str = PROMPT_VERSION) -> dict[str, dict[str, Any]]:
@@ -140,7 +137,7 @@ def generated_response_schemas(version: str = PROMPT_VERSION) -> dict[str, dict[
 def write_response_schemas(version: str = PROMPT_VERSION) -> list[Path]:
     """Regenerate ``responses/*.schema.json`` of the current prompt set."""
     if version != PROMPT_VERSION:
-        raise ValueError("only the current prompt set is generated; older sets are history")
+        raise ValueError("only the current prompt set is generated")
     target = prompt_dir(version) / "responses"
     target.mkdir(parents=True, exist_ok=True)
     written = []

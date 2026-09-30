@@ -24,7 +24,7 @@ import { useShell } from "@/lib/store";
 import { targetLabel } from "../order/order-modal";
 import { METHODOLOGY_LABEL, MethodologyModal } from "../shell/methodology-modal";
 import { Cta } from "../ui/cta";
-import { IconAsk, IconDocSmall, IconLock, IconOrder, IconSteps } from "../ui/icons";
+import { IconAsk, IconDocSmall, IconOrder, IconSteps } from "../ui/icons";
 
 export { formatArea };
 
@@ -187,8 +187,8 @@ export function useZoneTypeName(zoneId: number | null | undefined): string | nul
   return ZONE_TYPES.find((z) => z.key === type)?.name ?? null;
 }
 
-/** Acknowledgement of "Unlock full market data" (provisional copy): the pilot locks nothing. */
-export const MARKET_INTEREST_NOTED = "Thanks — noted. Market data is free for everyone during the pilot.";
+/** Acknowledgement of "Unlock full market data" (provisional copy): nothing is locked or unlocked. */
+export const MARKET_INTEREST_NOTED = "Thanks — we have noted your interest in more market data.";
 
 /**
  * The parcel panel's button stack: gold "Order expert analysis" + price, the pilot's two intent
@@ -248,7 +248,6 @@ export function ParcelCtas({
       {marketIntent && (
         <Cta
           variant="ghost"
-          icon={<IconLock />}
           onClick={() => {
             track("market_data_interest", { ...ids, trigger: "parcel_panel", panel_type: parcelType });
             showToast(MARKET_INTEREST_NOTED);
@@ -262,7 +261,7 @@ export function ParcelCtas({
         icon={<IconAsk />}
         onClick={() => {
           track("ai_interest", { ...ids, trigger: "parcel_panel", panel_type: parcelType });
-          showToast(t("ai.notYet"));
+          showToast(t("ai.noted"));
         }}
       >
         Ask about this site

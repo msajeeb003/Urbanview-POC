@@ -4,21 +4,9 @@ import { auditChanges, utcStamp } from "@/lib/admin/format";
 import { guard } from "@/lib/admin/guard";
 import type { AuditEntry, AuditPage } from "@/lib/api/types";
 
-// The audit trail (admins): who changed what and when, from GET /v1/admin/audit (append-only).
-// Filters are a plain GET form, so a filtered view is a link.
+// The audit trail (admins): who changed what and when, newest first, from GET /v1/admin/audit
+// (append-only). Filters (action prefix, actor) are a plain GET form, so a filtered view is a link.
 const PAGE = 50;
-const ENTITY_TYPES = [
-  "staff_user",
-  "planning_document",
-  "stored_file",
-  "pipeline_job",
-  "extraction_run",
-  "planning_parameter_extraction",
-  "financial_assumptions",
-  "publish_version",
-  "order",
-  "email",
-];
 
 type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => ((Array.isArray(v) ? v[0] : v) ?? "").trim();
@@ -41,14 +29,14 @@ export default async function AuditPageView({ searchParams }: { searchParams: Pr
   const access = await guard("audit");
   if (access.denied) return access.denied;
   const params = await searchParams;
-  const entity = one(params.entity);
+  const action = one(params.action);
   const actor = one(params.actor);
   const offset = Math.max(0, Number.parseInt(one(params.offset) || "0", 10) || 0);
 
   let page: AuditPage;
   try {
     page = await adminGet<AuditPage>("/v1/admin/audit", {
-      entity_type: entity || undefined,
+      action: action || undefined,
       actor: actor || undefined,
       limit: PAGE,
       offset,
@@ -59,7 +47,7 @@ export default async function AuditPageView({ searchParams }: { searchParams: Pr
   }
   const link = (next: number) => {
     const q = new URLSearchParams();
-    if (entity) q.set("entity", entity);
+    if (action) q.set("action", action);
     if (actor) q.set("actor", actor);
     if (next) q.set("offset", String(next));
     const s = q.toString();
@@ -73,19 +61,12 @@ export default async function AuditPageView({ searchParams }: { searchParams: Pr
       sub="Who changed what and when · append-only"
       action={
         <form className="audit-filters" method="get" action="/admin/audit">
-          <select name="entity" defaultValue={entity} aria-label="Entity">
-            <option value="">All entities</option>
-            {ENTITY_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+          <input name="action" defaultValue={action} placeholder="Action, e.g. review." aria-label="Action" />
           <input name="actor" defaultValue={actor} placeholder="Actor (e-mail or token)" aria-label="Actor" />
           <button type="submit" className="abtn sm">
             Filter
           </button>
-          {(entity || actor) && (
+          {(action || actor) && (
             <a className="abtn sm ghost" href="/admin/audit">
               Clear
             </a>

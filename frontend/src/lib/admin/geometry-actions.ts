@@ -56,18 +56,6 @@ export async function rejectGeometryAction(batchId: number, note: string): Promi
   return decide(`/v1/admin/geometry/${batchId}/reject`, { note: note.trim() }, "Geometry rejected");
 }
 
-/** One draft again (after another reviewer's decision). */
-export async function geometryDraftAction(batchId: number): Promise<Result<GeometryDraft>> {
-  const denied = await reviewer();
-  if (denied) return { ok: false, message: denied };
-  try {
-    return { ok: true, message: "", data: await adminGet<GeometryDraft>(`/v1/admin/geometry/${batchId}`) };
-  } catch (err) {
-    unstable_rethrow(err);
-    return { ok: false, message: "The batch could not be loaded." };
-  }
-}
-
 /** The batch's features for the preview (simplified GeoJSON, issue codes per feature, gaps). */
 export async function geometryFeaturesAction(batchId: number): Promise<Result<GeometryFeatures>> {
   const denied = await reviewer();

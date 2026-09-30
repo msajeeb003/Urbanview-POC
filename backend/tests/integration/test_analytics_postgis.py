@@ -1,5 +1,6 @@
 """Analytics on PostGIS: ingest into ``analytics_events`` (de-duplication, extracted columns,
-the name + time index) and every dashboard aggregate on a crafted event set with known answers."""
+the name + time index) and every dashboard aggregate on a crafted event set (and one paid order)
+with known answers."""
 
 from __future__ import annotations
 
@@ -10,6 +11,8 @@ from typing import Any
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import NullPool
 
 from tests.helpers import make_app, make_client, make_settings
 
@@ -47,7 +50,13 @@ def ev(name: str, session: str, minute: int, client: str | None = None, **props:
 
 
 C1, C2 = "client-000001", "client-000002"
-S1, S2, S3, S4 = "session-0001", "session-0002", "session-0003", "session-0004"
+S1, S2, S3, S4, S5 = (
+    "session-0001",
+    "session-0002",
+    "session-0003",
+    "session-0004",
+    "session-0005",
+)
 EVENTS = [
     # session 1 (client 1): the whole funnel, a purchase, a return visit
     ev("map_loaded", S1, 0, C1),
@@ -56,7 +65,7 @@ EVENTS = [
     ev("parcel_selected", S1, 2, C1, parcel_id=1001, zone_id=1),
     ev("panel_viewed", S1, 3, C1, parcel_id=1001, zone_id=1, panel_type="cadastral"),
     ev("financials_viewed", S1, 4, C1, parcel_id=1001, zone_id=1),
-    ev("market_data_interest", S1, 5, C1, parcel_id=1001, trigger="paywall"),
+    ev("market_data_interest", S1, 5, C1, parcel_id=1001, trigger="parcel_panel"),
     ev("order_started", S1, 6, C1, order_id="order-0001", product="expert_report"),
     ev(
         "checkout_completed",
@@ -73,7 +82,7 @@ EVENTS = [
     ev("sessions_per_user", S2, 60, C1, sessions=2),
     ev("parcel_selected", S2, 61, C1, parcel_id=1007, zone_id=2),
     ev("panel_viewed", S2, 62, C1, parcel_id=1007, zone_id=2, panel_type="cadastral"),
-    ev("ai_interest", S2, 63, C1, trigger="ai_quota"),
+    ev("ai_interest", S2, 63, C1, trigger="parcel_panel"),
     # two clicks outside coverage (S6): no zone_id, a point; one inside zone 2's outline, one in
     # no zone at all
     ev(
@@ -107,6 +116,8 @@ EVENTS = [
     ev("layer_toggled", S3, 125, C2, layer_id="zones", visible=True),
     # session 4: anonymous, map only
     ev("map_loaded", S4, 180),
+    # session 5 (client 1's third visit): client 1 is a repeat visitor
+    ev("map_loaded", S5, 240, C1),
 ]
 A_MONTH_EARLIER = -30 * 24 * 60
 OUT_OF_RANGE = [
@@ -132,6 +143,35 @@ def auth() -> dict[str, str]:
     return {"Authorization": f"Bearer {TOKEN}"}
 
 
+PAID_ORDER = """
+    INSERT INTO orders (municipality_id, reference, status, purchaser_type, first_name, last_name,
+                        email, telephone, parcel_type, parcel_id, parcel_label, price_eur,
+                        pricing_tier, turnaround_business_days, expected_by, snapshot, paid_at,
+                        placed_at)
+    VALUES ('podgorica', 'ORDER-0001', 'paid', 'individual', 'Analytics', 'Test',
+            'analytics@example.com', '+38267000000', 'cadastral', 1001, 'Parcel #1001', 100,
+            '{}'::jsonb, 5, DATE '2026-09-27', '{}'::jsonb, :paid_at, :placed_at)
+    ON CONFLICT (reference) DO NOTHING
+"""
+
+
+@pytest.fixture
+async def paid_order(postgis_url):
+    """Session 1's checkout names ``order-0001``: the order, placed and paid in the range."""
+    engine = create_async_engine(postgis_url, poolclass=NullPool)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(PAID_ORDER),
+                {"placed_at": T0 + timedelta(minutes=8), "paid_at": T0 + timedelta(hours=3)},
+            )
+        yield
+        async with engine.begin() as conn:
+            await conn.execute(text("DELETE FROM orders WHERE reference = 'ORDER-0001'"))
+    finally:
+        await engine.dispose()
+
+
 async def test_ingest_stores_rows_once_with_the_grouping_columns(analytics_app):
     app = analytics_app
     async with app.router.lifespan_context(app), make_client(app) as client:
@@ -154,7 +194,7 @@ async def test_ingest_stores_rows_once_with_the_grouping_columns(analytics_app):
             )
     total = len(EVENTS) + len(OUT_OF_RANGE)
     assert first["received"] == total and first["accepted"] + first["duplicates"] == total
-    assert second == {"received": total, "accepted": 0, "duplicates": total}
+    assert second == {"received": total, "accepted": 0, "duplicates": total, "rejected": []}
     selected = next(r for r in rows if r["name"] == "parcel_selected")
     assert (selected["client_id"], selected["zone_id"], selected["parcel_id"]) == (C1, 1, 1001)
     assert selected["properties"] == {"parcel_id": 1001, "zone_id": 1}
@@ -191,7 +231,7 @@ async def test_the_events_table_is_append_only(analytics_app):
     assert kept == 1
 
 
-async def test_every_dashboard_aggregate(analytics_app):
+async def test_every_dashboard_aggregate(analytics_app, paid_order):
     app = analytics_app
     async with app.router.lifespan_context(app), make_client(app) as client:
         await seed(client)
@@ -204,51 +244,38 @@ async def test_every_dashboard_aggregate(analytics_app):
         "to": "2026-09-21T00:00:00Z",
         "days": 1.0,
     }
+    assert "analytics@example.com" not in r.text and "Analytics" not in r.text
 
-    totals = body["totals"]
-    assert (totals["events"], totals["sessions"], totals["clients"]) == (len(EVENTS), 4, 2)
-    assert totals["by_name"] == {
-        "map_loaded": 4,
-        "search_performed": 4,
-        "parcel_selected": 2,
-        "layer_toggled": 1,
-        "panel_viewed": 4,
-        "financials_viewed": 2,
-        "source_reference_opened": 0,
-        "order_started": 1,
-        "checkout_completed": 1,
-        "return_visit": 2,
-        "sessions_per_user": 1,
-        "market_data_interest": 1,
-        "ai_interest": 1,
-        "assumption_edited": 0,
-    }
-
+    # nested: session 3 opened panels without picking a parcel, so it stops after map_loaded;
+    # session 1's order was paid
     steps = body["funnel"]["steps"]
-    assert [s["sessions"] for s in steps] == [4, 3, 3, 2, 1, 1]
+    assert [s["step"] for s in steps] == [
+        "map_loaded",
+        "parcel_resolved",
+        "panel_opened",
+        "order_started",
+        "order_submitted",
+        "paid",
+    ]
+    assert [s["sessions"] for s in steps] == [5, 2, 2, 1, 1, 1]
     assert [s["conversion_from_previous_pct"] for s in steps] == [
-        None,
-        75.0,
         100.0,
-        66.7,
+        40.0,
+        100.0,
         50.0,
         100.0,
+        100.0,
     ]
-    assert body["funnel"]["overall_conversion_pct"] == 25.0
+    assert body["funnel"]["overall_conversion_pct"] == 20.0
 
-    assert body["orders"] == {
-        "source": "analytics_events",
-        "order_started_events": 1,
-        "orders_started": 1,
-        "orders_completed": 1,
-        "revenue_eur": 49.0,
-        "average_order_eur": 49.0,
-        "completion_pct": 100.0,
-        "by_product": [{"product": "expert_report", "orders": 1, "revenue_eur": 49.0}],
-    }
+    assert body["orders"]["placed"] == 1
+    assert body["orders"]["by_status"][:2] == [
+        {"status": "pending_payment", "orders": 0, "amount_eur": 0.0},
+        {"status": "paid", "orders": 1, "amount_eur": 100.0},
+    ]
 
     # an uncovered search counts for the district its point lies in, else for no district
-    assert body["districts"] == [
+    assert body["top_zones"] == [
         {
             "zone_id": 1,
             "zone_name": "Centar",
@@ -283,53 +310,49 @@ async def test_every_dashboard_aggregate(analytics_app):
             "share_pct": 16.7,
         },
     ]
+    # and where exactly: grouped by position, 3 decimals
+    assert body["uncovered_hits"] == [
+        {"lat": 42.3, "lng": 19.05, "searches": 1, "sessions": 1},
+        {"lat": 42.435, "lng": 19.295, "searches": 1, "sessions": 1},
+    ]
 
-    assert body["repeat_usage"] == {
-        "target_sessions_per_user": 3,
-        "sessions": 4,
-        "returning_sessions": 2,
-        "repeat_usage_rate_pct": 50.0,
-        "clients": 2,
-        "sessions_per_client": 1.5,
-        "clients_at_target": 0,
-        "clients_at_target_pct": 0.0,
-        "reported": {
-            "users": 1,
-            "users_at_target": 0,
-            "users_at_target_pct": 0.0,
-            "sessions_per_user": 2.0,
-        },
+    assert body["repeat_sessions"] == {
+        "min_sessions": 3,
+        "sessions": 5,
+        "visitors": 2,
+        "repeat_visitors": 1,
+        "repeat_visitors_pct": 50.0,
+        "repeat_sessions": 3,
     }
 
-    assert body["interest"] == {
+    assert body["intent_counts"] == {
         "market_data_interest": {"events": 1, "sessions": 1},
         "ai_interest": {"events": 1, "sessions": 1},
     }
 
-    assert body["panel_to_financials"] == {
-        "panel_views": 4,
-        "panel_view_pairs": 4,
-        "pairs_reaching_financials": 2,
-        "reaching_financials_pct": 50.0,
-        "panel_sessions": 3,
-        "panel_sessions_reaching_financials": 2,
-        "sessions_reaching_financials_pct": 66.7,
-    }
 
-
-async def test_the_range_filter_and_the_role_gate(analytics_app):
+async def test_the_range_filter_zeros_and_the_role_gate(analytics_app):
     app = analytics_app
     async with app.router.lifespan_context(app), make_client(app) as client:
         await seed(client)
         earlier = await client.get(
             DASHBOARD, params={"from": "2026-08-20", "to": "2026-08-22"}, headers=auth()
         )
+        empty = await client.get(
+            DASHBOARD, params={"from": "2025-01-01", "to": "2025-01-02"}, headers=auth()
+        )
         anonymous = await client.get(DASHBOARD, params=RANGE)
     assert earlier.status_code == 200
     body = earlier.json()
-    assert body["totals"]["events"] == 2
-    assert body["orders"]["revenue_eur"] == 99.0
-    assert body["districts"] == []
+    assert [s["sessions"] for s in body["funnel"]["steps"]] == [1, 0, 0, 0, 0, 0]
+    assert body["top_zones"] == [] and body["uncovered_hits"] == []
+    assert empty.status_code == 200
+    zeros = empty.json()
+    assert [s["sessions"] for s in zeros["funnel"]["steps"]] == [0] * 6
+    assert zeros["funnel"]["overall_conversion_pct"] == 0.0
+    assert zeros["orders"]["placed"] == 0
+    assert zeros["repeat_sessions"]["sessions"] == 0
+    assert zeros["intent_counts"]["market_data_interest"] == {"events": 0, "sessions": 0}
     assert anonymous.status_code == 401
 
 

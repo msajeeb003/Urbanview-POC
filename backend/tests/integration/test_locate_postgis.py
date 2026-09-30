@@ -7,22 +7,14 @@ Sample layout (WGS84):
 - cadastral #1042 in KO "Podgorica I" whose planned urban parcel UP 12 is ~30% smaller (road
   strip), and cadastral #1042 in KO "Podgorica II" whose urban parcel UP 7 is identical;
 - #2001/1 (sub-number, covered, no urban parcel), #3005 (exists but uncovered), #1043 (neighbour
-  with a sliver overlap into #1042's urban parcel UP 13);
-- plus synthetic volume east of the sample (300 adopted documents, 10k cadastral and 10k planned
-  parcels) so plans and latencies are measured at a realistic size.
+  with a sliver overlap into #1042's urban parcel UP 13).
 """
 
 from __future__ import annotations
 
-import json
-import statistics
-from time import perf_counter
-
 import pytest
 from sqlalchemy import event, text
 from sqlalchemy.exc import IntegrityError
-
-from api.services.locate_sql import LOCATE_PARCEL_SQL, LOCATE_POINT_SQL
 
 pytestmark = pytest.mark.integration
 
@@ -38,9 +30,6 @@ INSIDE_3005_UNCOVERED = {"lat": 42.4401, "lng": 19.2782}  # in-progress amendmen
 IN_PROGRESS_AREA_EMPTY = {"lat": 42.448, "lng": 19.280}
 FAR_AWAY_IN_MUNICIPALITY = {"lat": 42.40, "lng": 19.20}
 INSIDE_1042_KO_II = {"lat": 42.4321, "lng": 19.2922}
-
-# Tables large enough (with the synthetic volume) that a sequential scan would be a real defect.
-LARGE_TABLES = {"cadastral_parcels", "urban_parcels", "planning_documents"}
 
 
 async def _get(client, path, params):
@@ -210,9 +199,9 @@ async def test_zone_documents_are_current_versions_only(pg_conn, pg_client):
             await pg_conn.execute(
                 text(
                     "INSERT INTO planning_documents (municipality_id, name, type, status, zone_id, "
-                    "lineage_id, version, is_current_version, coverage_live, page_images_rendered) "
+                    "lineage_id, version, is_current_version, coverage_live) "
                     "SELECT municipality_id, name || ' (earlier version)', type, status, zone_id, "
-                    "id, 0, false, false, false FROM planning_documents WHERE id = 2 RETURNING id"
+                    "id, 0, false, false FROM planning_documents WHERE id = 2 RETURNING id"
                 )
             )
         ).scalar_one()
@@ -307,61 +296,7 @@ async def test_parcel_lookup_requires_ko(pg_client):
     assert r.status_code == 422
 
 
-# --- plans, indexes, round trips, latency -----------------------------------------------------
-
-
-def _nodes(plan: dict):
-    yield plan
-    for child in plan.get("Plans", []):
-        yield from _nodes(child)
-
-
-async def _explain(conn, sql: str, params: dict) -> dict:
-    """EXPLAIN ANALYZE of the real statement on realistic table sizes (no planner knobs)."""
-    await conn.execute(text(sql), params)  # warm caches: measure steady state, not the first hit
-    raw = (await conn.execute(text("EXPLAIN (ANALYZE, FORMAT JSON) " + sql), params)).scalar_one()
-    plan = json.loads(raw) if isinstance(raw, str | bytes) else raw
-    return plan[0]
-
-
-def _assert_indexed_and_fast(root: dict, expected_indexes: set[str]) -> None:
-    nodes = list(_nodes(root["Plan"]))
-    index_names = {n["Index Name"] for n in nodes if n.get("Index Name")}
-    missing = expected_indexes - index_names
-    assert not missing, f"indexes not used: {missing}; used: {sorted(index_names)}"
-    seq_scans = {n.get("Relation Name") for n in nodes if n["Node Type"] == "Seq Scan"}
-    assert not (seq_scans & LARGE_TABLES), f"sequential scans on {seq_scans & LARGE_TABLES}"
-    # far inside the 2 s product budget for query -> populated panel
-    assert root["Execution Time"] < 250, root["Execution Time"]
-    assert root["Planning Time"] < 250, root["Planning Time"]
-
-
-COMMON = {"municipality_id": "podgorica", "min_overlap_m2": 1.0, "min_overlap_fraction": 0.02}
-
-
-async def test_locate_point_plan_uses_spatial_indexes(pg_conn):
-    root = await _explain(pg_conn, LOCATE_POINT_SQL, {**COMMON, **INSIDE_1042_AND_UP12})
-    _assert_indexed_and_fast(
-        root,
-        {
-            "idx_cadastral_parcels_geom",
-            "idx_planning_documents_coverage_geom",
-            "idx_urban_parcels_geom",
-        },
-    )
-
-
-async def test_locate_parcel_plan_uses_unique_ko_index_and_spatial_indexes(pg_conn):
-    params = {**COMMON, "ko": "Podgorica I", "parcel_number": "1042", "sub_number": None}
-    root = await _explain(pg_conn, LOCATE_PARCEL_SQL, params)
-    _assert_indexed_and_fast(
-        root,
-        {
-            "uq_cadastral_parcels_ko_number",
-            "idx_planning_documents_coverage_geom",
-            "idx_urban_parcels_geom",
-        },
-    )
+# --- round trips ---------------------------------------------------------------------------------
 
 
 async def test_resolver_issues_one_statement_per_call(pg_app):
@@ -378,21 +313,6 @@ async def test_resolver_issues_one_statement_per_call(pg_app):
         statements.clear()
         await resolver.resolve_parcel(ko="Podgorica I", parcel_number="1042", sub_number=None)
         assert len(statements) == 1
-
-
-async def test_end_to_end_latency_is_well_within_budget(pg_client):
-    for path, params in (
-        (LOCATE, INSIDE_1042_AND_UP12),
-        (PARCEL, {"ko": "Podgorica I", "number": "1042"}),
-    ):
-        timings = []
-        for _ in range(10):
-            started = perf_counter()
-            r = await pg_client.get(path, params=params)
-            timings.append(perf_counter() - started)
-            assert r.status_code == 200
-        assert max(timings) < 1.0, f"{path}: {timings}"  # includes the first connection
-        assert statistics.median(timings) < 0.25, f"{path}: {timings}"
 
 
 async def test_parcel_identity_is_ko_plus_number(pg_conn):

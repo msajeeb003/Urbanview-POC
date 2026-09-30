@@ -17,7 +17,6 @@ from api.schemas.panel import RateRange
 from core.assumptions import AssumptionStatus
 from core.auth import Role
 
-BoundsKind = Literal["absolute", "multiplier"]
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
 

@@ -91,8 +91,6 @@ _ITEM_COLUMNS = """
            e.document_id, d.name AS document_name, d.source_url AS registry_url,
            COALESCE(sf.object_key, d.file_key) AS file_key,
            CASE WHEN sf.id IS NULL THEN d.page_count ELSE sf.page_count END AS page_count,
-           (d.page_images_rendered AND (sf.id IS NULL OR sf.id = d.file_id))
-               AS page_images_rendered,
            COALESCE(sf.id, d.file_id) AS source_file_id,
            COALESCE(sf.original_filename, df.original_filename) AS source_file_name,
            e.source_page, e.source_bbox, e.source_note,
@@ -497,15 +495,12 @@ class ReviewService:
 
     def _link(self, row: Mapping[str, Any], now: datetime) -> PageLinkOut | None:
         """The item's signed page link; without it (storage or its credentials unavailable) the
-        item still lists, with no link, so the queue never fails over a page image."""
+        item still lists, with no link, so the queue never fails over a page link."""
         try:
             link = signed_page_link(
                 self.storage,
-                self.municipality_id,
-                document_id=row["document_id"],
                 file_key=row["file_key"],
                 page_count=row["page_count"],
-                page_images_rendered=bool(row["page_images_rendered"]),
                 page=row["source_page"],
                 expires_in_seconds=self.link_expires_in_seconds,
                 now=now,
@@ -722,36 +717,20 @@ class ReviewService:
     async def list_audit(
         self,
         *,
-        entity_type: str | None = None,
-        entity_id: int | None = None,
-        actor: str | None = None,
-        actor_user_id: int | None = None,
         action: str | None = None,
-        from_: datetime | None = None,
-        to: datetime | None = None,
+        actor: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> AuditPage:
+        """Newest first; ``action`` is a prefix (``review.``), ``actor`` exact."""
         params: dict[str, Any] = {"m": self.municipality_id, "limit": limit, "offset": offset}
         clauses: list[str] = []
-        for column, value in (
-            ("entity_type", entity_type),
-            ("entity_id", entity_id),
-            ("actor", actor),
-            ("actor_user_id", actor_user_id),
-        ):
-            if value is not None:
-                clauses.append(f"AND {column} = :{column}")
-                params[column] = value
+        if actor is not None:
+            clauses.append("AND actor = :actor")
+            params["actor"] = actor
         if action is not None:
             clauses.append("AND action LIKE :action")
             params["action"] = action if "%" in action else action + "%"
-        if from_ is not None:
-            clauses.append("AND created_at >= :from_at")
-            params["from_at"] = _utc(from_)
-        if to is not None:
-            clauses.append("AND created_at < :to_at")
-            params["to_at"] = _utc(to)
         async with self.session_factory() as session:
             rows = (
                 (await session.execute(text(AUDIT_SQL.format(extra=" ".join(clauses))), params))
@@ -777,7 +756,3 @@ class ReviewService:
         ]
         total = int(rows[0]["total"]) if rows else 0
         return AuditPage(items=items, total=total, limit=limit, offset=offset)
-
-
-def _utc(value: datetime) -> datetime:
-    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)

@@ -42,7 +42,8 @@ def test_map_layers_carry_what_the_public_map_styles_by():
     assert "ST_PointOnSurface(z.geom)" in by_id["zone_labels"].sql
     assert "'zone_id', zc.id" in by_id["cadastral_parcels"].sql
     # the cadastral flags ride on the parcel feature; retired parcels are never served
-    assert "'public_ownership', c.public_ownership" in by_id["cadastral_parcels"].sql
+    # no map layer shows the ownership / restitution flags: the tiles do not carry them
+    assert "public_ownership" not in by_id["cadastral_parcels"].sql
     assert "retired_at IS NULL" in by_id["cadastral_parcels"].sql
     # a planned parcel names the urban panel's zone: the plan's, else its block's
     assert "COALESCE(d.zone_id, b.zone_id) AS zone_id" in by_id["urban_parcels"].sql

@@ -61,7 +61,6 @@ export interface ParcelQuery {
   ko: string | null;
 }
 
-export const NO_MATCH_TEXT = "No match. The client will supply available data locations.";
 export const OUTSIDE_COVERAGE_SUB = "Outside coverage · no adopted plan";
 
 /** The rows' words in the shell's language (`{ref}` / `{ko}` placeholders); the mock's English by default. */

@@ -119,10 +119,6 @@ export function guessKind(filename: string): UploadKind | null {
   return KIND_BY_EXTENSION[extensionOf(filename)] ?? null;
 }
 
-export function isPdf(filename: string): boolean {
-  return extensionOf(filename) === "pdf";
-}
-
 export const FILE_ROLES: readonly { value: FileRole; label: string; hint: string }[] = [
   { value: "text", label: "Text", hint: "Read by the AI extraction (parameter tables, rules)" },
   { value: "drawing", label: "Drawing", hint: "Read by the geometry job (plan sheets)" },

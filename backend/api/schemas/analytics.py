@@ -1,14 +1,18 @@
-"""Analytics: event names (BRD §6.2, the two interest events added in the build plan and
-``assumption_edited`` from the POC check of Group 2), the ingest contract of ``POST /v1/events``
-and the dashboard payload of ``GET /v1/admin/analytics``.
+"""Analytics: the ingest contract of ``POST /v1/events`` and the dashboard payload of
+``GET /v1/admin/analytics``. The 13 event names are ``core.models.analytics.AnalyticsEvent``
+(BRD §6.2's eleven + the pilot scope's two intent buttons).
 
 Ingest rules (the prototype is a validation instrument, not a tracking product):
-- exactly the 14 names; anything else is rejected;
+- exactly the 13 names; a row with any other name is rejected;
+- rows are judged one by one: a malformed row is rejected (and reported with its index and the
+  problems) without dropping the valid rows of the batch; only a malformed batch (no ``events``
+  list, 0 or more than 100 rows, unknown top-level keys) or a batch whose every row is malformed
+  is a 422;
 - ids are anonymous and client-generated (``session_id`` required, ``client_id`` optional for
   repeat usage, ``event_id`` optional for de-duplicating retried batches);
 - ``properties`` is small and flat (≤ 20 scalar entries, strings ≤ 200 chars) and may never carry
   personal data: a denylist of keys (name, email, phone, ip …) and a scan of string values for
-  e-mail addresses and IP addresses reject the whole batch;
+  e-mail addresses and IP addresses reject the row;
 - known properties are typed (ids are positive integers, ``search_kind`` is address | click |
   parcel_number, ``amount_eur`` ≥ 0, ``lat`` / ``lng`` in degrees …) and a few are required per
   event.
@@ -21,28 +25,23 @@ import json
 import math
 import re
 from datetime import UTC, datetime, timedelta
-from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    ModelWrapValidatorHandler,
+    PrivateAttr,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
+from core.models.analytics import AnalyticsEvent
 
-class AnalyticsEvent(StrEnum):
-    map_loaded = "map_loaded"
-    search_performed = "search_performed"
-    parcel_selected = "parcel_selected"
-    layer_toggled = "layer_toggled"
-    panel_viewed = "panel_viewed"
-    financials_viewed = "financials_viewed"
-    source_reference_opened = "source_reference_opened"
-    order_started = "order_started"
-    checkout_completed = "checkout_completed"
-    return_visit = "return_visit"
-    sessions_per_user = "sessions_per_user"
-    market_data_interest = "market_data_interest"
-    ai_interest = "ai_interest"
-    assumption_edited = "assumption_edited"
-
+__all__ = ["AnalyticsEvent"]
 
 # --- ingest --------------------------------------------------------------------------------------
 
@@ -87,8 +86,6 @@ IPV4_RE = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
 IPV6_CANDIDATE_RE = re.compile(r"[0-9A-Fa-f:]{4,45}")
 
 SEARCH_KINDS = ("address", "click", "parcel_number")
-# The three assumptions a visitor may edit in Group 2 (the panel's keys).
-EDITABLE_ASSUMPTIONS = ("construction_cost_eur_m2", "sale_price_eur_m2", "saleable_share")
 PANEL_TYPES = ("zone", "document", "cadastral", "urban")
 # What a point search, map click, parcel lookup or zone pick found (`search_performed.coverage`):
 # a parcel / plan feature inside coverage, covered land without a parcel, a place no adopted plan
@@ -109,20 +106,18 @@ INT_PROPERTIES: dict[str, int] = {  # key -> minimum
 }
 NUMBER_PROPERTIES: dict[str, tuple[float, float]] = {  # key -> (minimum, maximum)
     "amount_eur": (0.0, math.inf),
-    "assumption_value": (0.0, 100_000.0),  # the edited value: EUR per m², or a share 0–1
     "lat": (-90.0, 90.0),  # where a search landed (the map sends 4 decimals, ≈ 11 m)
     "lng": (-180.0, 180.0),
 }
 STRING_PROPERTIES = frozenset(
     {"layer_id", "order_id", "product", "trigger", "panel_type", "search_kind", "currency", "via"}
 )
-BOOL_PROPERTIES = frozenset({"visible", "on", "matched", "recent", "reset"})
+BOOL_PROPERTIES = frozenset({"visible", "on", "matched", "recent"})
 ENUM_PROPERTIES: dict[str, tuple[str, ...]] = {
     "search_kind": SEARCH_KINDS,
     "result": ("address", "zone", "parcel"),
     "panel_type": PANEL_TYPES,
     "currency": ("EUR",),
-    "assumption": EDITABLE_ASSUMPTIONS,
     "coverage": SEARCH_COVERAGE,
 }
 REQUIRED_PROPERTIES: dict[AnalyticsEvent, tuple[str, ...]] = {
@@ -130,7 +125,6 @@ REQUIRED_PROPERTIES: dict[AnalyticsEvent, tuple[str, ...]] = {
     AnalyticsEvent.layer_toggled: ("layer_id",),
     AnalyticsEvent.source_reference_opened: ("document_id", "page"),
     AnalyticsEvent.checkout_completed: ("amount_eur",),
-    AnalyticsEvent.assumption_edited: ("assumption",),
 }
 
 Scalar = str | int | float | bool | None
@@ -226,16 +220,67 @@ class EventIn(BaseModel):
         return self
 
 
+class RowProblem(BaseModel):
+    loc: list[str | int] = Field(description='Where in the row, e.g. ["properties"]')
+    msg: str
+    type: str
+
+
+class RejectedEvent(BaseModel):
+    index: int = Field(description="Position of the row in the batch (0-based)")
+    problems: list[RowProblem]
+
+
 class EventBatch(BaseModel):
+    """1 to 100 events. Rows are validated one by one (see the module docstring): the valid ones
+    land in ``events``, the malformed ones in ``rejected``."""
+
     model_config = ConfigDict(extra="forbid")
 
-    events: list[EventIn] = Field(min_length=1, max_length=MAX_BATCH)
+    events: list[EventIn] = Field(max_length=MAX_BATCH, json_schema_extra={"minItems": 1})
+    _rejected: list[RejectedEvent] = PrivateAttr(default_factory=list)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _rows_one_by_one(
+        cls, data: Any, handler: ModelWrapValidatorHandler[EventBatch]
+    ) -> EventBatch:
+        rows = data.get("events") if isinstance(data, dict) else None
+        if not isinstance(rows, list) or len(rows) > MAX_BATCH:
+            return handler(data)  # the envelope's own errors (missing, not a list, too long)
+        if not rows:
+            raise ValueError(f"a batch holds 1 to {MAX_BATCH} events")
+        valid: list[EventIn] = []
+        rejected: list[RejectedEvent] = []
+        for index, row in enumerate(rows):
+            try:
+                valid.append(EventIn.model_validate(row))
+            except ValidationError as exc:
+                rejected.append(
+                    RejectedEvent(
+                        index=index,
+                        problems=[
+                            RowProblem(loc=list(e["loc"]), msg=e["msg"], type=e["type"])
+                            for e in exc.errors(include_url=False)
+                        ],
+                    )
+                )
+        batch = handler({**data, "events": valid})
+        batch._rejected = rejected
+        return batch
+
+    @property
+    def rejected(self) -> list[RejectedEvent]:
+        return self._rejected
 
 
 class IngestResult(BaseModel):
     received: int
     accepted: int = Field(description="Rows stored")
-    duplicates: int = Field(description="Events whose event_id was already stored (retries)")
+    duplicates: int = Field(description="Valid rows whose event_id was already stored (retries)")
+    rejected: list[RejectedEvent] = Field(
+        default_factory=list, description="Malformed rows, not stored; the valid rows were"
+    )
 
 
 # --- dashboard -----------------------------------------------------------------------------------
@@ -249,54 +294,45 @@ class DateRange(BaseModel):
     days: float
 
 
-class Totals(BaseModel):
-    events: int
-    sessions: int = Field(description="Distinct anonymous session ids")
-    clients: int = Field(description="Distinct anonymous client ids (events that carried one)")
-    by_name: dict[str, int] = Field(description="Event counts, every name present (0 when none)")
-
-
 class FunnelStep(BaseModel):
-    step: str
-    event_names: list[str]
-    sessions: int = Field(description="Sessions with at least one of the step's events")
-    conversion_from_previous_pct: float | None = Field(
-        description="sessions / previous step's sessions × 100; null when the previous step is 0"
+    step: str = Field(
+        description="map_loaded | parcel_resolved | panel_opened | order_started | "
+        "order_submitted | paid"
     )
-    conversion_from_start_pct: float | None
+    event_names: list[str] = Field(
+        description="The events that put a session at this step (none for paid: the orders table)"
+    )
+    sessions: int = Field(
+        description="Sessions that reached the step and every earlier one in the range"
+    )
+    conversion_from_previous_pct: float = Field(
+        description="sessions / previous step's sessions × 100 (0 when the previous step is 0)"
+    )
+    conversion_from_start_pct: float
 
 
 class Funnel(BaseModel):
     basis: Literal["sessions"] = "sessions"
     steps: list[FunnelStep]
-    overall_conversion_pct: float | None = Field(
-        description="checkout_completed sessions / map_loaded sessions × 100"
-    )
+    overall_conversion_pct: float = Field(description="paid sessions / map_loaded sessions × 100")
 
 
-class ProductRevenue(BaseModel):
-    product: str
+class OrderStatusCount(BaseModel):
+    status: str
     orders: int
-    revenue_eur: float
+    amount_eur: float = Field(description="Sum of the orders' prices")
 
 
 class Orders(BaseModel):
-    source: Literal["analytics_events"] = Field(
-        default="analytics_events",
-        description="Derived from order_started / checkout_completed events (no orders table yet)",
+    placed: int = Field(description="Orders placed in the range")
+    by_status: list[OrderStatusCount] = Field(
+        description="Every order status in flow order, 0 when none; no customer data"
     )
-    order_started_events: int
-    orders_started: int = Field(description="Distinct order_id (events without one count singly)")
-    orders_completed: int
-    revenue_eur: float = Field(description="Sum of checkout_completed.amount_eur per order")
-    average_order_eur: float | None
-    completion_pct: float | None = Field(description="orders_completed / orders_started × 100")
-    by_product: list[ProductRevenue]
 
 
-class District(BaseModel):
-    """A zone (UrbanView's district) by the events made in it: the event's ``zone_id``, else the
-    zone containing its ``lat`` / ``lng``, so searches outside coverage count too."""
+class ZoneHits(BaseModel):
+    """A zone by the searches and parcel picks made in it: the event's ``zone_id``, else the zone
+    containing its ``lat`` / ``lng``, so searches outside coverage count for their district."""
 
     zone_id: int | None = Field(
         description="null = events with no zone_id and no point inside any zone"
@@ -308,67 +344,51 @@ class District(BaseModel):
     events: int = Field(description="search_performed + parcel_selected")
     searches: int
     uncovered_searches: int = Field(
-        default=0,
-        description="search_performed with coverage 'uncovered' (S6: no adopted plan there)",
+        description="search_performed with coverage 'uncovered' (S6: no adopted plan there)"
     )
     selections: int
     sessions: int
     share_pct: float
 
 
-class ReportedSessions(BaseModel):
-    """What the client itself reports through ``sessions_per_user`` events."""
+class UncoveredHit(BaseModel):
+    """Searches and map clicks that landed where no adopted plan covers the point, grouped by
+    their position (3 decimals, ≈ 110 m)."""
 
-    users: int
-    users_at_target: int
-    users_at_target_pct: float | None
-    sessions_per_user: float | None
-
-
-class RepeatUsage(BaseModel):
-    target_sessions_per_user: int
+    lat: float
+    lng: float
+    searches: int
     sessions: int
-    returning_sessions: int = Field(description="Sessions that emitted return_visit")
-    repeat_usage_rate_pct: float | None = Field(description="returning_sessions / sessions × 100")
-    clients: int = Field(description="Distinct client_id")
-    sessions_per_client: float | None
-    clients_at_target: int = Field(description="Clients with ≥ target sessions in the range")
-    clients_at_target_pct: float | None
-    reported: ReportedSessions
 
 
-class InterestCount(BaseModel):
+class RepeatSessions(BaseModel):
+    min_sessions: int = Field(description="Visits that make a repeat visitor (the target: 3)")
+    sessions: int = Field(description="Distinct sessions in the range")
+    visitors: int = Field(description="Distinct anonymous client ids")
+    repeat_visitors: int = Field(description="Visitors with ≥ min_sessions sessions")
+    repeat_visitors_pct: float
+    repeat_sessions: int = Field(description="Sessions of the repeat visitors")
+
+
+class IntentCount(BaseModel):
     events: int
     sessions: int
 
 
-class Interest(BaseModel):
-    market_data_interest: InterestCount
-    ai_interest: InterestCount
-
-
-class PanelToFinancials(BaseModel):
-    panel_views: int = Field(description="panel_viewed events")
-    panel_view_pairs: int = Field(description="Distinct (session, parcel) pairs with a panel view")
-    pairs_reaching_financials: int = Field(
-        description="Pairs that also viewed financials for the same parcel"
-    )
-    reaching_financials_pct: float | None = Field(
-        description="pairs_reaching_financials / panel_view_pairs × 100"
-    )
-    panel_sessions: int
-    panel_sessions_reaching_financials: int
-    sessions_reaching_financials_pct: float | None
+class IntentCounts(BaseModel):
+    market_data_interest: IntentCount
+    ai_interest: IntentCount
 
 
 class AnalyticsDashboard(BaseModel):
     municipality_id: str
     range: DateRange
     generated_at: datetime
-    totals: Totals
     funnel: Funnel
     orders: Orders
-    districts: list[District] = Field(description="Most searched / selected zones, descending")
-    repeat_usage: RepeatUsage
-    interest: Interest
-    panel_to_financials: PanelToFinancials
+    top_zones: list[ZoneHits] = Field(description="Most searched / selected zones, descending")
+    uncovered_hits: list[UncoveredHit] = Field(
+        description="Where searches outside coverage landed, most frequent first"
+    )
+    repeat_sessions: RepeatSessions
+    intent_counts: IntentCounts

@@ -1,8 +1,9 @@
 # Georeferencing plan geometry
 
 The extraction (`python -m core.gis.extract run`, build plan ticket 07) gives each planning
-document's layers (plan boundary, planned urban parcels, blocks, land use, traffic network) in the
-document's local frame: ground metres with no known origin. Georeferencing (`backend/core/gis/georef/`,
+document's layers (plan boundary, planned urban parcels, blocks, land use) in the document's local
+frame: ground metres with no known origin. The plan's traffic network is not extracted (planned
+traffic is an MVP layer, outside the POC). Georeferencing (`backend/core/gis/georef/`,
 migration 0025, ticket 08) brings them onto the map:
 
 1. **Control points** tie positions on a sheet to coordinates in the plan's projected CRS.
@@ -134,11 +135,12 @@ Planned parcels and blocks only, in the metric CRS (EPSG:25834, the cadastre pro
 | every feature inside the municipality's extent (profile `bounds`) | error `outside_extent` |
 | the planned parcels overlap the cadastral parcels under them (cadastral parcels present, zero overlap) | error `no_cadastral_overlap` |
 | no cadastral parcels under the document (base not loaded there) | warning `no_cadastral_base` |
-| planned parcels of the document overlapping each other by more than 1 m² | warning `parcel_overlaps` (pairs listed) |
 | parcels without a number, numbers drawn twice | warnings `unnumbered_parcels`, `repeated_parcel_numbers` |
 | systematic offset, no vertex near the cadastre | warnings `systematic_offset`, `no_common_vertices` |
 
-An error records the dataset `invalid`, stages nothing, and the CLI exits 1.
+An error records the dataset `invalid`, stages nothing, and the CLI exits 1. There is no topology
+check (overlaps between the plan's own parcels are not tested): the POC funds geometry validity
+only.
 
 ## Staging and publishing
 
@@ -155,8 +157,8 @@ The batches follow the staged-geometry contract:
 - `urban_blocks`: the plan's block label. A staged block updates the block of that label it
   overlaps, else it is new.
 - `land_use`: a generic layer. The newest batch replaces the layer at publish, so a document's
-  batch carries the other documents' features forward. The plan's traffic network is extracted
-  but not staged: planned traffic is an MVP layer, outside the POC.
+  batch carries the other documents' features forward. (The plan's traffic network is neither
+  extracted nor staged: planned traffic is an MVP layer, outside the POC.)
 
 Every feature carries `document_id` and `dataset_version`. A newer run of the document supersedes
 its staged one. Each batch is staged with its origin (`vector_pdf` for extraction runs,

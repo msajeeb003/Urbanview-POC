@@ -87,7 +87,7 @@ SET_JOB_SQL = text("UPDATE market_imports SET job_id = :job_id WHERE id = :id")
 
 
 class MarketImportError(ValueError):
-    """The import cannot be recorded (unreadable file, empty paste): a 422 for the API."""
+    """The import cannot be recorded (the file is not a readable table): a 422 for the API."""
 
 
 @dataclass(frozen=True, slots=True)

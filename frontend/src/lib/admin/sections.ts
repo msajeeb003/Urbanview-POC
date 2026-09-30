@@ -16,8 +16,10 @@
  * The API enforces the same boundaries on every `/v1/admin/*` route (403, never 404); this table
  * only keeps the console from offering what the API would refuse.
  */
+import type { StaffRoleName } from "@/lib/api/types";
 
-export type StaffRole = "admin" | "reviewer" | "expert";
+/** The API's three roles (`core.auth.Role`, generated). */
+export type StaffRole = StaffRoleName;
 
 export const STAFF_ROLES: readonly StaffRole[] = ["admin", "reviewer", "expert"];
 

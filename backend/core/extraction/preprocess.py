@@ -20,9 +20,9 @@ queue and the source viewer.
   (``continues``) and carries that table's column names (``header_from``). Skipped on drawing
   sheets (more than ``table_max_paths`` vector paths or larger than ``table_max_page_area``).
 - **Scanned**: a page mostly covered by images, with (almost) no vector drawing, and no text layer
-  or a text density below ``min_text_density`` -> ``scanned`` with its reason. It is read only by
-  a configured :class:`OcrBackend` (``method: "ocr"``); otherwise it stays unread and is listed
-  for manual handling (``method: "none"``). Text is never made up.
+  or a text density below ``min_text_density`` -> ``scanned`` with its reason. It stays unread
+  and is listed for manual handling (``method: "none"``): OCR is outside the POC and text is never
+  made up.
 """
 
 from __future__ import annotations
@@ -30,14 +30,13 @@ from __future__ import annotations
 import bisect
 import hashlib
 import json
-import math
 import re
 import unicodedata
 from collections import defaultdict
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -122,7 +121,7 @@ class PageData(_M):
     scanned: bool = False
     scanned_reason: Literal["no_text_layer", "low_text_density"] | None = None
     blank: bool = False
-    method: Literal["text", "ocr", "none"] = "text"
+    method: Literal["text", "none"] = "text"
     script: Literal["latin", "cyrillic", "mixed", "none"] = "none"
     tables_skipped: Literal["drawing_sheet", "no_text"] | None = None
     glyph_decoded: bool = False
@@ -157,7 +156,6 @@ class PreprocessOptions:
     table_max_page_area: float = 2_000_000.0  # ... or on pages larger than about A2 (pt²)
     chunk_token_budget: int = 6000
     chars_per_token: float = 3.0
-    ocr: str = "none"  # the OCR backend's name (part of the cache key)
 
     def key(self) -> str:
         digest = hashlib.sha256(json.dumps(asdict(self), sort_keys=True).encode()).hexdigest()
@@ -171,15 +169,7 @@ class PreprocessOptions:
             table_max_paths=settings.preprocess_table_max_paths,
             chunk_token_budget=settings.preprocess_chunk_token_budget,
             chars_per_token=settings.preprocess_chars_per_token,
-            ocr=settings.extraction_ocr_backend,
         )
-
-
-def ocr_from_settings(settings: Any) -> OcrBackend | None:
-    """The configured OCR backend, or None: scanned pages then stay unread (flagged)."""
-    if settings.extraction_ocr_backend == "tesseract":
-        return TesseractOcr(settings.extraction_ocr_languages, settings.extraction_ocr_dpi)
-    return None
 
 
 # --- raw text (MuPDF page space: origin top-left, rotation applied) -----------------------------
@@ -199,14 +189,6 @@ class RawLine:
 class RawBlock:
     bbox: BBox
     lines: list[RawLine] = field(default_factory=list)
-
-
-class OcrBackend(Protocol):
-    """Reads a scanned page into lines with boxes (MuPDF page space). Configured explicitly."""
-
-    name: str
-
-    def read(self, page: Any) -> list[RawBlock]: ...
 
 
 def read_textpage(page: Any, textpage: Any) -> list[RawBlock]:
@@ -246,24 +228,6 @@ def read_textpage(page: Any, textpage: Any) -> list[RawBlock]:
     return blocks
 
 
-class TesseractOcr:
-    """OCR through Tesseract via pymupdf (``get_textpage_ocr``). Needs Tesseract and its language
-    data (TESSDATA_PREFIX); Montenegrin reads as Serbian Latin + Cyrillic (``srp_latn+srp``)."""
-
-    name = "tesseract"
-
-    def __init__(
-        self, languages: str = "srp_latn+srp", dpi: int = 300, tessdata: str | None = None
-    ):
-        self.languages, self.dpi, self.tessdata = languages, dpi, tessdata
-
-    def read(self, page: Any) -> list[RawBlock]:
-        textpage = page.get_textpage_ocr(
-            language=self.languages, dpi=self.dpi, full=True, tessdata=self.tessdata
-        )
-        return read_textpage(page, textpage)
-
-
 # --- helpers -------------------------------------------------------------------------------------
 
 
@@ -273,15 +237,6 @@ def _pdf_box(box: Sequence[float], to_pdf: Any) -> BBox:
     rect = pymupdf.Rect(box) * to_pdf
     rect.normalize()
     return (round(rect.x0, 1), round(rect.y0, 1), round(rect.x1, 1), round(rect.y1, 1))
-
-
-def _union(boxes: Sequence[BBox]) -> BBox:
-    return (
-        min(b[0] for b in boxes),
-        min(b[1] for b in boxes),
-        max(b[2] for b in boxes),
-        max(b[3] for b in boxes),
-    )
 
 
 def _centre_in(box: BBox, area: BBox, pad: float = 1.0) -> bool:
@@ -546,9 +501,7 @@ def open_pdf(source: Source) -> Any:
     return pymupdf.open(str(source))
 
 
-def _read_page(
-    page: Any, number: int, options: PreprocessOptions, ocr: OcrBackend | None
-) -> PageData:
+def _read_page(page: Any, number: int, options: PreprocessOptions) -> PageData:
     import pymupdf
 
     to_pdf = ~page.transformation_matrix
@@ -575,12 +528,9 @@ def _read_page(
         elif density < options.min_text_density:
             scanned_reason = "low_text_density"
     blank = char_count == 0 and scanned_reason is None and coverage < 0.05 and path_count == 0
-    method: Literal["text", "ocr", "none"] = "text"
+    method: Literal["text", "none"] = "text"
     if scanned_reason is not None:
-        if ocr is not None:
-            raw, method = ocr.read(page), "ocr"
-        else:
-            raw, method = [], "none"  # unread: listed for manual handling, never guessed
+        raw, method = [], "none"  # unread: listed for manual handling, never guessed
     elif char_count == 0:
         method = "none"
 
@@ -646,7 +596,6 @@ def extract_pages(
     source: Source,
     *,
     options: PreprocessOptions | None = None,
-    ocr: OcrBackend | None = None,
     pages: Sequence[int] | None = None,
 ) -> DocumentPages:
     """Every page (or the given 1-based ``pages``) of a PDF, with continued tables linked."""
@@ -655,32 +604,8 @@ def extract_pages(
     document = open_pdf(data)
     try:
         numbers = list(pages) if pages is not None else list(range(1, document.page_count + 1))
-        read = [_read_page(document[n - 1], n, options, ocr) for n in numbers]
+        read = [_read_page(document[n - 1], n, options) for n in numbers]
     finally:
         document.close()
     stitch_tables(read)
     return DocumentPages(sha256=hashlib.sha256(data).hexdigest(), page_count=len(read), pages=read)
-
-
-# --- page images ---------------------------------------------------------------------------------
-
-
-def iter_page_images(
-    source: Source, *, dpi: int, max_pixels: int
-) -> Iterator[tuple[int, bytes, int]]:
-    """(page, PNG, effective dpi) for every page; large sheets are rendered at a lower dpi so no
-    image exceeds ``max_pixels``."""
-    import pymupdf
-
-    document = open_pdf(source)
-    try:
-        for index in range(document.page_count):
-            page = document[index]
-            scale = dpi / 72
-            pixels = page.rect.width * page.rect.height * scale * scale
-            if pixels > max_pixels:
-                scale = math.sqrt(max_pixels / (page.rect.width * page.rect.height))
-            pixmap = page.get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False)
-            yield index + 1, pixmap.tobytes("png"), round(scale * 72)
-    finally:
-        document.close()

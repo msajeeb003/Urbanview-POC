@@ -40,7 +40,7 @@ function cookieValue(all: { name: string; value: string }[], name: string): stri
 
 /** The backend staff session token of this request, or null. */
 export async function staffApiToken(): Promise<string | null> {
-  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+  const secret = process.env.AUTH_SECRET;
   if (!secret) return null;
   const all = (await cookies()).getAll();
   for (const name of COOKIE_NAMES) {

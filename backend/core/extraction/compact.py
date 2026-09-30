@@ -400,7 +400,14 @@ class CompactLegendResponse(_C):
         )
 
 
-COMPACT_MODELS: dict[str, type[BaseModel]] = {
+CompactResponse = (
+    CompactParcelsResponse
+    | CompactBlocksResponse
+    | CompactDocumentResponse
+    | CompactInfrastructureResponse
+    | CompactLegendResponse
+)
+COMPACT_MODELS: dict[str, type[CompactResponse]] = {
     model.__name__: model
     for model in (
         CompactParcelsResponse,

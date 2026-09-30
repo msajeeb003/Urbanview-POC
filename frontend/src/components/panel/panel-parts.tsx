@@ -72,12 +72,6 @@ export function documentMetaParts(d: ZoneDoc): MetaPart[] {
   return parts;
 }
 
-export function documentMeta(d: ZoneDoc): string {
-  return documentMetaParts(d)
-    .map((p) => p.text)
-    .join(" · ");
-}
-
 /** The document's registry entry (eRegistri), opened in a new tab. */
 export function RegistryLink({ href, children }: { href: string; children: ReactNode }) {
   return (

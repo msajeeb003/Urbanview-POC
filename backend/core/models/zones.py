@@ -34,9 +34,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from core.db import Base
 
-DATASET_STATUSES = ("staged", "published", "superseded", "rejected")
-MATCH_METHODS = ("eregistri", "source_url", "name", "new")
-
 
 class ZoneDataset(Base):
     __tablename__ = "zone_datasets"

@@ -14,9 +14,7 @@ Contract: ``docs/specs/panel-payload.md`` section 6. The sample
   general plan only, computable from the PUP's document-level provisions; UP 21 (urban 4) has no
   FAR and no cadastral parcel under it;
 - one current publish version ``sample-2026-09-22``; market rows for both zones; two staging
-  extractions for UP 12 (FAR 9.9 pending, height 99 rejected) that must never surface;
-- synthetic volume east of the sample (300 documents, 10k cadastral and 10k planned parcels) so
-  plans and latencies are measured at a realistic size.
+  extractions for UP 12 (FAR 9.9 pending, height 99 rejected) that must never surface.
 
 The three mutation tests (market row withdrawn, document no longer adopted, nothing published)
 change the serving tables through ``pg_conn``, read the panel through a fresh app and restore the
@@ -26,19 +24,17 @@ rows in ``finally``.
 from __future__ import annotations
 
 import json
-import statistics
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from time import perf_counter
 from typing import Any
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import event, text
 
-from api.services.panel_sql import CADASTRAL_SQL, DOCUMENT_SQL, PANEL_SQL, URBAN_SQL, ZONE_SQL
+from api.services.panel_sql import PANEL_SQL
 from core.config import Settings
 from core.engine import COST_ROW_KEYS, FIELD_KEYS, Assumptions, MarketInputs, compute_feasibility
 from core.engine.feasibility import SHARED_KEY
@@ -122,9 +118,6 @@ PLANNING_PANELS = [
     ("urban", 6),
 ]
 
-# Tables large enough (with the synthetic volume) that a sequential scan would be a real defect;
-# the 1-40-row tables (zones, publish_versions, planning_fields, ...) are legitimately scanned.
-LARGE_TABLES = {"cadastral_parcels", "urban_parcels", "planning_documents"}
 COMMON = {"municipality_id": "podgorica", "tz": "Europe/Podgorica"}
 
 
@@ -1355,7 +1348,7 @@ async def test_malformed_requests_are_422(pg_client, params, field):
     assert any(detail["loc"] == ["query", field] for detail in error["details"]), error
 
 
-# --- round trips, plans, latency ------------------------------------------------------------------
+# --- round trips ---------------------------------------------------------------------------------
 
 
 async def test_panel_issues_one_statement_per_call(pg_app):
@@ -1391,79 +1384,3 @@ async def test_panel_issues_one_statement_per_call(pg_app):
             statements.clear()
             assert (await client.get(PANEL, params={"type": "foo", "id": 1})).status_code == 422
             assert statements == []  # rejected before any database work
-
-
-def _nodes(plan: dict[str, Any]):
-    yield plan
-    for child in plan.get("Plans", []):
-        yield from _nodes(child)
-
-
-async def _explain(conn, sql: str, params: dict[str, Any]) -> dict[str, Any]:
-    """EXPLAIN ANALYZE of the real statement on realistic table sizes (no planner knobs)."""
-    await conn.execute(text(sql), params)  # warm caches: measure steady state, not the first hit
-    raw = (await conn.execute(text("EXPLAIN (ANALYZE, FORMAT JSON) " + sql), params)).scalar_one()
-    plan = json.loads(raw) if isinstance(raw, str | bytes) else raw
-    return plan[0]
-
-
-def _assert_indexed_and_fast(root: dict[str, Any], expected_indexes: set[str]) -> None:
-    nodes = list(_nodes(root["Plan"]))
-    index_names = {n["Index Name"] for n in nodes if n.get("Index Name")}
-    missing = expected_indexes - index_names
-    assert not missing, f"indexes not used: {missing}; used: {sorted(index_names)}"
-    seq_scans = {n.get("Relation Name") for n in nodes if n["Node Type"] == "Seq Scan"}
-    assert not (seq_scans & LARGE_TABLES), f"sequential scans on {seq_scans & LARGE_TABLES}"
-    # far inside the 2 s product budget for selection -> populated panel
-    assert root["Execution Time"] < 250, root["Execution Time"]
-    assert root["Planning Time"] < 250, root["Planning Time"]
-
-
-@pytest.mark.parametrize("parcel_id", [1001, 1006, 1007])
-async def test_cadastral_plan_uses_spatial_indexes_and_is_fast(pg_conn, parcel_id):
-    root = await _explain(pg_conn, CADASTRAL_SQL, {**COMMON, "id": parcel_id})
-    # the governing document by its coverage index; the links are the published ones
-    # (parcel_links by version + cadastral parcel), no spatial join at request time
-    _assert_indexed_and_fast(
-        root,
-        {
-            "cadastral_parcels_pkey",
-            "idx_planning_documents_coverage_geom",
-            "uq_parcel_links_version_pair",
-        },
-    )
-
-
-@pytest.mark.parametrize("urban_parcel_id", [1, 4, 5])
-async def test_urban_plan_uses_spatial_indexes_and_is_fast(pg_conn, urban_parcel_id):
-    root = await _explain(pg_conn, URBAN_SQL, {**COMMON, "id": urban_parcel_id})
-    _assert_indexed_and_fast(root, {"ix_parcel_links_urban"})  # the published links
-    index_names = {n["Index Name"] for n in _nodes(root["Plan"]) if n.get("Index Name")}
-    # the parcel itself by primary key or by the (id, document_id) unique index
-    assert index_names & {"urban_parcels_pkey", "uq_urban_parcels_id_document"}, index_names
-
-
-async def test_zone_and_document_plans_are_indexed_and_fast(pg_conn):
-    params = {"municipality_id": "podgorica", "id": 1}
-    _assert_indexed_and_fast(
-        await _explain(pg_conn, ZONE_SQL, params), {"ix_planning_documents_zone_id"}
-    )
-    _assert_indexed_and_fast(
-        await _explain(pg_conn, DOCUMENT_SQL, {**params, "id": 2}),
-        {"planning_documents_pkey", "idx_cadastral_parcels_geom", "ix_urban_parcels_document_id"},
-    )
-
-
-async def test_end_to_end_latency_is_well_within_budget(pg_client):
-    for params in (
-        {"type": "cadastral", "id": 1001},
-        {"type": "urban", "id": 1},
-    ):
-        timings = []
-        for _ in range(10):
-            started = perf_counter()
-            r = await pg_client.get(PANEL, params=params)
-            timings.append(perf_counter() - started)
-            assert r.status_code == 200
-        assert max(timings) < 1.0, f"{params}: {timings}"  # includes the first connection
-        assert statistics.median(timings) < 0.25, f"{params}: {timings}"

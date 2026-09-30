@@ -4,7 +4,7 @@
   split across chunks).
 - **One chunk per page** by default, within ``chunk_token_budget`` (estimated as characters /
   ``chars_per_token``). A page over the budget is split between elements; an element over the
-  budget alone is a chunk of its own, marked ``over_budget``. Unread pages (scanned without OCR)
+  budget alone is a chunk of its own, marked ``over_budget``. Unread pages (scanned, never OCRed)
   have no chunk: they are listed in the manifest, never filled in.
 - **Stitched tables**: a fragment that continues a table (``header_from``) is shown with that
   table's column names, so every chunk carries its columns.
@@ -353,7 +353,6 @@ def chunk_pages(doc: DocumentPages, chunk: ChunkPlan) -> list[PageInput]:
             PageInput(
                 page=number,
                 text="\n".join(texts),
-                method="ocr" if page.method == "ocr" else "text",
                 words=tuple(words),
                 tables=tuple(grids),
                 view="\n".join(views),

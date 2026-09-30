@@ -10,11 +10,9 @@
  *   the server's own limits (`EditedAssumptions` of `POST /v1/feasibility`: prices in (0, 100 000],
  *   share in (0, 1]). An edit outside them is shown as an error and not calculated.
  * - No edits → the payload's figures exactly (what "Reset to defaults" returns to).
- * - `assumption_edited` once a slider has settled (`editEventQueue`), never per step.
  */
 import { recalculate, type EditedAssumptions, type EngineInputs, type EngineResult } from "@urbanview/feasibility-engine";
 
-import type { EventProperties } from "./analytics/tracker";
 import type { UrbanPanel } from "./api/types";
 
 export type EditKey = "construction_cost_eur_m2" | "sale_price_eur_m2" | "saleable_share";
@@ -148,34 +146,4 @@ export function editErrors(
     if (error) errors[slider.key] = error;
   }
   return errors;
-}
-
-/** How long a slider must rest before its `assumption_edited` event is sent. */
-export const EDIT_EVENT_DELAY_MS = 800;
-
-/**
- * `assumption_edited` once an assumption has settled: one event per assumption, `delayMs` after its
- * last change (dragging a slider sends one event, with the value it ended on). `flush` sends what is
- * still waiting at once (the panel closing).
- */
-export function editEventQueue(send: (properties: EventProperties) => void, delayMs = EDIT_EVENT_DELAY_MS) {
-  const pending = new Map<EditKey, { properties: EventProperties; timer: ReturnType<typeof setTimeout> }>();
-  return {
-    push(key: EditKey, properties: EventProperties) {
-      const waiting = pending.get(key);
-      if (waiting) clearTimeout(waiting.timer);
-      const timer = setTimeout(() => {
-        pending.delete(key);
-        send(properties);
-      }, delayMs);
-      pending.set(key, { properties, timer });
-    },
-    flush() {
-      for (const { properties, timer } of pending.values()) {
-        clearTimeout(timer);
-        send(properties);
-      }
-      pending.clear();
-    },
-  };
 }

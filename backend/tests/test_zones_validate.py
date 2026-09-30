@@ -15,13 +15,12 @@ from core.zones.validate import (
     DocumentRecord,
     ZoneDataset,
     ZoneRecord,
-    area_m2,
     read_dataset,
     validate,
 )
 
 TYPES = ("DUP", "PUP", "PGR", "UP")
-CONFIG = ValidationConfig(overlap_tolerance_m2=1.0, gap_tolerance_m2=1.0)
+CONFIG = ValidationConfig()
 TODAY = date(2026, 9, 26)
 X0, Y0 = 500_000.0, 4_700_000.0  # EPSG:25834, near Podgorica
 _FIDS = itertools.count(1)
@@ -83,45 +82,11 @@ def _check(zones, documents=None, **kwargs):
 def test_clean_partition_passes():
     report = _check(_grid())
     assert report.ok and report.warnings == [], report.to_markdown()
-    assert report.stats["total_area_m2"] == 40_000.0
+    assert report.stats["zones_with_geometry"] == 4
     assert report.stats["adopted_per_zone"] == {"a": 1, "b": 1, "c": 1, "d": 1}
     assert report.stats["documents_by_status"] == {"adopted": 4, "in_progress": 0, "superseded": 0}
-    assert (report.stats["overlap_pairs"], report.stats["gaps"]) == (0, 0)
     assert "No problems found" in report.to_markdown()
     assert json.dumps(report.to_json())  # plain data
-
-
-def test_overlap_above_and_within_tolerance():
-    big = _check([_zone("a", _box(0, 0, 100, 100)), _zone("b", _box(90, 0, 200, 100))])
-    (overlap,) = big.errors
-    assert overlap.code == "zones_overlap" and overlap.zone_ids == ("a", "b")
-    assert overlap.area_m2 == pytest.approx(1000.0)
-    x, y = overlap.location
-    assert X0 + 90 <= x <= X0 + 100 and Y0 <= y <= Y0 + 100
-
-    sliver = _check([_zone("a", _box(0, 0, 100, 100)), _zone("b", _box(99.995, 0, 200, 100))])
-    assert sliver.ok
-    assert [(p.code, p.area_m2) for p in sliver.warnings] == [("zones_overlap", 0.5)]
-
-
-def test_holes_inside_the_zones_and_the_extent():
-    frame = [
-        _zone("left", _box(0, 0, 10, 30)),
-        _zone("right", _box(20, 0, 30, 30)),
-        _zone("bottom", _box(10, 0, 20, 10)),
-        _zone("top", _box(10, 20, 20, 29.95)),  # leaves a 10 x 0.05 m sliver open to the top
-    ]
-    report = _check(frame)
-    gaps = [p for p in report.errors if p.code == "zones_gap"]
-    assert len(gaps) == 1 and gaps[0].area_m2 == pytest.approx(100.0)
-    assert set(gaps[0].zone_ids) == {"left", "right", "bottom", "top"}
-    # the open sliver is not a hole; with an extent it is part of the extent in no zone
-    extent = _box(0, 0, 30, 30)
-    with_extent = _check(frame, extent=extent)
-    extra = [p for p in with_extent.problems if p.code == "zones_gap" and p.severity == "warning"]
-    assert [p.area_m2 for p in extra] == [0.5]
-    with pytest.raises(ValueError, match="EPSG:4326"):
-        _check(frame, extent=extent, extent_srs_id=4326)
 
 
 def test_invalid_empty_and_missing_geometries():
@@ -253,7 +218,7 @@ def test_read_geopackage(tmp_path):
 
 
 def test_read_geojson_and_csv(tmp_path):
-    # two 0.001 degree squares overlapping by a tenth, at Podgorica's latitude
+    # two 0.001 degree squares at Podgorica's latitude
     lon, lat = 19.26, 42.44
     a = box(lon, lat, lon + 0.001, lat + 0.001)
     b = box(lon + 0.0009, lat, lon + 0.002, lat + 0.001)
@@ -288,10 +253,7 @@ def test_read_geojson_and_csv(tmp_path):
     assert [p.code for p in docs[1].problems] == ["document_adoption_date_invalid"]
 
     report = validate(dataset, document_types=TYPES, config=CONFIG, today=TODAY)
-    (overlap,) = [p for p in report.errors if p.code == "zones_overlap"]
-    expected = area_m2(a.intersection(b), geographic=True)
-    assert overlap.area_m2 == pytest.approx(expected, rel=1e-3)
-    assert 880 < overlap.area_m2 < 940  # ~ 8.2 m x 110.6 m
+    assert report.stats["zones_with_geometry"] == 2
     assert report.codes("error")["zone_missing_geometry"] == 0  # the line says why
 
     bad = tmp_path / "bad.csv"

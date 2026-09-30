@@ -2,7 +2,7 @@
 
 Layers are built in ``TARGET_LAYERS`` order, so the plan boundary exists before the parcels it
 closes and clips, and the parcels before the blocks and land use derived from them. Per sheet:
-select the paths, build candidate polygons (or lines) in the local frame, clean them, read the
+select the paths, build candidate polygons in the local frame, clean them, read the
 labels, assign each label to the polygon containing it (else the nearest within
 ``max_distance_mm``). Sheets of one drawing are merged afterwards (same label value: touching
 pieces are unioned, overlapping copies deduplicated). Everything is sorted before it is numbered,
@@ -22,13 +22,12 @@ from typing import Any
 import numpy as np
 import pymupdf
 import shapely
-from shapely.geometry import MultiLineString, MultiPolygon, Point
+from shapely.geometry import MultiPolygon, Point
 from shapely.geometry.base import BaseGeometry
 
 from core.gis.extract import geometry as g
 from core.gis.extract.glyphs import read_glyph_labels
 from core.gis.extract.rules import (
-    LINE_LAYERS,
     STAGED_AS,
     TARGET_LAYERS,
     Category,
@@ -64,7 +63,6 @@ ATTRIBUTES = {  # the attribute each layer's labels fill, and its staged propert
     "urban_parcels": "urban_parcel_number",
     "urban_blocks": "block_ref",
     "planned_land_use": "code",
-    "planned_traffic": "road_class",
 }
 
 # (sheet rule, sha256 or None) -> the sheet's PDF bytes; (path, sha256) -> a table PDF or None
@@ -114,11 +112,8 @@ class Feature:
             "label_text": self.label_text,
             "label_bbox": list(self.labels[0].bbox) if self.labels else None,
             "qa_flags": [f for f in QA_FLAGS if f in self.qa_flags],
+            "area_m2": round(self.geom.area, 1),
         }
-        if self.layer in LINE_LAYERS:
-            props["length_m"] = round(self.geom.length, 2)
-        else:
-            props["area_m2"] = round(self.geom.area, 1)
         props.update(self.attrs)
         return props
 
@@ -130,9 +125,6 @@ class Extraction:
     layers: dict[str, list[Feature]]
     qa: dict[str, Any]
     sheets: dict[str, Sheet]
-
-    def staged_layer(self, layer: str) -> str:
-        return STAGED_AS[layer]
 
 
 def _path_order(path_id: str) -> tuple[int, int]:
@@ -821,55 +813,12 @@ def _build_derived(ctx: _Context, layer: str, rule: LayerRule) -> list[_Candidat
     return cands
 
 
-def _build_lines(ctx: _Context, layer: str, rule: LayerRule) -> list[_Candidate]:
-    cands = []
-    categories = rule.categories or [Category(select=rule.select, code=rule.road_class or "")]
-    for sheet in ctx.sheets_for(layer):
-        for cat in categories:
-            paths = sheet.select(cat.select)
-            lines: list[BaseGeometry] = []
-            ids: list[str] = []
-            for p in paths:
-                for ln in path_lines(p):
-                    lines.append(ln)
-                    ids.append(p.id)
-            local = _local(sheet, lines)
-            merged = g.merge_lines(local, _m(sheet, rule.gap_mm))
-            tree = shapely.STRtree(np.asarray(local, dtype=object)) if local else None
-            for ln in merged:
-                geom: BaseGeometry | None = ln
-                if rule.clip and ctx.boundary is not None:
-                    geom = ln.intersection(ctx.boundary)
-                geom = g.clean_line(geom, rule.min_length_m) if geom is not None else None
-                if geom is None:
-                    ctx.counter(layer)["short_removed"] += 1
-                    continue
-                src = (
-                    sorted(
-                        {
-                            ids[i]
-                            for i in tree.query(geom.buffer(0.05), predicate="intersects").tolist()
-                        },
-                        key=_path_order,
-                    )
-                    if tree
-                    else []
-                )
-                cands.append(
-                    _Candidate(
-                        geom, sheet, src, attrs={"road_class": cat.code or None, "name": cat.name}
-                    )
-                )
-    return cands
-
-
 BUILDERS: dict[str, Callable[[_Context, str, LayerRule], list[_Candidate]]] = {
     "polygonize": _build_polygons,
     "holes": _build_polygons,
     "fills": _build_fills,
     "classify": _build_classify,
     "derive": _build_derived,
-    "lines": _build_lines,
 }
 
 
@@ -890,7 +839,7 @@ def _attribute_of(layer: str, cand: _Candidate, ctx: _Context) -> None:
             cand.attrs[attr] = deepest.value
         else:
             cand.attrs[attr] = vals[0]
-    elif attr and not vals and attr not in cand.attrs and layer != "planned_traffic":
+    elif attr and not vals and attr not in cand.attrs:
         cand.flags.add("unlabelled")
     if layer == "urban_parcels" and cand.attrs.get("urban_parcel_number"):
         block = ctx.parcel_blocks.get(cand.attrs["urban_parcel_number"])
@@ -907,8 +856,8 @@ def _merge(layer: str, cands: list[_Candidate], qa: dict[str, Any]) -> list[_Can
     separate and are flagged ``duplicate_label``. Unlabelled faces overlapping a kept face by
     90 % are duplicates (the overlap of two sheets) and dropped."""
     attr = ATTRIBUTES.get(layer)
-    if layer in ("planned_land_use", "planned_traffic"):
-        return _dedupe_copies(layer, cands, qa)
+    if layer == "planned_land_use":
+        return _dedupe_copies(cands, qa)
     if attr is None:
         return cands
     by_value: dict[str, list[_Candidate]] = defaultdict(list)
@@ -960,11 +909,9 @@ def _merge(layer: str, cands: list[_Candidate], qa: dict[str, Any]) -> list[_Can
     return out
 
 
-def _dedupe_copies(layer: str, cands: list[_Candidate], qa: dict[str, Any]) -> list[_Candidate]:
-    """The same area or line drawn on two sheets of one drawing is kept once: a polygon of the
-    same code overlapping a kept one of an earlier sheet by 90 %, a line lying within 0.5 m of
-    kept lines of earlier sheets for 90 % of its length. Sheets are taken in id order."""
-    lines = layer == "planned_traffic"
+def _dedupe_copies(cands: list[_Candidate], qa: dict[str, Any]) -> list[_Candidate]:
+    """The same area drawn on two sheets of one drawing is kept once: a polygon of the same code
+    overlapping a kept one of an earlier sheet by 90 %. Sheets are taken in id order."""
     by_sheet: dict[str, list[_Candidate]] = defaultdict(list)
     for c in cands:
         by_sheet[c.sheet.rule.id].append(c)
@@ -975,27 +922,15 @@ def _dedupe_copies(layer: str, cands: list[_Candidate], qa: dict[str, Any]) -> l
         for c in by_sheet[sid]:
             others: list[_Candidate] = []
             if tree is not None:
-                probe = c.geom.buffer(0.5) if lines else c.geom
-                others = [kept[i] for i in tree.query(probe, predicate="intersects").tolist()]
-            if lines and others:
-                near = shapely.union_all(np.asarray([o.geom for o in others], dtype=object))
-                duplicate = c.geom.difference(near.buffer(0.5)).length < 0.1 * c.geom.length
-            else:
-                same = [o.geom for o in others if o.attrs.get("code") == c.attrs.get("code")]
-                duplicate = bool(same) and g.duplicate_of(c.geom, same) is not None
+                others = [kept[i] for i in tree.query(c.geom, predicate="intersects").tolist()]
+            same = [o.geom for o in others if o.attrs.get("code") == c.attrs.get("code")]
+            duplicate = bool(same) and g.duplicate_of(c.geom, same) is not None
             if duplicate:
                 qa["duplicates_removed"] += 1
             else:
                 new.append(c)
         kept.extend(new)
     return kept
-
-
-def _as_multi(geom: BaseGeometry, lines: bool) -> BaseGeometry:
-    if lines:
-        parts = g.line_parts(geom)
-        return MultiLineString(parts)
-    return MultiPolygon(g.polygon_parts(geom))
 
 
 def _finish(ctx: _Context, layer: str, rule: LayerRule, cands: list[_Candidate]) -> list[Feature]:
@@ -1007,14 +942,13 @@ def _finish(ctx: _Context, layer: str, rule: LayerRule, cands: list[_Candidate])
         dropped = [c for c in cands if "unlabelled" in c.flags]
         qa["unlabelled_dropped"] += len(dropped)
         cands = [c for c in cands if "unlabelled" not in c.flags]
-    lines = layer in LINE_LAYERS
     attr = ATTRIBUTES.get(layer)
     feats: list[Feature] = []
     cands.sort(key=lambda c: (_natural(str(c.attrs.get(attr) or "")), _order_key(c.geom)))
     seen: dict[str, int] = defaultdict(int)
     unnamed = 0
     for c in cands:
-        geom = _as_multi(c.geom, lines)
+        geom = MultiPolygon(g.polygon_parts(c.geom))
         if layer == "plan_boundary":
             key = "coverage"
         elif attr and c.attrs.get(attr) and layer in ("urban_parcels", "urban_blocks"):
@@ -1029,9 +963,8 @@ def _finish(ctx: _Context, layer: str, rule: LayerRule, cands: list[_Candidate])
                 "urban_parcels": "face",
                 "urban_blocks": "block-face",
                 "planned_land_use": "area",
-                "planned_traffic": "line",
             }[layer]
-            code = c.attrs.get("code") or c.attrs.get("road_class")
+            code = c.attrs.get("code")
             key = f"{prefix}-{code}-{unnamed:04d}" if code else f"{prefix}-{unnamed:04d}"
         f = Feature(
             layer=layer,
@@ -1073,13 +1006,12 @@ def _natural(s: str) -> tuple:
 def _layer_qa(
     layer: str, rule: LayerRule, feats: list[Feature], counter: dict[str, Any]
 ) -> dict[str, Any]:
-    lines = layer in LINE_LAYERS
     flags = defaultdict(int)
     for f in feats:
         for fl in f.qa_flags:
             flags[fl] += 1
     invalid = sum(not f.geom.is_valid for f in feats)
-    slivers = 0 if lines else sum(g.is_sliver(f.geom, rule.min_area_m2) for f in feats)
+    slivers = sum(g.is_sliver(f.geom, rule.min_area_m2) for f in feats)
     out: dict[str, Any] = {
         "staged_as": STAGED_AS[layer],
         "method": rule.method,
@@ -1094,11 +1026,8 @@ def _layer_qa(
         "duplicates_removed": int(counter.get("duplicates_removed", 0)),
         "invalid_after_cleanup": invalid,
         "slivers_after_cleanup": slivers,
+        "area_m2": round(sum(f.geom.area for f in feats), 1),
     }
-    if lines:
-        out["length_m"] = round(sum(f.geom.length for f in feats), 1)
-    else:
-        out["area_m2"] = round(sum(f.geom.area for f in feats), 1)
     for k in (
         "faces_built",
         "outside_dropped",
@@ -1108,7 +1037,6 @@ def _layer_qa(
         "labels_outside",
         "unclassified",
         "source_without_key",
-        "short_removed",
     ):
         if counter.get(k):
             out[k] = int(counter[k])
@@ -1222,8 +1150,7 @@ def extract_document(
             },
             "invalid_after_cleanup": sum(not f.geom.is_valid for f in feats),
             "slivers_after_cleanup": sum(
-                f.layer not in LINE_LAYERS and g.is_sliver(f.geom, rule_of[f.layer].min_area_m2)
-                for f in feats
+                g.is_sliver(f.geom, rule_of[f.layer].min_area_m2) for f in feats
             ),
         }
     parcels = ctx.layers.get("urban_parcels")

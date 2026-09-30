@@ -2,8 +2,8 @@
 
 Spec: ``docs/specs/market-data.md``. Market figures come from official statistics (Monstat:
 selling prices and construction cost of new dwellings) and the client's range sheet (per zone:
-land, construction, design and sale per m², low / high); portal listings (Realitica, Estitor)
-are the pilot's. The path:
+land, construction, design and sale per m², low / high; the portals' listing prices, Realitica
+and Estitor, reach UrbanView summarised in it). The path:
 
 1. **record** (:mod:`core.market.pipeline`): the file (``stored_files``, kind ``market_data``)
    is read as it is (:mod:`core.market.readers`) into ``market_imports`` with its source,

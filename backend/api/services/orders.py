@@ -78,6 +78,7 @@ from core.errors import (
     NotFoundError,
     ServiceUnavailableError,
 )
+from core.models.orders import ORDER_STATUSES
 from core.municipality import MunicipalityProfile
 from core.payments import BankTransferProvider, PaymentInstructions
 from core.pricing import PriceTier, add_business_days, price_for
@@ -85,14 +86,7 @@ from core.storage import ObjectStorage
 
 log = logging.getLogger("urbanview.orders")
 
-STATUSES: tuple[str, ...] = (
-    "pending_payment",
-    "paid",
-    "payment_failed",
-    "in_progress",
-    "delivered",
-    "refunded",
-)
+STATUSES = ORDER_STATUSES  # the one list (core.models.orders, ck_orders_status)
 TRANSITIONS: dict[str, frozenset[str]] = {
     "pending_payment": frozenset({"paid", "payment_failed"}),
     # the transfer did not arrive; it may still come
@@ -355,12 +349,6 @@ SET_REPORT_SQL = text(
 APPEND_NOTE_SQL = text(
     "UPDATE orders SET notes = concat_ws(E'\\n', notes, CAST(:note AS text)), updated_at = :at "
     "WHERE id = :id AND municipality_id = :m"
-)
-INSERT_EMAIL_LOG_SQL = text(
-    """
-    INSERT INTO email_log (municipality_id, order_id, to_email, template, subject, status, error)
-    VALUES (:m, :order_id, :to_email, :template, :subject, :status, :error)
-    """
 )
 STAFF_USER_SQL = text(
     "SELECT id, email, display_name, role, is_active FROM staff_users "

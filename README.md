@@ -11,9 +11,9 @@ Source documents (BRD v1.6, BRQ, wireframe, brand assets): `docs/`.
 |---|---|---|
 | `backend/` | Public API, location resolution, jobs | FastAPI, SQLAlchemy 2 (async), Celery, Redis, S3 |
 | `database/` | Schema migrations, seed datasets, DB tooling | Alembic, PostgreSQL 16 + PostGIS |
-| `frontend/` | Public map: shell, shared components, typed API client, analytics (see `frontend/README.md`) | Next.js 16, TypeScript, Tailwind v4, shadcn/ui, Mapbox GL JS, TanStack Query |
+| `frontend/` | Public map: shell, shared components, typed API client, analytics (see `frontend/README.md`) | Next.js 16, TypeScript, Radix (shadcn/ui primitives), Mapbox GL JS, TanStack Query |
 | `packages/` | `feasibility-engine`: the shared feasibility formula engine and its fixtures (npm workspace; the backend runs a Python copy held to the same fixtures) | TypeScript |
-| `docs/` | BRD, BRQ, pilot technical scope, POC exclusions, wireframe (+ per-state screenshots), brand SVGs, specs (`specs/panel-payload.md`, `specs/frontend-design.md`) | |
+| `docs/` | BRD, BRQ, wireframe (+ screenshots of the states the POC builds), brand SVGs, specs (`specs/panel-payload.md`, `specs/frontend-design.md`, extraction, pre-processing), GIS notes; the pilot technical scope and the POC exclusions are kept locally (git-ignored) | |
 
 ## Quick start
 

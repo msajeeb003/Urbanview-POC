@@ -1,11 +1,11 @@
 """PDF pre-processing (core.extraction.preprocess / chunking / manifest) on a generated planning
 PDF (tests/pdf_synthetic.py): text blocks and words with boxes in reading order, a parameter
 table with its column headers (wrapped cells joined), a table continued on the next page with its
-header repeated, scanned / blank pages flagged and never filled in, OCR only through a configured
-backend, diacritics and Cyrillic unchanged, sections from headings and table headers, chunks
-within a budget that never split a table, citations carrying page and box into the extraction
-contract, page images, the manifest and its cache key. Also the acceptance run over the POC
-documents when the client files are on this machine."""
+header repeated, scanned / blank pages flagged and never filled in (no OCR), diacritics and
+Cyrillic unchanged, sections from headings and table headers, chunks within a budget that never
+split a table, citations carrying page and box into the extraction contract, the manifest and its
+cache key. Also the acceptance run over the POC documents when the client files are on this
+machine."""
 
 from __future__ import annotations
 
@@ -37,11 +37,8 @@ from core.extraction.pages import render_pages  # noqa: E402
 from core.extraction.preprocess import (  # noqa: E402
     PREPROCESS_VERSION,
     PreprocessOptions,
-    RawBlock,
-    RawLine,
     detect_script,
     extract_pages,
-    iter_page_images,
 )
 from core.extraction.response import ParcelsResponse  # noqa: E402
 from core.extraction.schema import StatedValue  # noqa: E402
@@ -136,7 +133,7 @@ def test_a_scanned_page_is_flagged_and_never_filled_in(doc):
         doc, chunks, options=OPTIONS, page_data_key="k", created_at=datetime.now(UTC)
     ).summary
     assert (summary.scanned_pages, summary.unread_pages, summary.blank_pages) == ([3], [3], [5])
-    assert summary.vector_pages == 4 and summary.ocr_pages == []
+    assert summary.vector_pages == 4
 
 
 def test_an_image_page_with_a_stray_label_is_a_scan_but_a_drawing_is_not():
@@ -154,36 +151,6 @@ def test_an_image_page_with_a_stray_label_is_a_scan_but_a_drawing_is_not():
     assert (stamped.scanned, stamped.scanned_reason) == (True, "low_text_density")
     assert stamped.method == "none" and stamped.text == ""  # the stray label is not read either
     assert (lines.scanned, lines.blank, lines.method) == (False, False, "none")
-
-
-class FakeOcr:
-    name = "fake"
-
-    def __init__(self) -> None:
-        self.read_pages: list[int] = []
-
-    def read(self, page):
-        self.read_pages.append(page.number + 1)
-        box = (40.0, 60.0, 260.0, 74.0)
-        text = "Skenirana strana: UP 9 indeks zauzetosti 0,35"
-        words = [(w, box) for w in text.split()]
-        return [RawBlock(bbox=box, lines=[RawLine(text=text, bbox=box, words=words)])]
-
-
-def test_ocr_runs_only_through_a_configured_backend(pdf):
-    ocr = FakeOcr()
-    pages = extract_pages(pdf, ocr=ocr)
-    assert ocr.read_pages == [3]  # only the scan
-    scan = pages.page(3)
-    assert (scan.scanned, scan.method) == (True, "ocr") and "UP 9" in scan.text
-    detect_sections(pages, RULES)
-    chunks = plan_chunks(pages, OPTIONS)
-    [page_input] = chunk_pages(pages, _chunk_for(chunks, 3))
-    assert page_input.method == "ocr" and page_input.words
-    summary = build_manifest(
-        pages, chunks, options=OPTIONS, page_data_key="k", created_at=datetime.now(UTC)
-    ).summary
-    assert (summary.scanned_pages, summary.ocr_pages, summary.unread_pages) == ([3], [3], [])
 
 
 def test_glyph_shifted_cad_labels_are_decoded(doc):
@@ -269,15 +236,7 @@ def test_chunk_pages_carry_page_and_box_into_the_extraction_contract(doc):
     assert find_in(page.text, coverage.raw_text) and result.issues == []
 
 
-# --- page images, manifest ------------------------------------------------------------------------
-
-
-def test_page_images_are_png_and_large_sheets_are_capped(pdf):
-    images = list(iter_page_images(pdf, dpi=72, max_pixels=10**9))
-    assert [n for n, _, _ in images] == [1, 2, 3, 4, 5, 6]
-    assert all(png.startswith(b"\x89PNG\r\n\x1a\n") and dpi == 72 for _, png, dpi in images)
-    _, _, capped = next(iter_page_images(pdf, dpi=300, max_pixels=100_000))
-    assert capped < 300
+# --- manifest -------------------------------------------------------------------------------------
 
 
 def test_the_manifest_round_trips_and_keys_the_cache(doc):

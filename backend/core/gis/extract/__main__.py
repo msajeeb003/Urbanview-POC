@@ -160,14 +160,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         json.dumps(ex.qa, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     for layer, q in ex.qa["layers"].items():
-        extra = (
-            f"area {q['area_m2']:.0f} m2"
-            if "area_m2" in q
-            else f"length {q.get('length_m', 0):.0f} m"
-        )
         print(
             f"{layer:18} {q['features']:>5} features  labelled {q['labelled']:>4}  "
-            f"unlabelled {q['unlabelled']:>3}  multi {q['multi_label']:>2}  {extra}  "
+            f"unlabelled {q['unlabelled']:>3}  multi {q['multi_label']:>2}  "
+            f"area {q['area_m2']:.0f} m2  "
             f"invalid {q['invalid_after_cleanup']}  slivers {q['slivers_after_cleanup']}"
         )
     if "expected_parcels" in ex.qa:

@@ -5,7 +5,7 @@ repo root).
 
 | Package | Purpose |
 |---|---|
-| `feasibility-engine/` (`@urbanview/feasibility-engine`) | The one shared feasibility formula engine: the client's formulas with low / expected / high ranges, pure and deterministic, ESM + CJS. Used by the Next.js apps for live recalculation; the backend runs a Python copy (`backend/core/engine/shared.py`) held to the same fixtures. |
+| `feasibility-engine/` (`@urbanview/feasibility-engine`) | The one shared feasibility formula engine: the client's formulas with low / expected / high ranges, pure and deterministic, ESM + CJS. Used by the Next.js app for live recalculation; the backend runs a Python copy (`backend/core/engine/shared.py`) held to the same fixtures. |
 
 `feasibility-engine/fixtures/feasibility-cases.json` is the contract: input → expected output
 cases that both engines must reproduce exactly (`packages/feasibility-engine/test` and

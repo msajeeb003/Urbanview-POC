@@ -229,8 +229,7 @@ SELECT
      WHERE municipality_id = :municipality_id AND is_current) AS links_computed,
     (SELECT md5(COALESCE(string_agg(concat_ws(':', id, name, status::text, coverage_live,
                                               is_current_version, zone_id, amends_document_id,
-                                              file_id, file_key, page_count,
-                                              page_images_rendered, source_url),
+                                              file_id, file_key, page_count, source_url),
                                     '|' ORDER BY id), ''))
      FROM planning_documents WHERE municipality_id = :municipality_id) AS documents,
     (SELECT md5(COALESCE(string_agg(id::text, ',' ORDER BY id), ''))

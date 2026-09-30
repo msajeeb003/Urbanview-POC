@@ -5,10 +5,10 @@
   the layer's contract (``jobs.publish_layers``); the publish job upserts entity layers into
   their serving tables by natural key (stable ids) and copies the generic layers into
   ``layer_features`` for the new version.
-  Since 0033 a staged batch carries its ``origin``, topology QA (``qa_status`` /
+  Since 0033 a staged batch carries its ``origin``, validity QA (``qa_status`` /
   ``qa_issues``, ``core.geometry_qa``) and a reviewer's decision (``review_state``): the publish
   job applies approved batches only (the pilot scope's ``staging.geometry_draft``).
-- ``layer_features``: versioned generic map layers (planned land use, traffic network).
+- ``layer_features``: versioned generic map layers (planned land use).
 - ``parcel_links``: cadastral ↔ planned parcel overlaps per version (rank 1 = primary), the
   same thresholds as location resolution.
 - the heatmap surfaces are ``choropleth_cells`` / ``choropleth_classes``
@@ -45,7 +45,7 @@ from core.models.planning import gist_index
 
 
 def any_geometry() -> Geometry:
-    """Mixed geometry types (polygons for land use, lines for the traffic network)."""
+    """Any geometry type (the staged and the generic layers; land use is polygons)."""
     return Geometry(geometry_type="GEOMETRY", srid=4326, spatial_index=False)
 
 
@@ -61,7 +61,7 @@ class GeometryBatch(Base):
         Text,
         nullable=False,
         comment="cadastral_parcels | cadastral_municipalities | urban_parcels | urban_blocks "
-        "| zones | document_coverage | land_use | traffic_network",
+        "| zones | document_coverage | land_use",
     )
     status: Mapped[str] = mapped_column(
         Text,
@@ -95,13 +95,13 @@ class GeometryBatch(Base):
         Text, comment="label of the producing dataset (georeferencing, zone or cadastral import)"
     )
     qa_status: Mapped[str | None] = mapped_column(
-        Text, comment="topology QA (core.geometry_qa): pass | warn | fail; null = not checked yet"
+        Text, comment="validity QA (core.geometry_qa): pass | warn | fail; null = not checked yet"
     )
     qa_issues: Mapped[list[dict[str, Any]]] = mapped_column(
         JSONB,
         nullable=False,
         server_default=text("'[]'::jsonb"),
-        comment="overlaps, gaps, area deviation, invalid geometry, the dataset's warnings",
+        comment="invalid or empty geometry, the producing run's warnings",
     )
     review_state: Mapped[str | None] = mapped_column(
         Text,
@@ -178,9 +178,7 @@ class LayerFeature(Base):
     publish_version_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("publish_versions.id", ondelete="CASCADE"), nullable=False
     )
-    layer_id: Mapped[str] = mapped_column(
-        Text, nullable=False, comment="land_use | traffic_network"
-    )
+    layer_id: Mapped[str] = mapped_column(Text, nullable=False, comment="land_use")
     feature_key: Mapped[str] = mapped_column(Text, nullable=False)
     geom: Mapped[Any] = mapped_column(any_geometry(), nullable=False)
     properties: Mapped[dict[str, Any]] = mapped_column(
@@ -193,9 +191,6 @@ class LayerFeature(Base):
         ),
         gist_index("layer_features", "geom"),
     )
-
-
-LINK_RELATIONS = ("same", "reduced", "enlarged", "split", "merged", "none")
 
 
 class ParcelLink(Base):

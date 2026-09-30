@@ -2,7 +2,7 @@
 in one cell (``1.200 – 1.500``, ``od 1.200 do 1.500``), units (EUR per m², per ha, per ar, in
 thousands, another currency) and periods (``IV kvartal 2025``, ``Q3 2026``, ``I polugodište
 2026``, ``septembar 2026``, ``2025``, ISO dates) turned into the reference date (the period's
-last day). The LLM step may point at a cell or copy a label; the reading is always done here."""
+last day). The rules only say which cell holds what; the reading is always done here."""
 
 from __future__ import annotations
 

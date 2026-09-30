@@ -1,10 +1,12 @@
-"""What the model returns: a transcription, one response model per task (``RESPONSE_MODELS``).
+"""The transcription the validator reads, one response model per task (``RESPONSE_MODELS``).
 
-Every field is an :class:`OutValue`: the value exactly as printed (always a string: the model
-never types, converts or computes a number), how the document expresses its unit, a verbatim
-``raw_text`` with the page it is on, an optional table reference, a confidence, and for a field
-the pages do not state, ``value: null`` with ``absent_reason`` ``not_found`` or ``deferred``. The
-validator (``core.extraction.validate``) turns this into the canonical contract.
+The model answers in the compact form of ``core.extraction.compact``, whose ``to_legacy()`` turns
+the answer into these models. Every field is an :class:`OutValue`: the value exactly as printed
+(always a string: the model never types, converts or computes a number), how the document
+expresses its unit, a verbatim ``raw_text`` with the page it is on, an optional table reference, a
+confidence, and for a field the pages do not state, ``value: null`` with ``absent_reason``
+``not_found`` or ``deferred``. The validator (``core.extraction.validate``) turns this into the
+canonical contract.
 
 :func:`strict_json_schema` is the structured-output format sent with the request: every object
 closed (``additionalProperties: false``) with all its properties required, and the keywords

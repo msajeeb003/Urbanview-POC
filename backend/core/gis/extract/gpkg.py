@@ -1,9 +1,9 @@
 """GeoPackage output, written natively with sqlite3 (GDAL and QGIS read it; no GDAL needed here).
 
 One GeoPackage per document with the layers ``plan_boundary``, ``urban_parcels``,
-``urban_blocks``, ``planned_land_use`` and ``planned_traffic``: MULTIPOLYGON or MULTILINESTRING
-in the document's local frame (ground metres, not georeferenced, so ``srs_id = -1``, the
-GeoPackage's undefined Cartesian system). One row per feature with its key, provenance
+``urban_blocks`` and ``planned_land_use``: MULTIPOLYGON in the document's local frame (ground
+metres, not georeferenced, so ``srs_id = -1``, the GeoPackage's undefined Cartesian system). One
+row per feature with its key, provenance
 (document, sheet, page, raw path ids, source bbox in the sheet's PDF points), label and
 ``qa_flags`` (comma-separated). The same layers and columns are the contract for sheets redrawn
 by hand in QGIS (``read_gpkg`` imports them).
@@ -22,11 +22,12 @@ import shapely
 from shapely.geometry.base import BaseGeometry
 
 from core.gis.extract.extract import Extraction
-from core.gis.extract.rules import LINE_LAYERS, TARGET_LAYERS
+from core.gis.extract.rules import TARGET_LAYERS
 
 APPLICATION_ID = 0x47504B47  # "GPKG"
 USER_VERSION = 10300  # GeoPackage 1.3.0
 LOCAL_SRS_ID = -1
+GEOMETRY_TYPE = "MULTIPOLYGON"
 
 COMMON_COLUMNS: tuple[tuple[str, str], ...] = (
     ("feature_key", "TEXT NOT NULL"),
@@ -51,7 +52,6 @@ LAYER_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
         ("urban_parcel_number", "TEXT"),
         ("area_m2", "REAL"),
     ),
-    "planned_traffic": (("road_class", "TEXT"), ("name", "TEXT"), ("length_m", "REAL")),
 }
 JSON_COLUMNS = {"source_paths", "source_bbox", "label_bbox"}
 
@@ -173,12 +173,11 @@ def write_gpkg(
         counts: dict[str, int] = {}
         for layer in TARGET_LAYERS:
             rows = layers.get(layer, [])
-            gtype = "MULTILINESTRING" if layer in LINE_LAYERS else "MULTIPOLYGON"
             columns = COMMON_COLUMNS + LAYER_COLUMNS[layer]
             ddl = ", ".join(f'"{name}" {kind}' for name, kind in columns)
             con.execute(
                 f'CREATE TABLE "{layer}" '
-                f"(fid INTEGER PRIMARY KEY AUTOINCREMENT, geom {gtype}, {ddl})"
+                f"(fid INTEGER PRIMARY KEY AUTOINCREMENT, geom {GEOMETRY_TYPE}, {ddl})"
             )
             names = [name for name, _ in columns]
             quoted = ", ".join(f'"{n}"' for n in names)
@@ -220,7 +219,7 @@ def write_gpkg(
             )
             con.execute(
                 "INSERT INTO gpkg_geometry_columns VALUES (?, 'geom', ?, ?, 0, 0)",
-                (layer, gtype, LOCAL_SRS_ID),
+                (layer, GEOMETRY_TYPE, LOCAL_SRS_ID),
             )
             counts[layer] = len(rows)
         con.commit()

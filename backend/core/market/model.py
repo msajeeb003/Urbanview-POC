@@ -1,9 +1,9 @@
 """Types of the market-data import path (``core.market``).
 
 A :class:`RawTable` is a file as read (sheets of cells, nothing interpreted); a
-:class:`SheetMapping` says what its rows and columns mean (the rules or the LLM produce it, never
-a number); :class:`MarketInput` is one normalised zone-level input (low / expected / high in EUR
-per m² for one metric) with its source, reference date, flags and the raw cells it came from.
+:class:`SheetMapping` says what its rows and columns mean (the profile's rules produce it, never a
+number); :class:`MarketInput` is one normalised zone-level input (low / expected / high in EUR per
+m² for one metric) with its source, reference date, flags and the raw cells it came from.
 """
 
 from __future__ import annotations
@@ -20,14 +20,6 @@ Bound = Literal["low", "expected", "high"]
 BOUNDS: tuple[Bound, ...] = ("low", "expected", "high")
 ImportKind = Literal["statistics", "client_ranges"]
 RangeBasis = Literal["stated", "derived", "unavailable"]
-
-# What the metric means (the engine's rates, core.engine.feasibility): also the model's glossary.
-METRIC_MEANING: dict[Metric, str] = {
-    "land_rate": "land value per m² of PARCEL area",
-    "build_rate": "construction cost per m² of gross floor area",
-    "design_rate": "design & documentation cost per m² of gross floor area",
-    "sale_rate": "selling price per m² of saleable floor area",
-}
 
 Cell = str | float | int | None
 
@@ -82,7 +74,7 @@ class RawTable:
         return sum(len(s.rows) for s in self.sheets)
 
 
-# --- mapping: what the cells mean (rules or the LLM; never a figure) ------------------------------
+# --- mapping: what the cells mean (the rules; never a figure) -------------------------------------
 
 
 class _Strict(BaseModel):

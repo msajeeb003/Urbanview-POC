@@ -2,8 +2,8 @@
 which zone each row is, from the words of the profile's ``[market]`` table.
 
 ``map_sheet`` returns a :class:`~core.market.model.SheetMapping` (or ``None`` when the layout
-is not recognised: then the LLM step maps it, or the sheet is reported). Rows whose area the rules
-cannot place stay in the mapping with ``applies_to = "none"`` so the LLM step can place them.
+is not recognised: the sheet is reported). Rows whose area the rules cannot place stay in the
+mapping with ``applies_to = "none"`` and are reported as skipped (``no_zone_match``).
 The rules never read a figure; :mod:`core.market.normalise` does, from the mapping.
 """
 
@@ -385,12 +385,9 @@ class SheetReader:
         mapping: SheetMapping,
         first_data: int,
         analysis: SheetAnalysis,
-        *,
-        row_metrics: dict[int, Metric | None] | None = None,
-        skip_rows: set[int] | None = None,
     ) -> list[RowPlace]:
         """Every data row with its area placed by the rules (``none`` when they cannot), its
-        metric (long tables: the label cell, or ``row_metrics`` from the LLM) and period."""
+        metric (long tables: the label cell) and period."""
         geography = next((c.column for c in mapping.columns if c.role == "geography"), None)
         label = next((c.column for c in mapping.columns if c.role == "metric_label"), None)
         period = next((c.column for c in mapping.columns if c.role == "period"), None)
@@ -400,9 +397,7 @@ class SheetReader:
             texts = [cell_text(x) for x in sheet.rows[r]]
             if not any(texts):
                 continue
-            if (skip_rows and r in skip_rows) or not any(
-                looks_numeric(sheet.cell(r, c)) for c in value_cols
-            ):
+            if not any(looks_numeric(sheet.cell(r, c)) for c in value_cols):
                 detail = " | ".join(t for t in texts if t)[:200]
                 analysis.skipped.append(Skipped("not_data", sheet=index, row=r, detail=detail))
                 continue
@@ -420,9 +415,7 @@ class SheetReader:
                     place.applies_to, place.zone_id, "table", place.confidence, place.reason
                 )
             metric = None
-            if row_metrics and r in row_metrics:
-                metric = row_metrics[r]
-            elif label is not None:
+            if label is not None:
                 metric = self.rules.metric(cell_text(sheet.cell(r, label)))
             period_text = cell_text(sheet.cell(r, period)) if period is not None else None
             places.append(

@@ -5,24 +5,22 @@
  * `GET /v1/panel?type=document&id=`: header (PLANNING DOCUMENT + status, name, "DUP — Detailed
  * urban plan" from the profile), document details with the source chip (the PDF's first page, or
  * the registry entry) and the source row (the registry name links to its eRegistri entry), the
- * general planning information of its zone, coverage counts, the data version, and the CTA stack: "Ask about this document" (an intent
- * button: `ai_interest` + a toast; the POC builds no assistant) and "How we read a planning
- * document" (the methodology, step 2).
+ * general planning information of its zone (or a neutral note while none is written), coverage
+ * counts, the data version, and the CTA stack: "How we read a planning document" (the
+ * methodology, step 2). No intent button: the pilot scope's two are on the parcel panels.
  */
 import { useEffect } from "react";
 
-import { useTrack } from "@/lib/analytics/react";
 import { ApiError } from "@/lib/api/client";
 import { useMunicipality, usePanel } from "@/lib/api/hooks";
 import type { DocumentPanel as DocumentPanelData } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
-import { useT } from "@/lib/i18n";
 import { useOpenSource } from "@/lib/source";
 import { useShell } from "@/lib/store";
 
 import { METHODOLOGY_LABEL, MethodologyModal } from "../shell/methodology-modal";
 import { Cta } from "../ui/cta";
-import { IconAsk, IconSteps } from "../ui/icons";
+import { IconSteps } from "../ui/icons";
 import { PanelRow } from "../ui/panel-row";
 import { SourceRef } from "../ui/source-ref";
 import {
@@ -37,10 +35,6 @@ import {
   usePanelViewed,
 } from "./panel-parts";
 
-/** The mock's text when the zone has no summary of its own. */
-const GENERIC_SUMMARY =
-  "This adopted plan governs building rights across its coverage area. Per-parcel parameters — land use, height, coverage, FAR — are defined on the urban parcels inside it; click any parcel to read them.";
-
 function Eyebrow({ status }: { status?: DocumentPanelData["document"]["status"] }) {
   return (
     <>
@@ -54,11 +48,8 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
   const query = usePanel({ type: "document", id: documentId });
   const { data: profile } = useMunicipality();
   const clearSelection = useShell((s) => s.clearSelection);
-  const showToast = useShell((s) => s.showToast);
   const openModal = useShell((s) => s.openModal);
   const openSource = useOpenSource();
-  const track = useTrack();
-  const t = useT();
   const data = query.data?.type === "document" ? query.data : undefined;
   const gone = query.error instanceof ApiError && query.error.isNotFound;
   usePanelViewed("document", data ? { document_id: documentId } : null);
@@ -130,9 +121,13 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
           <div className="secthead">
             <span className="lbl">General planning information</span>
           </div>
-          <p style={{ fontSize: "12.5px", color: "var(--ink-2)", margin: "-2px 0 0", lineHeight: 1.55 }}>
-            {data.general_planning_summary ?? GENERIC_SUMMARY}
-          </p>
+          {data.general_planning_summary ? (
+            <p style={{ fontSize: "12.5px", color: "var(--ink-2)", margin: "-2px 0 0", lineHeight: 1.55 }}>
+              {data.general_planning_summary}
+            </p>
+          ) : (
+            <p className="panelnote">A general planning summary for this zone has not been written yet.</p>
+          )}
         </div>
 
         <div className="sect">
@@ -146,16 +141,6 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
         <DataVersionLine version={data.data_version} date={data.data_version_date} />
       </div>
       <div className="ctastack">
-        <Cta
-          variant="ghost"
-          icon={<IconAsk />}
-          onClick={() => {
-            track("ai_interest", { trigger: "document_panel", document_id: doc.id });
-            showToast(t("ai.notYet"));
-          }}
-        >
-          Ask about this document
-        </Cta>
         <Cta
           variant="line"
           icon={<IconSteps />}

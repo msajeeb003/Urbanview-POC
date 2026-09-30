@@ -1,7 +1,7 @@
 """The PDF pre-processing stage on PostGIS (fake storage; the extraction and geometry jobs run it
-first): the manifest persisted on the file record, the scanned pages on the document record, page
-images at the source viewer's keys, the checksum cache on a re-run, ``force``, serving the images,
-and the refusals."""
+first): the manifest persisted on the file record, the scanned pages on the document record, the
+checksum cache on a re-run, ``force``, the source viewer serving the PDF page, and the
+refusals."""
 
 from __future__ import annotations
 
@@ -67,7 +67,6 @@ def preprocess_env(postgis_url):
             database_url=postgis_url,
             rate_limit_requests=100_000,
             admin_api_tokens=f"{TOKEN}:admin:ops",
-            preprocess_page_image_dpi=40,
             **overrides,
         )
         configure_preprocess(database_url=postgis_url, storage=storage, settings=settings)
@@ -113,7 +112,7 @@ async def test_preprocessing_persists_the_manifest_and_reports_scanned_pages(pre
         document_id = doc.json()["id"]
 
         result = await run_preprocess("podgorica", file_id)
-        assert result["cached"] is False and result["images_rendered_for"] == [document_id]
+        assert result["cached"] is False
 
         manifest = await stored_manifest(app, file_id)
         assert manifest["sha256"] == up.json()["file"]["sha256"]
@@ -121,11 +120,6 @@ async def test_preprocessing_persists_the_manifest_and_reports_scanned_pages(pre
         assert manifest["tables"][1]["header_from"] == "p1t1"
         pages = json.loads(gzip.decompress(storage.get_bytes(manifest["page_data_key"])))
         assert pages["pages"][0]["tables"][0]["columns"][2] == "Površina UP"
-        keys = manifest["page_images"][str(document_id)]["keys"]
-        assert keys == [
-            f"podgorica/planning-documents/{document_id}/pages/{n:04d}.png" for n in range(1, 7)
-        ]
-        assert all(storage.get_bytes(k).startswith(b"\x89PNG") for k in keys)
 
         again_up = await client.post(
             "/v1/admin/files",
@@ -140,45 +134,18 @@ async def test_preprocessing_persists_the_manifest_and_reports_scanned_pages(pre
         ).json()
         viewer = await client.get(f"/v1/source/{document_id}/page/1")
 
-        # the same file again: nothing is re-read or re-rendered
+        # the same file again: nothing is re-read or re-written
         puts = len(storage.puts)
         again = await run_preprocess("podgorica", file_id)
-        assert again["cached"] is True
-        assert again["images_rendered_for"] == [] and len(storage.puts) == puts
+        assert again["cached"] is True and len(storage.puts) == puts
         forced = await run_preprocess("podgorica", file_id, force=True)
-        assert forced["cached"] is False and forced["images_rendered_for"] == [document_id]
+        assert forced["cached"] is False
 
     for record in (file_out["preprocessing"], document_out["preprocessing"]):
         assert (record["scanned_pages"], record["unread_pages"]) == ([3], [3])
         assert (record["vector_pages"], record["page_count"], record["tables"]) == (4, 6, 2)
-        assert record["page_images"] == [document_id]
     assert "infrastructure" in document_out["preprocessing"]["sections"]
-    assert viewer.json()["kind"] == "pdf_page"  # images are not served unless switched on
-
-
-async def test_serving_the_page_images_switches_the_source_viewer(preprocess_env):
-    from tests.pdf_synthetic import planning_pdf
-
-    app, _ = preprocess_env(preprocess_serve_page_images=True)
-    async with app.router.lifespan_context(app), make_client(app) as client:
-        up = await client.post(
-            "/v1/admin/files",
-            files={"file": ("plan.pdf", planning_pdf(), "application/pdf")},
-            data={"kind": "planning_document"},
-            headers=auth(),
-        )
-        file_id = up.json()["file"]["id"]
-        doc = await client.post(
-            "/v1/admin/documents",
-            json={"file_id": file_id, "name": "DUP Test", "type": "DUP", "status": "adopted"},
-            headers=auth(),
-        )
-        document_id = doc.json()["id"]
-        await run_preprocess("podgorica", file_id)
-        viewer = await client.get(f"/v1/source/{document_id}/page/3")
-    body = viewer.json()
-    assert viewer.status_code == 200 and body["kind"] == "page_image"
-    assert f"planning-documents/{document_id}/pages/0003.png" in body["url"]
+    assert viewer.json()["kind"] == "pdf_page" and viewer.json()["url"].endswith("#page=1")
 
 
 async def test_only_stored_planning_pdfs_are_preprocessed(preprocess_env):

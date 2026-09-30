@@ -66,13 +66,11 @@ const en = {
   "layer.heatMkt": "Price heatmap",
   "rail.noData": "no data yet",
   "rail.zoomIn": "zoom in to see",
-  "rail.titleCore": "{name} (core layer, always on)",
   "rail.titleToggle": "Toggle {name}",
   "rail.titleNoData": "{name} — nothing published for this layer yet",
   "rail.titleZoom": "{name} — drawn closer in: zoom in to see it",
   "rail.field": "{name} field",
   "rail.level": "{name} level",
-  "toast.core": "Core layer — always visible",
   "toast.zoomIn": "{name} shows when you zoom in closer",
   "toast.noData": "{name}: nothing is published for this layer yet",
   "metric.max_far.short": "FAR",
@@ -103,7 +101,6 @@ const en = {
   "legend.none": "No overlays active",
   "legend.expand": "Expand legend",
   "legend.minimise": "Minimise legend",
-  "legend.coverageArea": "Coverage area — click to open",
   "legend.blockBoundary": "Urban block boundary",
   "legend.parcelOutline": "Parcel outline",
   "legend.parcelOpen": "Parcel — click to open",
@@ -149,7 +146,7 @@ const en = {
     "Figures are indicative ranges from Realitica, Estitor & Monstat — not investment advice. Deterministic calculation; AI does not generate financial values.",
 
   // "Ask about this site" (an intent button: the assistant is not built in the POC)
-  "ai.notYet": "The assistant is not available in the pilot yet. We have noted your interest.",
+  "ai.noted": "Thanks — we have noted your interest in asking about this site.",
 } as const;
 
 export type StringKey = keyof typeof en;
@@ -205,13 +202,11 @@ const me: Record<StringKey, string> = {
   "layer.heatMkt": "Toplotna mapa cijena",
   "rail.noData": "još nema podataka",
   "rail.zoomIn": "uvećajte prikaz",
-  "rail.titleCore": "{name} (osnovni sloj, uvijek uključen)",
   "rail.titleToggle": "Uključi / isključi: {name}",
   "rail.titleNoData": "{name} — za ovaj sloj još ništa nije objavljeno",
   "rail.titleZoom": "{name} — crta se pri većem uvećanju: uvećajte prikaz",
   "rail.field": "{name}: pokazatelj",
   "rail.level": "{name}: nivo",
-  "toast.core": "Osnovni sloj — uvijek vidljiv",
   "toast.zoomIn": "{name} se vidi kad uvećate prikaz",
   "toast.noData": "{name}: za ovaj sloj još ništa nije objavljeno",
   "metric.max_far.short": "Izgrađenost",
@@ -241,7 +236,6 @@ const me: Record<StringKey, string> = {
   "legend.none": "Nema aktivnih slojeva",
   "legend.expand": "Proširi legendu",
   "legend.minimise": "Smanji legendu",
-  "legend.coverageArea": "Obuhvat plana — kliknite za otvaranje",
   "legend.blockBoundary": "Granica urbanističkog bloka",
   "legend.parcelOutline": "Obris parcele",
   "legend.parcelOpen": "Parcela — kliknite za otvaranje",
@@ -284,7 +278,7 @@ const me: Record<StringKey, string> = {
   "disclaimer.placeholder":
     "Brojke su okvirni rasponi na osnovu podataka Realitice, Estitora i Monstata — nisu investicioni savjet. Deterministički proračun; AI ne generiše finansijske vrijednosti.",
 
-  "ai.notYet": "Asistent u pilotu još nije dostupan. Zabilježili smo vaše interesovanje.",
+  "ai.noted": "Hvala — zabilježili smo vaše interesovanje za pitanja o ovoj lokaciji.",
 };
 
 export const STRINGS: Record<Lang, Record<StringKey, string>> = { en, me };

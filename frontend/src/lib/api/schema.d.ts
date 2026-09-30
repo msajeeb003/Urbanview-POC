@@ -837,7 +837,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Who changed what and when (append-only audit trail) */
+        /** Who changed what and when, newest first (append-only audit trail; admin role) */
         get: operations["list_audit_v1_admin_audit_get"];
         put?: never;
         post?: never;
@@ -1195,23 +1195,29 @@ export interface components {
              * Format: date-time
              */
             generated_at: string;
-            totals: components["schemas"]["Totals"];
             funnel: components["schemas"]["Funnel"];
             orders: components["schemas"]["Orders"];
             /**
-             * Districts
+             * Top Zones
              * @description Most searched / selected zones, descending
              */
-            districts: components["schemas"]["District"][];
-            repeat_usage: components["schemas"]["RepeatUsage"];
-            interest: components["schemas"]["Interest"];
-            panel_to_financials: components["schemas"]["PanelToFinancials"];
+            top_zones: components["schemas"]["ZoneHits"][];
+            /**
+             * Uncovered Hits
+             * @description Where searches outside coverage landed, most frequent first
+             */
+            uncovered_hits: components["schemas"]["UncoveredHit"][];
+            repeat_sessions: components["schemas"]["RepeatSessions"];
+            intent_counts: components["schemas"]["IntentCounts"];
         };
         /**
          * AnalyticsEvent
+         * @description The 13 product events, the one list of them: BRD §6.2's eleven and the pilot scope's two
+         *     intent buttons (``market_data_interest``, ``ai_interest``). The API validates against it and
+         *     ``ck_analytics_events_name`` is built from it (migration 0038).
          * @enum {string}
          */
-        AnalyticsEvent: "map_loaded" | "search_performed" | "parcel_selected" | "layer_toggled" | "panel_viewed" | "financials_viewed" | "source_reference_opened" | "order_started" | "checkout_completed" | "return_visit" | "sessions_per_user" | "market_data_interest" | "ai_interest" | "assumption_edited";
+        AnalyticsEvent: "map_loaded" | "search_performed" | "parcel_selected" | "layer_toggled" | "panel_viewed" | "financials_viewed" | "source_reference_opened" | "order_started" | "checkout_completed" | "return_visit" | "sessions_per_user" | "market_data_interest" | "ai_interest";
         /** ApproveIn */
         ApproveIn: {
             /** Note */
@@ -2069,44 +2075,6 @@ export interface components {
             /** Version */
             version: string;
         };
-        /**
-         * District
-         * @description A zone (UrbanView's district) by the events made in it: the event's ``zone_id``, else the
-         *     zone containing its ``lat`` / ``lng``, so searches outside coverage count too.
-         */
-        District: {
-            /**
-             * Zone Id
-             * @description null = events with no zone_id and no point inside any zone
-             */
-            zone_id: number | null;
-            /** Zone Name */
-            zone_name: string | null;
-            /**
-             * Covered
-             * @description The zone has an adopted, live plan (null without a zone)
-             */
-            covered?: boolean | null;
-            /**
-             * Events
-             * @description search_performed + parcel_selected
-             */
-            events: number;
-            /** Searches */
-            searches: number;
-            /**
-             * Uncovered Searches
-             * @description search_performed with coverage 'uncovered' (S6: no adopted plan there)
-             * @default 0
-             */
-            uncovered_searches: number;
-            /** Selections */
-            selections: number;
-            /** Sessions */
-            sessions: number;
-            /** Share Pct */
-            share_pct: number;
-        };
         /** DocumentCounts */
         DocumentCounts: {
             /** Documents */
@@ -2598,7 +2566,11 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
-        /** EventBatch */
+        /**
+         * EventBatch
+         * @description 1 to 100 events. Rows are validated one by one (see the module docstring): the valid ones
+         *     land in ``events``, the malformed ones in ``rejected``.
+         */
         EventBatch: {
             /** Events */
             events: components["schemas"]["EventIn"][];
@@ -2985,28 +2957,34 @@ export interface components {
             steps: components["schemas"]["FunnelStep"][];
             /**
              * Overall Conversion Pct
-             * @description checkout_completed sessions / map_loaded sessions × 100
+             * @description paid sessions / map_loaded sessions × 100
              */
-            overall_conversion_pct: number | null;
+            overall_conversion_pct: number;
         };
         /** FunnelStep */
         FunnelStep: {
-            /** Step */
+            /**
+             * Step
+             * @description map_loaded | parcel_resolved | panel_opened | order_started | order_submitted | paid
+             */
             step: string;
-            /** Event Names */
+            /**
+             * Event Names
+             * @description The events that put a session at this step (none for paid: the orders table)
+             */
             event_names: string[];
             /**
              * Sessions
-             * @description Sessions with at least one of the step's events
+             * @description Sessions that reached the step and every earlier one in the range
              */
             sessions: number;
             /**
              * Conversion From Previous Pct
-             * @description sessions / previous step's sessions × 100; null when the previous step is 0
+             * @description sessions / previous step's sessions × 100 (0 when the previous step is 0)
              */
-            conversion_from_previous_pct: number | null;
+            conversion_from_previous_pct: number;
             /** Conversion From Start Pct */
-            conversion_from_start_pct: number | null;
+            conversion_from_start_pct: number;
         };
         /** GeocodeResponse */
         GeocodeResponse: {
@@ -3622,9 +3600,14 @@ export interface components {
             accepted: number;
             /**
              * Duplicates
-             * @description Events whose event_id was already stored (retries)
+             * @description Valid rows whose event_id was already stored (retries)
              */
             duplicates: number;
+            /**
+             * Rejected
+             * @description Malformed rows, not stored; the valid rows were
+             */
+            rejected?: components["schemas"]["RejectedEvent"][];
         };
         /** InputFlag */
         InputFlag: {
@@ -3654,17 +3637,17 @@ export interface components {
             /** Note Me */
             note_me: string;
         };
-        /** Interest */
-        Interest: {
-            market_data_interest: components["schemas"]["InterestCount"];
-            ai_interest: components["schemas"]["InterestCount"];
-        };
-        /** InterestCount */
-        InterestCount: {
+        /** IntentCount */
+        IntentCount: {
             /** Events */
             events: number;
             /** Sessions */
             sessions: number;
+        };
+        /** IntentCounts */
+        IntentCounts: {
+            market_data_interest: components["schemas"]["IntentCount"];
+            ai_interest: components["schemas"]["IntentCount"];
         };
         /**
          * JobCostOut
@@ -4075,7 +4058,7 @@ export interface components {
             items?: components["schemas"]["api__schemas__market__ItemCounts"];
             /**
              * Report
-             * @description Detail only: items made, every row / column left out with its reason, issues, the sheet mappings and the LLM's calls and tokens
+             * @description Detail only: items made, every row / column left out with its reason, issues and the sheet mappings
              */
             report?: {
                 [key: string]: unknown;
@@ -4764,6 +4747,18 @@ export interface components {
             /** Status Url */
             status_url: string;
         };
+        /** OrderStatusCount */
+        OrderStatusCount: {
+            /** Status */
+            status: string;
+            /** Orders */
+            orders: number;
+            /**
+             * Amount Eur
+             * @description Sum of the orders' prices
+             */
+            amount_eur: number;
+        };
         /** OrderSummary */
         OrderSummary: {
             /** Id */
@@ -4838,35 +4833,15 @@ export interface components {
         /** Orders */
         Orders: {
             /**
-             * Source
-             * @description Derived from order_started / checkout_completed events (no orders table yet)
-             * @default analytics_events
-             * @constant
+             * Placed
+             * @description Orders placed in the range
              */
-            source: "analytics_events";
-            /** Order Started Events */
-            order_started_events: number;
+            placed: number;
             /**
-             * Orders Started
-             * @description Distinct order_id (events without one count singly)
+             * By Status
+             * @description Every order status in flow order, 0 when none; no customer data
              */
-            orders_started: number;
-            /** Orders Completed */
-            orders_completed: number;
-            /**
-             * Revenue Eur
-             * @description Sum of checkout_completed.amount_eur per order
-             */
-            revenue_eur: number;
-            /** Average Order Eur */
-            average_order_eur: number | null;
-            /**
-             * Completion Pct
-             * @description orders_completed / orders_started × 100
-             */
-            completion_pct: number | null;
-            /** By Product */
-            by_product: components["schemas"]["ProductRevenue"][];
+            by_status: components["schemas"]["OrderStatusCount"][];
         };
         /** OverrideFlags */
         OverrideFlags: {
@@ -4898,19 +4873,19 @@ export interface components {
         PageLinkOut: {
             /**
              * Url
-             * @description Signed, short-lived URL to the cited page (image or PDF#page)
+             * @description Signed, short-lived URL to the cited page (PDF#page)
              */
             url: string;
             /**
              * Kind
-             * @enum {string}
+             * @constant
              */
-            kind: "page_image" | "pdf_page";
+            kind: "pdf_page";
             /**
              * Content Type
-             * @enum {string}
+             * @constant
              */
-            content_type: "image/png" | "application/pdf";
+            content_type: "application/pdf";
             /**
              * Expires At
              * Format: date-time
@@ -4954,35 +4929,6 @@ export interface components {
             field_keys: {
                 [key: string]: string;
             };
-        };
-        /** PanelToFinancials */
-        PanelToFinancials: {
-            /**
-             * Panel Views
-             * @description panel_viewed events
-             */
-            panel_views: number;
-            /**
-             * Panel View Pairs
-             * @description Distinct (session, parcel) pairs with a panel view
-             */
-            panel_view_pairs: number;
-            /**
-             * Pairs Reaching Financials
-             * @description Pairs that also viewed financials for the same parcel
-             */
-            pairs_reaching_financials: number;
-            /**
-             * Reaching Financials Pct
-             * @description pairs_reaching_financials / panel_view_pairs × 100
-             */
-            reaching_financials_pct: number | null;
-            /** Panel Sessions */
-            panel_sessions: number;
-            /** Panel Sessions Reaching Financials */
-            panel_sessions_reaching_financials: number;
-            /** Sessions Reaching Financials Pct */
-            sessions_reaching_financials_pct: number | null;
         };
         /** ParcelAreas */
         ParcelAreas: {
@@ -5326,11 +5272,9 @@ export interface components {
              * @description Raster pages: geometry needs manual redraw
              */
             scanned_pages: number[];
-            /** Ocr Pages */
-            ocr_pages?: number[];
             /**
              * Unread Pages
-             * @description Scanned pages nobody has read yet (no OCR backend)
+             * @description Scanned pages nobody has read (for manual handling)
              */
             unread_pages?: number[];
             /** Blank Pages */
@@ -5352,11 +5296,6 @@ export interface components {
             scripts?: {
                 [key: string]: number;
             };
-            /**
-             * Page Images
-             * @description Documents whose page images are rendered
-             */
-            page_images?: number[];
         };
         /** PriceTierOut */
         PriceTierOut: {
@@ -5383,15 +5322,6 @@ export interface components {
             price_eur: number;
             /** Currency */
             currency: string;
-        };
-        /** ProductRevenue */
-        ProductRevenue: {
-            /** Product */
-            product: string;
-            /** Orders */
-            orders: number;
-            /** Revenue Eur */
-            revenue_eur: number;
         };
         /** PublishBlocker */
         PublishBlocker: {
@@ -5601,37 +5531,45 @@ export interface components {
              */
             note: string;
         };
-        /** RepeatUsage */
-        RepeatUsage: {
-            /** Target Sessions Per User */
-            target_sessions_per_user: number;
-            /** Sessions */
+        /** RejectedEvent */
+        RejectedEvent: {
+            /**
+             * Index
+             * @description Position of the row in the batch (0-based)
+             */
+            index: number;
+            /** Problems */
+            problems: components["schemas"]["RowProblem"][];
+        };
+        /** RepeatSessions */
+        RepeatSessions: {
+            /**
+             * Min Sessions
+             * @description Visits that make a repeat visitor (the target: 3)
+             */
+            min_sessions: number;
+            /**
+             * Sessions
+             * @description Distinct sessions in the range
+             */
             sessions: number;
             /**
-             * Returning Sessions
-             * @description Sessions that emitted return_visit
+             * Visitors
+             * @description Distinct anonymous client ids
              */
-            returning_sessions: number;
+            visitors: number;
             /**
-             * Repeat Usage Rate Pct
-             * @description returning_sessions / sessions × 100
+             * Repeat Visitors
+             * @description Visitors with ≥ min_sessions sessions
              */
-            repeat_usage_rate_pct: number | null;
+            repeat_visitors: number;
+            /** Repeat Visitors Pct */
+            repeat_visitors_pct: number;
             /**
-             * Clients
-             * @description Distinct client_id
+             * Repeat Sessions
+             * @description Sessions of the repeat visitors
              */
-            clients: number;
-            /** Sessions Per Client */
-            sessions_per_client: number | null;
-            /**
-             * Clients At Target
-             * @description Clients with ≥ target sessions in the range
-             */
-            clients_at_target: number;
-            /** Clients At Target Pct */
-            clients_at_target_pct: number | null;
-            reported: components["schemas"]["ReportedSessions"];
+            repeat_sessions: number;
         };
         /** ReportFileOut */
         ReportFileOut: {
@@ -5651,20 +5589,6 @@ export interface components {
             download_url?: string | null;
             /** Download Expires At */
             download_expires_at?: string | null;
-        };
-        /**
-         * ReportedSessions
-         * @description What the client itself reports through ``sessions_per_user`` events.
-         */
-        ReportedSessions: {
-            /** Users */
-            users: number;
-            /** Users At Target */
-            users_at_target: number;
-            /** Users At Target Pct */
-            users_at_target_pct: number | null;
-            /** Sessions Per User */
-            sessions_per_user: number | null;
         };
         /** ReviewCounters */
         ReviewCounters: {
@@ -6060,6 +5984,18 @@ export interface components {
          * @enum {string}
          */
         Role: "admin" | "reviewer" | "expert";
+        /** RowProblem */
+        RowProblem: {
+            /**
+             * Loc
+             * @description Where in the row, e.g. ["properties"]
+             */
+            loc: (string | number)[];
+            /** Msg */
+            msg: string;
+            /** Type */
+            type: string;
+        };
         /** SessionOut */
         SessionOut: {
             /**
@@ -6139,10 +6075,10 @@ export interface components {
             page_count: number | null;
             /**
              * Kind
-             * @description page_image: a PNG of that page; pdf_page: the whole PDF, url ends with #page=N
-             * @enum {string}
+             * @description pdf_page: the whole PDF, url ends with #page=N (the viewer shows that page)
+             * @constant
              */
-            kind: "page_image" | "pdf_page";
+            kind: "pdf_page";
             /**
              * Url
              * @description Signed URL into the private bucket, valid until expires_at. The only thing about storage that leaves the API.
@@ -6150,9 +6086,9 @@ export interface components {
             url: string;
             /**
              * Content Type
-             * @enum {string}
+             * @constant
              */
-            content_type: "image/png" | "application/pdf";
+            content_type: "application/pdf";
             /**
              * Expires At
              * Format: date-time
@@ -6399,28 +6335,6 @@ export interface components {
              */
             heatmaps_refreshing: boolean;
         };
-        /** Totals */
-        Totals: {
-            /** Events */
-            events: number;
-            /**
-             * Sessions
-             * @description Distinct anonymous session ids
-             */
-            sessions: number;
-            /**
-             * Clients
-             * @description Distinct anonymous client ids (events that carried one)
-             */
-            clients: number;
-            /**
-             * By Name
-             * @description Event counts, every name present (0 when none)
-             */
-            by_name: {
-                [key: string]: number;
-            };
-        };
         /** TurnaroundOut */
         TurnaroundOut: {
             /** Business Days */
@@ -6434,6 +6348,21 @@ export interface components {
             note_en: string;
             /** Note Me */
             note_me: string;
+        };
+        /**
+         * UncoveredHit
+         * @description Searches and map clicks that landed where no adopted plan covers the point, grouped by
+         *     their position (3 decimals, ≈ 110 m).
+         */
+        UncoveredHit: {
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Searches */
+            searches: number;
+            /** Sessions */
+            sessions: number;
         };
         /** UploadResult */
         UploadResult: {
@@ -6709,6 +6638,43 @@ export interface components {
             subtitle_en: string;
             /** Subtitle Me */
             subtitle_me: string;
+        };
+        /**
+         * ZoneHits
+         * @description A zone by the searches and parcel picks made in it: the event's ``zone_id``, else the zone
+         *     containing its ``lat`` / ``lng``, so searches outside coverage count for their district.
+         */
+        ZoneHits: {
+            /**
+             * Zone Id
+             * @description null = events with no zone_id and no point inside any zone
+             */
+            zone_id: number | null;
+            /** Zone Name */
+            zone_name: string | null;
+            /**
+             * Covered
+             * @description The zone has an adopted, live plan (null without a zone)
+             */
+            covered?: boolean | null;
+            /**
+             * Events
+             * @description search_performed + parcel_selected
+             */
+            events: number;
+            /** Searches */
+            searches: number;
+            /**
+             * Uncovered Searches
+             * @description search_performed with coverage 'uncovered' (S6: no adopted plan there)
+             */
+            uncovered_searches: number;
+            /** Selections */
+            selections: number;
+            /** Sessions */
+            sessions: number;
+            /** Share Pct */
+            share_pct: number;
         };
         /**
          * ZoneImportIn
@@ -7262,7 +7228,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description One payload per type, discriminated by ``type``. Cadastral and urban panels carry the planning block (free) and the market / assumptions / feasibility blocks (paid), or null with ``covered: false`` when no adopted document governs the object. */
+            /** @description One payload per type, discriminated by ``type``. Cadastral and urban panels carry the planning block and the market / assumptions / feasibility blocks (shown to everyone), or null with ``covered: false`` when no adopted document governs the object. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7518,7 +7484,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Accepted: every event in the batch was valid and stored (or a retry) */
+            /** @description Accepted: the valid rows were stored (or were retries); malformed rows are listed in `rejected` */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -7527,7 +7493,7 @@ export interface operations {
                     "application/json": components["schemas"]["IngestResult"];
                 };
             };
-            /** @description The batch was rejected as a whole (`validation_error`) */
+            /** @description The batch is malformed, or every row is (`validation_error`, one problem per row and field) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7582,7 +7548,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `from` not before `to`, or a range over 366 days */
+            /** @description `from` after `to`, or a range over 366 days */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10137,14 +10103,10 @@ export interface operations {
     list_audit_v1_admin_audit_get: {
         parameters: {
             query?: {
-                entity_type?: string | null;
-                entity_id?: number | null;
-                actor?: string | null;
-                actor_user_id?: number | null;
                 /** @description Prefix, e.g. review. */
                 action?: string | null;
-                from?: string | null;
-                to?: string | null;
+                /** @description Exact actor */
+                actor?: string | null;
                 limit?: number;
                 offset?: number;
             };

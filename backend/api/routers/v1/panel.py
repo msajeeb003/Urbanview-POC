@@ -27,8 +27,8 @@ router = APIRouter(prefix="/panel", tags=["panel"])
     summary="Information panel for a zone, planning document, cadastral parcel or planned parcel",
     response_description=(
         "One payload per type, discriminated by ``type``. Cadastral and urban panels carry the "
-        "planning block (free) and the market / assumptions / feasibility blocks (paid), or null "
-        "with ``covered: false`` when no adopted document governs the object."
+        "planning block and the market / assumptions / feasibility blocks (shown to everyone), "
+        "or null with ``covered: false`` when no adopted document governs the object."
     ),
     responses={404: {"description": "No entity with that id for the type (`not_found`)"}},
 )

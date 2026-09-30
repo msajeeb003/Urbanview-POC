@@ -81,7 +81,6 @@ def env(postgis_url, monkeypatch):
             database_url=postgis_url,
             rate_limit_requests=100_000,
             admin_api_tokens=f"{TOKEN}:admin:ops,{REVIEWER}:reviewer:rev",
-            preprocess_page_image_dpi=40,
             extraction_model=model.name,
             extraction_retry_base_seconds=0,  # eager Celery ignores the job's countdown
         )

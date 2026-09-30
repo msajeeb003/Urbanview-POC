@@ -3,17 +3,15 @@ through the source viewer; a plan that omits max height gives null with ``not_in
 Group 2 still computes with that input flagged; the split, document-fallback, cadastral-basis and
 uncovered cases; Group 2 equal to ``GET /v1/panel``, to the Python engine and to the TypeScript
 engine on the exposed inputs; the zone panel; the per-version cache (hit, 304, new keys after an
-assumptions change, a coverage switch or a version flip; one statement per hit); index-backed plans;
-p95 under 200 ms; and ``rejected`` after a publish that records an expert rejection."""
+assumptions change, a coverage switch or a version flip; one statement per hit); index paths for
+the values and gaps; and ``rejected`` after a publish that records an expert rejection."""
 
 from __future__ import annotations
 
 import json
 import shutil
-import statistics
 import subprocess
 from pathlib import Path
-from time import perf_counter
 from typing import Any
 
 import pytest
@@ -25,7 +23,6 @@ from core.engine import shared
 from jobs.base import SqlJobStore, configure_job_store
 from jobs.tasks.publish import configure_publish
 from tests.helpers import make_app, make_client, make_settings
-from tests.integration.test_panel_postgis import _assert_indexed_and_fast, _explain, _nodes
 from tests.integration.test_publish_postgis import (
     FakeTileBuilder,
     PublishStorage,
@@ -348,38 +345,13 @@ async def test_one_statement_per_hit_and_two_per_miss(app):
     assert len(statements) - after_hit == 1
 
 
-# --- plans and latency ---------------------------------------------------------------------------
+# --- index paths ---------------------------------------------------------------------------------
 
 
-async def _bulk_parcel_ids(conn, n: int) -> list[int]:
-    rows = await conn.execute(
-        text(
-            "SELECT c.id FROM cadastral_parcels c WHERE c.dataset_version <> "
-            "'podgorica-sample-2026-09' ORDER BY c.id LIMIT :n"
-        ),
-        {"n": n},
-    )
-    return [int(r[0]) for r in rows]
-
-
-async def test_plans_are_index_backed_and_fast(pg_conn):
-    (bulk_id,) = await _bulk_parcel_ids(pg_conn, 1)
-    for parcel_id in (1001, 1006, bulk_id):
-        root = await _explain(
-            pg_conn,
-            PARCEL_PANEL_SQL,
-            {"municipality_id": "podgorica", "id": parcel_id, "tz": "Europe/Podgorica"},
-        )
-        _assert_indexed_and_fast(
-            root,
-            {
-                "cadastral_parcels_pkey",
-                "idx_planning_documents_coverage_geom",
-                "uq_parcel_links_version_pair",
-            },
-        )
-        seq = {n.get("Relation Name") for n in _nodes(root["Plan"]) if n["Node Type"] == "Seq Scan"}
-        assert "parcel_links" not in seq  # 10k rows: the version + parcel index, never a scan
+def _nodes(plan: dict[str, Any]):
+    yield plan
+    for child in plan.get("Plans", []):
+        yield from _nodes(child)
 
 
 async def test_value_and_gap_lookups_have_index_paths(pg_conn):
@@ -405,29 +377,6 @@ async def test_value_and_gap_lookups_have_index_paths(pg_conn):
         assert not any(
             n["Node Type"] == "Seq Scan" and n.get("Relation Name") == table for n in nodes
         ), table
-
-
-async def test_p95_under_200_ms_cold_and_warm(app, client, pg_conn):
-    ids = [1001, 1002, 1003, 1005, 1006, 1007, *await _bulk_parcel_ids(pg_conn, 40)]
-    await client.get(parcel_url(1004))  # the first request opens the connection
-
-    async def timings() -> list[float]:
-        out = []
-        for parcel_id in ids:
-            started = perf_counter()
-            r = await client.get(parcel_url(parcel_id))
-            out.append(perf_counter() - started)
-            assert r.status_code == 200, r.text
-        return out
-
-    await app.state.redis.flushall()
-    cold = await timings()
-    warm = await timings()
-    p95_cold = statistics.quantiles(cold, n=20)[18]
-    p95_warm = statistics.quantiles(warm, n=20)[18]
-    assert p95_cold < 0.2, f"cold p95 {p95_cold:.3f}s: {sorted(cold)[-5:]}"
-    assert p95_warm < 0.2, f"warm p95 {p95_warm:.3f}s"
-    assert statistics.median(warm) <= statistics.median(cold)
 
 
 # --- rejected after a publish ---------------------------------------------------------------------

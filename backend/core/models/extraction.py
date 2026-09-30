@@ -31,8 +31,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from core.db import Base
 
-RUN_STATUSES: tuple[str, ...] = ("queued", "extracting", "ready_for_review", "failed")
-
 
 def _jsonb_list(comment: str | None = None) -> Mapped[list[Any]]:
     return mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"), comment=comment)

@@ -1,9 +1,10 @@
-"""Client dashboard aggregates: ``GET /v1/admin/analytics?from=&to=`` (role ``admin``).
+"""Dashboard aggregates: ``GET /v1/admin/analytics?from=&to=`` (role ``admin``).
 
-Funnel conversion per step, orders and revenue, most searched districts, repeat usage against the
-prototype target, paywall / AI interest counts and the share of panel views that reach the
-financials, all for one ``[from, to)`` range (default: the last 30 days, at most 366 days).
-Definitions live in ``api.services.analytics``.
+The funnel (map_loaded → parcel_resolved → panel_opened → order_started → order_submitted → paid)
+with conversion per step, orders by status, the top zones and where searches outside coverage
+landed, repeat sessions (visitors with 3+ sessions) and the two intent counts, for one
+``[from, to)`` range (default: the last 30 days, at most 366 days; an empty range answers zeros).
+No customer names or e-mails. Definitions live in ``api.services.analytics``.
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/admin/analytics", tags=["admin"])
     responses={
         401: {"description": "Missing or unknown bearer token (`unauthorized`)"},
         403: {"description": "The token's role may not read analytics (`forbidden`)"},
-        422: {"description": "`from` not before `to`, or a range over 366 days"},
+        422: {"description": "`from` after `to`, or a range over 366 days"},
         503: {"description": "The events database is unavailable (`service_unavailable`)"},
     },
 )

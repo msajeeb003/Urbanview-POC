@@ -192,9 +192,6 @@ function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
             <div className="rrange">{roi ? cannotText(roi) : "cannot calculate"}</div>
           </>
         )}
-        <svg className="spark" width="120" height="60" viewBox="0 0 120 60" aria-hidden>
-          <path d="M0,50 C30,48 40,20 60,22 C85,24 95,6 120,4 L120,60 L0,60Z" fill="rgba(255,255,255,.14)" />
-        </svg>
       </div>
       <div style={{ height: 12 }} />
       <RangeRow label="Estimated land value" field={byKey.get("land_value_eur")} />
@@ -213,7 +210,7 @@ function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
         <CannotRow label="Estimated saleable area" field={saleable} />
       )}
       <RangeRow label="Potential profit" field={byKey.get("profit_eur")} />
-      <AssumptionSandbox data={data} errors={errors} ids={ids} />
+      <AssumptionSandbox data={data} errors={errors} />
       <EngineStrip marketSource={data.market_inputs?.source} />
       <Disclaimer approved={f.disclaimer_status === "client_approved"} en={f.disclaimer_en} me={f.disclaimer_me} />
     </div>

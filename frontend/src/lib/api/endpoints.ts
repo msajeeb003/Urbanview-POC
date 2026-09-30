@@ -70,4 +70,3 @@ export const api = {
     apiGet<OrderPublic>(`/v1/orders/${encodeURIComponent(reference)}`, undefined, init),
 };
 
-export type Api = typeof api;

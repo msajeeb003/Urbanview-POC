@@ -299,19 +299,6 @@ export function reviewQuery(filters: ReviewFilters, offset = 0): Record<string, 
   };
 }
 
-export function reviewHrefFor(filters: ReviewFilters): string {
-  const params = new URLSearchParams();
-  if (filters.document) params.set("document", String(filters.document));
-  if (filters.file) params.set("file", String(filters.file));
-  if (filters.status) params.set("status", filters.status);
-  if (filters.zone) params.set("zone", String(filters.zone));
-  if (filters.entity) params.set("entity", filters.entity);
-  if (filters.page) params.set("page", String(filters.page));
-  if (filters.sort !== "pending") params.set("sort", filters.sort);
-  const query = params.toString();
-  return query ? `/admin/review?${query}` : "/admin/review";
-}
-
 export function emptyQueueText(filters: ReviewFilters): string {
   if (filters.status === "pending" || (!filters.status && !filters.page && !filters.entity)) {
     return filters.document

@@ -12,8 +12,9 @@ it produces reaches the map except through expert review and the publish job.
 - ``pages`` / ``textmatch``: the pages read and the check that every citation is on its page;
 - ``validate``: transcription -> contract, with flags and issues; ``staging``: contract ->
   review-queue rows; ``llm``: the model seam (Claude); ``run``: one request end to end;
-- ``cases`` / ``sample`` / ``evaluate``: the never-guessed cases, the hand-labelled sample and
-  the evaluation (``python -m core.extraction``).
+- ``cases`` / ``evaluate``: the never-guessed cases and their evaluation; ``corpus`` /
+  ``scoring`` / ``harness`` / ``evalcli``: the evaluation corpus of the client's documents
+  (``python -m core.extraction``).
 """
 
 from core.extraction.prompts import PROMPT_VERSION

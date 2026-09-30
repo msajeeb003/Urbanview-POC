@@ -287,9 +287,8 @@ plausible_eur_m2 = { land_rate = [10, 5000], build_rate = [200, 3000], design_ra
 [market.kind_metrics]
 statistics = ["sale_rate", "build_rate"]
 client_ranges = ["land_rate", "build_rate", "design_rate", "sale_rate"]
-listings = ["sale_rate", "land_rate"]
 
-# zone name -> other spellings seen in market tables and listings (matched whole, accent-folded)
+# zone name -> other spellings seen in market tables (matched whole, accent-folded)
 [market.zone_aliases]
 "Centar" = ["centar grada", "gradski centar", "city centre", "city center"]
 
@@ -378,7 +377,7 @@ url = "https://ekatastar.me"
 kind = "ownership"
 # Ownership and legal burdens come only from a bulk attribute export UZN delivers under an
 # agreement; the eKatastar web application is never queried (a per-parcel lookup that names
-# owners). Without it the flags stay null and the two layers are marked unavailable.
+# owners). Without it the parcels' ownership / legal-burden flags stay null.
 access = "not_confirmed"
 access_basis = ""
 licence_note = ""

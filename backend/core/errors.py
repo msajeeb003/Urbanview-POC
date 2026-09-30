@@ -9,7 +9,7 @@ returned as ``internal_error`` without leaking internals.
 
 Product rule (BRD S6, UX rule "No error state for uncovered areas"): a location with no adopted
 planning data is NOT an error. Endpoints that resolve a location must return 200 with an explicit
-uncovered result (see ``api.schemas.locations.LocationResolution``), never 404/500. Raise
+uncovered result (see ``api.schemas.locate.LocationResolution``), never 404/500. Raise
 ``NotFoundError`` only for missing *entities* (an order id that does not exist), never for
 "no data here".
 """
@@ -38,10 +38,6 @@ class ErrorBody(BaseModel):
     details: Any | None = None
 
 
-class ErrorEnvelope(BaseModel):
-    error: ErrorBody
-
-
 class AppError(Exception):
     """Base for expected, client-facing errors. Subclass, or pass ``code``/``status_code``."""
 
@@ -66,12 +62,6 @@ class AppError(Exception):
         super().__init__(self.message)
 
 
-class BadRequestError(AppError):
-    status_code = 400
-    code = "bad_request"
-    message = "Bad request"
-
-
 class UnauthorizedError(AppError):
     status_code = 401
     code = "unauthorized"
@@ -94,16 +84,6 @@ class ConflictError(AppError):
     status_code = 409
     code = "conflict"
     message = "Conflict"
-
-
-class RateLimitedError(AppError):
-    status_code = 429
-    code = "rate_limited"
-    message = "Too many requests"
-
-    def __init__(self, retry_after: int, message: str | None = None, **kwargs: Any) -> None:
-        headers = {"Retry-After": str(max(1, int(retry_after)))}
-        super().__init__(message, headers=headers, **kwargs)
 
 
 class ServiceUnavailableError(AppError):

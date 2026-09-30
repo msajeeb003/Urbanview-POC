@@ -303,7 +303,7 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     urban = {f["id"]: f["properties"] for f in tiles.layers["urban_parcels"]}
     assert urban[1]["max_far"] == 3.5 and urban[1]["max_gfa_m2"] == pytest.approx(3358.6)
     assert urban[3]["max_far"] == 2.4 and urban[2]["max_far"] is None
-    assert len(tiles.layers["zones"]) == 3 and len(tiles.layers["cadastral_parcels"]) >= 7
+    assert len(tiles.layers["zones"]) == 2 and len(tiles.layers["cadastral_parcels"]) >= 7
     assert "land_use" not in tiles.layers  # empty layers are left out of the build
 
     # the archive and the public pointer
@@ -513,7 +513,8 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
         first = (await publish(client, "test-geo-1"))["result"]
         (inserted,) = await rows(
             app,
-            "SELECT id, street_address, area_m2 FROM cadastral_parcels WHERE ko_name = 'Test KO'",
+            "SELECT id, street_address, area_m2, public_ownership FROM cadastral_parcels "
+            "WHERE ko_name = 'Test KO'",
         )
         # a second batch updates the same parcel in place: the Parcel ID must not change
         await stage(
@@ -545,7 +546,9 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
     cadastral = {f["id"]: f["properties"] for f in first_run["cadastral_parcels"]}
     assert cadastral[inserted["id"]]["has_urban_parcel"] is False
     assert cadastral[inserted["id"]]["primary_urban_parcel_id"] is None
-    assert cadastral[inserted["id"]]["public_ownership"] is True  # the flag rides on the parcel
+    # the flag is stored on the parcel, never drawn: no ownership layer in the POC
+    assert inserted["public_ownership"] is True
+    assert "public_ownership" not in cadastral[inserted["id"]]
     land_use = first_run["land_use"]
     assert len(land_use) == 1 and land_use[0]["properties"]["code"] == "S"
     assert land_use[0]["properties"]["feature_key"] == "lu-1"

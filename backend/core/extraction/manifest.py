@@ -1,10 +1,9 @@
 """The pre-processing manifest of a stored PDF, persisted on ``stored_files.preprocess``.
 
 One per file, keyed by its checksum: a re-run with the same file, pre-processing version and
-options reuses it (:func:`is_current`) and only renders page images a document does not have yet.
-It lists the pages (size, rotation, text or scanned, script, sections), the tables (columns,
-stitching), the scanned / unread pages, the chunk plan in reading priority and the page image
-keys per document. The full page data (blocks, words, grids) is a gzip JSON object in the private
+options reuses it (:func:`is_current`). It lists the pages (size, rotation, text or scanned,
+script, sections), the tables (columns, stitching), the scanned / unread pages and the chunk plan
+in reading priority. The full page data (blocks, words, grids) is a gzip JSON object in the private
 bucket next to the upload (``page_data_key``); :func:`dump_pages` / :func:`load_pages`.
 ``summary`` is what the admin document and file records show.
 """
@@ -32,7 +31,7 @@ class PageSummary(_M):
     height: float
     rotation: int
     chars: int
-    method: str  # text | ocr | none
+    method: str  # text | none
     scanned: bool
     scanned_reason: str | None = None
     blank: bool = False
@@ -60,12 +59,6 @@ class TableSummary(_M):
     sections: list[str] = Field(default_factory=list)
 
 
-class PageImages(_M):
-    dpi: int
-    keys: list[str]
-    rendered_at: datetime
-
-
 class PreprocessSummary(_M):
     """What the admin document and file records show."""
 
@@ -74,9 +67,8 @@ class PreprocessSummary(_M):
     page_count: int
     vector_pages: int = Field(description="Pages with a text layer or vector drawings")
     scanned_pages: list[int] = Field(description="Raster pages: geometry needs manual redraw")
-    ocr_pages: list[int] = Field(default_factory=list)
     unread_pages: list[int] = Field(
-        default_factory=list, description="Scanned pages nobody has read yet (no OCR backend)"
+        default_factory=list, description="Scanned pages nobody has read (for manual handling)"
     )
     blank_pages: list[int] = Field(default_factory=list)
     redraw_pages: list[int] | None = Field(
@@ -90,9 +82,6 @@ class PreprocessSummary(_M):
     chunks: int
     sections: dict[str, list[int]] = Field(default_factory=dict)
     scripts: dict[str, int] = Field(default_factory=dict)
-    page_images: list[int] = Field(
-        default_factory=list, description="Documents whose page images are rendered"
-    )
 
 
 class PreprocessManifest(_M):
@@ -105,13 +94,7 @@ class PreprocessManifest(_M):
     pages: list[PageSummary]
     tables: list[TableSummary]
     chunks: list[ChunkPlan] = Field(description="In reading priority")
-    page_images: dict[str, PageImages] = Field(
-        default_factory=dict, description="Document id -> rendered page images"
-    )
     summary: PreprocessSummary
-
-    def refresh_summary(self) -> None:
-        self.summary.page_images = sorted(int(k) for k in self.page_images)
 
 
 def build_manifest(
@@ -121,7 +104,6 @@ def build_manifest(
     options: PreprocessOptions,
     page_data_key: str,
     created_at: datetime,
-    page_images: dict[str, PageImages] | None = None,
 ) -> PreprocessManifest:
     sections: dict[str, list[int]] = {}
     for page in doc.pages:
@@ -129,7 +111,7 @@ def build_manifest(
             sections.setdefault(section, []).append(page.number)
     ordered = {s: sections[s] for s in PLANNING_SECTIONS if s in sections}
     ordered.update({s: v for s, v in sorted(sections.items()) if s not in ordered})
-    manifest = PreprocessManifest(
+    return PreprocessManifest(
         sha256=doc.sha256,
         options_key=options.key(),
         options=asdict(options),
@@ -173,14 +155,12 @@ def build_manifest(
             for t in p.tables
         ],
         chunks=chunks,
-        page_images=page_images or {},
         summary=PreprocessSummary(
             version=PREPROCESS_VERSION,
             preprocessed_at=created_at,
             page_count=doc.page_count,
             vector_pages=sum(1 for p in doc.pages if not p.scanned and not p.blank),
             scanned_pages=[p.number for p in doc.pages if p.scanned],
-            ocr_pages=[p.number for p in doc.pages if p.method == "ocr"],
             unread_pages=[p.number for p in doc.pages if p.scanned and p.method == "none"],
             blank_pages=[p.number for p in doc.pages if p.blank],
             redraw_pages=[p.number for p in doc.pages if p.raster],
@@ -190,8 +170,6 @@ def build_manifest(
             scripts=dict(Counter(p.script for p in doc.pages)),
         ),
     )
-    manifest.refresh_summary()
-    return manifest
 
 
 def is_current(

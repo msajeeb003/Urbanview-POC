@@ -1,8 +1,8 @@
 """A scripted stand-in for the extraction model (tests of the ``extract_document`` job).
 
 :class:`Transcriber` answers every request with an instance of the request's response schema:
-"not found" for every field, except that for the ``parameter_table`` task it copies the rows of
-the tables the pages show, cell by cell, exactly as printed (the model's job in the contract).
+nothing stated, except that for the ``parameter_table`` task it copies the rows of the tables
+the pages show, cell by cell, exactly as printed (the model's job in the contract).
 Columns are recognised by their header words (``COLUMN_FIELDS``). Hooks let a test break one
 page (``invalid_pages``), change a printed value (``override``) or fail a number of calls with
 an exception (``fail_first``), and ``calls`` records what was asked.
@@ -58,27 +58,11 @@ def _resolve(schema: dict[str, Any], node: dict[str, Any]) -> dict[str, Any]:
 
 
 def absent(schema: dict[str, Any], node: dict[str, Any] | None = None) -> Any:
-    """A minimal valid instance of a strict response schema: nothing found anywhere."""
+    """A minimal valid instance of a compact response schema: nothing stated anywhere."""
     node = _resolve(schema, node or schema)
-    if "anyOf" in node:
-        options = [_resolve(schema, o) for o in node["anyOf"]]
-        if any(o.get("type") == "null" for o in options):
-            return None
-        return absent(schema, options[0])
     kind = node.get("type")
     if kind == "object":
-        props = node.get("properties", {})
-        if "absent_reason" in props and "value" in props:  # an OutValue
-            return {
-                "value": None,
-                "unit": None,
-                "raw_text": None,
-                "page": None,
-                "table_ref": None,
-                "confidence": 1.0,
-                "absent_reason": "not_found",
-            }
-        return {name: absent(schema, sub) for name, sub in props.items()}
+        return {name: absent(schema, sub) for name, sub in node.get("properties", {}).items()}
     if kind == "array":
         return []
     if kind == "boolean":

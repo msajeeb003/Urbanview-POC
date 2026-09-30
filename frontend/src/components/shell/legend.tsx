@@ -25,8 +25,6 @@ function MarkSwatch({ mark }: { mark: LegendMark }) {
       );
     case "dash":
       return <span className="sw" style={{ background: "#fff", border: "1.5px dashed #B5613B" }} />;
-    case "docdash":
-      return <span className="sw" style={{ background: "#fff", border: "2px dashed #B3A894" }} />;
     case "blockdash":
       return <span className="sw" style={{ background: "#fff", border: "1.5px dotted #B3A894" }} />;
     case "cadsw":

@@ -148,8 +148,7 @@ class Order(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending_payment', 'paid', 'payment_failed', 'in_progress', 'delivered', "
-            "'refunded')",
+            "status IN (" + ", ".join(f"'{status}'" for status in ORDER_STATUSES) + ")",
             name="ck_orders_status",
         ),
         CheckConstraint(

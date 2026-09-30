@@ -12,18 +12,16 @@
  *   values of one plan never downloads it again.
  * - Previous / next, the page number, zoom − / + / fit, "Open PDF" (a fresh link from `refresh`);
  *   a link that expired is signed again through `refresh`, once, silently.
- * - Page images (`kind: page_image`) are shown as the cited page only, without a box.
  * - Loading: the page-shaped skeleton; failure: "This page could not be loaded" and Retry, never red.
  */
 import type { RenderTask } from "pdfjs-dist";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { components } from "@/lib/api/schema";
 import { forgetDocument, highlightBox, openDocument } from "@/lib/pdf";
 
-export interface PdfLink {
-  url: string;
-  kind: "pdf_page" | "page_image";
-}
+/** The staff API's signed link to a cited page (`PageLinkOut`): the PDF, opened at that page. */
+export type PdfLink = Pick<components["schemas"]["PageLinkOut"], "url" | "kind">;
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 4;
@@ -86,7 +84,7 @@ export function PdfPageView({
 
   // render the page (the document from the cache), then place the box
   useEffect(() => {
-    if (!current || current.kind === "page_image") return;
+    if (!current) return;
     const canvas = canvasRef.current;
     const box = scrollRef.current;
     if (!canvas || !box || !width) return;
@@ -156,14 +154,13 @@ export function PdfPageView({
     };
   }, [current, pageNo, zoom, width, page, bbox, attempt, link]);
 
-  const total = current?.kind === "page_image" ? 1 : numPages;
   const goTo = useCallback(
     (n: number) => {
-      if (n < 1 || (total != null && n > total)) return;
+      if (n < 1 || (numPages != null && n > numPages)) return;
       setPageNo(n);
       setPageInput(String(n));
     },
-    [total],
+    [numPages],
   );
   const zoomBy = (factor: number) => setZoom(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, (zoom ?? shownScale) * factor)));
 
@@ -180,12 +177,11 @@ export function PdfPageView({
     }
   };
 
-  const image = current?.kind === "page_image";
-  const view = !current ? "none" : image ? "ready" : state;
+  const view = !current ? "none" : state;
   return (
     <div className="srcviewer pdfview">
       <div className="srctools" role="toolbar" aria-label="Page controls">
-        <button type="button" className="srcbtn" aria-label="Previous page" disabled={image || pageNo <= 1} onClick={() => goTo(pageNo - 1)}>
+        <button type="button" className="srcbtn" aria-label="Previous page" disabled={pageNo <= 1} onClick={() => goTo(pageNo - 1)}>
           ‹
         </button>
         <label className="srcpageno">
@@ -193,7 +189,7 @@ export function PdfPageView({
           <input
             inputMode="numeric"
             value={pageInput}
-            disabled={image || !current}
+            disabled={!current}
             onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ""))}
             onBlur={() => goTo(Number(pageInput) || pageNo)}
             onKeyDown={(e) => {
@@ -201,13 +197,13 @@ export function PdfPageView({
               e.stopPropagation(); // typing a page number is not a queue shortcut
             }}
           />
-          <span>of {total ?? "—"}</span>
+          <span>of {numPages ?? "—"}</span>
         </label>
         <button
           type="button"
           className="srcbtn"
           aria-label="Next page"
-          disabled={image || (total != null && pageNo >= total)}
+          disabled={numPages != null && pageNo >= numPages}
           onClick={() => goTo(pageNo + 1)}
         >
           ›
@@ -218,19 +214,19 @@ export function PdfPageView({
           </button>
         )}
         <span className="srcspace" />
-        <button type="button" className="srcbtn" aria-label="Zoom out" disabled={image || !current} onClick={() => zoomBy(0.8)}>
+        <button type="button" className="srcbtn" aria-label="Zoom out" disabled={!current} onClick={() => zoomBy(0.8)}>
           −
         </button>
         <button
           type="button"
           className="srczoom mono srcfit"
           title="Fit to width"
-          disabled={image || !current}
+          disabled={!current}
           onClick={() => setZoom(null)}
         >
           {Math.round(shownScale * 100)}%
         </button>
-        <button type="button" className="srcbtn" aria-label="Zoom in" disabled={image || !current} onClick={() => zoomBy(1.25)}>
+        <button type="button" className="srcbtn" aria-label="Zoom in" disabled={!current} onClick={() => zoomBy(1.25)}>
           +
         </button>
         <button type="button" className="srcbtn srcopen" disabled={!current} onClick={() => void openPdf()}>
@@ -262,15 +258,10 @@ export function PdfPageView({
         ) : (
           <>
             {view === "loading" && <div className="srcskel" aria-busy="true" aria-label="Loading the page" />}
-            {image && current ? (
-              // eslint-disable-next-line @next/next/no-img-element -- a signed, short-lived image URL
-              <img className="srcimg" src={current.url} alt={label} />
-            ) : (
-              <div className="srcsheet" hidden={view !== "ready"}>
-                <canvas ref={canvasRef} />
-                <div className="srchl" ref={highlightRef} hidden aria-hidden />
-              </div>
-            )}
+            <div className="srcsheet" hidden={view !== "ready"}>
+              <canvas ref={canvasRef} />
+              <div className="srchl" ref={highlightRef} hidden aria-hidden />
+            </div>
           </>
         )}
       </div>

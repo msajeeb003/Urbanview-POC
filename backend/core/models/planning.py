@@ -150,12 +150,6 @@ class PlanningDocument(Base):
     page_count: Mapped[int | None] = mapped_column(
         Integer, comment="pages in the stored PDF (set at ingestion)"
     )
-    page_images_rendered: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        server_default=text("false"),
-        comment="page images at <municipality>/planning-documents/<id>/pages/NNNN.png",
-    )
     # Admin pipeline (migration 0006): registration, versions, the coverage switch.
     file_id: Mapped[int | None] = mapped_column(
         BigInteger,

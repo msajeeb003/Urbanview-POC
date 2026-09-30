@@ -1,4 +1,4 @@
-"""Display-shaped panels: ``GET /v1/parcels/{id}/panel`` and ``GET /v1/zones/{id}/panel``
+"""The display-shaped parcel panel: ``GET /v1/parcels/{id}/panel``
 (contract ``docs/specs/panel-payload.md`` section 13).
 
 One statement per panel (``api.services.parcel_panel_sql``), then pure assembly (``build_*``,

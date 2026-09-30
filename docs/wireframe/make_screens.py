@@ -66,36 +66,22 @@ STATES: list[tuple[str, str]] = [
     ("cadastral-none", "1440,900"),
     ("urban", "1440,900"),
     ("urban-scrolled", "1440,900"),
-    ("urban-paid", "1440,900"),
-    ("urban-paid-scrolled", "1440,900"),
     ("zone", "1440,900"),
     ("doc", "1440,900"),
     ("order", "1440,900"),
     ("order-legal", "1440,900"),
-    ("pay", "1440,900"),
     ("success", "1440,900"),
-    ("upgrade", "1440,900"),
-    ("upgrade-ai", "1440,900"),
     ("engine", "1440,900"),
     ("method", "1440,900"),
     ("method-last", "1440,900"),
-    ("ai", "1440,900"),
-    ("ai-quota", "1440,900"),
     ("rail-collapsed", "1440,900"),
-    ("layers-all", "1440,900"),
-    ("dep", "1440,900"),
     ("legend-min", "1440,900"),
     ("uncovered", "1440,900"),
-    ("admin", "1440,900"),
     ("admin-review", "1440,900"),
-    ("admin-rules", "1440,900"),
     ("admin-fin", "1440,900"),
-    ("admin-engine", "1440,900"),
     ("admin-orders", "1440,900"),
     ("admin-data", "1440,900"),
     ("narrow-1100", "1000,800"),
-    ("narrow-860", "820,800"),
-    ("narrow-760", "740,800"),
 ]
 
 DRIVER = r"""
@@ -115,39 +101,25 @@ DRIVER = r"""
     search(){ const i=$q('#search'); i.value='Par'; i.dispatchEvent(new Event('input')); i.focus(); },
     cadastral(){ selectParcel(withUp.id,'cad'); },
     'cadastral-none'(){ selectParcel(noUp.id,'cad'); },
-    urban(){ selectParcel(withUp.id,'urban'); },
-    'urban-scrolled'(){ selectParcel(withUp.id,'urban'); scrollPanel(); },
-    'urban-paid'(){ subscribe('market'); selectParcel(withUp.id,'urban'); },
-    'urban-paid-scrolled'(){ subscribe('market'); selectParcel(withUp.id,'urban'); scrollPanel(); },
+    // the POC shows Group 2 to everyone: the mock's unlocked view
+    urban(){ subscribe('market'); selectParcel(withUp.id,'urban'); },
+    'urban-scrolled'(){ subscribe('market'); selectParcel(withUp.id,'urban'); scrollPanel(); },
     zone(){ selectZone('B'); },
     doc(){ selectDoc('A'); },
     order(){ selectParcel(withUp.id,'urban'); openOrder(); },
     'order-legal'(){ selectParcel(bigUp.id,'urban'); STATE.orderType='legal'; openOrder(); },
-    pay(){ selectParcel(withUp.id,'urban'); openPay(); },
     success(){ selectParcel(withUp.id,'urban'); orderSuccess(); },
-    upgrade(){ selectParcel(withUp.id,'urban'); openUpgrade('market'); },
-    'upgrade-ai'(){ selectParcel(withUp.id,'urban'); openUpgrade('ai'); },
     engine(){ selectParcel(withUp.id,'urban'); openEngine(); },
     method(){ selectParcel(withUp.id,'urban'); openMethodology(1); },
     'method-last'(){ selectParcel(withUp.id,'urban'); openMethodology(5); },
-    ai(){ selectParcel(withUp.id,'urban'); toggleAI(true); aiAsk('What can I build here?'); },
-    'ai-quota'(){ selectParcel(withUp.id,'urban'); toggleAI(true); aiAsk('What can I build here?');
-      setTimeout(()=>aiAsk('Explain FAR and coverage'),700); setTimeout(()=>aiAsk('Is this parcel worth developing?'),1400); },
     'rail-collapsed'(){ selectParcel(withUp.id,'urban'); STATE.railOpen=false; renderRail(); },
-    'layers-all'(){ STATE.paidMarket=true; ['owner','restit','landuse','heatFAR','traffic','heatMkt'].forEach(k=>STATE.layers[k]=true); renderRail(); renderMap(); renderLegend(); },
-    dep(){ STATE.layers.cadastre=false; STATE.layers.owner=true; renderRail(); renderMap(); renderLegend(); },
     'legend-min'(){ $q('#legmin').click(); },
     uncovered(){ clearSelection(); $q('#panel').classList.add('hidden'); $q('#coverwarn').classList.add('on'); const u=$q('#uncovered'); if(u) u.setAttribute('fill','#d0c9b8'); },
-    admin(){ toggleAdmin(true); },
     'admin-review'(){ toggleAdmin(true); tab('review'); },
-    'admin-rules'(){ toggleAdmin(true); tab('rules'); },
     'admin-fin'(){ toggleAdmin(true); tab('fin'); },
-    'admin-engine'(){ toggleAdmin(true); tab('engine'); },
     'admin-orders'(){ toggleAdmin(true); tab('orders'); },
     'admin-data'(){ toggleAdmin(true); tab('data'); },
     'narrow-1100'(){ selectParcel(withUp.id,'urban'); },
-    'narrow-860'(){ selectParcel(withUp.id,'urban'); },
-    'narrow-760'(){ selectParcel(withUp.id,'urban'); },
     dump(){ dumpComputed(); }
   };
   const PROPS=['font-family','font-size','font-weight','font-style','letter-spacing','line-height','text-transform','color',
@@ -155,25 +127,25 @@ DRIVER = r"""
     'min-height','gap','opacity','filter','right','bottom','left','top','position'];
   const SEL=['body','.topbar','.brand .logo','.searchwrap','.searchwrap input','.searchwrap .kbd','.searchsug','.searchsug button','.searchsug .ico',
     '.topnav button','.topnav button.active','.pill','.rail','.railhead','.railhead b','.rail .rlabel','.lyr','.lyr .swatch','.lyr .nm','.lyr .subnm',
-    '.lyr .chk','.lyr .paidlock','.lyr .subnm.lockedsub','.depnote','.railopen','.mapwrap','.legend','.legend h4','.legh','.legrow','.legrow .sw',
+    '.lyr .chk','.railopen','.mapwrap','.legend','.legend h4','.legh','.legrow','.legrow .sw',
     '.coverwarn','.scalebar .t','.coords','.maptools','.mbtn','.zlabel','.panel','.pscroll','.pempty','.pempty .ill','.pempty h3','.pempty p',
     '.pempty .pinnote','.chiphint','.phead','.peyebrow','.peyebrow .tag','.ptitle','.psub','.pclose','.backlink','.idgrid','.idcell','.idcell .k',
-    '.idcell .v','.sect','.secthead','.secthead .lbl','.badge','.badge.free','.badge.paid','.prow','.prow .pk','.prow .pv','.prow .pv .u','.srcref',
-    '.vscard','.vscard .txt','.vsdelta','.upcard','.upcard .upn','.upcard .upd','.upcard .upgo','.upcard.none','.lockedlist','.lrow','.lk2','.lk2 .ld',
-    '.lockval','.lu','.lockcta','.lockcta .lki','.lockcta .lct b','.lockcta .lct span','.lockcta .b','.roihero','.roihero .rlab','.roihero .rval',
+    '.idcell .v','.sect','.secthead','.secthead .lbl','.prow','.prow .pk','.prow .pv','.prow .pv .u','.srcref',
+    '.vscard','.vscard .txt','.vsdelta','.upcard','.upcard .upn','.upcard .upd','.upcard .upgo','.upcard.none',
+    '.roihero','.roihero .rlab','.roihero .rval',
     '.roihero .rrange','.rangebar','.rangebar .fill','.rangebar .mark','.assum','.assum .ah','.arow label','.arow .av','.ctastack','.cta','.cta.gold',
     '.cta.ghost','.cta.line','.cta.primary','.cta small','.doclist','.docitem','.docitem .di','.docitem .dn','.docitem .dn .dm','.dstat','.dstat.adopted',
-    '.dstat.progress','.aifab','.aifab .badge2','.aipanel','.aihead','.aihead .av','.aihead .t h4','.aihead .t p','.aiquota','.aiquota .qd','.aibody',
-    '.msg .b','.msg.bot .b','.msg.user .b','.msg .b .cite','.aichips','.aichip','.aifoot','.aifoot input','.aifoot .send','.overlay','.modal','.modal.wide',
+    '.dstat.progress',
+    '.overlay','.modal','.modal.wide',
     '.mhead','.mhead .mi','.mhead .meyebrow','.mhead h2','.mhead p','.mhead .x','.mbody','.mfoot','.mfoot .fnote','.mfoot .cta','.field','.field label',
     '.field label .opt','.field input','.frow','.ctx','.ctx .ci','.ctx .cd','.ordersum','.osrow','.osrow em','.osrow .mono','.osrow.deliv','.pricenote',
     '.fieldlab','.seg','.segb','.segb.on','.methlink','.methlink .mlt b','.methlink .mlt span','.methlink .mla','.paysummary','.payline','.payline.total',
-    '.paycard','.paycard .brandmark','.securenote','.success','.success .ok','.success h2','.success p','.orderref','.plans','.plan','.plan.feat',
-    '.plan .ptag','.plan h3','.plan .pr','.plan .pr small','.plan .pd','.plan li','.ftable','.frow2','.frow2 .fn','.frow2 .ff','.frow2 .fs','.irow',
-    '.irow .in2','.irow .id2','.growbox','.growbox b','.method','.mrail','.mrail-h','.mstep','.mstep.on','.mstep .mn','.mstep.on .mn','.mstep.done .mn',
+    '.success','.success .ok','.success h2','.success p','.orderref',
+    '.ftable','.frow2','.frow2 .fn','.frow2 .ff','.frow2 .fs','.irow',
+    '.irow .in2','.irow .id2','.method','.mrail','.mrail-h','.mstep','.mstep.on','.mstep .mn','.mstep.on .mn','.mstep.done .mn',
     '.mstep .ml b','.mstep .ml span','.mpane','.mpane .peyebrow2','.mpane h2','.mpane .phase','.mdiagram','.mbodytext','.mbodytext .sub','.mnav',
-    '.mnav .mcount','.mprog','.mprog i','.admin','.adminbar','.adminbar .at','.admintabs button','.admintabs button.active','.adminbody','.astat-grid',
-    '.astat','.astat .sl','.astat .sv','.astat .sv small','.astat .sd','.card','.cardhd','.cardhd h3','.cardhd .sub','.tbl','.tbl th','.tbl td',
+    '.mnav .mcount','.mprog','.mprog i','.admin','.adminbar','.adminbar .at','.admintabs button','.admintabs button.active','.adminbody',
+    '.card','.cardhd','.cardhd h3','.cardhd .sub','.tbl','.tbl th','.tbl td',
     '.tbl .mono','.st','.st.ok','.st.pend','.st.rev','.abtn','.abtn.sm','.abtn.ghost','.review-item','.review-item .rq','.review-item .rsrc',
     '.review-item .rextract','.toast','.toast .ti','.zone','.zoneline','.blockline','.docarea','.uparcel','.parcel','.road.major','.road.minor','.river'];
   const out={};
@@ -188,16 +160,13 @@ DRIVER = r"""
     RUN.pin(); probe('pin');
     selectParcel(withUp.id,'cad'); probe('cadastral');
     selectParcel(noUp.id,'cad'); probe('cadastral-none');
-    selectParcel(withUp.id,'urban'); probe('urban');
-    toggleAI(true); aiAsk('What can I build here?'); probe('ai');
-    STATE.layers.cadastre=false; STATE.layers.owner=true; renderRail(); probe('dep'); STATE.layers.cadastre=true; renderRail();
     STATE.railOpen=false; renderRail(); probe('rail-collapsed'); STATE.railOpen=true; renderRail();
     selectZone('B'); probe('zone');
     selectDoc('A'); probe('doc');
-    subscribe('market'); selectParcel(withUp.id,'urban'); probe('urban-paid');
-    openOrder(); probe('order'); openPay(); probe('pay'); orderSuccess(); probe('success');
-    openUpgrade('market'); probe('upgrade'); openEngine(); probe('engine'); openMethodology(1); probe('method'); closeModal();
-    toggleAdmin(true); probe('admin'); tab('review'); probe('admin-review'); toggleAdmin(false);
+    subscribe('market'); selectParcel(withUp.id,'urban'); probe('urban');
+    openOrder(); probe('order'); orderSuccess(); probe('success');
+    openEngine(); probe('engine'); openMethodology(1); probe('method'); closeModal();
+    toggleAdmin(true); tab('review'); probe('admin-review'); toggleAdmin(false);
     toast('x'); probe('toast');
     const root=getComputedStyle(document.documentElement);
     const tokens={}; ['--ink','--ink-2','--ink-3','--paper','--paper-2','--line','--rule','--brand','--brand-dark','--brand-tint','--z-res','--z-com',

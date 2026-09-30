@@ -34,7 +34,6 @@ export type Swatch =
   | { kind: "color"; color: string }
   | { kind: "zones" }
   | { kind: "dash" }
-  | { kind: "docdash" }
   | { kind: "blockdash" }
   | { kind: "heat1" }
   | { kind: "heat2" };
@@ -54,7 +53,6 @@ export type LegendMark =
   | { kind: "color"; color: string }
   | { kind: "grad"; stops: string }
   | { kind: "dash" }
-  | { kind: "docdash" }
   | { kind: "blockdash" }
   | { kind: "cadsw" }
   | { kind: "hatch" };
@@ -87,11 +85,12 @@ export interface LayerDef {
   name: string;
   group: LayerGroup;
   defaultOn: boolean;
-  /** Always visible; the card shows the muted check and only toasts on click. */
+  /** Always drawn, no card (the base map and the plan areas). */
   core?: boolean;
   /** Choropleth card: shows a field selector while on. */
   choropleth?: "param" | "price";
-  swatch: Swatch;
+  /** The card's swatch (core layers have no card). */
+  swatch?: Swatch;
   /** Source-layers in the published tile archive; empty for the Mapbox base style. */
   published: string[];
   /**
@@ -125,10 +124,9 @@ export const LAYERS: readonly LayerDef[] = [
     group: "base",
     defaultOn: true,
     core: true,
-    swatch: { kind: "docdash" },
     published: ["document_coverage"],
     minZoom: 9,
-    legend: (ctx) => ({ title: title(ctx, "docareas"), rows: [{ mark: { kind: "docdash" }, label: tx(ctx)("legend.coverageArea") }] }),
+    legend: () => null,
   },
   {
     id: "base",
@@ -136,7 +134,6 @@ export const LAYERS: readonly LayerDef[] = [
     group: "base",
     defaultOn: true,
     core: true,
-    swatch: { kind: "color", color: "#c4bdac" },
     published: [],
     minZoom: 0,
     legend: () => null,

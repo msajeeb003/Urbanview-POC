@@ -48,7 +48,7 @@ import json
 import math
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 FORMULA_VERSION = "poc-1"
 ENGINE_VERSION = "1.0.0"
@@ -63,18 +63,6 @@ FIXTURES_PATH = (
     / "feasibility-cases.json"
 )
 
-FieldKey = Literal[
-    "max_gfa",
-    "max_coverage_area",
-    "saleable_area",
-    "construction_costs",
-    "land_value",
-    "design_and_documentation_costs",
-    "total_cost",
-    "market_value",
-    "potential_profit",
-    "roi_pct",
-]
 FIELD_ORDER: tuple[str, ...] = (
     "max_gfa",
     "max_coverage_area",

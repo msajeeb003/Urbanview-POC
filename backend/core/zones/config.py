@@ -1,7 +1,7 @@
 """The zone tooling's configuration: one ``data/zones/<municipality>/zones.toml`` per municipality.
 
 Everything place-specific (paths, the reference listing and its zone ids, the registry's URLs and
-type names, the editing CRS, the tolerances, the base map) comes from that file; a new
+type names, the editing CRS, the base map) comes from that file; a new
 municipality is a new folder and file, never code. ``ZONES_DATA_DIR`` points elsewhere than the
 repository's ``data/zones``.
 """
@@ -47,9 +47,6 @@ class EregistriConfig:
 
 @dataclass(frozen=True, slots=True)
 class ValidationConfig:
-    overlap_tolerance_m2: float = 1.0
-    gap_tolerance_m2: float = 1.0
-    extent: Path | None = None
     require_confirmed: bool = False
 
 
@@ -133,10 +130,8 @@ def load_zone_config(municipality_id: str, base: Path | None = None) -> ZoneSetC
             columns={k: int(v) for k, v in reg.get("columns", {}).items()},
             types=dict(reg.get("types", {})),
         ),
+        # any other [validation] key is ignored
         validation=ValidationConfig(
-            overlap_tolerance_m2=float(val.get("overlap_tolerance_m2", 1.0)),
-            gap_tolerance_m2=float(val.get("gap_tolerance_m2", 1.0)),
-            extent=_path(root, val.get("extent")),
             require_confirmed=bool(val.get("require_confirmed", False)),
         ),
         template=TemplateConfig(

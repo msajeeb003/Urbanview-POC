@@ -27,32 +27,26 @@ export interface ParamMetricDef {
   key: ParamMetric;
   /** The heatmap layer that holds the field. */
   layer: HeatLayer;
-  /** Chip label on the card. */
-  short: string;
-  /** Card sub-label and legend title. */
-  label: string;
-  legendTitle: string;
-  legendUnit: string;
   decimals: number;
   /** Upper end of the fallback gradient when no classes are served. */
   fallbackMax: number;
 }
 
 export const PARAM_METRICS: readonly ParamMetricDef[] = [
-  { key: "max_far", layer: "far", short: "FAR", label: "Floor area ratio", legendTitle: "FAR intensity", legendUnit: "floor area ratio", decimals: 2, fallbackMax: 3.4 },
-  { key: "max_site_coverage_pct", layer: "coverage", short: "Coverage", label: "Site coverage", legendTitle: "Site coverage", legendUnit: "% of parcel", decimals: 0, fallbackMax: 100 },
-  { key: "max_floors", layer: "height", short: "Floors", label: "Floors above ground", legendTitle: "Building height", legendUnit: "floors above ground", decimals: 0, fallbackMax: 12 },
-  { key: "max_gfa_m2", layer: "gfa", short: "GFA", label: "Max gross floor area", legendTitle: "Max GFA", legendUnit: "m² per block", decimals: 0, fallbackMax: 20000 },
+  { key: "max_far", layer: "far", decimals: 2, fallbackMax: 3.4 },
+  { key: "max_site_coverage_pct", layer: "coverage", decimals: 0, fallbackMax: 100 },
+  { key: "max_floors", layer: "height", decimals: 0, fallbackMax: 12 },
+  { key: "max_gfa_m2", layer: "gfa", decimals: 0, fallbackMax: 20000 },
 ];
 
 /** The tile source-layer of a heatmap layer. */
 export const heatSourceLayer = (layer: HeatLayer | "sale_price"): string => `heat_${layer}`;
 
 /** Sale-price variants: the property holding the rate and the one holding its band. */
-export const PRICE_METRICS: readonly { key: PriceMetric; short: string; column: string; band: string; label: string }[] = [
-  { key: "low", short: "Low", column: "low", band: "band_low", label: "Low sale price" },
-  { key: "expected", short: "Expected", column: "value", band: "band", label: "Expected sale price" },
-  { key: "high", short: "High", column: "high", band: "band_high", label: "High sale price" },
+export const PRICE_METRICS: readonly { key: PriceMetric; column: string; band: string }[] = [
+  { key: "low", column: "low", band: "band_low" },
+  { key: "expected", column: "value", band: "band" },
+  { key: "high", column: "high", band: "band_high" },
 ];
 
 export const paramMetric = (key: ParamMetric) => PARAM_METRICS.find((m) => m.key === key)!;

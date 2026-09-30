@@ -42,6 +42,7 @@ dev = [
 gis = [
   "pymupdf>=1.24",
   "shapely>=2.0",
+  "pyyaml>=6",  # the extraction rules of core.gis.extract
 ]
 # AI extraction (core.extraction): the Claude adapter; the worker installs it, the API does not
 ai = [

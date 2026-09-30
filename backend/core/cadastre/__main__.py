@@ -201,8 +201,7 @@ def _ownership_status(
             "status": "not_available",
             "reason": "bulk_access_not_confirmed",
             "summary": f"not loaded: bulk access to {src.name} is not confirmed (P0); the "
-            "flags stay null and the Public ownership / Restitution layers are marked "
-            "unavailable. They are never derived from other data.",
+            "flags stay null. They are never derived from other data.",
         }
     return {
         "status": "not_loaded",

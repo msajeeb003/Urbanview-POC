@@ -1,4 +1,4 @@
-# AI document extraction: the canonical contract (schema 1.0, prompts 1.0)
+# AI document extraction: the canonical contract (schema 1.0, prompts 1.1)
 
 Status: engineering contract for the POC (2026-09-26). Code: `backend/core/extraction/`. The
 extraction job (`jobs/tasks/extraction.py`, next AI-track item) fills this contract; the review
@@ -37,7 +37,7 @@ Every field of every entity is a leaf, one of two shapes:
 | `raw_text` | the page text it was read from, **taken from the page** (whitespace collapsed), never the model's copy |
 | `source` | `document_id`, 1-based `page`, `bbox` [x0, y0, x1, y1] in PDF points origin bottom-left (null when the text repeats and no row / column settles it), `table_ref` {table, row, column, cell} |
 | `confidence` | 0–1, the model's |
-| `extraction_method` | `text` \| `table` \| `ocr` |
+| `extraction_method` | `text` \| `table` (the schema's `ocr` value is never set: there is no OCR, scanned pages stay unread) |
 | `stated` | `{value, unit}` exactly as printed and as the document expresses it, before normalisation |
 | `normalisation` | rules applied, in order (`decimal_comma`, `grouped_number`, `ratio_to_percent`, `ha_to_m2`, `m2_to_ha`, `date_dmy`) |
 | `derived` | max floors only: `{notation, below_ground, above_ground, attic}` parsed by code |
@@ -135,10 +135,10 @@ silently and nothing is published from here.**
 
 1.1 asks for compact answers (`compact.py`): per entity only the fields the pages state, each a
 flat entry (value, unit as printed, text, page, table, cell, column, confidence, status stated |
-deferred) without unions or nullable members; `to_legacy()` turns an answer into the 1.0 response
-models below, so validation and the canonical schema are unchanged. The API refused 1.0's nested
-schema as too complex. 1.0 stays loadable (`load_prompt_set("1.0")`). The description below is
-1.0's; 1.1 keeps its rules and tasks.
+deferred) without unions or nullable members; `to_legacy()` turns an answer into the full
+response models the validator reads (`response.RESPONSE_MODELS`), so validation and the canonical
+schema are unchanged. 1.1 is the only prompt set: 1.0 (a nested schema the API refused as too
+complex) was deleted on 2026-10-01.
 
 `manifest.toml` (prompt version, target schema version, one entry per task with its response
 model), Jinja2 templates: `system.md` (the rules: transcribe never interpret, cite page and raw
@@ -153,27 +153,25 @@ them current).
   (IZ, II, UP vs cadastral parcel, KO, Blok / Zona, namjena, spratnost and its tokens, BRGP,
   građevinska / regulaciona linija, parking, utilities, adoption terms, deferral phrases, totals
   rows) and the document types come from `[terminology]` / `[extraction]` of
-  `municipalities/<id>.toml` (BRD §8). A test fails if a template contains Montenegrin terms.
+  `municipalities/<id>.toml` (BRD §8): the terminology is Podgorica's profile data, not template
+  text.
 - **Request**: two cached system blocks (rules + glossary per municipality; task + field guide +
   document per document) and the pages as the user message; `output_config.format` = the
   response schema (all objects closed, all properties required; bounds are checked in code).
 - A changed prompt is a new directory (`v1.1`); every item records the version that produced it.
 
-**Response (what the model returns)**: per field `{value (string, as printed), unit, raw_text,
+**Response (what the validator reads, after `to_legacy()`)**: per field `{value (string, as printed), unit, raw_text,
 page, table_ref, confidence, absent_reason}`, the model never types or converts a number.
 
 ## 7. Model (`llm.py`)
 
 `ClaudeModel`: Anthropic SDK (`ai` extra; the worker image installs it), streaming,
-`output_config` {format, effort}, adaptive thinking; server-side refusal fallback
-(`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) only when switched on (documented
-for Opus 5 / Fable 5.1). The default model is **Claude Sonnet 5** (2026-09-26: Opus is not
+`output_config` {format, effort}, adaptive thinking. The default model is **Claude Sonnet 5** (2026-09-26: Opus is not
 required): it reads the tables well, supports adaptive thinking and effort, and caches the system
 prompt; Haiku 4.5 has no adaptive thinking or effort and caches only prompts of 4096+ tokens.
 Settings: `ANTHROPIC_API_KEY` (else the SDK's own lookup), `EXTRACTION_MODEL`
 (`claude-sonnet-5`; `claude-opus-5` for the hardest pages), `EXTRACTION_EFFORT` (high),
-`EXTRACTION_ADAPTIVE_THINKING`, `EXTRACTION_MAX_TOKENS` (32 000), `EXTRACTION_REFUSAL_FALLBACK`,
-`EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_LOW_CONFIDENCE`. Failures: `ModelUnavailable` /
+`EXTRACTION_ADAPTIVE_THINKING`, `EXTRACTION_MAX_TOKENS` (32 000), `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_LOW_CONFIDENCE`. Failures: `ModelUnavailable` /
 `ModelRateLimited` (timeouts, 5xx / 529, 429: the job retries), `ModelRefused`,
 `ModelOutputInvalid` (truncated or off-schema), `ModelError` (final). `ModelUsage` gives the
 token counts for `jobs.cost.cost_for`.
@@ -230,15 +228,13 @@ The corpus evaluation (every parcel of the client's POC documents, scored per fi
 - **Accuracy** on the client's documents: the evaluation corpus (`python -m core.extraction
   corpus ...`, `backend/tests/corpus/README.md`; every parcel row of each POC document). The
   earlier two-page hand-labelled sample was removed on 2026-09-30 (the corpus covers it).
-- Commands (from `backend/`): `python -m core.extraction export | eval [--dry-run] | corpus ...`.
-  A live `eval` costs tokens.
+- Commands (from `backend/`): `python -m core.extraction export | eval | corpus ...`.
+  `eval` asks the model and costs tokens.
 
 ## 10. Open items
 
-- Live model run of the never-guessed cases and the sample (needs an Anthropic key on the
-  build machine): the acceptance "the model returns null on 5 cases" is checked by `eval`.
-- The sample labels were transcribed by the AI assistant from the page text and grid; a person
-  should spot-check them on the rendered pages before tuning (ticket 14).
+- Live model run of the never-guessed cases (needs an Anthropic key on the build machine): the
+  acceptance "the model returns null on 5 cases" is checked by `eval`.
 - Floor tokens `G` (garaža) and `Pv`, and the land-use term table: to confirm with the client's
   planner. Stara Varoš legend codes (SS, MN, CD, SV, VO, K, SR, TS, U) need a `land_use_legend`
   run on the land-use sheet (its legend text is partly glyph-shifted: decode first).

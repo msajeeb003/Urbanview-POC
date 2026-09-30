@@ -12,10 +12,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from api.schemas.email import EmailLogOut
 from api.schemas.feasibility import EditedAssumptions
+from core.models.orders import ORDER_STATUSES
 
-OrderStatus = Literal[
-    "pending_payment", "paid", "payment_failed", "in_progress", "delivered", "refunded"
-]
+# the six statuses: one list (core.models.orders.ORDER_STATUSES, ck_orders_status)
+OrderStatus = Literal[ORDER_STATUSES]
 PurchaserType = Literal["individual", "legal_entity"]
 ParcelType = Literal["cadastral", "urban"]
 

@@ -1,5 +1,6 @@
-"""``POST /v1/events`` with a fake repository: strict validation (names, ids, properties, personal
-data, timestamps, batch size), what gets stored, and de-duplication of retried events."""
+"""``POST /v1/events`` with a fake repository: the 13 names, row-by-row validation (ids,
+properties, personal data, timestamps), the batch envelope, what gets stored, and de-duplication
+of retried events."""
 
 from __future__ import annotations
 
@@ -7,8 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from api.schemas.analytics import AnalyticsEvent
-from core.models.analytics import EVENT_NAMES
+from core.models.analytics import EVENT_NAMES, AnalyticsEvent
 from tests.helpers import make_app, make_client, make_redis, make_settings
 
 URL = "/v1/events"
@@ -31,7 +31,7 @@ class FakeAnalyticsRepository:
             inserted += 1
         return inserted
 
-    async def collect(self, rng, *, districts_limit, target):  # pragma: no cover - not used here
+    async def collect(self, rng, *, limit, min_sessions):  # pragma: no cover - not used here
         raise AssertionError("the ingest tests never build the dashboard")
 
 
@@ -55,6 +55,26 @@ def event(name="map_loaded", **overrides):
 async def post(app, body):
     async with app.router.lifespan_context(app), make_client(app) as client:
         return await client.post(URL, json=body)
+
+
+def test_the_thirteen_events_are_the_brd_eleven_and_the_two_intent_buttons():
+    assert list(EVENT_NAMES) == [
+        "map_loaded",
+        "search_performed",
+        "parcel_selected",
+        "layer_toggled",
+        "panel_viewed",
+        "financials_viewed",
+        "source_reference_opened",
+        "order_started",
+        "checkout_completed",
+        "return_visit",
+        "sessions_per_user",
+        "market_data_interest",
+        "ai_interest",
+    ]
+    # one list: the database check (ck_analytics_events_name) is built from the same enum
+    assert EVENT_NAMES == tuple(e.value for e in AnalyticsEvent)
 
 
 async def test_a_valid_batch_is_stored_with_the_grouping_columns_extracted():
@@ -84,7 +104,7 @@ async def test_a_valid_batch_is_stored_with_the_grouping_columns_extracted():
     }
     r = await post(build(repository), batch)
     assert r.status_code == 202, r.text
-    assert r.json() == {"received": 4, "accepted": 4, "duplicates": 0}
+    assert r.json() == {"received": 4, "accepted": 4, "duplicates": 0, "rejected": []}
     assert [row["name"] for row in repository.rows] == [
         "map_loaded",
         "search_performed",
@@ -106,13 +126,44 @@ async def test_a_valid_batch_is_stored_with_the_grouping_columns_extracted():
     assert not {"ip", "user_agent", "email"} & set(selected)
 
 
-async def test_unknown_event_names_reject_the_whole_batch():
+async def test_a_malformed_row_is_rejected_without_dropping_the_rest():
     repository = FakeAnalyticsRepository()
-    r = await post(build(repository), {"events": [event("map_loaded"), event("page_viewed")]})
-    assert r.status_code == 422
+    batch = {
+        "events": [
+            event("map_loaded"),
+            event("page_viewed"),  # not one of the 13
+            "not an object",
+            event("panel_viewed", properties={"note": "contact ana@example.com please"}),
+            event("layer_toggled", properties={"layer_id": "zones", "on": True}),
+        ]
+    }
+    r = await post(build(repository), batch)
+    assert r.status_code == 202, r.text
+    body = r.json()
+    assert (body["received"], body["accepted"], body["duplicates"]) == (5, 2, 0)
+    assert [row["name"] for row in repository.rows] == ["map_loaded", "layer_toggled"]
+    rejected = {row["index"]: row["problems"] for row in body["rejected"]}
+    assert set(rejected) == {1, 2, 3}
+    assert rejected[1][0]["loc"] == ["name"] and rejected[1][0]["type"] == "enum"
+    assert rejected[2][0]["type"] == "model_type"
+    assert rejected[3][0]["loc"] == ["properties"]
+    assert "personal data" in rejected[3][0]["msg"]
+    # a rejection never echoes what was sent
+    assert "ana@example.com" not in r.text
+
+
+async def test_a_batch_whose_every_row_is_malformed_is_422_per_row():
+    repository = FakeAnalyticsRepository()
+    r = await post(
+        build(repository),
+        {"events": [event("page_viewed"), event(session_id="short")]},
+    )
+    assert r.status_code == 422, r.text
     body = r.json()["error"]
     assert body["code"] == "validation_error"
-    assert any(d["loc"] == ["body", "events", 1, "name"] for d in body["details"])
+    locs = [d["loc"] for d in body["details"]]
+    assert ["body", "events", 0, "name"] in locs
+    assert ["body", "events", 1, "session_id"] in locs
     assert repository.rows == []
 
 
@@ -207,10 +258,8 @@ async def test_ip_detection_is_exact_not_pattern_happy(value, status):
         ("panel_viewed", {"panel_type": "map"}),
         ("sessions_per_user", {"sessions": 0}),
         ("checkout_completed", {"amount_eur": 10, "currency": "USD"}),
-        ("assumption_edited", {"assumption_value": 960}),
-        ("assumption_edited", {"assumption": "land_rate_eur_m2"}),
-        ("assumption_edited", {"assumption": "saleable_share", "assumption_value": -0.1}),
-        ("assumption_edited", {"assumption": "saleable_share", "reset": "yes"}),
+        # not one of the 13 (the Group 2 edit event is not in the plan's list)
+        ("assumption_edited", {"assumption": "saleable_share", "assumption_value": 0.7}),
     ],
 )
 async def test_known_properties_are_typed_and_some_are_required(name, properties):
@@ -266,15 +315,8 @@ async def test_known_properties_are_typed_and_some_are_required(name, properties
         ("panel_viewed", {"panel_type": "urban", "parcel_id": 1001, "custom_flag": None}),
         ("sessions_per_user", {"sessions": 3}),
         ("return_visit", {"days_since_last": 0}),
-        ("ai_interest", {"trigger": "quota", "extra_scalar": 1.5}),
-        (
-            "assumption_edited",
-            {"assumption": "construction_cost_eur_m2", "assumption_value": 960, "zone_id": 1},
-        ),
-        (
-            "assumption_edited",
-            {"assumption": "saleable_share", "assumption_value": 0.7, "reset": True},
-        ),
+        ("ai_interest", {"trigger": "parcel_panel", "extra_scalar": 1.5}),
+        ("market_data_interest", {"trigger": "parcel_panel", "panel_type": "urban"}),
     ],
 )
 async def test_well_formed_events_are_accepted(name, properties):
@@ -283,17 +325,24 @@ async def test_well_formed_events_are_accepted(name, properties):
 
 
 @pytest.mark.parametrize(
-    ("occurred_at", "status"),
+    ("offset", "status"),
     [
-        ("2026-09-24T10:00:00", 422),  # naive: no timezone
-        ((datetime.now(UTC) + timedelta(minutes=10)).isoformat(), 422),
-        ((datetime.now(UTC) + timedelta(minutes=2)).isoformat(), 202),
-        ((datetime.now(UTC) - timedelta(days=365)).isoformat(), 202),
-        ("not a date", 422),
+        (None, 422),  # naive: no timezone
+        (timedelta(minutes=10), 422),
+        (timedelta(minutes=2), 202),
+        (timedelta(days=-365), 202),
+        ("garbage", 422),
     ],
     ids=["naive", "10 min in the future", "2 min in the future", "a year ago", "garbage"],
 )
-async def test_timestamps_need_a_timezone_and_may_not_be_in_the_future(occurred_at, status):
+async def test_timestamps_need_a_timezone_and_may_not_be_in_the_future(offset, status):
+    # computed when the test runs, not when it is collected (a slow run moved the boundary)
+    if offset is None:
+        occurred_at = "2026-09-24T10:00:00"
+    elif isinstance(offset, str):
+        occurred_at = "not a date"
+    else:
+        occurred_at = (datetime.now(UTC) + offset).isoformat()
     r = await post(build(), {"events": [event(occurred_at=occurred_at)]})
     assert r.status_code == status, r.text
 
@@ -304,20 +353,30 @@ async def test_timestamps_need_a_timezone_and_may_not_be_in_the_future(occurred_
         {"events": []},
         {"events": [event() for _ in range(101)]},
         {},
+        {"events": "map_loaded"},
         {"events": [event()], "source": "web"},
         {"events": [{**event(), "ip": "1.2.3.4"}]},
     ],
-    ids=["empty", "101 events", "no events key", "unknown top-level key", "unknown event key"],
+    ids=[
+        "empty",
+        "101 events",
+        "no events key",
+        "events not a list",
+        "unknown top-level key",
+        "unknown event key",
+    ],
 )
 async def test_batch_shape_is_enforced(body):
-    r = await post(build(), body)
+    repository = FakeAnalyticsRepository()
+    r = await post(build(repository), body)
     assert r.status_code == 422, r.text
+    assert repository.rows == []
 
 
 async def test_a_full_batch_of_100_is_accepted():
     r = await post(build(), {"events": [event(event_id=f"evt-{i:08d}") for i in range(100)]})
     assert r.status_code == 202
-    assert r.json() == {"received": 100, "accepted": 100, "duplicates": 0}
+    assert r.json() == {"received": 100, "accepted": 100, "duplicates": 0, "rejected": []}
 
 
 async def test_retried_events_are_counted_as_duplicates_not_stored_twice():
@@ -333,8 +392,8 @@ async def test_retried_events_are_counted_as_duplicates_not_stored_twice():
     async with app.router.lifespan_context(app), make_client(app) as client:
         first = await client.post(URL, json=batch)
         second = await client.post(URL, json=batch)
-    assert first.json() == {"received": 3, "accepted": 2, "duplicates": 1}
-    assert second.json() == {"received": 3, "accepted": 0, "duplicates": 3}
+    assert first.json() == {"received": 3, "accepted": 2, "duplicates": 1, "rejected": []}
+    assert second.json() == {"received": 3, "accepted": 0, "duplicates": 3, "rejected": []}
     assert len(repository.rows) == 2
 
 
@@ -343,8 +402,3 @@ async def test_without_the_events_database_ingest_is_503():
     r = await post(app, {"events": [event()]})
     assert r.status_code == 503
     assert r.json()["error"]["code"] == "service_unavailable"
-
-
-def test_the_database_check_lists_exactly_the_api_events():
-    # core.models.analytics.EVENT_NAMES builds ck_analytics_events_name; a migration must follow it
-    assert set(EVENT_NAMES) == {e.value for e in AnalyticsEvent}

@@ -8,8 +8,8 @@ request), while uploads and reads go to ``S3_ENDPOINT_URL`` (e.g. the storage co
 same network).
 
 Planning documents live under ``{municipality_id}/planning-documents/{document_id}/``: the PDF at
-``planning_documents.file_key`` (``document_key``) and rendered pages at ``pages/NNNN.png``
-(``page_image_key``); the source viewer signs those keys, nothing else leaves the API.
+``planning_documents.file_key`` (``document_key``); the source viewer signs that key, nothing else
+leaves the API.
 
 boto3 is synchronous: call these from Celery tasks, or wrap with
 ``starlette.concurrency.run_in_threadpool`` inside request handlers.
@@ -71,11 +71,6 @@ class ObjectStorage:
     @staticmethod
     def document_key(municipality_id: str, document_id: int, filename: str = "document.pdf") -> str:
         return f"{municipality_id}/{PLANNING_DOCUMENTS_KIND}/{document_id}/{filename}"
-
-    @staticmethod
-    def page_image_key(municipality_id: str, document_id: int, page: int) -> str:
-        """Rendered page image (PNG) of a stored planning document; 1-based, zero-padded page."""
-        return f"{municipality_id}/{PLANNING_DOCUMENTS_KIND}/{document_id}/pages/{page:04d}.png"
 
     @staticmethod
     def upload_key(municipality_id: str, kind: str, sha256: str, filename: str) -> str:

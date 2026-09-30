@@ -9,8 +9,7 @@ Builders:
 - ``hole_faces``: wide polylines plotted as filled ribbons: buffer every piece so small gaps
   close, union, take the holes (less any linework inside them) and grow them back by the same
   distance plus the ribbons' half width (mitred, so corners stay sharp);
-- ``union_fills``: the filled pieces of one category (solid hatches plot as triangles) merged;
-- ``merge_lines``: stroke pieces joined into lines, dash gaps bridged by clustering endpoints.
+- ``union_fills``: the filled pieces of one category (solid hatches plot as triangles) merged.
 
 Cleanup: invalid rings repaired (``make_valid``), parts below the minimum area or thinner than
 the sliver width dropped, near-identical duplicates removed, coordinates rounded to a millimetre
@@ -268,54 +267,6 @@ def union_fills(polys: Sequence[BaseGeometry], eps_m: float = 0.01) -> list[Poly
     return polygon_parts(merged)
 
 
-def merge_lines(lines: Sequence[BaseGeometry], gap_m: float) -> list[LineString]:
-    """Stroke pieces as continuous lines: endpoints closer than ``gap_m`` are joined."""
-    parts = [ln for g in lines for ln in line_parts(g) if ln.length > 0]
-    if not parts:
-        return []
-    if gap_m > 0:
-        ends = np.array([c for ln in parts for c in (ln.coords[0], ln.coords[-1])], dtype=float)
-        cells: dict[tuple[int, int], list[int]] = {}
-        for i, (x, y) in enumerate(ends):
-            cells.setdefault((int(math.floor(x / gap_m)), int(math.floor(y / gap_m))), []).append(i)
-        parent = list(range(len(ends)))
-
-        def find(i: int) -> int:
-            while parent[i] != i:
-                parent[i] = parent[parent[i]]
-                i = parent[i]
-            return i
-
-        for (cx, cy), members in cells.items():
-            near = [
-                j
-                for dx in (-1, 0, 1)
-                for dy in (-1, 0, 1)
-                for j in cells.get((cx + dx, cy + dy), [])
-            ]
-            for i in members:
-                for j in near:
-                    # never join the two ends of one piece (the dash itself)
-                    if j > i and j // 2 != i // 2 and math.dist(ends[i], ends[j]) <= gap_m:
-                        parent[find(j)] = find(i)
-        groups: dict[int, list[int]] = {}
-        for i in range(len(ends)):
-            groups.setdefault(find(i), []).append(i)
-        centre = {
-            i: tuple(ends[members].mean(axis=0)) for members in groups.values() for i in members
-        }
-        rebuilt = []
-        for k, ln in enumerate(parts):
-            coords = list(ln.coords)
-            coords[0], coords[-1] = centre[2 * k], centre[2 * k + 1]
-            if len(coords) == 2 and coords[0] == coords[1]:
-                continue
-            rebuilt.append(LineString(coords))
-        parts = rebuilt
-    merged = shapely.line_merge(shapely.union_all(np.asarray(parts, dtype=object), grid_size=1e-3))
-    return line_parts(merged)
-
-
 # --- cleanup ----------------------------------------------------------------------------------
 
 
@@ -355,14 +306,6 @@ def clean_polygon(
     if not parts:
         return None, flags, counts
     return (parts[0] if len(parts) == 1 else MultiPolygon(parts)), flags, counts
-
-
-def clean_line(geom: BaseGeometry, min_length_m: float) -> BaseGeometry | None:
-    parts = [p for p in line_parts(geom) if p.length >= min_length_m]
-    if not parts:
-        return None
-    out = parts[0] if len(parts) == 1 else MultiLineString(parts)
-    return shapely.set_precision(out, PRECISION_M)
 
 
 def duplicate_of(

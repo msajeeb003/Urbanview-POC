@@ -32,14 +32,14 @@ class SourcePage(BaseModel):
     document_status: Literal["adopted", "in_progress", "superseded"]
     page: int = Field(description="1-based page of the PDF")
     page_count: int | None = Field(description="Pages in the stored PDF; null when unknown")
-    kind: Literal["page_image", "pdf_page"] = Field(
-        description="page_image: a PNG of that page; pdf_page: the whole PDF, url ends with #page=N"
+    kind: Literal["pdf_page"] = Field(
+        description="pdf_page: the whole PDF, url ends with #page=N (the viewer shows that page)"
     )
     url: str = Field(
         description="Signed URL into the private bucket, valid until expires_at. The only thing "
         "about storage that leaves the API."
     )
-    content_type: Literal["image/png", "application/pdf"]
+    content_type: Literal["application/pdf"]
     expires_at: datetime
     expires_in_seconds: int
     registry_url: str | None = Field(

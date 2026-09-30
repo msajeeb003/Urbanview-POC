@@ -223,9 +223,7 @@ class _Run:
                     flags.append(Flag.bbox_ambiguous)
         return table_ref, round_box(box) if box else None
 
-    def method(self, page: PageInput, out: OutValue) -> str:
-        if page.method == "ocr":
-            return "ocr"
+    def method(self, out: OutValue) -> str:
         ref = out.table_ref
         if self.task == "parameter_table" or (ref is not None and (ref.cell or ref.column)):
             return "table"
@@ -286,7 +284,7 @@ class _Run:
                 document_id=self.document_id, page=found.page, bbox=box, table_ref=table_ref
             ),
             confidence=confidence,
-            extraction_method=self.method(page, out),  # type: ignore[arg-type]
+            extraction_method=self.method(out),  # type: ignore[arg-type]
             stated=Stated(value=printed, unit=out.unit),
             normalisation=typed.rules,
             derived=typed.derived,

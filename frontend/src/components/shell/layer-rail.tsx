@@ -23,10 +23,10 @@ import { useTrack } from "@/lib/analytics/react";
 import { useTilesCurrent } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n";
 import { PARAM_METRICS, PRICE_METRICS } from "@/lib/map/classes";
-import { LAYERS, analyticsLayerId, hasNoData, layerState, toggleLayer, type LayerDef } from "@/lib/layers";
+import { LAYERS, analyticsLayerId, hasNoData, layerState, toggleLayer, type LayerDef, type Swatch } from "@/lib/layers";
 
 /** The rail's cards: the seven toggleable layers (the POC plan's list); core layers have none. */
-const CARDS = LAYERS.filter((l) => !l.core);
+const CARDS = LAYERS.filter((l): l is LayerDef & { swatch: Swatch } => !l.core && !!l.swatch);
 import { useLayerStates } from "@/lib/map/use-layer-states";
 import { useShell } from "@/lib/store";
 
@@ -41,7 +41,7 @@ function MetricChips<T extends string>({
   onPick,
 }: {
   label: string;
-  options: readonly { key: T; short: string }[];
+  options: readonly { key: T }[];
   value: T;
   shortOf: (key: T) => string;
   onPick: (key: T) => void;
@@ -92,10 +92,6 @@ export function LayerRail() {
     // the store as it is at the click, not as it was at the last render: two clicks within one
     // frame must not toggle from the same snapshot
     const { layers, zoom } = useShell.getState();
-    if (l.core) {
-      showToast(t("toast.core"));
-      return;
-    }
     const result = toggleLayer(layers, l.id);
     setLayers(result.layers);
     track("layer_toggled", { layer_id: analyticsLayerId(l), on: result.on });
@@ -126,13 +122,11 @@ export function LayerRail() {
         const name = nameOf(l);
         const noData = hasNoData(l, tiles);
         const zoomIn = states[l.id] === "zoom_in";
-        const title = l.core
-          ? t("rail.titleCore", { name })
-          : noData
-            ? t("rail.titleNoData", { name })
-            : zoomIn
-              ? t("rail.titleZoom", { name })
-              : t("rail.titleToggle", { name });
+        const title = noData
+          ? t("rail.titleNoData", { name })
+          : zoomIn
+            ? t("rail.titleZoom", { name })
+            : t("rail.titleToggle", { name });
         return (
           <Fragment key={l.id}>
             {heading && <div className="rlabel">{heading}</div>}
@@ -140,7 +134,6 @@ export function LayerRail() {
               name={name}
               swatch={l.swatch}
               on={on}
-              core={l.core}
               sub={sub}
               note={noData ? t("rail.noData") : zoomIn ? t("rail.zoomIn") : undefined}
               noteKind={noData ? "no_data" : "zoom_in"}

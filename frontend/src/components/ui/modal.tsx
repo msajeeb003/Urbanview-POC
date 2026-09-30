@@ -24,7 +24,7 @@ export function Modal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   wide?: boolean;
-  /** An extra class on `.modal` (e.g. the source viewer's full-screen phone layout). */
+  /** An extra class on `.modal` (e.g. the source viewer's `.srcmodal`). */
   className?: string;
   /** Accessible name when the content has no `ModalHead` title. */
   label: string;

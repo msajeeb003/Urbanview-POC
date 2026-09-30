@@ -1,4 +1,4 @@
-"""Display-shaped panels: ``GET /v1/parcels/{id}/panel`` and ``GET /v1/zones/{id}/panel``
+"""The display-shaped parcel panel: ``GET /v1/parcels/{id}/panel``
 (contract ``docs/specs/panel-payload.md`` section 13).
 
 Everything the panel shows for a parcel in one response, in display order, with bilingual labels

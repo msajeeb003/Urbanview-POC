@@ -41,8 +41,6 @@ from core.extraction.schema import FloorCount, StatedUnit
 from core.extraction.textmatch import words_fold
 
 MAX_TEXT = 500
-# the unit a reviewer may send -> how the contract names it
-UNIT_INPUTS: dict[str, StatedUnit] = {"%": "percent", "m²": "m2", "m2": "m2", "ha": "ha", "m": "m"}
 
 
 @dataclass(frozen=True, slots=True)

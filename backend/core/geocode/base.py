@@ -23,7 +23,6 @@ import httpx
 log = logging.getLogger("urbanview.geocode")
 
 ResultKind = Literal["address", "street", "place", "poi", "other"]
-RESULT_KINDS: tuple[ResultKind, ...] = ("address", "street", "place", "poi", "other")
 
 
 @dataclass(frozen=True, slots=True)

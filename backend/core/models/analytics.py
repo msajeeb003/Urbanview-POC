@@ -10,6 +10,7 @@ carry no foreign keys because zones and parcels may be re-seeded under historica
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, Index, Text, func, text
@@ -18,22 +19,28 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from core.db import Base
 
-EVENT_NAMES: tuple[str, ...] = (
-    "map_loaded",
-    "search_performed",
-    "parcel_selected",
-    "layer_toggled",
-    "panel_viewed",
-    "financials_viewed",
-    "source_reference_opened",
-    "order_started",
-    "checkout_completed",
-    "return_visit",
-    "sessions_per_user",
-    "market_data_interest",
-    "ai_interest",
-    "assumption_edited",
-)
+
+class AnalyticsEvent(StrEnum):
+    """The 13 product events, the one list of them: BRD §6.2's eleven and the pilot scope's two
+    intent buttons (``market_data_interest``, ``ai_interest``). The API validates against it and
+    ``ck_analytics_events_name`` is built from it (migration 0038)."""
+
+    map_loaded = "map_loaded"
+    search_performed = "search_performed"
+    parcel_selected = "parcel_selected"
+    layer_toggled = "layer_toggled"
+    panel_viewed = "panel_viewed"
+    financials_viewed = "financials_viewed"
+    source_reference_opened = "source_reference_opened"
+    order_started = "order_started"
+    checkout_completed = "checkout_completed"
+    return_visit = "return_visit"
+    sessions_per_user = "sessions_per_user"
+    market_data_interest = "market_data_interest"
+    ai_interest = "ai_interest"
+
+
+EVENT_NAMES: tuple[str, ...] = tuple(event.value for event in AnalyticsEvent)
 
 
 class AnalyticsEventRecord(Base):

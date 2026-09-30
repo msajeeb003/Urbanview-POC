@@ -6,7 +6,6 @@ import { formatDate, formatFigure } from "@/lib/format";
 import {
   dataVersionText,
   docTypeLabel,
-  documentMeta,
   documentMetaParts,
   planPhrase,
   type ZoneDoc,
@@ -31,7 +30,13 @@ function doc(overrides: Partial<ZoneDoc> = {}): ZoneDoc {
   };
 }
 
-describe("documentMeta (zone panel document list)", () => {
+/** The meta line as the zone panel reads it. */
+const documentMeta = (d: Parameters<typeof documentMetaParts>[0]) =>
+  documentMetaParts(d)
+    .map((p) => p.text)
+    .join(" · ");
+
+describe("the meta line (zone panel document list)", () => {
   it("reads like the wireframe, plus the parcels the map covers", () => {
     expect(documentMeta(doc())).toBe("source PDF · eRegistri · 4 parcels with data");
     expect(documentMeta(doc({ parcel_count: 1 }))).toBe("source PDF · eRegistri · 1 parcel with data");

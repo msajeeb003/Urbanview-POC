@@ -254,7 +254,7 @@ async def test_absolute_bounds_flow_into_the_ranges(config_app):
     assert created.json()["sale_rate"]["kind"] == "absolute"
 
 
-# --- zone parameter sets --------------------------------------------------------------------------
+# --- staff users ----------------------------------------------------------------------------------
 
 
 async def test_staff_users_crud_without_passwords(config_app):

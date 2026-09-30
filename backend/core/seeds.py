@@ -69,7 +69,6 @@ TABLES: list[tuple[str, str | None, frozenset[str]]] = [
                 "amends_document_id",
                 "file_key",
                 "page_count",
-                "page_images_rendered",
                 "coverage_live",
                 "dataset_version",
             }
@@ -469,159 +468,7 @@ def sample_citations(name: str = "podgorica_sample") -> dict[int, dict[int, list
     return out
 
 
-SYNTHETIC_VERSION = "synthetic-bulk"
-
-
-async def load_synthetic_bulk(
-    session: AsyncSession,
-    *,
-    municipality_id: str = "podgorica",
-    bounds: tuple[float, float, float, float] = (19.33, 42.34, 19.44, 42.54),
-    document_grid: tuple[int, int] = (15, 20),
-    parcel_grid: tuple[int, int] = (100, 100),
-    dataset_version: str = SYNTHETIC_VERSION,
-    min_overlap_m2: float = 1.0,
-    min_overlap_fraction: float = 0.02,
-) -> dict[str, int]:
-    """Synthetic volume for query-plan and latency tests (not a real dataset).
-
-    Fills ``bounds`` (min_lng, min_lat, max_lng, max_lat; keep it away from the hand-made sample)
-    with a grid of adopted documents, one block per document, and grids of cadastral and planned
-    urban parcels (the planned ones offset so cadastral and planned areas differ). Everything is
-    tagged with ``dataset_version`` so ``delete_dataset`` can remove it.
-    """
-    min_lng, min_lat, max_lng, max_lat = bounds
-    cols, rows = document_grid
-    pcols, prows = parcel_grid
-    params = {
-        "m": municipality_id,
-        "v": dataset_version,
-        "x0": min_lng,
-        "y0": min_lat,
-        "x1": max_lng,
-        "y1": max_lat,
-        "cols": cols,
-        "n_docs": cols * rows,
-        "dw": (max_lng - min_lng) / cols,
-        "dh": (max_lat - min_lat) / rows,
-        "pcols": pcols,
-        "n_parcels": pcols * prows,
-        "pw": (max_lng - min_lng) / pcols,
-        "ph": (max_lat - min_lat) / prows,
-    }
-    zone_id = (
-        await session.execute(
-            text(
-                "INSERT INTO zones (municipality_id, name, geom, dataset_version) VALUES "
-                "(:m, 'Synthetic zone', ST_Multi(ST_MakeEnvelope(CAST(:x0 AS float), "
-                "CAST(:y0 AS float), CAST(:x1 AS float), CAST(:y1 AS float), 4326)), :v) "
-                "RETURNING id"
-            ),
-            params,
-        )
-    ).scalar_one()
-    params["zone_id"] = zone_id
-
-    doc_cell = (
-        "ST_MakeEnvelope("
-        "CAST(:x0 AS float) + (i % CAST(:cols AS int)) * CAST(:dw AS float), "
-        "CAST(:y0 AS float) + (i / CAST(:cols AS int)) * CAST(:dh AS float), "
-        "CAST(:x0 AS float) + (i % CAST(:cols AS int) + 1) * CAST(:dw AS float), "
-        "CAST(:y0 AS float) + (i / CAST(:cols AS int) + 1) * CAST(:dh AS float), 4326)"
-    )
-    await session.execute(
-        text(
-            "INSERT INTO planning_documents (municipality_id, name, type, status, source, "
-            "coverage_geom, zone_id, coverage_live, dataset_version) "
-            "SELECT :m, 'Synthetic DUP ' || i, 'DUP', 'adopted', 'synthetic', "
-            f"ST_Multi({doc_cell}), :zone_id, true, :v "
-            "FROM generate_series(0, CAST(:n_docs AS int) - 1) AS i"
-        ),
-        params,
-    )
-    await session.execute(
-        text(
-            "INSERT INTO urban_blocks (municipality_id, block_ref, geom, zone_id, dataset_version) "
-            "SELECT :m, 'SB-' || d.id, d.coverage_geom, :zone_id, :v "
-            "FROM planning_documents d WHERE d.municipality_id = :m AND d.dataset_version = :v"
-        ),
-        params,
-    )
-
-    cell = (
-        "LATERAL (SELECT CAST(:x0 AS float) + (i % CAST(:pcols AS int)) * CAST(:pw AS float) AS x, "
-        "CAST(:y0 AS float) + (i / CAST(:pcols AS int)) * CAST(:ph AS float) AS y) AS g"
-    )
-    cad_geom = (
-        "ST_MakeEnvelope(g.x, g.y, g.x + CAST(:pw AS float) * 0.45, "
-        "g.y + CAST(:ph AS float) * 0.4, 4326)"
-    )
-    await session.execute(
-        text(
-            "INSERT INTO cadastral_parcels (municipality_id, parcel_number, ko_name, geom, "
-            "area_m2, dataset_version) "
-            f"SELECT :m, 'S' || i, 'Podgorica III', ST_Multi({cad_geom}), "
-            f"ROUND(CAST(ST_Area(CAST({cad_geom} AS geography)) AS numeric), 1), :v "
-            f"FROM generate_series(0, CAST(:n_parcels AS int) - 1) AS i, {cell}"
-        ),
-        params,
-    )
-    up_geom = (
-        "ST_MakeEnvelope(g.x + CAST(:pw AS float) * 0.1, g.y, g.x + CAST(:pw AS float) * 0.45, "
-        "g.y + CAST(:ph AS float) * 0.4, 4326)"
-    )
-    centre = (
-        "ST_SetSRID(ST_MakePoint(g.x + CAST(:pw AS float) * 0.25, "
-        "g.y + CAST(:ph AS float) * 0.2), 4326)"
-    )
-    await session.execute(
-        text(
-            "INSERT INTO urban_parcels (municipality_id, urban_parcel_number, geom, area_m2, "
-            "block_id, document_id, dataset_version) "
-            f"SELECT :m, 'SUP ' || p.i, ST_Multi(p.geom), "
-            "ROUND(CAST(ST_Area(CAST(p.geom AS geography)) AS numeric), 1), b.id, d.id, :v "
-            f"FROM (SELECT i, {up_geom} AS geom, {centre} AS c "
-            f"      FROM generate_series(0, CAST(:n_parcels AS int) - 1) AS i, {cell}) AS p "
-            "JOIN planning_documents d ON d.municipality_id = :m AND d.dataset_version = :v "
-            "     AND ST_Intersects(d.coverage_geom, p.c) "
-            "LEFT JOIN urban_blocks b ON b.municipality_id = :m AND b.dataset_version = :v "
-            "     AND ST_Intersects(b.geom, p.c)"
-        ),
-        params,
-    )
-    links = await recompute_current_links(
-        session,
-        municipality_id=municipality_id,
-        rules=LinkRules(min_overlap_m2=min_overlap_m2, min_overlap_fraction=min_overlap_fraction),
-    )
-    for table, _, _ in TABLES:
-        await session.execute(text(f"ANALYZE {table}"))
-    await session.execute(text("ANALYZE parcel_links"))
-    await session.commit()
-
-    counts: dict[str, int] = {}
-    for table, _, _ in TABLES:
-        counts[table] = (
-            await session.execute(
-                text(f"SELECT count(*) FROM {table} WHERE dataset_version = :v"), params
-            )
-        ).scalar_one()
-    counts["parcel_links"] = links["parcel_links"] if links else 0
-    return counts
-
-
-async def delete_dataset(session: AsyncSession, municipality_id: str, dataset_version: str) -> None:
-    for table, _, _ in reversed(TABLES):
-        await session.execute(
-            text(f"DELETE FROM {table} WHERE municipality_id = :m AND dataset_version = :v"),
-            {"m": municipality_id, "v": dataset_version},
-        )
-    await session.commit()
-
-
-async def _main(
-    name: str, url: str | None, municipality_id: str, synthetic: bool, upload_files: bool
-) -> None:
+async def _main(name: str, url: str | None, municipality_id: str, upload_files: bool) -> None:
     if url is None:
         from core.config import get_settings
 
@@ -637,11 +484,6 @@ async def _main(
                 "min_overlap_fraction": get_settings().locate_min_overlap_fraction,
             }
             counts = await load_sample(session, name, municipality_id=municipality_id, **thresholds)
-            if synthetic:
-                bulk = await load_synthetic_bulk(
-                    session, municipality_id=municipality_id, **thresholds
-                )
-                counts = {t: counts.get(t, 0) + bulk.get(t, 0) for t in counts}
         for table, count in counts.items():
             print(f"{table}: {count}")
         if upload_files:
@@ -660,17 +502,10 @@ if __name__ == "__main__":
     parser.add_argument("--url", default=None, help="SQLAlchemy URL (default: settings)")
     parser.add_argument("--municipality", default="podgorica")
     parser.add_argument(
-        "--synthetic-bulk",
-        action="store_true",
-        help="also add ~300 synthetic documents and 10k cadastral/planned parcels for load tests",
-    )
-    parser.add_argument(
         "--upload-files",
         action="store_true",
         help="also upload placeholder PDFs for the sample documents to the S3 bucket "
         "(needs the S3_* settings)",
     )
     args = parser.parse_args()
-    asyncio.run(
-        _main(args.name, args.url, args.municipality, args.synthetic_bulk, args.upload_files)
-    )
+    asyncio.run(_main(args.name, args.url, args.municipality, args.upload_files))

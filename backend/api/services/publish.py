@@ -10,7 +10,6 @@ public API only ever reads the current version.
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
@@ -343,7 +342,3 @@ class PublishService:
         if row is None:
             raise NotFoundError(f"No job with id {job_id}", details={"job_id": job_id})
         return job_out(row)
-
-
-def dumps(value: Any) -> str:
-    return json.dumps(value, default=str)

@@ -9,7 +9,7 @@
  * - Parameter (English and Montenegrin labels), unit, target (urban parcel / block / zone / whole
  *   plan, as the plan names it), the raw text the value was read from, confidence (low confidence
  *   flagged) and the checker's flags, page and file, the extraction run's job and cost, and the
- *   last decision's actor, time and note, with the item's audit trail on demand.
+ *   last decision's actor, time and note (the whole trail is the admins' Audit log).
  * - The staged payload: the value as the document printed it and what the contract made of it
  *   (the normalisation rules, a floor count, the land-use class, the table cell).
  * - Approve (Enter), Amend (E): an editor typed per parameter — a number with its unit (FAR,
@@ -39,8 +39,8 @@ import {
   unitChoices,
   type Editor,
 } from "@/lib/admin/review";
-import { historyAction, optionsAction } from "@/lib/admin/review-actions";
-import type { AuditPage, ReviewItem, ReviewOptions } from "@/lib/api/types";
+import { optionsAction } from "@/lib/admin/review-actions";
+import type { ReviewItem, ReviewOptions } from "@/lib/api/types";
 
 import { StatusChip } from "../parts";
 
@@ -280,44 +280,6 @@ function RejectEditor({ onSubmit, onCancel }: { onSubmit: Submit["reject"]; onCa
   );
 }
 
-function History({ itemId }: { itemId: number }) {
-  const [open, setOpen] = useState(false);
-  const [page, setPage] = useState<AuditPage | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    void historyAction(itemId).then((result) => {
-      if (cancelled) return;
-      if (result.ok) setPage(result.data);
-      else setFailed(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, itemId]);
-  if (!open) {
-    return (
-      <button type="button" className="rlink" onClick={() => setOpen(true)}>
-        Audit trail of this item
-      </button>
-    );
-  }
-  if (failed) return <div className="rhint">The history could not be loaded.</div>;
-  if (!page) return <div className="rhint">Loading the history…</div>;
-  if (!page.items.length) return <div className="rhint">No decision recorded yet.</div>;
-  return (
-    <ul className="rhistory">
-      {page.items.map((e) => (
-        <li key={e.id}>
-          <span className="mono">{utcStamp(e.created_at)}</span> {e.action.replace("review.", "")} · {e.actor}
-          {e.note && <span className="rhnote"> — {e.note}</span>}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 export function ReviewDetail({
   item,
   mode,
@@ -453,9 +415,6 @@ export function ReviewDetail({
             {formatValue(item.previous.value, item.value_type)} <span className="rsub">({item.previous.status}; this reading is {item.change})</span>
           </Fact>
         )}
-        <Fact label="History" wide>
-          <History key={item.id} itemId={item.id} />
-        </Fact>
       </dl>
     </div>
   );

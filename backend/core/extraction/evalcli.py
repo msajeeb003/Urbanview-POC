@@ -2,7 +2,7 @@
 
     corpus label [--doc ID] [--force]         draft gold sets from the table grids
     corpus eval  [--doc ID ...] [--pages 1-3,7] [--live | --replay] [--concurrency N]
-                 [--prompt-version V] [--note TEXT] [--no-log] [--check]
+                 [--note TEXT] [--no-log] [--check]
     corpus check [--run FILE]                 the last (or a given) run against baseline.json
     corpus baseline [--run FILE]              accept a run as the new baseline
     corpus report                             rewrite RESULTS.md from the results log
@@ -96,7 +96,7 @@ def cmd_label(corpus: Corpus, doc_ids: list[str], force: bool, by: str) -> int:
 # --- eval -----------------------------------------------------------------------------------------
 
 
-def _model(args: argparse.Namespace, prompt_version: str):
+def _model(args: argparse.Namespace):
     from core.config import get_settings
     from core.extraction.harness import CachingModel
     from core.extraction.llm import ClaudeModel
@@ -112,7 +112,6 @@ def _model(args: argparse.Namespace, prompt_version: str):
             effort=args.effort or settings.extraction_effort,
             adaptive_thinking=settings.extraction_adaptive_thinking,
             max_tokens=settings.extraction_max_tokens,
-            refusal_fallback=settings.extraction_refusal_fallback,
             timeout_seconds=settings.extraction_timeout_seconds,
             base_url=settings.anthropic_base_url,
         )
@@ -167,8 +166,7 @@ def print_tables(rows: list[dict[str, Any]], scores: list[DocumentScore]) -> Non
 def cmd_eval(args: argparse.Namespace, corpus: Corpus) -> int:
     from core.extraction.harness import document_pages, run_document
 
-    prompt_version = args.prompt_version or PROMPT_VERSION
-    model, name, effort = _model(args, prompt_version)
+    model, name, effort = _model(args)
     only = _pages(args.pages)
     rows: list[dict[str, Any]] = []
     scores: list[DocumentScore] = []
@@ -183,7 +181,6 @@ def cmd_eval(args: argparse.Namespace, corpus: Corpus) -> int:
             pages,
             model=model,
             municipality=corpus.municipality,
-            prompt_version=prompt_version,
             only_pages=only,
             concurrency=args.concurrency,
             progress=not args.quiet,
@@ -218,7 +215,7 @@ def cmd_eval(args: argparse.Namespace, corpus: Corpus) -> int:
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     record = {
         "run": stamp,
-        "prompt_version": prompt_version,
+        "prompt_version": PROMPT_VERSION,
         "schema_version": SCHEMA_VERSION,
         "preprocess_version": PREPROCESS_VERSION,
         "git": _git_rev(),
@@ -387,7 +384,6 @@ def add_parser(commands: Any) -> None:
     mode.add_argument("--live", action="store_true", help="call the model on cache misses")
     mode.add_argument("--replay", action="store_true", help="cached replies only (default)")
     ev.add_argument("--concurrency", type=int, default=4)
-    ev.add_argument("--prompt-version")
     ev.add_argument("--model")
     ev.add_argument("--effort")
     ev.add_argument("--note")

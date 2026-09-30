@@ -28,11 +28,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from core.auth import Role
 from core.db import Base
-
-FILE_KINDS: tuple[str, ...] = ("planning_document", "gis", "cadastral_extract", "market_data")
-JOB_KINDS: tuple[str, ...] = ("extract", "geo")
-JOB_STATUSES: tuple[str, ...] = ("queued", "running", "succeeded", "failed", "cancelled")
 
 
 def _timestamp(**kwargs: Any) -> Mapped[Any]:
@@ -54,7 +51,10 @@ class StaffUser(Base):
     last_login_at: Mapped[datetime | None] = _timestamp(nullable=True)
 
     __table_args__ = (
-        CheckConstraint("role IN ('admin', 'reviewer', 'expert')", name="ck_staff_users_role"),
+        CheckConstraint(
+            "role IN (" + ", ".join(f"'{role.value}'" for role in Role) + ")",
+            name="ck_staff_users_role",
+        ),
         Index("uq_staff_users_email", "municipality_id", "email", unique=True),
     )
 
@@ -151,9 +151,6 @@ class StoredFile(Base):
         Index("uq_stored_files_object_key", "object_key", unique=True),
         Index("ix_stored_files_kind_time", "municipality_id", "kind", "uploaded_at"),
     )
-
-
-FILE_ROLES: tuple[str, ...] = ("text", "drawing", "both")
 
 
 class PlanningDocumentFile(Base):
@@ -328,37 +325,4 @@ class AuditLogEntry(Base):
     __table_args__ = (
         Index("ix_audit_log_time", "municipality_id", "created_at"),
         Index("ix_audit_log_entity", "municipality_id", "entity_type", "entity_id"),
-    )
-
-
-SECRET_CIPHERTEXT_COMMENT = (
-    "Fernet token under SECRETS_ENCRYPTION_KEY; never returned, logged or audited"
-)
-SECRET_LAST4_COMMENT = "the last 4 characters: the only part ever shown"
-SECRET_SET_AT_COMMENT = "when the value was saved; a connection test names the value it used by it"
-
-
-class AppSecret(Base):
-    """A secret saved from the admin console (migration 0028), encrypted with Fernet under
-    SECRETS_ENCRYPTION_KEY (core.app_secrets); only last4 is ever shown."""
-
-    __tablename__ = "app_secrets"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    municipality_id: Mapped[str] = mapped_column(Text, nullable=False)
-    name: Mapped[str] = mapped_column(Text, nullable=False, comment="anthropic_api_key")
-    ciphertext: Mapped[str] = mapped_column(Text, nullable=False, comment=SECRET_CIPHERTEXT_COMMENT)
-    last4: Mapped[str] = mapped_column(Text, nullable=False, comment=SECRET_LAST4_COMMENT)
-    set_by: Mapped[str] = mapped_column(Text, nullable=False, comment="principal subject")
-    set_by_user_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("staff_users.id", ondelete="SET NULL")
-    )
-    set_at: Mapped[datetime] = _timestamp(
-        nullable=False, server_default=func.now(), comment=SECRET_SET_AT_COMMENT
-    )
-
-    __table_args__ = (
-        CheckConstraint("name IN ('anthropic_api_key')", name="ck_app_secrets_name"),
-        CheckConstraint("char_length(last4) = 4", name="ck_app_secrets_last4"),
-        Index("uq_app_secrets_name", "municipality_id", "name", unique=True),
     )

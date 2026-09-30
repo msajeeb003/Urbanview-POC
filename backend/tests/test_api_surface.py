@@ -119,9 +119,8 @@ def test_no_payment_webhook_and_no_checkout_url():
 
 
 def test_no_route_can_reach_an_llm():
-    """The extraction and market LLM steps run in the worker's jobs (the ``ai`` extra is installed
-    in the worker image only): no API module builds a model and the API process never loads the
-    SDK."""
+    """The extraction's model calls run in the worker's jobs (the ``ai`` extra is installed in the
+    worker image only): no API module builds a model and the API process never loads the SDK."""
     sources = "\n".join(p.read_text(encoding="utf-8") for p in (BACKEND / "api").rglob("*.py"))
     for builder in ("ClaudeModel(", "model_from_settings(", "import anthropic"):
         assert builder not in sources, builder

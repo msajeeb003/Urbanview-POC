@@ -29,7 +29,6 @@ from typing import Any, Literal
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-QA_VERSION = "2"  # 1 also ran overlap / gap / area-deviation checks (outside the POC plan)
 MAX_LISTED = 25
 
 LAYER_CHECKS: dict[str, frozenset[str]] = {
@@ -52,7 +51,6 @@ LAYER_LABELS: dict[str, str] = {
 }
 # dataset warnings that concern one layer; any other applies to every batch of the dataset
 DATASET_WARNING_LAYERS: dict[str, frozenset[str]] = {
-    "parcel_overlaps": frozenset({"urban_parcels"}),
     "unnumbered_parcels": frozenset({"urban_parcels"}),
     "repeated_parcel_numbers": frozenset({"urban_parcels"}),
 }

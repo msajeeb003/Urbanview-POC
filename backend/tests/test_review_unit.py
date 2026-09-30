@@ -119,38 +119,34 @@ class FakeStorage:
 
 def test_signed_page_link():
     now = datetime(2026, 9, 24, 12, 0, tzinfo=UTC)
-    common = {"document_id": 2, "expires_in_seconds": 600, "now": now}
-    image = signed_page_link(
+    common = {"expires_in_seconds": 600, "now": now}
+    link = signed_page_link(
         FakeStorage(),
-        "podgorica",
         file_key="podgorica/planning-documents/2/document.pdf",
         page_count=24,
-        page_images_rendered=True,
         page=12,
         **common,
     )
-    assert image == {
-        "url": "https://minio.test/b/podgorica/planning-documents/2/pages/0012.png?exp=600",
-        "kind": "page_image",
-        "content_type": "image/png",
+    assert link == {
+        "url": "https://minio.test/b/podgorica/planning-documents/2/document.pdf?exp=600#page=12",
+        "kind": "pdf_page",
+        "content_type": "application/pdf",
         "expires_at": now + timedelta(seconds=600),
     }
-    pdf = signed_page_link(
+    unknown_count = signed_page_link(
         FakeStorage(),
-        "podgorica",
         file_key="podgorica/uploads/planning_document/abc/plan.pdf",
         page_count=None,
-        page_images_rendered=True,  # ignored without a known page count
         page=7,
         **common,
     )
-    assert pdf["kind"] == "pdf_page"
-    assert pdf["url"].endswith("plan.pdf?exp=600#page=7")
+    assert unknown_count is not None and unknown_count["kind"] == "pdf_page"
+    assert unknown_count["url"].endswith("plan.pdf?exp=600#page=7")
     none_cases = [
-        {"file_key": None, "page_count": 3, "page_images_rendered": False, "page": 1},
-        {"file_key": "k", "page_count": 3, "page_images_rendered": False, "page": 4},
-        {"file_key": "k", "page_count": 3, "page_images_rendered": False, "page": None},
-        {"file_key": "k", "page_count": None, "page_images_rendered": False, "page": 0},
+        {"file_key": None, "page_count": 3, "page": 1},
+        {"file_key": "k", "page_count": 3, "page": 4},
+        {"file_key": "k", "page_count": 3, "page": None},
+        {"file_key": "k", "page_count": None, "page": 0},
     ]
     for case in none_cases:
-        assert signed_page_link(FakeStorage(), "podgorica", **case, **common) is None
+        assert signed_page_link(FakeStorage(), **case, **common) is None
