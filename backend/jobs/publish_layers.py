@@ -3,7 +3,9 @@ geometry lands in the serving tables.
 
 Every entry is data: a source-layer name, the geometry type, the zoom range and the SQL that
 yields one GeoJSON feature per row for a given ``publish_version_id`` (``:v``) and
-``municipality_id`` (``:m``). The public map toggles each layer independently (BRD §2.1); the
+``municipality_id`` (``:m``); the land-use layer also takes ``:land_use_categories`` (JSON,
+land-use wording -> colour group, classified by the publish job with the profile's rules). The
+public map toggles each layer independently (BRD §2.1); the
 heatmaps are one source-layer each (``heat_coverage``, ``heat_far``, ``heat_height``,
 ``heat_gfa`` per urban block, ``heat_sale_price`` per zone) from ``choropleth_cells``: every
 covered block / zone, with ``value`` and ``band`` where it has a cell (none: drawn as "no data").
@@ -250,18 +252,42 @@ LAYERS: tuple[LayerSpec, ...] = (
         10,
         16,
         f"""
+        WITH inputs AS ({URBAN_PARCEL_INPUTS_SQL}),
+        classes AS (SELECT CAST(:land_use_categories AS jsonb) AS of)
+        SELECT {
+            _feature(
+                "i.id",
+                "u.geom",
+                "jsonb_strip_nulls(jsonb_build_object('id', i.id,"
+                " 'urban_parcel_number', i.urban_parcel_number, 'document_id', i.document_id,"
+                " 'name', i.land_use, 'category', k.of ->> i.land_use))",
+            )
+        }
+        FROM inputs i JOIN urban_parcels u ON u.id = i.id CROSS JOIN classes k
+        WHERE i.land_use IS NOT NULL
+        UNION ALL
         SELECT {
             _feature(
                 "f.id",
                 "f.geom",
-                "f.properties || jsonb_build_object('id', f.id, 'feature_key', f.feature_key)",
+                "f.properties || jsonb_strip_nulls(jsonb_build_object('id', f.id,"
+                " 'feature_key', f.feature_key, 'category', COALESCE("
+                "f.properties->>'category', k.of ->> (f.properties->>'name'),"
+                " k.of ->> (f.properties->>'code'))))",
             )
         }
-        FROM layer_features f
+        FROM layer_features f CROSS JOIN classes k
         WHERE f.municipality_id = :m AND f.publish_version_id = :v AND f.layer_id = 'land_use'
-        ORDER BY f.id
+          AND NOT EXISTS (
+              SELECT 1 FROM inputs i
+              WHERE i.land_use IS NOT NULL
+                AND CAST(i.document_id AS text) = f.properties->>'document_id'
+                AND i.urban_parcel_number = f.properties->>'urban_parcel_number')
         """,
-        "Planned land use",
+        "Planned land use, classed for the map's five colour groups (:land_use_categories, "
+        "wording -> group, core.land_use): every planned parcel with a published land use, plus "
+        "the staged land-use polygons that are not one of those parcels (their own category, "
+        "else the class of their name or code)",
     ),
     *(
         LayerSpec(

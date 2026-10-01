@@ -20,10 +20,14 @@ import {
   sliderBounds,
   toSlider,
   type EditKey,
+  type OutOfRange,
 } from "@/lib/assumptions";
 import type { UrbanPanel } from "@/lib/api/types";
 import { formatDate, formatEur } from "@/lib/format";
+import { useLang, useT } from "@/lib/i18n";
 import { useShell } from "@/lib/store";
+
+import { useVersionName } from "./panel-parts";
 
 function show(key: EditKey, value: number): string {
   return key === "saleable_share" ? `${Math.round(value * 100)}%` : formatEur(value);
@@ -34,9 +38,11 @@ export function AssumptionSandbox({
   errors,
 }: {
   data: UrbanPanel;
-  errors: Partial<Record<EditKey, string>>;
+  errors: Partial<Record<EditKey, OutOfRange>>;
 }) {
   const id = useId();
+  const t = useT();
+  const { lang } = useLang();
   const edits = useShell((s) => s.assumptionEdits);
   const setAssumptionEdit = useShell((s) => s.setAssumptionEdit);
   const resetAssumptions = useShell((s) => s.resetAssumptions);
@@ -44,14 +50,28 @@ export function AssumptionSandbox({
   const defaults = defaultsOf(a);
   const marketAvailable = data.market_inputs?.available !== false && !!data.engine;
   const edited = hasEdits(edits);
-  const sourceDate = a?.market_source_date ? formatDate(a.market_source_date) : null;
-  const versionDate = a?.data_version_date ? formatDate(a.data_version_date) : null;
+  const sourceDate = a?.market_source_date ? formatDate(a.market_source_date, lang) : null;
+  const versionDate = a?.data_version_date ? formatDate(a.data_version_date, lang) : null;
+  const versionName = useVersionName(a?.data_version);
   const market = a?.market_version;
-  const marketFrom = market?.effective_from ? formatDate(market.effective_from) : null;
+  const marketFrom = market?.effective_from ? formatDate(market.effective_from, lang) : null;
+  const rates = [
+    a?.land_rate_eur_m2 != null ? t("asm.land", { value: formatEur(a.land_rate_eur_m2) }) : null,
+    a?.design_documentation_eur_m2 != null ? t("asm.design", { value: formatEur(a.design_documentation_eur_m2) }) : null,
+  ].filter(Boolean);
+  // one line about market data: where it comes from, or that the zone has none yet
+  const marketLine = a?.market_source
+    ? [
+        t("asm.marketData", { source: a.market_source }) + (sourceDate ? ` · ${sourceDate}` : ""),
+        market ? t("asm.version", { version: market.version }) + (marketFrom ? `, ${t("asm.appliesFrom", { date: marketFrom })}` : "") : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : t("asm.noMarket");
 
   return (
     <div className="assum">
-      <div className="ah">◐ Test your own assumptions</div>
+      <div className="ah">{t("asm.title")}</div>
       {SLIDERS.map((slider) => {
         const def = defaults[slider.key];
         const isEdited = edits[slider.key] !== undefined;
@@ -64,9 +84,13 @@ export function AssumptionSandbox({
           <div key={slider.key}>
             <div className="arow">
               <label htmlFor={inputId}>
-                {slider.label}
+                {t(`asm.slider.${slider.key}`)}
                 <span className={isEdited ? "atag yours" : "atag"}>
-                  {isEdited ? `your assumption${def != null ? ` · default ${show(slider.key, def)}` : ""}` : "default"}
+                  {isEdited
+                    ? def != null
+                      ? t("asm.yoursDefault", { value: show(slider.key, def) })
+                      : t("asm.yours")
+                    : t("asm.default")}
                 </span>
               </label>
               <input
@@ -78,7 +102,7 @@ export function AssumptionSandbox({
                 value={clamped}
                 disabled={!marketAvailable || value == null}
                 aria-invalid={error ? true : undefined}
-                aria-valuetext={value != null ? show(slider.key, value) : "not available"}
+                aria-valuetext={value != null ? show(slider.key, value) : t("asm.notAvailable")}
                 onChange={(e) => {
                   const next = fromSlider(slider.key, Number(e.target.value));
                   // back on the default value: no longer an edit
@@ -89,23 +113,22 @@ export function AssumptionSandbox({
             </div>
             {error && (
               <div className="aerr" role="alert">
-                {error}
+                {t("asm.outOfRange", error)}
               </div>
             )}
           </div>
         );
       })}
-      {!marketAvailable && <div className="assumsrc">Needs market data for this zone.</div>}
       <div className="assumsrc">
-        {a?.land_rate_eur_m2 != null && `Land ${formatEur(a.land_rate_eur_m2)}/m²`}
-        {a?.design_documentation_eur_m2 != null && ` · design & documentation ${formatEur(a.design_documentation_eur_m2)}/m²`}
-        {(a?.land_rate_eur_m2 != null || a?.design_documentation_eur_m2 != null) && <br />}
-        {a?.market_source
-          ? `Market data: ${a.market_source}${sourceDate ? ` · ${sourceDate}` : ""}`
-          : "No market data for this zone"}
-        {market && ` · version ${market.version}${marketFrom ? `, applies from ${marketFrom}` : ""}`}
+        {rates.length > 0 && (
+          <>
+            {rates.join(" · ")}
+            <br />
+          </>
+        )}
+        {marketLine}
         <br />
-        Formula {a?.formula_version} · data version {a?.data_version}
+        {t("asm.formula", { formula: a?.formula_version ?? "", version: versionName ?? "" })}
         {versionDate ? ` · ${versionDate}` : ""}
       </div>
       <button
@@ -117,7 +140,7 @@ export function AssumptionSandbox({
           resetAssumptions();
         }}
       >
-        Reset to defaults
+        {t("asm.reset")}
       </button>
     </div>
   );

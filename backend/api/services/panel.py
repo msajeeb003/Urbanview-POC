@@ -91,6 +91,7 @@ from core.engine import (
 from core.engine.feasibility import EDIT_KEYS, SHARED_KEY
 from core.engine.shared import ENGINE_VERSION, RANGE_DERIVATION
 from core.errors import NotFoundError
+from core.land_use import legend, legend_name
 from core.municipality import MunicipalityProfile
 
 log = logging.getLogger("urbanview.panel")
@@ -262,6 +263,7 @@ def _planning_block(
     result: FeasibilityResult,
     basis: CalculationBasis,
     basis_area_m2: float,
+    land_use_codes: Mapping[str, str] | None = None,
 ) -> PlanningBlock:
     fields: list[PlanningField] = []
     for spec in fields_raw:
@@ -289,6 +291,7 @@ def _planning_block(
                 **base,
                 status="stated",
                 value=value,
+                value_name=legend_name(value, land_use_codes or {}) if key == "land_use" else None,
                 scope=item.scope,
                 fallback=item.scope == "document" and basis == "urban",
                 source=_source(row),
@@ -527,6 +530,7 @@ def _blocks(
     resolved: Mapping[str, _Resolved],
     market_raw: Mapping[str, Any] | None,
     overrides: AssumptionOverrides,
+    land_use_codes: Mapping[str, str] | None = None,
 ) -> _Blocks:
     """Planning + market + assumptions + feasibility for one covered basis."""
     reason_code, reason_params = _market_reason(zone)
@@ -541,7 +545,9 @@ def _blocks(
         calculation_basis=basis,
     )
     return _Blocks(
-        planning=_planning_block(fields_raw, resolved, result, basis, basis_area_m2),
+        planning=_planning_block(
+            fields_raw, resolved, result, basis, basis_area_m2, land_use_codes
+        ),
         market_inputs=_market_block(market_raw, zone, reason_code, reason_params),
         assumptions=_assumptions_block(result, overrides, market_raw, version),
         feasibility=_feasibility_block(result, basis, basis_area_m2),
@@ -605,10 +611,16 @@ class PanelService:
     """One statement per panel against the serving tables; no cache."""
 
     def __init__(
-        self, profile: MunicipalityProfile, session_factory: async_sessionmaker[AsyncSession]
+        self,
+        profile: MunicipalityProfile,
+        session_factory: async_sessionmaker[AsyncSession],
+        *,
+        land_use_codes: Mapping[str, str] | None = None,
     ) -> None:
         self.profile = profile
         self.session_factory = session_factory
+        # legend code -> name (the profile's [extraction.land_use_codes]), keyed for lookup
+        self.land_use_codes = legend(land_use_codes)
 
     async def get_panel(
         self, panel_type: PanelType, entity_id: int, overrides: AssumptionOverrides
@@ -718,6 +730,7 @@ class PanelService:
             if basis == "urban":
                 basis_area = _plan_area(resolved) or basis_area
             blocks = _blocks(
+                land_use_codes=self.land_use_codes,
                 basis=basis,
                 basis_area_m2=basis_area,
                 zone=zone,
@@ -858,6 +871,7 @@ class PanelService:
             stated_area = _number(resolved, "planned_parcel_area_m2")
             basis_area = _plan_area(resolved) or basis_area
             blocks = _blocks(
+                land_use_codes=self.land_use_codes,
                 basis="urban",
                 basis_area_m2=basis_area,
                 zone=zone,

@@ -232,7 +232,7 @@ describe("legend", () => {
   it("shows the price bands when the price heatmap is on (no paywall)", () => {
     const layers = { ...DEFAULT_LAYER_STATE, heatMkt: true };
     const g = legendGroups(ctx({ layers })).find((x) => x.title === "Price heatmap")!;
-    expect(g.unit).toBe("€/m² land");
+    expect(g.unit).toBe("€/m² of floor area"); // a sale price per m² of floor area, not of land
     expect(g.rows.map((r) => r.label)).toEqual(["not saleable", "under €1,300", "€1,300 – 1,700", "€1,700 – 2,100", "€2,100 and above"]);
   });
 });

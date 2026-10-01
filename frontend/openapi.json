@@ -213,6 +213,52 @@
         }
       }
     },
+    "/v1/locate/urban-parcel": {
+      "get": {
+        "tags": [
+          "locate"
+        ],
+        "summary": "Find planned urban parcels by their number (the search box's 'UP 40')",
+        "operationId": "locate_urban_parcel_v1_locate_urban_parcel_get",
+        "parameters": [
+          {
+            "name": "number",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "description": "Urban parcel number, e.g. 'UP 40'",
+              "title": "Number"
+            },
+            "description": "Urban parcel number, e.g. 'UP 40'"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Always 200. Planned parcels of adopted, live plans whose number matches (spaces, case and the parcel abbreviation ignored); the same number can exist in several plans. No match is an empty list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UrbanParcelSearch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/geocode": {
       "get": {
         "tags": [
@@ -16621,6 +16667,18 @@
             "title": "Value",
             "description": "null when not_stated / cannot_compute; a stated 0 is a real 0"
           },
+          "value_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Name",
+            "description": "land_use only: the name the plan's legend gives a code value (SS -> stanovanje srednje gustine); null for a wording or an unknown code"
+          },
           "scope": {
             "anyOf": [
               {
@@ -20092,6 +20150,79 @@
           "geometry"
         ],
         "title": "UrbanPanel"
+      },
+      "UrbanParcelMatch": {
+        "properties": {
+          "urban_parcel_id": {
+            "type": "integer",
+            "title": "Urban Parcel Id"
+          },
+          "urban_parcel_number": {
+            "type": "string",
+            "title": "Urban Parcel Number"
+          },
+          "document": {
+            "$ref": "#/components/schemas/api__schemas__locate__DocumentRef"
+          },
+          "zone_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone Id"
+          },
+          "zone_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone Name"
+          },
+          "centroid": {
+            "$ref": "#/components/schemas/LatLng",
+            "description": "A point inside the parcel: where the map pans"
+          }
+        },
+        "type": "object",
+        "required": [
+          "urban_parcel_id",
+          "urban_parcel_number",
+          "document",
+          "centroid"
+        ],
+        "title": "UrbanParcelMatch",
+        "description": "A planned urban parcel found by its number (``GET /v1/locate/urban-parcel``)."
+      },
+      "UrbanParcelSearch": {
+        "properties": {
+          "number": {
+            "type": "string",
+            "title": "Number",
+            "description": "The number as it was matched (abbreviation and spaces folded)"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/UrbanParcelMatch"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "results"
+        ],
+        "title": "UrbanParcelSearch",
+        "description": "Planned parcels of adopted, live plans with the number asked for. The same number can\nexist in several plans, so the answer is a list; none is an empty list, never an error."
       },
       "UrbanParcelSummary": {
         "properties": {

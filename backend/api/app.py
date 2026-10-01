@@ -45,8 +45,9 @@ from core.errors import register_exception_handlers
 from core.geocode import build_provider
 from core.geocode.base import BoundingBox, GeocodeProvider, SearchScope
 from core.logging import configure_logging
+from core.mail.policy import decide as decide_mail
 from core.middleware import RateLimitMiddleware, RequestContextMiddleware
-from core.municipality import load_profile
+from core.municipality import load_extraction_profile, load_profile
 from core.payments import BankTransferProvider
 from core.pricing import parse_price_tiers
 from core.redis import create_redis
@@ -101,7 +102,12 @@ def create_app(
             )
             # The panels read the published links (core.parcel_links), which the publish job
             # computes with locate's thresholds.
-            app.state.panel_service = PanelService(municipality, app.state.session_factory)
+            extraction = load_extraction_profile(municipality.id)
+            app.state.panel_service = PanelService(
+                municipality,
+                app.state.session_factory,
+                land_use_codes=extraction.land_use_codes if extraction else None,
+            )
             app.state.zone_index_service = ZoneIndexService(
                 app.state.session_factory, municipality_id=municipality.id
             )
@@ -181,6 +187,12 @@ def create_app(
                 dispatcher=app.state.admin_service.dispatcher,
                 municipality_id=municipality.id,
                 max_attempts=settings.job_max_attempts,
+                will_send=lambda to: decide_mail(
+                    app_env=settings.app_env.value,
+                    smtp_host=settings.smtp_host,
+                    to=to,
+                    allowlist=settings.mail_allowlist,
+                ),
             )
             app.state.magic_link_service = MagicLinkService(
                 app.state.session_factory,

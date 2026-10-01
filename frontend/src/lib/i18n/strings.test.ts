@@ -55,6 +55,7 @@ describe("shell text in Montenegrin", () => {
       chooseKo: me("search.chooseKo"),
       zone: me("search.zone"),
       outside: me("search.outside"),
+      urbanParcel: me("search.urbanParcel"),
       kinds: { ...EN_WORDS.kinds, address: me("search.kind.address") },
     };
     const zone = { id: 1, name: "Centar", covered: true, bbox: [19, 42, 20, 43] } as unknown as ZoneIndexEntry;

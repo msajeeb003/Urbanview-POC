@@ -182,6 +182,11 @@ class PlanningField(BaseModel):
     value: float | str | None = Field(
         default=None, description="null when not_stated / cannot_compute; a stated 0 is a real 0"
     )
+    value_name: str | None = Field(
+        default=None,
+        description="land_use only: the name the plan's legend gives a code value (SS -> "
+        "stanovanje srednje gustine); null for a wording or an unknown code",
+    )
     scope: Literal["parcel", "document"] | None = None
     fallback: bool = Field(
         default=False, description="A document-level value used for a planned urban parcel"

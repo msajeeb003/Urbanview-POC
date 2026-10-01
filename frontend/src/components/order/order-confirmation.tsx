@@ -10,8 +10,12 @@
  *
  * Reload-safe: while it is on screen the address bar carries `?order=<reference>`; opening the map
  * with it reads `GET /v1/orders/{reference}` (no personal data: the e-mail address is only known
- * right after the order) and shows the confirmation again (`reopenConfirmation`). Closing it
- * removes the parameter.
+ * right after the order) and shows the order again (`reopenConfirmation`) with its status as it
+ * is now ("Status: awaiting payment"), never the first moment's "a confirmation is on its way".
+ * Closing it removes the parameter.
+ *
+ * The e-mail sentence follows the API's `email_status`: only a queued or sent message is
+ * announced; a server that cannot mail (no SMTP yet) says so and asks to keep the details.
  */
 import { useEffect, useState } from "react";
 
@@ -25,6 +29,7 @@ import { Cta } from "../ui/cta";
 
 export const CONFIRMED_LABEL = "Order confirmed";
 export const PLACED_TOAST = "Order placed — check your email";
+export const PLACED_TOAST_NO_MAIL = "Order placed — keep your order reference";
 
 type Instructions = OrderCreated["payment_instructions"];
 
@@ -39,6 +44,8 @@ interface Confirmation {
   /** The address the instructions went to (only right after the order). */
   email: string | null;
   emailed: boolean;
+  /** Read back after a reload: the order's status as it is now (`awaiting payment`). */
+  statusNow: string | null;
 }
 
 export function confirmationSpec(order: OrderCreated, parcel: string, email: string): ModalSpec {
@@ -50,6 +57,7 @@ export function confirmationSpec(order: OrderCreated, parcel: string, email: str
     paid: false,
     email,
     emailed: order.email_status === "queued" || order.email_status === "sent",
+    statusNow: null,
   });
 }
 
@@ -62,7 +70,9 @@ export function publicConfirmationSpec(order: OrderPublic): ModalSpec {
     instructions: order.payment_instructions ?? null,
     paid: !order.payment_due,
     email: null,
-    emailed: true,
+    // whether the first e-mail went out is not known from the reference alone: nothing is claimed
+    emailed: false,
+    statusNow: order.status_label_en,
   });
 }
 
@@ -175,9 +185,11 @@ function OrderConfirmation({ c }: { c: Confirmation }) {
             An expert will prepare your site &amp; feasibility analysis and email it within <b>{turnaround}</b>.{" "}
             {c.paid
               ? "Your payment has been received."
-              : c.emailed
-                ? "A confirmation is on its way now."
-                : "The confirmation email could not be sent, so please keep the details below."}
+              : c.statusNow
+                ? `Status: ${c.statusNow}.`
+                : c.emailed
+                  ? "A confirmation is on its way now."
+                  : "The confirmation email could not be sent, so please keep the details below."}
           </p>
           <div className="orderref">
             {c.reference} · {c.parcel}
@@ -203,7 +215,8 @@ function OrderConfirmation({ c }: { c: Confirmation }) {
           style={{ width: "auto", padding: "0 24px" }}
           onClick={() => {
             closeModal();
-            showToast(PLACED_TOAST);
+            // a reopened order was placed earlier: nothing to announce
+            if (!c.statusNow) showToast(c.emailed ? PLACED_TOAST : PLACED_TOAST_NO_MAIL);
           }}
         >
           Done

@@ -23,6 +23,8 @@ import type { EventProperties } from "@/lib/analytics/tracker";
 import type { UrbanPanel } from "@/lib/api/types";
 import { defaultsOf, editErrors, recalculateFeasibility } from "@/lib/assumptions";
 import { formatEur, formatPct } from "@/lib/format";
+import { pickLang, useLang, useT, type Lang, type Translate } from "@/lib/i18n";
+import { translate } from "@/lib/i18n/strings";
 import { useShell } from "@/lib/store";
 
 import { ENGINE_LABEL, EngineModal } from "../shell/engine-modal";
@@ -39,9 +41,11 @@ export function markerPosition(f: { low: number | null; expected: number | null;
   return Math.max(0, Math.min(100, Math.round(((f.expected - f.low) / (f.high - f.low)) * 100)));
 }
 
+const english: Translate = (key, vars) => translate("en", key, vars);
+
 /** "cannot calculate — no market data for zone Centar" */
-export function cannotText(f: Figure): string {
-  return f.reason_en ? `cannot calculate — ${f.reason_en}` : "cannot calculate";
+export function cannotText(f: Figure, t: Translate = english, lang: Lang = "en"): string {
+  return f.reason_en ? t("mkt.cannotReason", { reason: pickLang(lang, f.reason_en, f.reason_me) }) : t("mkt.cannot");
 }
 
 function ok(f: Figure | undefined): f is Figure & { low: number; expected: number; high: number } {
@@ -49,11 +53,13 @@ function ok(f: Figure | undefined): f is Figure & { low: number; expected: numbe
 }
 
 function CannotRow({ label, field }: { label: string; field: Figure | undefined }) {
+  const t = useT();
+  const { lang } = useLang();
   return (
     <div className="prow">
       <span className="pk">{label}</span>
       <span className="pv" style={{ fontSize: "11.5px", whiteSpace: "normal", color: "var(--ink-2)" }}>
-        {field ? cannotText(field) : "cannot calculate"}
+        {field ? cannotText(field, t, lang) : t("mkt.cannot")}
       </span>
     </div>
   );
@@ -71,6 +77,7 @@ const LABELS_LINE = {
 
 /** Expected value, 6 px bar with the expected marker, low / expected / high underneath. */
 function RangeRow({ label, field }: { label: string; field: Figure | undefined }) {
+  const t = useT();
   if (!ok(field)) return <CannotRow label={label} field={field} />;
   return (
     <div className="prow" style={{ flexDirection: "column", alignItems: "stretch", borderBottom: "1px dashed var(--paper-2)" }}>
@@ -78,13 +85,13 @@ function RangeRow({ label, field }: { label: string; field: Figure | undefined }
         <span className="pk">{label}</span>
         <span className="pv">{formatEur(field.expected)}</span>
       </div>
-      <div className="rangebar" role="img" aria-label={`${formatEur(field.low)} to ${formatEur(field.high)}`}>
+      <div className="rangebar" role="img" aria-label={t("mkt.rangeAria", { low: formatEur(field.low), high: formatEur(field.high) })}>
         <div className="fill" style={{ left: "12%", right: "12%" }} />
         <div className="mark" style={{ left: `${markerPosition(field)}%` }} />
       </div>
       <div style={LABELS_LINE}>
         <span>{formatEur(field.low)}</span>
-        <span>expected</span>
+        <span>{t("mkt.expected")}</span>
         <span>{formatEur(field.high)}</span>
       </div>
     </div>
@@ -93,6 +100,7 @@ function RangeRow({ label, field }: { label: string; field: Figure | undefined }
 
 /** A money range without the bar (design & documentation): expected, low — high underneath. */
 function PlainRangeRow({ label, field }: { label: string; field: Figure | undefined }) {
+  const t = useT();
   if (!ok(field)) return <CannotRow label={label} field={field} />;
   return (
     <div className="prow" style={{ flexDirection: "column", alignItems: "stretch" }}>
@@ -102,7 +110,7 @@ function PlainRangeRow({ label, field }: { label: string; field: Figure | undefi
       </div>
       <div style={LABELS_LINE}>
         <span>{formatEur(field.low)}</span>
-        <span>range</span>
+        <span>{t("mkt.rangeWord")}</span>
         <span>{formatEur(field.high)}</span>
       </div>
     </div>
@@ -111,6 +119,7 @@ function PlainRangeRow({ label, field }: { label: string; field: Figure | undefi
 
 function EngineStrip({ marketSource }: { marketSource?: string | null }) {
   const openModal = useShell((s) => s.openModal);
+  const t = useT();
   return (
     <button
       type="button"
@@ -123,8 +132,8 @@ function EngineStrip({ marketSource }: { marketSource?: string | null }) {
           <path d="M3 17V11l6-6 6 6M10 3h7v7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
-      <span className="et">Deterministic engine — how every figure is calculated</span>
-      <span className="ea">Formulas →</span>
+      <span className="et">{t("mkt.engine")}</span>
+      <span className="ea">{t("mkt.formulas")}</span>
     </button>
   );
 }
@@ -133,6 +142,8 @@ function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
   const f = data.feasibility;
   const engine = data.engine;
   const track = useTrack();
+  const t = useT();
+  const { lang } = useLang();
   const edits = useShell((s) => s.assumptionEdits);
   const rootRef = useRef<HTMLDivElement>(null);
   const idsKey = JSON.stringify(ids);
@@ -169,7 +180,11 @@ function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
   }, [track, idsKey, f]);
 
   if (!f || !view) {
-    return <p className="panelnote">{data.coverage_note_en ?? "Market figures need an adopted plan for this parcel."}</p>;
+    return (
+      <p className="panelnote">
+        {data.coverage_note_en ? pickLang(lang, data.coverage_note_en, data.coverage_note_me) : t("mkt.needsPlan")}
+      </p>
+    );
   }
   const byKey = new Map([...view.fields, ...view.cost_rows].map((r) => [r.key, r]));
   const roi = byKey.get("roi_pct");
@@ -178,38 +193,38 @@ function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
   return (
     <div ref={rootRef}>
       <div className="roihero">
-        <div className="rlab">Return on investment</div>
+        <div className="rlab">{t("mkt.roi")}</div>
         {ok(roi) ? (
           <>
             <div className="rval">{formatPct(roi.expected)}</div>
             <div className="rrange">
-              range {formatPct(roi.low)} — {formatPct(roi.high)} · expected {formatPct(roi.expected)}
+              {t("mkt.range", { low: formatPct(roi.low), high: formatPct(roi.high), expected: formatPct(roi.expected) })}
             </div>
           </>
         ) : (
           <>
             <div className="rval">—</div>
-            <div className="rrange">{roi ? cannotText(roi) : "cannot calculate"}</div>
+            <div className="rrange">{roi ? cannotText(roi, t, lang) : t("mkt.cannot")}</div>
           </>
         )}
       </div>
       <div style={{ height: 12 }} />
-      <RangeRow label="Estimated land value" field={byKey.get("land_value_eur")} />
-      <RangeRow label="Construction cost" field={byKey.get("construction_cost_eur")} />
-      <PlainRangeRow label="Design & documentation" field={byKey.get("design_documentation_eur")} />
-      <RangeRow label="Estimated market value" field={byKey.get("revenue_eur")} />
+      <RangeRow label={t("mkt.land")} field={byKey.get("land_value_eur")} />
+      <RangeRow label={t("mkt.construction")} field={byKey.get("construction_cost_eur")} />
+      <PlainRangeRow label={t("mkt.design")} field={byKey.get("design_documentation_eur")} />
+      <RangeRow label={t("mkt.marketValue")} field={byKey.get("revenue_eur")} />
       {ok(saleable) ? (
         <div className="prow">
-          <span className="pk">Estimated saleable area</span>
+          <span className="pk">{t("mkt.saleable")}</span>
           <span className="pv">
             {formatArea(saleable.expected)}
             <span className="u">m²</span>
           </span>
         </div>
       ) : (
-        <CannotRow label="Estimated saleable area" field={saleable} />
+        <CannotRow label={t("mkt.saleable")} field={saleable} />
       )}
-      <RangeRow label="Potential profit" field={byKey.get("profit_eur")} />
+      <RangeRow label={t("mkt.profit")} field={byKey.get("profit_eur")} />
       <AssumptionSandbox data={data} errors={errors} />
       <EngineStrip marketSource={data.market_inputs?.source} />
       <Disclaimer approved={f.disclaimer_status === "client_approved"} en={f.disclaimer_en} me={f.disclaimer_me} />
@@ -218,10 +233,11 @@ function Figures({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
 }
 
 export function MarketSection({ data, ids }: { data: UrbanPanel; ids: EventProperties }) {
+  const t = useT();
   return (
     <div className="sect">
       <div className="secthead">
-        <span className="lbl">Market data &amp; feasibility</span>
+        <span className="lbl">{t("sect.market")}</span>
       </div>
       <Figures data={data} ids={ids} />
     </div>

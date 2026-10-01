@@ -9,8 +9,11 @@
 import { Fragment, useEffect, type ReactNode } from "react";
 
 import { useTrack } from "@/lib/analytics/react";
+import { useTilesCurrent } from "@/lib/api/hooks";
 import type { MunicipalityProfile, ZonePanel } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
+import { useLang, useT, type Lang, type Translate } from "@/lib/i18n";
+import { translate } from "@/lib/i18n/strings";
 import { useShell } from "@/lib/store";
 
 import { Cta } from "../ui/cta";
@@ -91,22 +94,43 @@ export function DocumentMeta({ doc }: { doc: ZoneDoc }) {
   ));
 }
 
-/** Which published data a panel shows: `Data version stara-varos-live · published 27 Sep 2026`. */
-export function dataVersionText(version: string, date?: string | null): string {
-  if (version === "unpublished") return "No planning data published yet";
-  return `Data version ${version}${date ? ` · published ${formatDate(date)}` : ""}`;
+const english: Translate = (key, vars) => translate("en", key, vars);
+
+/**
+ * Which published data a panel shows: `Data version 9 · published 27 Sep 2026`. `version` is what
+ * `useVersionName` made of the label: the published version's number, else the label itself.
+ */
+export function dataVersionText(version: string, date?: string | null, t: Translate = english, lang: Lang = "en"): string {
+  if (version === "unpublished") return t("panel.unpublished");
+  const published = date ? formatDate(date, lang) : null;
+  return published ? t("panel.dataVersionDated", { version, date: published }) : t("panel.dataVersion", { version });
+}
+
+/**
+ * A data version as the visitor reads it: the number of the published version (`9`; every publish
+ * is a new numbered version) when the label is the map's current one, else the label (an order
+ * placed on an earlier version keeps its label).
+ */
+export function useVersionName(label: string | null | undefined): string | null {
+  const { data: tiles } = useTilesCurrent();
+  if (!label) return null;
+  return tiles?.version_no != null && tiles.data_version === label ? String(tiles.version_no) : label;
 }
 
 export function DataVersionLine({ version, date }: { version: string; date?: string | null }) {
-  return <p className="dataversion">{dataVersionText(version, date)}</p>;
+  const t = useT();
+  const { lang } = useLang();
+  const name = useVersionName(version) ?? version;
+  return <p className="dataversion">{dataVersionText(name, date, t, lang)}</p>;
 }
 
 /** Sticky panel header: ✕ (clears the selection and its map highlight), eyebrow, title, sub-line. */
 export function PanelHead({ eyebrow, title, sub }: { eyebrow: ReactNode; title: ReactNode; sub?: ReactNode }) {
   const clearSelection = useShell((s) => s.clearSelection);
+  const t = useT();
   return (
     <div className="phead">
-      <button type="button" className="pclose" aria-label="Close the panel" onClick={clearSelection}>
+      <button type="button" className="pclose" aria-label={t("panel.close")} onClick={clearSelection}>
         ✕
       </button>
       <div className="peyebrow">{eyebrow}</div>
@@ -118,11 +142,12 @@ export function PanelHead({ eyebrow, title, sub }: { eyebrow: ReactNode; title: 
 
 /** While the panel payload loads: the header with what the selection already knows. */
 export function PanelLoading({ eyebrow, title }: { eyebrow: ReactNode; title?: ReactNode }) {
+  const t = useT();
   return (
     <div className="pscroll" aria-busy="true">
       <PanelHead eyebrow={eyebrow} title={title ?? NBSP} />
       <div className="sect">
-        <p className="panelnote">Loading…</p>
+        <p className="panelnote">{t("panel.loading")}</p>
       </div>
     </div>
   );
@@ -130,13 +155,14 @@ export function PanelLoading({ eyebrow, title }: { eyebrow: ReactNode; title?: R
 
 /** The API did not answer: a neutral note and a retry, never an error screen. */
 export function PanelUnavailable({ eyebrow, title, onRetry }: { eyebrow: ReactNode; title?: ReactNode; onRetry: () => void }) {
+  const t = useT();
   return (
     <div className="pscroll">
       <PanelHead eyebrow={eyebrow} title={title ?? NBSP} />
       <div className="sect">
-        <p className="panelnote">The planning data service is not answering. Try again in a moment.</p>
+        <p className="panelnote">{t("panel.unavailable")}</p>
         <Cta variant="line" onClick={onRetry} style={{ marginTop: 12 }}>
-          Try again
+          {t("panel.retry")}
         </Cta>
       </div>
     </div>

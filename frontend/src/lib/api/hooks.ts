@@ -25,6 +25,7 @@ export const queryKeys = {
   locateParcel: (ko: string, number: string, sub?: string | null) =>
     ["locate-parcel", ko.toLowerCase(), number, sub ?? null] as const,
   geocode: (q: string) => ["geocode", q.trim().toLowerCase()] as const,
+  urbanParcels: (number: string) => ["urban-parcels", number.trim().toLowerCase().replace(/\s+/g, "")] as const,
   panel: (query: PanelQuery) => ["panel", query] as const,
   parcelPanel: (parcelId: number) => ["parcel-panel", parcelId] as const,
   sourceValue: (valueId: number) => ["source-value", valueId] as const,
@@ -92,6 +93,19 @@ export function useGeocode(q: string, minLength = 2) {
     staleTime: 5 * 60_000,
     placeholderData: (previous) => previous,
     retry: false, // the endpoint never dead-ends: failures already answer 200 with results: []
+  });
+}
+
+/** Planned parcels with a typed urban parcel number (`UP 40`); idle for an empty number. */
+export function useUrbanParcels(number: string) {
+  const trimmed = number.trim();
+  return useQuery({
+    queryKey: queryKeys.urbanParcels(trimmed),
+    queryFn: ({ signal }) => api.locateUrbanParcel(trimmed, { signal }),
+    enabled: trimmed.length > 0,
+    staleTime: 5 * 60_000,
+    placeholderData: (previous) => previous,
+    retry: retryTransient,
   });
 }
 

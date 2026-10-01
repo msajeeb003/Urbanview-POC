@@ -14,17 +14,19 @@ import { useEffect } from "react";
 import { ApiError } from "@/lib/api/client";
 import { usePanel } from "@/lib/api/hooks";
 import type { CadastralPanel as CadastralPanelData, UrbanLink } from "@/lib/api/types";
+import { fillNodes, pickLang, useLang, useT } from "@/lib/i18n";
 import { useSelection } from "@/lib/selection";
 import { useShell } from "@/lib/store";
 
 import { IdGrid } from "../ui/id-grid";
 import { DataVersionLine, PanelHead, PanelLoading, PanelUnavailable, usePanelViewed } from "./panel-parts";
-import { AreaCompare, BasisLine, ParcelCtas, formatArea, parcelNo, useZoneTypeName } from "./parcel-parts";
+import { AreaCompare, AreaFigure, BasisLine, ParcelCtas, formatArea, parcelNo, useZoneTypeName } from "./parcel-parts";
 
 function Eyebrow({ typeName }: { typeName?: string | null }) {
+  const t = useT();
   return (
     <>
-      <span className="tag">CADASTRAL PARCEL</span>
+      <span className="tag">{t("cad.eyebrow")}</span>
       {typeName && ` ${typeName}`}
     </>
   );
@@ -42,12 +44,14 @@ function UrbanCard({
   count: number;
   onOpen: () => void;
 }) {
+  const t = useT();
+  const figures = { area: <AreaFigure m2={link.overlap_m2} />, pct: link.share_of_cadastral_pct, count };
   return (
     <div
       className="upcard"
       role="button"
       tabIndex={0}
-      aria-label={`Open urban parcel ${link.urban_parcel_number}`}
+      aria-label={t("up.openAria", { up: link.urban_parcel_number })}
       style={primary ? undefined : { marginTop: 9 }}
       onClick={onOpen}
       onKeyDown={(e) => {
@@ -58,26 +62,15 @@ function UrbanCard({
       }}
     >
       <div className="upn">{link.urban_parcel_number}</div>
-      {primary && count === 1 ? (
-        <div className="upd">
-          This cadastral parcel corresponds to an urban parcel in the adopted plan. Building rights — land use, height,
-          coverage, FAR — are defined on the <b>urban parcel</b>, not on the cadastral one. It covers{" "}
-          <b>{formatArea(link.overlap_m2)} m²</b> of this parcel ({link.share_of_cadastral_pct}%).
-        </div>
-      ) : primary ? (
-        <div className="upd">
-          This cadastral parcel is split between {count} urban parcels in the adopted plan. Building rights — land use,
-          height, coverage, FAR — are defined on the <b>urban parcels</b>, not on the cadastral one. This one covers{" "}
-          <b>{formatArea(link.overlap_m2)} m²</b> of it ({link.share_of_cadastral_pct}%).
-        </div>
-      ) : (
-        <div className="upd">
-          Another urban parcel also lies on this cadastral parcel: <b>{formatArea(link.overlap_m2)} m²</b> of it (
-          {link.share_of_cadastral_pct}%).
-        </div>
-      )}
+      <div className="upd">
+        {primary && count === 1
+          ? fillNodes(t("up.single"), { ...figures, urban: <b>{t("up.singleUrban")}</b> })
+          : primary
+            ? fillNodes(t("up.split"), { ...figures, urban: <b>{t("up.splitUrban")}</b> })
+            : fillNodes(t("up.other"), figures)}
+      </div>
       <div className="upgo">
-        Open urban parcel <span>→</span>
+        {t("up.open")} <span>→</span>
       </div>
     </div>
   );
@@ -85,15 +78,17 @@ function UrbanCard({
 
 function Corresponding({ data }: { data: CadastralPanelData }) {
   const { selectLinkedParcel } = useSelection();
+  const t = useT();
+  const { lang } = useLang();
   const cad = data.identification;
   const zoneId = cad.zone?.id ?? null;
 
   if (!data.covered) {
     return (
       <div className="upcard none">
-        <div className="upn">No adopted plan</div>
+        <div className="upn">{t("id.noPlan")}</div>
         <div className="upd">
-          {data.coverage_note_en ?? "No adopted planning document covers this parcel yet."}
+          {data.coverage_note_en ? pickLang(lang, data.coverage_note_en, data.coverage_note_me) : t("cad.noPlanBody")}
         </div>
       </div>
     );
@@ -102,11 +97,8 @@ function Corresponding({ data }: { data: CadastralPanelData }) {
   if (links.length === 0) {
     return (
       <div className="upcard none">
-        <div className="upn">Not defined</div>
-        <div className="upd">
-          The adopted plan defines no urban parcel over this cadastral parcel, so building rights cannot be read directly.
-          An expert analysis is needed to establish what is possible here.
-        </div>
+        <div className="upn">{t("cad.notDefined")}</div>
+        <div className="upd">{t("cad.notDefinedBody")}</div>
       </div>
     );
   }
@@ -115,15 +107,12 @@ function Corresponding({ data }: { data: CadastralPanelData }) {
   const basis =
     data.calculation_basis !== "urban" ? (
       <>
-        <BasisLine>All calculations use the cadastral parcel area</BasisLine> ({data.areas.basis_reason_en}).
+        <BasisLine>{t("basis.cadastral")}</BasisLine> ({pickLang(lang, data.areas.basis_reason_en, data.areas.basis_reason_me)}).
       </>
     ) : links.length > 1 ? (
-      <BasisLine>
-        All calculations use the area of urban parcel {(data.urban_parcel ?? links[0]).urban_parcel_number}, which
-        covers the largest share of it.
-      </BasisLine>
+      <BasisLine>{t("basis.split", { up: (data.urban_parcel ?? links[0]).urban_parcel_number })}</BasisLine>
     ) : (
-      <BasisLine>All calculations use the urban parcel area.</BasisLine>
+      <BasisLine>{t("basis.urban")}</BasisLine>
     );
   return (
     <>
@@ -132,7 +121,7 @@ function Corresponding({ data }: { data: CadastralPanelData }) {
       ))}
       {cad.cadastral_area_m2 != null && (
         <div style={{ marginTop: 11 }}>
-          <AreaCompare cadastralM2={cad.cadastral_area_m2} urbanM2={links.map((l) => l.area_m2)} label="urban">
+          <AreaCompare cadastralM2={cad.cadastral_area_m2} urbanM2={links.map((l) => l.area_m2)} label={t("cmp.miniUrban")}>
             {basis}
           </AreaCompare>
         </div>
@@ -144,6 +133,7 @@ function Corresponding({ data }: { data: CadastralPanelData }) {
 export function CadastralPanel({ parcelId }: { parcelId: number }) {
   const query = usePanel({ type: "cadastral", id: parcelId });
   const clearSelection = useShell((s) => s.clearSelection);
+  const t = useT();
   const data = query.data?.type === "cadastral" ? query.data : undefined;
   const zoneId = data?.identification.zone?.id ?? null;
   const typeName = useZoneTypeName(zoneId);
@@ -166,21 +156,21 @@ export function CadastralPanel({ parcelId }: { parcelId: number }) {
   return (
     <>
       <div className="pscroll">
-        <PanelHead eyebrow={<Eyebrow typeName={typeName} />} title={`Parcel #${no}`} sub={sub} />
+        <PanelHead eyebrow={<Eyebrow typeName={typeName} />} title={t("cad.title", { no })} sub={sub} />
         <IdGrid
           cells={[
-            { key: "number", label: "Parcel number", value: no },
-            { key: "ko", label: "Cadastral municipality", value: cad.ko_name },
-            { key: "block", label: "Urban block", value: cad.urban_block?.block_ref ?? "—" },
+            { key: "number", label: t("id.parcelNumber"), value: no },
+            { key: "ko", label: t("id.ko"), value: cad.ko_name },
+            { key: "block", label: t("id.block"), value: cad.urban_block?.block_ref ?? "—" },
             {
               key: "area",
-              label: "Cadastral area",
+              label: t("id.cadastralArea"),
               value: cad.cadastral_area_m2 != null ? `${formatArea(cad.cadastral_area_m2)} m²` : "—",
             },
             {
               key: "doc",
-              label: "Governing document",
-              value: cad.governing_document?.name ?? "No adopted plan",
+              label: t("id.document"),
+              value: cad.governing_document?.name ?? t("id.noPlan"),
               full: true,
               small: true,
             },
@@ -188,7 +178,7 @@ export function CadastralPanel({ parcelId }: { parcelId: number }) {
         />
         <div className="sect">
           <div className="secthead">
-            <span className="lbl">Corresponding urban parcel</span>
+            <span className="lbl">{t("sect.corresponding")}</span>
           </div>
           <Corresponding data={data} />
         </div>

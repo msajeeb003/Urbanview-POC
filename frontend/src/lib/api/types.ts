@@ -38,6 +38,8 @@ export type TilesCurrent = S["TilesCurrent"];
 export type ZoneIndex = S["ZoneIndex"];
 export type ZoneIndexEntry = S["ZoneIndexEntry"];
 
+export type UrbanParcelSearch = S["UrbanParcelSearch"];
+export type UrbanParcelMatch = S["UrbanParcelMatch"];
 export type OrderIn = S["OrderIn"];
 export type OrderCreated = S["OrderCreated"];
 export type OrderPublic = S["OrderPublic"];

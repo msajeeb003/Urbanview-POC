@@ -516,6 +516,19 @@ CARRY_GENERIC_SQL = text(
     """
 )
 
+# Every land-use wording the land-use layer can show for a version: the published values of the
+# planned parcels and the names / codes of the staged land-use polygons.
+LAND_USE_WORDINGS_SQL = text(
+    """
+    SELECT value_text FROM planning_parameter_values
+    WHERE publish_version_id = :v AND field_key = 'land_use' AND value_text IS NOT NULL
+    UNION
+    SELECT w.wording FROM layer_features f
+    CROSS JOIN LATERAL (VALUES (f.properties->>'name'), (f.properties->>'code')) AS w(wording)
+    WHERE f.publish_version_id = :v AND f.layer_id = 'land_use' AND w.wording IS NOT NULL
+    """
+)
+
 UNSET_CURRENT_SQL = text(
     "UPDATE publish_versions SET is_current = false WHERE municipality_id = :m AND is_current"
 )
@@ -588,6 +601,7 @@ class PublishPipeline:
         min_overlap_fraction: float = 0.02,
         link_rules: LinkRules | None = None,
         price_breaks: Sequence[float] = (),
+        land_use_category: Callable[[str], str | None] | None = None,
         keep_versions: int = 3,
         min_zoom: int = 8,
         max_zoom: int = 16,
@@ -605,6 +619,8 @@ class PublishPipeline:
             min_overlap_m2=float(min_overlap_m2), min_overlap_fraction=float(min_overlap_fraction)
         )
         self.price_breaks = tuple(float(b) for b in price_breaks)
+        # land-use wording -> the land-use layer's colour group (core.land_use); None = no rules
+        self.land_use_category = land_use_category or (lambda _wording: None)
         self.keep_versions = max(2, int(keep_versions))
         self.min_zoom = int(min_zoom)
         self.max_zoom = int(max_zoom)
@@ -1077,13 +1093,17 @@ class PublishPipeline:
         self, session: AsyncSession, version_id: int, work_dir: Path
     ) -> list[LayerFile]:
         files: list[LayerFile] = []
+        # the land-use layer colours each planned parcel by the class of its published wording
+        wordings = (await session.execute(LAND_USE_WORDINGS_SQL, {"v": version_id})).scalars()
+        categories = {w: c for w in wordings if (c := self.land_use_category(w)) is not None}
         for spec in self.layers:
             path = work_dir / f"{spec.id}.geojson"
             count = 0
+            params: dict[str, Any] = {"m": self.municipality_id, "v": version_id}
+            if ":land_use_categories" in spec.sql:
+                params["land_use_categories"] = json.dumps(categories, ensure_ascii=False)
             with path.open("w", encoding="utf-8") as handle:
-                result = await session.stream(
-                    text(spec.sql), {"m": self.municipality_id, "v": version_id}
-                )
+                result = await session.stream(text(spec.sql), params)
                 async for row in result:
                     handle.write(json.dumps(row[0], ensure_ascii=False, separators=(",", ":")))
                     handle.write("\n")

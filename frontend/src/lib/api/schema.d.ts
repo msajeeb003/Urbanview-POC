@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/locate/urban-parcel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Find planned urban parcels by their number (the search box's 'UP 40') */
+        get: operations["locate_urban_parcel_v1_locate_urban_parcel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/geocode": {
         parameters: {
             query?: never;
@@ -5194,6 +5211,11 @@ export interface components {
              * @description null when not_stated / cannot_compute; a stated 0 is a real 0
              */
             value?: number | string | null;
+            /**
+             * Value Name
+             * @description land_use only: the name the plan's legend gives a code value (SS -> stanovanje srednje gustine); null for a wording or an unknown code
+             */
+            value_name?: string | null;
             /** Scope */
             scope?: ("parcel" | "document") | null;
             /**
@@ -6505,6 +6527,37 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * UrbanParcelMatch
+         * @description A planned urban parcel found by its number (``GET /v1/locate/urban-parcel``).
+         */
+        UrbanParcelMatch: {
+            /** Urban Parcel Id */
+            urban_parcel_id: number;
+            /** Urban Parcel Number */
+            urban_parcel_number: string;
+            document: components["schemas"]["api__schemas__locate__DocumentRef"];
+            /** Zone Id */
+            zone_id?: number | null;
+            /** Zone Name */
+            zone_name?: string | null;
+            /** @description A point inside the parcel: where the map pans */
+            centroid: components["schemas"]["LatLng"];
+        };
+        /**
+         * UrbanParcelSearch
+         * @description Planned parcels of adopted, live plans with the number asked for. The same number can
+         *     exist in several plans, so the answer is a list; none is an empty list, never an error.
+         */
+        UrbanParcelSearch: {
+            /**
+             * Number
+             * @description The number as it was matched (abbreviation and spaces folded)
+             */
+            number: string;
+            /** Results */
+            results: components["schemas"]["UrbanParcelMatch"][];
+        };
         /** UrbanParcelSummary */
         UrbanParcelSummary: {
             /** Id */
@@ -7164,6 +7217,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LocationResolution"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    locate_urban_parcel_v1_locate_urban_parcel_get: {
+        parameters: {
+            query: {
+                /** @description Urban parcel number, e.g. 'UP 40' */
+                number: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Always 200. Planned parcels of adopted, live plans whose number matches (spaces, case and the parcel abbreviation ignored); the same number can exist in several plans. No match is an empty list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UrbanParcelSearch"];
                 };
             };
             /** @description Validation Error */

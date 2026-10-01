@@ -299,6 +299,27 @@ async def test_parcel_lookup_requires_ko(pg_client):
 # --- round trips ---------------------------------------------------------------------------------
 
 
+async def test_urban_parcel_is_found_by_its_number(pg_client):
+    """The search box's "UP 12": planned parcels of adopted, live plans, whatever the spacing,
+    case or abbreviation; an unknown number is an empty list, never an error."""
+    for typed in ("UP 12", "up12", " 12 "):
+        response = await pg_client.get("/v1/locate/urban-parcel", params={"number": typed})
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["number"] == "12"
+        assert [m["urban_parcel_number"] for m in body["results"]] == ["UP 12"]
+    match = body["results"][0]
+    assert match["document"]["name"] == "DUP Centar – Zona C2"
+    assert match["document"]["status"] == "adopted" and match["zone_name"] == "Centar"
+    # the point is inside the parcel: locating it finds the same planned parcel
+    there = await _get(pg_client, LOCATE, match["centroid"])
+    assert there["urban_parcel"]["id"] == match["urban_parcel_id"]
+
+    unknown = await pg_client.get("/v1/locate/urban-parcel", params={"number": "UP 9999"})
+    assert unknown.status_code == 200 and unknown.json()["results"] == []
+    assert (await pg_client.get("/v1/locate/urban-parcel")).status_code == 422
+
+
 async def test_resolver_issues_one_statement_per_call(pg_app):
     async with pg_app.router.lifespan_context(pg_app):
         statements: list[str] = []

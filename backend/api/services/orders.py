@@ -143,9 +143,10 @@ def can_transition(current: str, target: str) -> bool:
 
 
 def ko_short(ko_name: str | None) -> str:
-    """``"Podgorica I"`` -> ``"PODI"``: three letters of the first word plus numerals."""
+    """``"Podgorica I"`` -> ``"PODI"``: three letters of the first word plus numerals; empty
+    without a cadastral municipality (an order on a planned parcel with no cadastral parcel)."""
     if not ko_name:
-        return "UP"
+        return ""
     ascii_name = unicodedata.normalize("NFKD", ko_name).encode("ascii", "ignore").decode().upper()
     words = re.findall(r"[A-Z0-9]+", ascii_name)
     if not words:
@@ -160,7 +161,10 @@ def reference_token(label: str) -> str:
 
 
 def build_reference(ko: str, parcel: str, day: date, seq: int) -> str:
-    return f"UV-{ko}-{parcel}-{day:%y%m%d}-{seq:02d}"
+    """``UV-PODI-1042-3-260924-07``; without a KO the parcel follows at once
+    (``UV-UP-C2962-261001-01``, never ``UV-UP-UP-…``)."""
+    place = f"{ko}-{parcel}" if ko else parcel
+    return f"UV-{place}-{day:%y%m%d}-{seq:02d}"
 
 
 def _validation_error(problems: list[dict[str, Any]]) -> AppError:

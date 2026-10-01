@@ -19,6 +19,7 @@ import type {
   ParcelPanel,
   SourcePage,
   TilesCurrent,
+  UrbanParcelSearch,
   ZoneIndex,
 } from "./types";
 
@@ -34,6 +35,10 @@ export const api = {
   /** Parcel reference lookup; `ko` (cadastral municipality) is mandatory. */
   locateParcel: (ref: { ko: string; number: string; sub?: string | null }, init?: Init) =>
     apiGet<LocationResolution>("/v1/locate/parcel", { ko: ref.ko, number: ref.number, sub: ref.sub }, init),
+
+  /** Planned urban parcels by their number (`UP 40`); none is an empty list. */
+  locateUrbanParcel: (number: string, init?: Init) =>
+    apiGet<UrbanParcelSearch>("/v1/locate/urban-parcel", { number }, init),
 
   /** Free-text search suggestions plus the `X-Geocode-Status` header (why a list is empty). */
   geocode: async (q: string, init?: Init) => {

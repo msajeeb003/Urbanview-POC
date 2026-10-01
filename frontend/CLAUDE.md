@@ -78,7 +78,7 @@ figures 44 / 700, body 14, secondary 13, mono data 13 / 700, uppercase mono micr
 
 | Element | Geometry |
 |---|---|
-| Topbar | 62 px, `#241B12`, padding 0 20, gap 20; logo 36 px high (white via filter); search max 560 × 40, placeholder "Search an address, click the map, or enter a parcel number…", magnifier left, `⌘K` hint right; nav "Map" (active: brand) / "Admin"; pill "PODGORICA · PILOT" (profile name, re-centres the map) |
+| Topbar | 62 px, `#241B12`, padding 0 20, gap 20; logo 36 px high (white via filter); search max 560 × 40, placeholder "Search an address, click the map, or enter a parcel number…", magnifier left, shortcut hint right (`⌘K` on macOS, `Ctrl K` elsewhere; none in the server render); nav "Map" (active: brand) / "Admin"; pill "PODGORICA · PILOT" (profile name, re-centres the map) |
 | Layer rail | 206 px (`--white`, hairline right), collapses to 46 px with a 34 px opener; cards 182 × ≥ 32, 24 px swatch, 16 px check |
 | Map | fills the middle, `#EDE6D6`; legend top-left 16/16 (max 264 wide); coverage pill top-centre; scale bar left 16 / bottom 52; coordinates chip left 16 / bottom 16; tools right 16 / bottom 88 (zoom label, 42 px `+` `−` reset) |
 | Panel | 392 px (`--white`, hairline left, no shadow); sticky header, scrolling body, CTA stack; hidden (never replaced by anything) when the location is uncovered |
@@ -150,7 +150,7 @@ Planned traffic (an MVP layer; not published).
 - **Legend** (`legendGroups`): one group per layer that is on, in rail order, the wireframe's rows
   (zone types, "Urban block boundary", "Parcel outline", "Parcel — click to open", "Coverage area
   — click to open", FAR "Low →
-  high" with unit "floor area ratio", price bands with unit "€/m² land"), class rows for served
+  high" with unit "floor area ratio", price bands with unit "€/m² of floor area": the layer is the sale price per m² of floor area, not a land price), class rows for served
   classes and "No data" when some cells have none; a `note` by the title for a layer that is on
   but not drawn ("zoom in to see", "no data yet", see `layerState`); "No overlays active" when
   nothing is on.
@@ -252,7 +252,14 @@ rules are pure functions in `lib/search.ts` (unit-tested); the box renders them 
 wireframe's `.searchsug` rows: icon tile (⌂ address, # parcel reference, ▤ zone, ⚠ outside
 coverage), title, mono sub-label.
 
-- **Rows, in order:** parcel reference, zones (≤ 3), addresses (geocoder, ≤ 8). Duplicates
+- **Urban parcel number** (2026-10-02): text that starts with the profile's parcel abbreviation
+  and holds one compact number (`UP 40`, `up40`, `UP C2962`; `parseUrbanQuery`) asks
+  `GET /v1/locate/urban-parcel` (debounced, never the geocoder) and lists the planned parcels
+  found, `UP 40` with sub `Urban parcel · <planning document>`. A pick selects that planned
+  parcel by id (`selectUrbanParcel`: pin inside it, fly, the urban panel; `search_performed
+  {search_kind: parcel_number, result: parcel, urban_parcel_id}`); Enter before the answer waits
+  for it. A bare number stays a cadastral reference.
+- **Rows, in order:** parcel reference, urban parcels, zones (≤ 3), addresses (geocoder, ≤ 8). Duplicates
   collapse. Nothing → `No match. Try a street name, a zone or a parcel number (e.g. 1042/3).` (the
   mock's row with its placeholder copy replaced, never an error). A picked row's label stays in the input and is not searched again.
 - **Addresses:** `GET /v1/geocode?q=` debounced 250 ms, from 2 characters, never for a parcel
@@ -332,9 +339,11 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   zone first shows the S6 pill, then this panel). "General planning information": the zone's
   summary (BRD §2.3), or a neutral note while none is written (no zone-level typical parameters:
   not in the POC plan). Closing note as in
-  the mock, then the data version line (`DataVersionLine`: `Data version <label> · published
-  <date>`, mono, also under the document and cadastral panels; the urban panel names it in the
-  assumption sandbox).
+  the mock, then the data version line (`DataVersionLine`: `Data version 9 · published
+  <date>`, mono, also under the document, cadastral and urban panels and in the assumption
+  sandbox, the order form and the order page: `useVersionName` shows the published version's
+  number, which the tile pointer carries for the current label, and the label itself for an
+  earlier version).
 - **Planning document** (`renderPanelDoc`): eyebrow `PLANNING DOCUMENT` + `adopted plan` / `plan
   in progress` / `superseded plan`, title, sub `DUP — Detailed urban plan` (profile
   `terminology.document_types_en`, else `document_types`); "Document details" + source
@@ -346,7 +355,8 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   a planning document" (the methodology modal, step 2); no intent button (the pilot scope's two
   are on the parcel panels).
 - **Methodology** (`shell/methodology-modal.tsx`, the wireframe's wide `.method` modal): six steps
-  with the mock's copy and diagrams, Back / Next step; the last step's gold "Order this analysis
+  with the mock's diagrams and its copy with the English tidied (2026-10-02: same steps and
+  meaning, nothing added), Back / Next step; the last step's gold "Order this analysis
   →" calls `onOrder` (the order form for the parcel on screen) or says "Pick a parcel on the map to
   order its analysis." (provisional copy).
 - **Source viewer** (`components/source/source-viewer.tsx`, opened by `useOpenSource` in
@@ -396,13 +406,16 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
 - **Urban parcel** (`urban-panel.tsx`, `renderPanelUrban` without the market section, which is
   its own item): eyebrow `URBAN PARCEL` + zone type, title `UP 12`, sub `<zone> · <KO>`, backlink
   `← cadastral parcel #1042`; IdGrid urban parcel, cadastral parcel(s), KO, urban block,
-  governing document; `Parcel ID 1001 · urban parcel ID 1` (mono meta line, `.parcelid`);
+  governing document; `Parcel ID 1001` (mono meta line, `.parcelid`: UrbanView's id of the
+  cadastral parcel, only when there is one; the planned parcel's database id is never shown);
   "Cadastral vs urban parcel": the comparison card + "All calculations use the urban parcel
   area." (or the cadastral basis with the API's reason; `no_cadastral_parcel` stated as such);
-  the area shown is the basis (`basis_area_m2`: the plan's stated area, else the drawn
-  parcel's), and when the two differ by 2 % or more (`stated_vs_geometry_delta_pct`) the card
-  says "The plan states X m² for this parcel; the shape drawn on the map measures Y m²." + "All
-  calculations use the area the plan states." (not in the mock: the mismatch rule, 2026-10-02);
+  the card shows one urban area, the basis (`basis_area_m2`: the plan's stated area, else the
+  drawn parcel's), also in the cadastral → urban comparison, and when the two differ by 2 % or
+  more (`stated_vs_geometry_delta_pct`) it adds "The shape drawn on the map measures Y m²." +
+  "All calculations use the area the plan states." (not in the mock: the mismatch rule,
+  2026-10-02); without a cadastral parcel: "No cadastral parcel is recorded under this urban
+  parcel. Area in the plan: X m²." ;
   "Planning parameters" (source chip = the first cited page): the mock's seven rows —
   Land use designation, Max building height (`27.5 m · P+8`: metres and floors, each with its
   source), Max site coverage (IZ) %, Floor Area Ratio (II), Planned parcel area (the plan's
@@ -416,8 +429,16 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   `source_reference_opened`; its title and accessible name are the reference itself
   (`sourceRefText`: `Max number of floors: DUP Centar – Zona C2, page 14 · table 3 – UP 12`, +
   "plan-wide value" for a document-level fallback), so the height row's two icons (metres,
-  floors) are told apart. Missing values are `—` with the reason as tooltip; computed rows carry
-  their formula as tooltip.
+  floors) are told apart. Missing values read "Not stated" in words (`.notstated`; the reason
+  as tooltip), never a dash; a land-use code is followed by its legend name when the API gives
+  `value_name` (`SS · stanovanje srednje gustine`); computed rows carry their formula as
+  tooltip. The section's source chip opens the first cited value by its value id, so the page
+  opens with that cell framed and named, like a row's icon.
+- **Parcel button stack, compact** (2026-10-02; `.ctastack.compact` in `overrides.css`): the
+  gold order button at 44 px, the two intent buttons side by side at 36 px, the methodology as
+  a text link: about 140 px instead of the mock's four 50 px buttons (270 px, a quarter to half
+  of the panel on a laptop). Each intent button has its own acknowledgement in the string table
+  (`market.noted`, `ai.noted`).
 - **Parcel CTA stack** (`ParcelCtas`): gold "Order expert analysis" + price (`GET
   /v1/orders/pricing` tiers applied to the panel's `basis_area_m2` by `lib/pricing.ts`, the
   server's rule, so the price shown is the price charged; the click opens the S4 order form,
@@ -513,13 +534,16 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
     IBAN, bank and SWIFT when configured, payment reference, "Amount due" as the total line;
     "Copy" on IBAN and reference), the API's note (work starts when the payment is received),
     "The same instructions were emailed to <address>" and "Track your order ↗" (the order page).
-    An email the API could not queue is said instead. `checkout_completed {…ids, panel_type,
+    An email the API did not queue or send (`email_status` suppressed | failed: no SMTP on the
+    server) is said instead ("The confirmation email could not be sent, so please keep the
+    details below.", toast "Order placed — keep your order reference"). `checkout_completed {…ids, panel_type,
     product, order_id: <reference>, amount_eur, currency}` when the order is created; "Done"
     closes with the toast "Order placed — check your email". Reload-safe: while it is open the
     URL carries `?order=<reference>` (`lib/url-state.ts`); the shell reopens it on load from
-    `GET /v1/orders/{reference}` (`reopenConfirmation`; "emailed to you" instead of the address,
-    "Your payment has been received" and no instructions once paid; an unknown reference drops
-    the parameter). Closing it removes the parameter.
+    `GET /v1/orders/{reference}` (`reopenConfirmation`: the order's status as it is now,
+    "Status: awaiting payment.", never the first moment's "a confirmation is on its way" and no
+    claim about an e-mail; "Your payment has been received" and no instructions once paid; an
+    unknown reference drops the parameter). Closing it removes the parameter.
 - **Order page** (`app/orders/[reference]`, `components/order/order-status.tsx`): the link of the
   confirmation and of every order email (`ORDER_PUBLIC_BASE_URL/orders/<reference>`). `GET
   /v1/orders/{reference}` (`useOrder`: status, location, price, turnaround, data version, the
@@ -547,7 +571,7 @@ parcel" card or "Not defined". Any area mismatch is always shown (`area_comparis
 
 **Group 1: planning parameters**, `source` chip. The payload's `planning.fields` carries all 13 fields of the
 dictionary in this order (the panel shows the plan's Group 1 of them, see "Urban parcel"), every stated value with its source (document +
-page, one click to the cited page via `viewer_url`); `not_stated` renders `—`:
+page, one click to the cited page via `viewer_url`); `not_stated` renders "Not stated":
 
 | Key | Label | Unit |
 |---|---|---|
@@ -865,8 +889,12 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   shell string at once, no reload. The choice is the `uv.lang` cookie (a year), read by
   `app/layout.tsx` so the server renders the page in it and `<html lang>` (`en` / `cnr-Latn`)
   matches; without a choice `NEXT_PUBLIC_DEFAULT_LANG` (`en`; the setup ticket's target is `me`,
-  flip it once the copy is approved). Panels and modals keep English for now; API text that comes
-  bilingual picks its side with `pickLang(lang, en, me)`. Settings the server needs are in
+  flip it once the copy is approved). The two parcel panels follow the switch too (2026-10-02:
+  identification, the comparison card, planning rows, Group 2, the sandbox, the buttons, the
+  shared loading / retry / data-version lines; sentences with a bold figure are filled with
+  `fillNodes(t(key), { area: <b>…</b> })`; dates with `formatDate(iso, lang)`); the zone and
+  document panels and the modals (order form, methodology, engine, source viewer) keep English
+  for now; API text that comes bilingual picks its side with `pickLang(lang, en, me)`. Settings the server needs are in
   `lib/i18n/config.ts` (the client module cannot be called from a server component).
 - **Disclaimer footer** (`components/ui/disclaimer.tsx`): the wireframe's note under the figures
   (string table) until the API's `disclaimer_status` is `client_approved`, then the API's

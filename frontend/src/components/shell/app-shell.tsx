@@ -136,7 +136,7 @@ export function AppShell({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key.toLowerCase() === "k" || e.code === "KeyK")) {
         e.preventDefault();
         useShell.getState().setView("map");
         searchRef.current?.focus();
@@ -144,8 +144,10 @@ export function AppShell({
       }
       // Esc: the search box closes its list itself; Radix closes an open modal.
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    // capture phase: the shortcut works wherever the focus is in the page (the map canvas, a
+    // panel button), before anything can stop the event; the browser's own Ctrl+K is prevented
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
   }, []);
 
   return (

@@ -17,6 +17,7 @@ import { formatDate } from "@/lib/format";
 import { formatPrice, turnaroundText } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
+import { useVersionName } from "../panel/panel-parts";
 import { PayInstructions } from "./order-confirmation";
 
 type Status = OrderPublic["status"];
@@ -105,6 +106,7 @@ function Steps({ order }: { order: OrderPublic }) {
 export function OrderStatusPage({ reference }: { reference: string }) {
   const query = useOrder(reference);
   const order = query.data;
+  const versionName = useVersionName(order?.data_version);
 
   let card: React.ReactNode;
   if (order) {
@@ -162,7 +164,7 @@ export function OrderStatusPage({ reference }: { reference: string }) {
           {order.data_version && (
             <div className="osrow">
               <span className="osl">Planning data version</span>
-              <span className="mono">{order.data_version}</span>
+              <span className="mono">{versionName ?? order.data_version}</span>
             </div>
           )}
           <div className="osrow deliv">

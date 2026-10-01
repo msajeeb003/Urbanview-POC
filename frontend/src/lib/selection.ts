@@ -12,6 +12,8 @@
  *   cadastral parcel found there becomes the selection, else the planned parcel containing the
  *   point (`pointSelection`);
  * - **KO + parcel number** (`selectParcel`): `/v1/locate/parcel`, fly to the parcel;
+ * - **urban parcel number** (`selectUrbanParcel`): the planned parcel the search found is
+ *   selected by its id (never by a point: drawn shapes can overlap), pinned and flown to;
  * - **zone suggestion** (`selectZone`): frame the zone and select it (its panel; a zone without
  *   an adopted plan shows the S6 pill first);
  * - **`?parcel=` link** (`selectParcelById`): `/v1/parcels/{id}/panel`, land on the parcel.
@@ -385,6 +387,41 @@ export function useSelection() {
   );
 
   /**
+   * A planned urban parcel picked in the search by its number (`UP 40`): it becomes the selection
+   * by id, the pin drops inside it and the map flies there. Planned parcels are served for
+   * adopted, live plans only, so the place is covered.
+   */
+  const selectUrbanParcel = useCallback(
+    (target: { id: number; zoneId: number | null; point: LngLat }, opts?: SearchOptions) => {
+      const s = useShell.getState();
+      const sel: FeatureSelection = {
+        kind: "feature",
+        type: "urban",
+        id: target.id,
+        zoneId: target.zoneId,
+        linkedUrbanId: null,
+        via: "search",
+      };
+      s.setSelection(sel);
+      s.dropPin(target.point);
+      if (s.map) s.map.flyTo(target.point, FLY_ZOOM);
+      else s.setFocus({ bbox: null, point: target.point });
+      track(
+        "search_performed",
+        searchProps("parcel_number", true, "parcel", opts, {
+          point: target.point,
+          urbanParcelId: target.id,
+          zoneId: target.zoneId,
+          coverage: "covered",
+        }),
+      );
+      emitParcelSelected(sel);
+      showCoverage(true, { coverage: { reason: null } });
+    },
+    [track],
+  );
+
+  /**
    * Moving between the two separate objects from a panel: "Open urban parcel →" on a cadastral
    * panel, "← cadastral parcel #…" on an urban one. The other object becomes the selection (and
    * the map highlight); `parcel_selected` says `via: "panel"`. The camera stays: both lie on the
@@ -460,7 +497,7 @@ export function useSelection() {
     [qc],
   );
 
-  return { selectPoint, selectFeature, selectParcel, selectZone, selectLinkedParcel, selectParcelById };
+  return { selectPoint, selectFeature, selectParcel, selectUrbanParcel, selectZone, selectLinkedParcel, selectParcelById };
 }
 
 function reportLookupFailure(error: unknown) {

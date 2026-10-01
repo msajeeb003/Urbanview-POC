@@ -30,20 +30,22 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type MouseEvent,
   type ReactNode,
 } from "react";
 
 import { useTrack } from "@/lib/analytics/react";
 import { api } from "@/lib/api/endpoints";
-import { queryKeys, useGeocode, useMunicipality, useZones } from "@/lib/api/hooks";
-import type { GeocodeResult } from "@/lib/api/types";
+import { queryKeys, useGeocode, useMunicipality, useUrbanParcels, useZones } from "@/lib/api/hooks";
+import type { GeocodeResult, UrbanParcelMatch } from "@/lib/api/types";
 import { useT, type Translate } from "@/lib/i18n";
 import {
   buildSuggestions,
   normalize,
   parcelTitle,
   parseParcelQuery,
+  parseUrbanQuery,
   pushRecent,
   readRecent,
   type ParcelRef,
@@ -63,6 +65,7 @@ function searchWords(t: Translate): SearchWords {
     chooseKo: t("search.chooseKo"),
     zone: t("search.zone"),
     outside: t("search.outside"),
+    urbanParcel: t("search.urbanParcel"),
     kinds: {
       address: t("search.kind.address"),
       street: t("search.kind.street"),
@@ -76,6 +79,20 @@ function searchWords(t: Translate): SearchWords {
 type Option = { kind: "item"; item: SearchItem; recent: boolean } | { kind: "ko"; ko: string };
 
 const NO_HITS: readonly GeocodeResult[] = [];
+const NO_URBAN: readonly UrbanParcelMatch[] = [];
+
+/**
+ * The shortcut hint in the search box: `⌘K` on macOS (the mock's), `Ctrl K` elsewhere. Known only
+ * in the browser, so the server renders none (never the wrong key).
+ */
+function useShortcutHint(): string | null {
+  return useSyncExternalStore(
+    noSubscription,
+    () => (/Mac|iPhone|iPad/i.test(`${navigator.platform} ${navigator.userAgent}`) ? "⌘K" : "Ctrl K"),
+    () => null,
+  );
+}
+const noSubscription = () => () => undefined;
 
 function useDebounced<T>(value: T, ms: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -112,6 +129,7 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
   const wrapRef = useRef<HTMLDivElement>(null);
   const listId = useId();
 
+  const shortcut = useShortcutHint();
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -135,7 +153,8 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
   const words = useMemo(() => searchWords(t), [t]);
   const { data: profile } = useMunicipality();
   const zones = useZones(touched);
-  const { selectPoint, selectParcel, selectZone } = useSelection();
+  const { selectPoint, selectParcel, selectUrbanParcel, selectZone } = useSelection();
+  const urbanAbbr = profile?.terminology.urban_parcel.abbreviation ?? "UP";
   const kos = useMemo(() => profile?.cadastral_municipalities ?? [], [profile]);
   const zoneList = zones.data?.zones;
 
@@ -143,15 +162,22 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
   const typed = !empty && !(picked !== null && picked === value);
   const debounced = useDebounced(value, 250);
 
-  // a parcel reference is not an address: the geocoder is not asked
-  const looksLikeParcel = typed && parseParcelQuery(value, kos) !== null;
+  // a parcel reference (cadastral, or the planned parcel's `UP 40`) is not an address: the
+  // geocoder is not asked
+  const urbanQuery = typed ? parseUrbanQuery(value, urbanAbbr) : null;
+  const looksLikeParcel = typed && (urbanQuery !== null || parseParcelQuery(value, kos) !== null);
   const geocode = useGeocode(typed && !looksLikeParcel ? debounced : "");
   const hitsFresh = !!geocode.data && !geocode.isPlaceholderData && debounced.trim() === value.trim();
   const hits = hitsFresh ? geocode.data!.results : NO_HITS;
+  const urbanParcels = useUrbanParcels(urbanQuery !== null ? (parseUrbanQuery(debounced, urbanAbbr) ?? "") : "");
+  const urbanFresh =
+    urbanQuery !== null && !!urbanParcels.data && !urbanParcels.isPlaceholderData && debounced.trim() === value.trim();
+  const urban = urbanFresh ? urbanParcels.data!.results : NO_URBAN;
 
   const { parcel, items } = useMemo(
-    () => (typed ? buildSuggestions({ query: value, kos, zones: zoneList, hits, words }) : { parcel: null, items: [] }),
-    [typed, value, kos, zoneList, hits, words],
+    () =>
+      typed ? buildSuggestions({ query: value, kos, zones: zoneList, hits, urban, words }) : { parcel: null, items: [] },
+    [typed, value, kos, zoneList, hits, urban, words],
   );
   const showNotFound = !!parcel && sameRef(notFound, parcel);
 
@@ -168,7 +194,9 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
     return list;
   }, [empty, recent, items, parcel, kos, showNotFound]);
 
-  const geoSettled = looksLikeParcel || value.trim().length < 2 || (hitsFresh && !geocode.isFetching);
+  const urbanSettled = urbanQuery === null || urbanParcels.isError || (urbanFresh && !urbanParcels.isFetching);
+  const geoSettled =
+    urbanSettled && (looksLikeParcel || value.trim().length < 2 || (hitsFresh && !geocode.isFetching));
   const zonesSettled = !!zones.data || zones.isError;
   const showEmpty =
     typed && value.trim().length >= 2 && geoSettled && zonesSettled && options.length === 0 && !showNotFound;
@@ -255,6 +283,11 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
       case "parcel":
         void runParcel(action.ref, isRecent);
         return;
+      case "urban":
+        remember(item);
+        commit(item.title);
+        selectUrbanParcel(action, { recent: isRecent });
+        return;
       case "address":
         remember(item);
         commit(item.title);
@@ -281,7 +314,25 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
     }
     const text = value;
     let first: Option | undefined = options[0];
-    if (!hitsFresh && text.trim().length >= 2) {
+    if (urbanQuery !== null) {
+      // Enter before the lookup answered: ask now, then take the first planned parcel
+      if (!urbanFresh) {
+        let found: readonly UrbanParcelMatch[] = NO_URBAN;
+        try {
+          const res = await qc.fetchQuery({
+            queryKey: queryKeys.urbanParcels(urbanQuery),
+            queryFn: ({ signal }) => api.locateUrbanParcel(urbanQuery, { signal }),
+            staleTime: 5 * 60_000,
+          });
+          found = res.results;
+        } catch {
+          // a lookup that failed is simply no rows; the list says "No match"
+        }
+        if (latestValue.current !== text) return; // the visitor kept typing
+        const item = buildSuggestions({ query: text, kos, zones: zoneList, hits: NO_HITS, urban: found, words }).items[0];
+        first = item ? { kind: "item", item, recent: false } : undefined;
+      }
+    } else if (!hitsFresh && text.trim().length >= 2) {
       const q = text.trim();
       let fresh: readonly GeocodeResult[] = NO_HITS;
       try {
@@ -354,7 +405,7 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
   const koPending = pending && parcel && sameRef(pending, parcel) ? pending.ko : null;
 
   return (
-    <div className="searchwrap" ref={wrapRef}>
+    <div className={shortcut && shortcut !== "⌘K" ? "searchwrap kbdwide" : "searchwrap"} ref={wrapRef}>
       <span className="mag">
         <IconSearch />
       </span>
@@ -414,9 +465,11 @@ export const SearchBox = forwardRef<HTMLInputElement>(function SearchBox(_, ref)
           }
         }}
       />
-      <span className="kbd" aria-hidden>
-        ⌘K
-      </span>
+      {shortcut && (
+        <span className="kbd" aria-hidden>
+          {shortcut}
+        </span>
+      )}
       <div className={listOpen ? "searchsug on" : "searchsug"} id={listId} role="listbox" aria-label={t("search.suggestions")}>
         {showNotFound && (
           <div className="searchnote" role="option" aria-disabled="true" aria-selected={false}>

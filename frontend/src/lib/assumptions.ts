@@ -61,14 +61,22 @@ export function sliderBounds(slider: Slider, defaultValue: number | null | undef
   return { min: Math.min(slider.min, Math.floor(d)), max: Math.max(slider.max, Math.ceil(d)) };
 }
 
+/** An edit outside its bounds: the range to use instead (the panel words it, `asm.outOfRange`). */
+export interface OutOfRange {
+  min: number;
+  max: number;
+  unit: string;
+  [key: string]: string | number;
+}
+
 /** Why an edit cannot be used, or null. */
-export function editError(key: EditKey, value: number, bounds: { min: number; max: number }): string | null {
+export function editError(key: EditKey, value: number, bounds: { min: number; max: number }): OutOfRange | null {
   const limit = SERVER_LIMITS[key];
   const v = toSlider(key, value);
   const outside = !Number.isFinite(value) || value <= limit.gt || value > limit.le || v < bounds.min || v > bounds.max;
   if (!outside) return null;
   const unit = key === "saleable_share" ? "%" : " €/m²";
-  return `Out of range: use ${bounds.min}–${bounds.max}${unit}.`;
+  return { min: bounds.min, max: bounds.max, unit };
 }
 
 /** Panel keys → the engine's `recalculate` edit keys (from the payload's `engine.edit_keys`). */
@@ -137,8 +145,8 @@ export function defaultsOf(assumptions: UrbanPanel["assumptions"]): Record<EditK
 export function editErrors(
   edits: AssumptionEdits,
   defaults: Record<EditKey, number | null>,
-): Partial<Record<EditKey, string>> {
-  const errors: Partial<Record<EditKey, string>> = {};
+): Partial<Record<EditKey, OutOfRange>> {
+  const errors: Partial<Record<EditKey, OutOfRange>> = {};
   for (const slider of SLIDERS) {
     const value = edits[slider.key];
     if (value == null) continue;

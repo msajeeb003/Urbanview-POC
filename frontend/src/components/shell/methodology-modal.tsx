@@ -3,7 +3,9 @@
 /**
  * "Our analysis methodology" (wireframe `renderMethodology`, the wide `.method` modal): a rail of
  * six steps and a pane with the step's tag, title, phase, diagram and text; Back / Next step, and
- * on the last step the gold "Order this analysis →". Copy and diagrams are the wireframe's.
+ * on the last step the gold "Order this analysis →". The diagrams and the six steps are the
+ * wireframe's; the sentences are the wireframe's with their English tidied (tester's report
+ * 2026-10-02: same steps, same meaning, nothing added).
  * Opened from "How we read a planning document" (step 2) and, later, "How we analyze this parcel"
  * (step 1). `onOrder` is the parcel panel's order flow; without it the last button says where
  * ordering starts.
@@ -33,7 +35,7 @@ const STEPS: Step[] = [
     t: "Locate the parcel",
     tag: "Research",
     phase: "Phase 1 · Research & ownership",
-    body: "Searching for the specific cadastral parcel in the urban plans that also contain existing condition and planned condition. First check is if the cadastral parcel is the same geometry and area as planned one - urban parcel. During that research we check the ownership status of the parcel.",
+    body: "We find the cadastral parcel in the urban plans, which show both the existing and the planned condition. The first check is whether the cadastral parcel has the same shape and area as the planned one, the urban parcel. During this research we also check the ownership status of the parcel.",
     dia: (
       <svg width="220" height="118" viewBox="0 0 220 118" fill="none">
         <rect x="14" y="14" width="86" height="90" rx="3" stroke="#B3A894" strokeWidth="1.4" />
@@ -50,17 +52,17 @@ const STEPS: Step[] = [
     t: "Extract planning parameters",
     tag: "Research",
     phase: "Phase 1 · Read the adopted plan",
-    body: "We look for parts from urban planning PDF's that contain specific information:",
+    body: "In the urban planning PDFs we look for the parts that hold specific information:",
     subs: [
-      ["a", "Planned urban parcels - regulation and its relation to public areas"],
+      ["a", "Planned urban parcels: their regulation and how they relate to public areas"],
       [
         "b",
-        "Planned urban regulation - Area envisaged for site coverage by the object, building height and number of floors, linear distance from the neighboring parcels and public areas.",
+        "Planned urban regulation: the area the building may cover, the building height and number of floors, and the distances from neighboring parcels and public areas",
       ],
-      ["c", "Planned land use within the block or area that has the same markation"],
+      ["c", "Planned land use of the block, or of the area with the same designation"],
       [
         "d",
-        "Existing and planned infrastructure utilities - water, sewage, energy infrastructure, heating, access roads etc.",
+        "Existing and planned infrastructure: water, sewage, energy, heating, access roads and so on",
       ],
     ],
     dia: (
@@ -78,7 +80,7 @@ const STEPS: Step[] = [
     t: "2D orthogonal projection",
     tag: "Design",
     phase: "Phase 2 · Design",
-    body: "After analyzing the parcel and the referent PDF planning document, we start designing the orthogonal projection (2D view from the top) of the object to the parcel, implementing all the rules and regulations.",
+    body: "After analyzing the parcel and the planning document that governs it, we draw the orthogonal projection of the building on the parcel (a 2D view from above), applying all the rules and regulations.",
     dia: (
       <svg width="210" height="120" viewBox="0 0 210 120" fill="none">
         <rect x="20" y="14" width="170" height="92" rx="3" stroke="#B3A894" strokeWidth="1.4" />
@@ -93,7 +95,7 @@ const STEPS: Step[] = [
     t: "Massing in context",
     tag: "Design",
     phase: "Phase 2 · Massing in context",
-    body: "After the design of the object we fit its massing into the built environment around the parcel.",
+    body: "Once the building is designed, we fit its massing into the built environment around the parcel.",
     dia: (
       <svg width="210" height="122" viewBox="0 0 210 122" fill="none">
         <path d="M30 92l70-24 70 24-70 24z" fill="#EDEFF2" stroke="#B3A894" strokeWidth="1.2" />
@@ -109,7 +111,7 @@ const STEPS: Step[] = [
     t: "Preliminary package & feasibility",
     tag: "Deliverable",
     phase: "Phase 3 · Client package",
-    body: "This step is the final. After we conclude that it is the design that should be presented to the Client, we prepare preliminary plans and a comprehensive analysis of the real estate development venture.",
+    body: "This is the final step of the analysis. Once we are satisfied that this is the design to present to the client, we prepare preliminary plans and a comprehensive analysis of the real estate development venture.",
     dia: (
       <svg width="200" height="120" viewBox="0 0 200 120" fill="none">
         <rect x="24" y="30" width="70" height="84" rx="3" fill="#fff" stroke="#B3A894" strokeWidth="1.3" transform="rotate(-6 59 72)" />
@@ -125,7 +127,7 @@ const STEPS: Step[] = [
     t: "Offer & design",
     tag: "Engagement",
     phase: "Phase 4 · Engagement",
-    body: "If the Client decides to go for the venture, we prepare offer and start designing.",
+    body: "If the client decides to go ahead with the venture, we prepare an offer and start the design work.",
     dia: (
       <svg width="200" height="118" viewBox="0 0 200 118" fill="none">
         <rect x="48" y="16" width="104" height="86" rx="4" fill="#fff" stroke="#B3A894" strokeWidth="1.4" />
@@ -171,8 +173,8 @@ export function MethodologyModal({
         title="Our analysis methodology"
         lead={
           <>
-            The step-by-step process we follow every time we analyze a parcel — for our services, or under contract to
-            design the object. Context: <b>{context}</b>.
+            The step-by-step process our experts follow every time they analyze a parcel, for an expert analysis or
+            under a contract to design the building. Context: <b>{context}</b>.
           </>
         }
       />

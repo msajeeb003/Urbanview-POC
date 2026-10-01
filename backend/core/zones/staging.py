@@ -482,7 +482,9 @@ async def apply_zone_datasets(
                 "zone": zone_ids.get(row["zone_key"]),
                 "status": row["status"],
                 "type": row["document_type"],
-                "source": "eRegistri" if row["eregistri_reference"] else f"zone list {label}",
+                # a registry name or nothing: `source` is shown on the public map (the import
+                # that wrote the row is `dataset_version`)
+                "source": "eRegistri" if row["eregistri_reference"] else None,
                 "url": row["source_url"],
                 "ref": row["eregistri_reference"],
                 "adopted": row["adoption_date"],

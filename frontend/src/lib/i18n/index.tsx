@@ -11,7 +11,7 @@
  * - Code outside React (toasts from the selection flow) reads the current language with `getLang()`.
  * - Text the API sends in both languages (`_en` / `_me`) picks its side with `pickLang`.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { DEFAULT_LANG, HTML_LANG, LANG_COOKIE } from "./config";
 import { translate, type Lang, type StringKey, type Translate, type Vars } from "./strings";
@@ -61,4 +61,15 @@ export const tNow: Translate = (key, vars) => translate(current, key, vars);
 /** The side of a bilingual API text for a language (English when the other side is missing). */
 export function pickLang(lang: Lang, en: string, me: string | null | undefined): string {
   return lang === "me" && me ? me : en;
+}
+
+/**
+ * A string's `{placeholders}` filled with React nodes (a bold figure inside a sentence):
+ * `fillNodes(t("cmp.planArea"), { area: <b>624 m²</b> })`. Unknown placeholders stay as written.
+ */
+export function fillNodes(text: string, nodes: Record<string, ReactNode>): ReactNode[] {
+  return text.split(/(\{\w+\})/g).map((part, i) => {
+    const name = /^\{(\w+)\}$/.exec(part)?.[1];
+    return <Fragment key={i}>{name && name in nodes ? nodes[name] : part}</Fragment>;
+  });
 }

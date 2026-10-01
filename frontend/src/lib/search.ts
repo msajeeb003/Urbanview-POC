@@ -6,6 +6,9 @@
  *   cadastral municipality (`1042/3 Podgorica II`, `1042, pod 2`). The KO is mandatory (parcel
  *   numbers repeat across KOs): without a unique KO the row asks for one and the KO picker shows
  *   the candidates. UrbanView's internal Parcel ID is never a search input.
+ * - **Urban parcel number**: the planned parcel's own number with its abbreviation (`UP 40`,
+ *   `up c2962`): the planned parcels of adopted plans that carry it (`/v1/locate/urban-parcel`),
+ *   one row each with its planning document (the same number can exist in several plans).
  * - **Zones**: names from `/v1/zones`, matched by word prefix, diacritics ignored.
  * - **Addresses**: geocoder hits, placed in their zone with the zone outlines ("Address ·
  *   Centar"); a hit in no zone or in a zone without an adopted plan gets ⚠ "Outside coverage".
@@ -14,7 +17,7 @@
  *
  * Icons are the wireframe's: ⌂ address, # parcel reference, ▤ zone, ⚠ outside coverage.
  */
-import type { GeocodeKind, GeocodeResult, ZoneIndexEntry } from "./api/types";
+import type { GeocodeKind, GeocodeResult, UrbanParcelMatch, ZoneIndexEntry } from "./api/types";
 import { parseParcelNumber } from "./format";
 import { readJson, safeLocalStorage, writeJson, type KeyValueStore } from "./storage";
 import type { LngLat } from "./store";
@@ -39,6 +42,8 @@ export type SearchAction =
   | { type: "address"; point: LngLat }
   | { type: "zone"; zone: ZoneRef }
   | { type: "parcel"; ref: ParcelRef }
+  /** A planned urban parcel found by its number: selected by id, the map flies to `point`. */
+  | { type: "urban"; id: number; zoneId: number | null; point: LngLat }
   /** A parcel number without a unique KO: the row hands over to the KO picker. */
   | { type: "choose-ko" };
 
@@ -70,6 +75,7 @@ export interface SearchWords {
   chooseKo: string;
   zone: string;
   outside: string;
+  urbanParcel: string;
   kinds: Record<GeocodeKind, string>;
 }
 
@@ -79,6 +85,7 @@ export const EN_WORDS: SearchWords = {
   chooseKo: "Cadastral ref · choose the cadastral municipality",
   zone: "Zone",
   outside: OUTSIDE_COVERAGE_SUB,
+  urbanParcel: "Urban parcel",
   kinds: { address: "Address", street: "Street", place: "Place", poi: "Place", other: "Location" },
 };
 
@@ -182,6 +189,38 @@ export function parcelItem(parcel: ParcelQuery, words: SearchWords = EN_WORDS): 
   };
 }
 
+/**
+ * A planned urban parcel number: the plan's parcel abbreviation (`UP`, from the profile), then a
+ * compact number (`UP 40`, `up40`, `UP C2962`, `up 82a`). Without the
+ * abbreviation a number is a cadastral reference, so this answers null. Returns the number as
+ * typed after the abbreviation.
+ */
+export function parseUrbanQuery(input: string, abbreviation = "UP"): string | null {
+  const abbr = abbreviation.trim();
+  if (!abbr) return null;
+  const text = input.trim();
+  if (text.slice(0, abbr.length).toLowerCase() !== abbr.toLowerCase()) return null;
+  const rest = text.slice(abbr.length).replace(/^[\s.\-–]+/, "").trim();
+  // one compact number: a letter or two, digits, a letter or two, a sub-number (`40`, `C2962`, `82a`)
+  return /^\p{L}{0,2}\s?\d{1,6}\p{L}{0,2}(?:\/\d{1,4})?$/u.test(rest) ? rest : null;
+}
+
+/** A planned parcel found by number as a row: `UP 40` · `Urban parcel · DUP Novi Grad 1 i 2`. */
+export function urbanItem(match: UrbanParcelMatch, words: SearchWords = EN_WORDS): SearchItem {
+  return {
+    key: `urban:${match.urban_parcel_id}`,
+    icon: "#",
+    title: match.urban_parcel_number,
+    sub: `${words.urbanParcel} · ${match.document.name}`,
+    action: {
+      type: "urban",
+      id: match.urban_parcel_id,
+      zoneId: match.zone_id ?? null,
+      point: { lat: match.centroid.lat, lng: match.centroid.lng },
+    },
+  };
+}
+
 /** Zones whose name contains every typed word as a word prefix; names starting with the query first. */
 export function matchZones(query: string, zones: readonly ZoneIndexEntry[], limit = 3): ZoneIndexEntry[] {
   const q = normalize(query);
@@ -271,17 +310,20 @@ export interface SuggestionInput {
   zones: readonly ZoneIndexEntry[] | undefined;
   /** Geocoder hits for this very query (stale replies already dropped). */
   hits: readonly GeocodeResult[];
+  /** Planned parcels with the typed urban parcel number (for this very query). */
+  urban?: readonly UrbanParcelMatch[];
   words?: SearchWords;
 }
 
-/** Rows for a query: parcel reference, then zones, then addresses (duplicates collapsed). */
-export function buildSuggestions({ query, kos, zones, hits, words = EN_WORDS }: SuggestionInput): {
+/** Rows for a query: parcel reference, urban parcels, then zones, then addresses (duplicates collapsed). */
+export function buildSuggestions({ query, kos, zones, hits, urban = [], words = EN_WORDS }: SuggestionInput): {
   parcel: ParcelQuery | null;
   items: SearchItem[];
 } {
   const parcel = parseParcelQuery(query, kos);
   const items: SearchItem[] = [];
   if (parcel) items.push(parcelItem(parcel, words));
+  for (const match of urban) items.push(urbanItem(match, words));
   for (const zone of matchZones(query, zones ?? [])) items.push(zoneItem(zone, words));
   for (const hit of hits) items.push(addressItem(hit, zones, words));
   const seen = new Set<string>();
@@ -312,6 +354,15 @@ function isRecent(value: unknown): value is RecentSearch {
   if (a.type === "parcel") {
     const r = (a as { ref?: Partial<ParcelRef> }).ref;
     return typeof r?.ko === "string" && typeof r?.number === "string" && (r.sub === null || typeof r.sub === "string");
+  }
+  if (a.type === "urban") {
+    const u = a as { id?: unknown; zoneId?: unknown; point?: Partial<LngLat> };
+    return (
+      typeof u.id === "number" &&
+      (u.zoneId === null || typeof u.zoneId === "number") &&
+      typeof u.point?.lat === "number" &&
+      typeof u.point?.lng === "number"
+    );
   }
   if (a.type === "zone") {
     const z = (a as { zone?: Partial<ZoneRef> }).zone;

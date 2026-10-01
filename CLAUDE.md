@@ -208,6 +208,23 @@ demand: the analytics districts place them by their point.
   account is needed; `deploy/.env.example` now says `change-me`).
 - **Open (S3 check):** a separate `land_use_code` in Group 1 and a `sample_size` per market
   input: neither is in the data yet (`docs/specs/frontend-design.md` §10 item 22).
+- **Tester's report on the public map (2026-10-02, 23 items):** fixed in code: the panel's one
+  urban area and its drawn-shape note (4), the parcel panels in Montenegrin (5), the land-use
+  layer coloured per parcel (6, `core.land_use`; needs a publish to rebuild the tiles), search by
+  planned parcel number (7, `GET /v1/locate/urban-parcel`), the compact button stack (9), the
+  shortcut hint per system (10), the methodology's English (11), no internal ids in the panel
+  (12), a document's `source` never an import name (13, migration 0039), "Not stated" in words
+  (14), one market-data line (15), the published version's number instead of its label (16), the
+  market-interest message in the string table (17), the order reference without a doubled "UP"
+  (18), the reopened `?order=` link shows the status (19), the price legend's unit (20), a
+  legend code named beside itself (21, the profile's `[extraction.land_use_codes]`), the section
+  source chip opens a cited value so a cell is framed (23). **Not code, still open:** the Novi
+  Grad parcel shapes (2: a QGIS redraw or a better boundary extraction), SMTP on the server (3:
+  the confirmation now says honestly that no e-mail went out; the account is still needed), the
+  client's bank name and SWIFT (8: `ORDER_BANK_*` in `deploy/.env`), the codes U, SR and TS of
+  Stara Varoš (the plan's legend names UK and SKR; the client's planner confirms). Not
+  reproduced: the pin behind the legend (22: a failed parcel search leaves the earlier pin where
+  it was).
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
   POC plans are prepared from their parameter tables by the table reader and loaded as approved
   items (see "Prepared planning values"), not AI-extracted and not reviewed item by item by an
@@ -229,6 +246,13 @@ demand: the analytics districts place them by their point.
   digitising slivers are ignored. Order: point match, governing document, largest overlap.
 - Parcel lookup: `ko` is required and case-insensitive; `number` may be `1042/3`; the reference
   point is `ST_PointOnSurface` of the parcel; `centroid` is where the map pans.
+- **Planned parcel by number** `GET /v1/locate/urban-parcel?number=UP 40` (`UrbanParcelSearch`,
+  2026-10-02: with no cadastral base loaded no parcel number could be searched at all): the
+  planned parcels of adopted, live, current plans whose number matches without spaces, case and
+  the profile's parcel abbreviation (`urban_parcel_key`: "UP 40" = "up40" = "40"), each with its
+  document, zone and a point inside it (`ST_PointOnSurface`), at most 8 (the same number can
+  exist in several plans). Always 200; none is an empty list. The search box asks it only for
+  text that starts with the abbreviation (a bare number stays a cadastral reference).
 - Points outside the municipality bounds (profile) short-circuit to `outside_municipality`.
 - Every access path is index-backed (GiST on the geometries, the unique KO + number index);
   `tests/integration` checks one statement per call. There is no load or latency testing in the
@@ -283,7 +307,11 @@ demand: the analytics districts place them by their point.
   document-level rows (`fallback: false`). A stated 0 is a real 0. Every stated value carries
   `source` (document id + name, `page`, `bbox` in PDF points with origin bottom-left, `note`,
   `registry_url`, `value_id` and `viewer_url = /v1/source/value/{value_id}`, the one-click way to
-  the cited page: see "Source viewer").
+  the cited page: see "Source viewer"). A `land_use` value that is a code of the plan's legend
+  (Stara Varoš prints `SS`, `MN`, `CD` …) also carries `value_name`, the name the legend gives it
+  (`core.land_use.legend_name` over the profile's `[extraction.land_use_codes]`; null for a
+  wording or a code the legend does not name): the value stays what the plan prints, the panel
+  shows `SS · stanovanje srednje gustine`.
 - **Data version.** `data_version` = `label` of the `publish_versions` row with `is_current` (at
   most one per municipality), `data_version_date` = its `published_at` as a UTC date; with no
   current row `"unpublished"` / null and no planning values (they belong to a version). Values
@@ -1089,7 +1117,8 @@ demand: the analytics districts place them by their point.
   500 m² and 200 above) applied to the parcel's area basis (planned urban parcel area, else
   cadastral). `ORDER_TURNAROUND_BUSINESS_DAYS` gives `expected_by` (Mon–Fri, no holidays).
 - **Reference** `UV-{KO}-{parcel}-{yymmdd}-{seq}` (`ko_short("Podgorica I") = "PODI"`), unique,
-  retried on collision. **Snapshot**: the full panel payload the visitor saw (with their edits),
+  retried on collision; an order on a planned parcel without a cadastral parcel has no KO part
+  (`UV-UP-C2962-261001-01`, never `UV-UP-UP-…`). **Snapshot**: the full panel payload the visitor saw (with their edits),
   its `data_version` (label, and `orders.publish_version_id`: the `publish_versions` row with that
   label, the current one first; FK, SET NULL), market assumptions version and formula version,
   stored on the order so the expert works from what was shown even after a later publish; the
@@ -1145,7 +1174,11 @@ demand: the analytics districts place them by their point.
 - **E-mail**: `payment_instructions` on creation and `order_delivered` on report upload are
   `send_email` jobs queued through `api.services.email.EmailService` (see "Transactional
   e-mail"); the reply's `email_status` is `queued` (or the final state when the job already
-  ran); a queue outage marks the `email_log` row failed and the order stands. The staff order
+  ran), and `suppressed` at once when the sending policy will not mail the address (no
+  `SMTP_HOST`, staging without an allow-listed address: `EmailService.will_send`, the worker's
+  `core.mail.policy.decide` on the same settings), so the confirmation never announces a mail
+  the worker is going to drop; a queue outage marks the `email_log` row failed and the order
+  stands. The staff order
   detail lists `emails` and the queue shows `email_alerts` (failed sends).
 - **Payments**: `core/payments.py` holds `BankTransferProvider` (instructions from `ORDER_BANK_*`,
   no online step; hosted checkout, card providers and webhooks are not in the POC plan, so there
@@ -1385,7 +1418,13 @@ demand: the analytics districts place them by their point.
   `primary_urban_parcel_id`, `overlap_fraction`, `area_delta_m2`, the
   `zone_id` / `zone_type` of the zone containing the parcel's point on surface, and `covered` =
   that point lies in a live coverage, locate's rule: the map draws covered parcels only),
-  `land_use` (generic `layer_features`), `heat_coverage`,
+  `land_use` (every planned parcel with a published land use: `name` = the plan's wording,
+  `category` = the map's colour group res | com | mix | pub | grn that `core.land_use` derives
+  from it with the profile's `land_use_terms` and `land_use_codes`, passed to the layer's SQL as
+  `:land_use_categories`; plus the staged generic `layer_features` polygons that are not one of
+  those parcels, with their own `category`, else the class of their name or code; an unclassed
+  wording has no `category` and takes the layer's neutral colour; 2026-10-02: before, every
+  feature was the neutral colour because nothing wrote a category), `heat_coverage`,
   `heat_far`, `heat_height`,
   `heat_gfa` (every covered urban block), `heat_sale_price` (every covered zone): the heatmaps;
   outside coverage the archive carries no cell (S6: the base map alone). Empty

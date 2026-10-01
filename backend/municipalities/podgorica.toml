@@ -203,6 +203,20 @@ land_use_terms = [
   { pattern = 'specijaln|posebn\w*\s+namjen|vojn', category = "special_purpose" },
 ]
 
+# Land-use codes a parameter table prints instead of a wording, with the name the plan's own
+# legend gives them (core.land_use: shown beside the code in the parcel panel, and classified with
+# land_use_terms above for the land-use layer). Source: the legend "Kategorije detaljne namjene
+# površina" on the land-use sheet of UP Stara Varoš. Only codes that legend names letter for
+# letter are listed; the table's U, SR and TS are not in it (the legend has UK and SKR) and wait
+# for the client's planner.
+[extraction.land_use_codes]
+SS = "stanovanje srednje gustine"
+SV = "stanovanje veće gustine"
+MN = "mješovita namjena – stanovanje sa poslovanjem"
+CD = "centralne djelatnosti"
+K = "kultura"
+VO = "vjerski objekti"
+
 [extraction.floor_notation]
 below_ground = ["Po", "S", "G"]
 ground = ["P", "VP"]

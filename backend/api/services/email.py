@@ -5,6 +5,12 @@ template and ids, never an address or a body); the worker does the rendering, th
 the SMTP send and the outcome (``core.mail``, ``jobs.tasks.email``). A queue outage marks the row
 ``failed`` instead of failing the caller (an order is never lost over mail). The staff order
 detail lists the order's rows (``EMAIL_LOG_JSON``).
+
+The reply is honest about a mail that will not go out: when the sending policy
+(``core.mail.policy.decide``: no ``SMTP_HOST``, staging without an allow-listed address) refuses
+the recipient, ``queue`` answers ``suppressed`` at once instead of ``queued``, so the order
+confirmation never says a mail is on its way that the worker is going to drop. The worker still
+runs the job and records the outcome on the row.
 """
 
 from __future__ import annotations
@@ -19,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from api.schemas.email import EmailLogOut
 from core.errors import ServiceUnavailableError
+from core.mail.policy import SendDecision
 from core.mail.templates import TEMPLATES
 from jobs.enqueue import JobDispatcher, enqueue_job
 
@@ -72,10 +79,13 @@ class EmailService:
         dispatcher: JobDispatcher,
         municipality_id: str,
         max_attempts: int = 3,
+        will_send: Callable[[str], SendDecision] | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.session_factory = session_factory
         self.dispatcher = dispatcher
+        # the worker's sending policy for an address, known here from the same settings
+        self.will_send = will_send
         self.municipality_id = municipality_id
         self.max_attempts = int(max_attempts)
         self.clock = clock
@@ -136,5 +146,7 @@ class EmailService:
         async with self.session_factory() as session:
             await session.execute(SET_JOB_SQL, {"id": log_id, "job_id": outcome.job_id})
             await session.commit()
-            status = (await session.execute(STATUS_SQL, {"id": log_id})).scalar_one()
-        return EmailQueued(log_id=log_id, job_id=outcome.job_id, status=str(status))
+            status = str((await session.execute(STATUS_SQL, {"id": log_id})).scalar_one())
+        if status == "queued" and self.will_send is not None and not self.will_send(to).send:
+            status = "suppressed"  # the worker will record the same on the row
+        return EmailQueued(log_id=log_id, job_id=outcome.job_id, status=status)

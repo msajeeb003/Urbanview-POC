@@ -2,6 +2,8 @@ import { calculate, type EngineInputs, type EngineResult, type FixtureFile } fro
 import fixtureJson from "@urbanview/feasibility-engine/fixtures/feasibility-cases.json";
 import { describe, expect, it } from "vitest";
 
+import { translate } from "./i18n/strings";
+
 import type { UrbanPanel } from "./api/types";
 import {
   SLIDERS,
@@ -153,9 +155,13 @@ describe("sliders and bounds", () => {
   it("flag an edit outside them, which is then not calculated", () => {
     expect(editErrors({ construction_cost_eur_m2: 780, saleable_share: 0.6 }, defaults)).toEqual({});
     expect(editErrors({ sale_price_eur_m2: 9000 }, defaults)).toEqual({
-      sale_price_eur_m2: "Out of range: use 1200–3600 €/m².",
+      sale_price_eur_m2: { min: 1200, max: 3600, unit: " €/m²" },
     });
-    expect(editErrors({ saleable_share: 1.2 }, defaults).saleable_share).toBe("Out of range: use 55–85%.");
+    const share = editErrors({ saleable_share: 1.2 }, defaults).saleable_share!;
+    expect(share).toEqual({ min: 55, max: 85, unit: "%" });
+    // the panel words it in the visitor's language
+    expect(translate("en", "asm.outOfRange", share)).toBe("Out of range: use 55–85%.");
+    expect(translate("me", "asm.outOfRange", share)).toBe("Izvan opsega: unesite 55–85%.");
     expect(editErrors({ construction_cost_eur_m2: -1 }, defaults).construction_cost_eur_m2).toBeTruthy();
   });
 });

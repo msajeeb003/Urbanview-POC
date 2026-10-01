@@ -304,7 +304,15 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     assert urban[1]["max_far"] == 3.5 and urban[1]["max_gfa_m2"] == pytest.approx(3358.6)
     assert urban[3]["max_far"] == 2.4 and urban[2]["max_far"] is None
     assert len(tiles.layers["zones"]) == 2 and len(tiles.layers["cadastral_parcels"]) >= 7
-    assert "land_use" not in tiles.layers  # empty layers are left out of the build
+    # the land-use layer: every planned parcel with a published land use, named by its wording
+    # (the sample's English wordings match none of the profile's rules: no colour group)
+    land_use = {f["id"]: f["properties"] for f in tiles.layers["land_use"]}
+    assert (
+        land_use[1]["name"] == urban[1]["land_use"]
+        and land_use[1]["urban_parcel_number"] == "UP 12"
+    )
+    assert all("category" not in props for props in land_use.values())
+    assert set(land_use) == {i for i, props in urban.items() if props["land_use"]}
 
     # the archive and the public pointer
     key = result["archive_key"]
@@ -549,15 +557,18 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
     # the flag is stored on the parcel, never drawn: no ownership layer in the POC
     assert inserted["public_ownership"] is True
     assert "public_ownership" not in cadastral[inserted["id"]]
-    land_use = first_run["land_use"]
+    # the staged land-use polygon is exported beside the planned parcels' own land use
+    land_use = [f for f in first_run["land_use"] if "feature_key" in f["properties"]]
     assert len(land_use) == 1 and land_use[0]["properties"]["code"] == "S"
+    assert len(first_run["land_use"]) > 1
     assert land_use[0]["properties"]["feature_key"] == "lu-1"
     assert land_use[0]["geometry"]["type"] == "MultiPolygon"
 
     assert updated["id"] == inserted["id"] and updated["street_address"] == "Nova 2"
     assert updated["area_m2"] > inserted["area_m2"]
     assert second["counts"]["geometry"] == {"cadastral_parcels": 1, "land_use_carried": 1}
-    assert len(tiles.layers["land_use"]) == 1  # carried forward without a new batch
+    # carried forward without a new batch
+    assert len([f for f in tiles.layers["land_use"] if "feature_key" in f["properties"]]) == 1
     assert [(b["status"], b["published_version_id"] is not None) for b in batches] == [
         ("published", True),
         ("published", True),

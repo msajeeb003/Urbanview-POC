@@ -167,3 +167,22 @@ class LocationResolution(BaseModel):
     centroid: LatLng | None = Field(
         default=None, description="Cadastral parcel centroid: where the map should pan"
     )
+
+
+class UrbanParcelMatch(BaseModel):
+    """A planned urban parcel found by its number (``GET /v1/locate/urban-parcel``)."""
+
+    urban_parcel_id: int
+    urban_parcel_number: str
+    document: DocumentRef
+    zone_id: int | None = None
+    zone_name: str | None = None
+    centroid: LatLng = Field(description="A point inside the parcel: where the map pans")
+
+
+class UrbanParcelSearch(BaseModel):
+    """Planned parcels of adopted, live plans with the number asked for. The same number can
+    exist in several plans, so the answer is a list; none is an empty list, never an error."""
+
+    number: str = Field(description="The number as it was matched (abbreviation and spaces folded)")
+    results: list[UrbanParcelMatch]

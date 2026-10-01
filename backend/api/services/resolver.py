@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Mapping
 from typing import Any, Protocol
 
@@ -24,14 +25,17 @@ from api.schemas.locate import (
     CoverageReason,
     CoverageStatus,
     DocumentRef,
+    LatLng,
     LocateQuery,
     LocationResolution,
     PlanningDocumentSummary,
     UrbanBlockSummary,
+    UrbanParcelMatch,
+    UrbanParcelSearch,
     UrbanParcelSummary,
     ZoneSummary,
 )
-from api.services.locate_sql import LOCATE_PARCEL_SQL, LOCATE_POINT_SQL
+from api.services.locate_sql import FIND_URBAN_PARCELS_SQL, LOCATE_PARCEL_SQL, LOCATE_POINT_SQL
 from core.municipality import MunicipalityProfile
 
 log = logging.getLogger("urbanview.locate")
@@ -46,6 +50,19 @@ class LocationResolver(Protocol):
     async def resolve_parcel(
         self, *, ko: str, parcel_number: str, sub_number: str | None
     ) -> LocationResolution: ...
+
+    async def find_urban_parcels(self, *, number: str) -> UrbanParcelSearch: ...
+
+
+URBAN_PARCEL_MATCH_LIMIT = 8
+
+
+def urban_parcel_key(number: str, abbreviation: str) -> str:
+    """How a planned parcel number is compared: upper-case, no spaces, without the profile's
+    parcel abbreviation (``"up 40"`` -> ``"40"``, ``"UP C2962"`` -> ``"C2962"``)."""
+    key = re.sub(r"\s+", "", number.upper())
+    abbr = abbreviation.upper()
+    return key[len(abbr) :] if abbr and key.startswith(abbr) else key
 
 
 def uncovered(
@@ -102,6 +119,10 @@ class NoDataResolver:
             CoverageReason.parcel_not_found,
             parcel_not_found_message(ko, parcel_number, sub_number),
         )
+
+    async def find_urban_parcels(self, *, number: str) -> UrbanParcelSearch:
+        abbreviation = self.profile.terminology.urban_parcel.abbreviation
+        return UrbanParcelSearch(number=urban_parcel_key(number, abbreviation), results=[])
 
 
 def _as_json(value: Any) -> Any:
@@ -165,6 +186,41 @@ class PostgisResolver:
             resolution.query.lat = resolution.centroid.lat
             resolution.query.lng = resolution.centroid.lng
         return resolution
+
+    async def find_urban_parcels(self, *, number: str) -> UrbanParcelSearch:
+        abbreviation = self.profile.terminology.urban_parcel.abbreviation
+        key = urban_parcel_key(number, abbreviation)
+        if not key:
+            return UrbanParcelSearch(number=key, results=[])
+        async with self.session_factory() as session:
+            rows = (
+                await session.execute(
+                    text(FIND_URBAN_PARCELS_SQL),
+                    {
+                        "municipality_id": self.profile.id,
+                        "abbr": re.escape(abbreviation.upper()),
+                        "key": key,
+                        "limit": URBAN_PARCEL_MATCH_LIMIT,
+                    },
+                )
+            ).mappings()
+            results = [
+                UrbanParcelMatch(
+                    urban_parcel_id=row["urban_parcel_id"],
+                    urban_parcel_number=row["urban_parcel_number"],
+                    document=DocumentRef(
+                        id=row["document_id"],
+                        name=row["document_name"],
+                        type=row["document_type"],
+                        status=row["document_status"],
+                    ),
+                    zone_id=row["zone_id"],
+                    zone_name=row["zone_name"],
+                    centroid=LatLng(lat=row["lat"], lng=row["lng"]),
+                )
+                for row in rows
+            ]
+        return UrbanParcelSearch(number=key, results=results)
 
     async def _execute(self, sql: str, params: dict[str, Any]) -> Mapping[str, Any]:
         bound = {

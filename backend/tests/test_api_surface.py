@@ -24,6 +24,9 @@ PUBLIC = {
     ("get", "/v1/geocode"): "2 geocode",
     ("get", "/v1/locate"): "3 locate by point",
     ("get", "/v1/locate/parcel"): "3 locate by KO + number",
+    # S2 "enter a parcel number": the planned parcel's own number (tester's report 2026-10-02:
+    # with no cadastral base loaded no parcel number could be found at all)
+    ("get", "/v1/locate/urban-parcel"): "3 locate by planned parcel number",
     # 4. / 5. the zone and parcel panels (the map renders /v1/panel; /parcels/{id} = the deep link)
     ("get", "/v1/panel"): "4 zones/{id} + 5 parcels/{id}",
     ("get", "/v1/parcels/{parcel_id}/panel"): "5 parcels/{id}",

@@ -48,12 +48,17 @@ export function formatFigure(value: number, decimals = 2): string {
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_ME = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "avg", "sep", "okt", "nov", "dec"];
 
-/** An ISO date (`2019-05-12`) as `12 May 2019` (UTC, three-letter months); null when it does not parse. */
-export function formatDate(iso: string): string | null {
+/**
+ * An ISO date (`2019-05-12`) as `12 May 2019` (UTC, three-letter months), in Montenegrin
+ * `12. maj 2019.`; null when it does not parse.
+ */
+export function formatDate(iso: string, lang: "en" | "me" = "en"): string | null {
   const t = Date.parse(iso.length === 10 ? `${iso}T00:00:00Z` : iso);
   if (Number.isNaN(t)) return null;
   const d = new Date(t);
+  if (lang === "me") return `${d.getUTCDate()}. ${MONTHS_ME[d.getUTCMonth()]} ${d.getUTCFullYear()}.`;
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 

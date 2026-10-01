@@ -39,6 +39,7 @@ import { bandLabel, formatPrice, priceFor, priceNote, turnaroundText } from "@/l
 import { useShell, type ModalSpec } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
+import { useVersionName } from "../panel/panel-parts";
 import { METHODOLOGY_LABEL, MethodologyModal } from "../shell/methodology-modal";
 import { Cta } from "../ui/cta";
 import { ModalHead } from "../ui/modal";
@@ -102,6 +103,7 @@ const IconCard = () => (
 );
 
 function OrderModal({ target }: { target: OrderTarget }) {
+  const versionName = useVersionName(target.dataVersion);
   const draft = useShell((s) => s.orderDraft);
   const setDraft = useShell((s) => s.setOrderDraft);
   const clearDraft = useShell((s) => s.clearOrderDraft);
@@ -251,7 +253,7 @@ function OrderModal({ target }: { target: OrderTarget }) {
                 </>
               )}{" "}
               — carried through automatically, no need to re-enter.
-              {target.dataVersion && <span className="ctxver">Planning data version {target.dataVersion}</span>}
+              {versionName && <span className="ctxver">Planning data version {versionName}</span>}
             </div>
           </div>
 

@@ -10,6 +10,7 @@ import {
   matchZones,
   normalize,
   parseParcelQuery,
+  parseUrbanQuery,
   pointInGeometry,
   pushRecent,
   readRecent,
@@ -220,5 +221,41 @@ describe("recent searches", () => {
     expect(readRecent(store).map((r) => r.key)).toEqual(["geo:1"]);
     store.set(RECENT_KEY, "{not json");
     expect(readRecent(store)).toEqual([]);
+  });
+});
+
+describe("urban parcel numbers", () => {
+  it("reads a planned parcel number only with the plan's abbreviation", () => {
+    expect(parseUrbanQuery("UP 40")).toBe("40");
+    expect(parseUrbanQuery("up40")).toBe("40");
+    expect(parseUrbanQuery("  UP C2962 ")).toBe("C2962");
+    expect(parseUrbanQuery("UP-82a")).toBe("82a");
+    expect(parseUrbanQuery("up")).toBeNull();
+    expect(parseUrbanQuery("40")).toBeNull(); // a bare number is a cadastral reference
+    expect(parseUrbanQuery("Upravna zgrada 4")).toBeNull();
+    expect(parseUrbanQuery("UP Stara Varoš")).toBeNull(); // no digit: a plan's name, an address query
+    expect(parseUrbanQuery("GP 12", "GP")).toBe("12"); // the abbreviation is the profile's
+  });
+
+  it("lists the planned parcels found, each with its planning document", () => {
+    const match = {
+      urban_parcel_id: 43,
+      urban_parcel_number: "UP 40",
+      document: { id: 6, name: "DUP Novi Grad 1 i 2", status: "adopted" as const },
+      zone_id: 8,
+      zone_name: "Novi Grad",
+      centroid: { lat: 42.4428, lng: 19.2511 },
+    };
+    const { items, parcel } = buildSuggestions({ query: "UP 40", kos: KOS, zones: [], hits: [], urban: [match] });
+    expect(parcel).toBeNull();
+    expect(items).toEqual([
+      {
+        key: "urban:43",
+        icon: "#",
+        title: "UP 40",
+        sub: "Urban parcel · DUP Novi Grad 1 i 2",
+        action: { type: "urban", id: 43, zoneId: 8, point: { lat: 42.4428, lng: 19.2511 } },
+      },
+    ]);
   });
 });

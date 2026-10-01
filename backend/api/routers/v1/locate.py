@@ -1,4 +1,5 @@
-"""Location resolution: map point or cadastral reference -> parcels, block, zone, document.
+"""Location resolution: map point, cadastral reference or planned parcel number -> parcels,
+block, zone, document.
 
 Product rule (BRD S6): a location with no adopted planning data is NOT an error. Both endpoints
 always answer 200; ``covered`` is false and the planning fields are null when nothing adopted
@@ -13,7 +14,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from api.deps import ResolverDep
-from api.schemas.locate import LocationResolution
+from api.schemas.locate import LocationResolution, UrbanParcelSearch
 from core.errors import AppError
 
 router = APIRouter(prefix="/locate", tags=["locate"])
@@ -64,6 +65,26 @@ async def locate_parcel(
 ) -> LocationResolution:
     ko, number, sub = normalise_parcel_ref(ko, number, sub)
     return await resolver.resolve_parcel(ko=ko, parcel_number=number, sub_number=sub)
+
+
+@router.get(
+    "/urban-parcel",
+    response_model=UrbanParcelSearch,
+    summary="Find planned urban parcels by their number (the search box's 'UP 40')",
+    response_description=(
+        "Always 200. Planned parcels of adopted, live plans whose number matches (spaces, case "
+        "and the parcel abbreviation ignored); the same number can exist in several plans. No "
+        "match is an empty list."
+    ),
+)
+async def locate_urban_parcel(
+    number: Annotated[
+        str,
+        Query(min_length=1, max_length=40, description="Urban parcel number, e.g. 'UP 40'"),
+    ],
+    resolver: ResolverDep,
+) -> UrbanParcelSearch:
+    return await resolver.find_urban_parcels(number=number)
 
 
 def normalise_parcel_ref(ko: str, number: str, sub: str | None) -> tuple[str, str, str | None]:

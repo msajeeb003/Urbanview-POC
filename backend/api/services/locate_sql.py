@@ -196,3 +196,29 @@ SELECT
 
 LOCATE_POINT_SQL = "WITH" + _POINT_ANCHOR + _BODY
 LOCATE_PARCEL_SQL = "WITH" + _PARCEL_ANCHOR + _BODY
+
+# Planned urban parcels by number (the search box's "UP 40"): parcels of adopted, live, current
+# plans only (what the map draws). Numbers are compared without spaces, case and the profile's
+# parcel abbreviation ("UP 40" = "up40" = "40"; "UP C2962" = "c2962"); :abbr is the abbreviation,
+# upper-case, regex-escaped. `zone_id` is the urban panel's rule (the plan's zone, else the
+# block's).
+URBAN_PARCEL_NUMBER_KEY = (
+    r"regexp_replace(regexp_replace(upper({col}), '\s+', '', 'g'), '^' || :abbr, '')"
+)
+FIND_URBAN_PARCELS_SQL = f"""
+SELECT u.id AS urban_parcel_id, u.urban_parcel_number,
+       d.id AS document_id, d.name AS document_name, d.type AS document_type,
+       CAST(d.status AS text) AS document_status,
+       z.id AS zone_id, z.name AS zone_name,
+       ST_Y(p.pt) AS lat, ST_X(p.pt) AS lng
+FROM urban_parcels u
+JOIN planning_documents d ON d.id = u.document_id
+LEFT JOIN urban_blocks b ON b.id = u.block_id
+LEFT JOIN zones z ON z.id = COALESCE(d.zone_id, b.zone_id)
+CROSS JOIN LATERAL (SELECT ST_PointOnSurface(u.geom) AS pt) p
+WHERE u.municipality_id = :municipality_id
+  AND d.status = 'adopted' AND d.coverage_live AND d.is_current_version
+  AND {URBAN_PARCEL_NUMBER_KEY.format(col="u.urban_parcel_number")} = :key
+ORDER BY d.name, u.id
+LIMIT :limit
+"""

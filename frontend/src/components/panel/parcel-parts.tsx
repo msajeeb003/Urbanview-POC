@@ -3,8 +3,9 @@
 /**
  * Pieces the cadastral and urban parcel panels share: the cadastral-vs-urban comparison card
  * (wireframe `.vscard` with its mini diagram; the area mismatch is always stated, never silent),
- * the per-value source icon, the CTA stack (gold order + price, the two intent buttons, line
- * methodology) and the zone-type lookup for the eyebrow.
+ * the per-value source icon, the button stack (gold order + price, the two intent buttons side by
+ * side, the methodology link) and the zone-type lookup for the eyebrow. Every text comes from the
+ * string table (`lib/i18n/strings.ts`), so the panels follow the language switch.
  */
 import { useEffect, type ReactNode } from "react";
 
@@ -12,7 +13,8 @@ import { useTrack } from "@/lib/analytics/react";
 import { useOrderPricing, useZones } from "@/lib/api/hooks";
 import type { PlanningField } from "@/lib/api/types";
 import { formatArea } from "@/lib/format";
-import { useT } from "@/lib/i18n";
+import { fillNodes, pickLang, useLang, useT, type Translate } from "@/lib/i18n";
+import { translate } from "@/lib/i18n/strings";
 import { ZONE_TYPES } from "@/lib/layers";
 import { requestOrder } from "@/lib/order";
 import type { OrderTarget } from "@/lib/order-form";
@@ -28,6 +30,8 @@ import { IconAsk, IconDocSmall, IconOrder, IconSteps } from "../ui/icons";
 
 export { formatArea };
 
+const english: Translate = (key, vars) => translate("en", key, vars);
+
 /** `Parcel #1042/3` → the number part `1042/3`. */
 export function parcelNo(number: string, sub: string | null | undefined): string {
   return sub ? `${number}/${sub}` : number;
@@ -37,12 +41,12 @@ export function parcelNo(number: string, sub: string | null | undefined): string
  * The change from the cadastral to the planned area, as the mock words it: `−30%` taken for roads
  * / public space; a planned parcel as large or larger says so instead (no silent zero).
  */
-export function deltaPhrase(deltaPct: number): { delta: string | null; text: string } {
+export function deltaPhrase(deltaPct: number, t: Translate = english): { delta: string | null; text: string } {
   const rounded = Math.round(deltaPct);
   const shown = rounded === 0 && deltaPct !== 0 ? Math.abs(deltaPct).toFixed(1) : String(Math.abs(rounded));
-  if (deltaPct === 0) return { delta: null, text: "Same area as the cadastral parcel." };
-  if (deltaPct < 0) return { delta: `−${shown}%`, text: "taken for roads / public space." };
-  return { delta: `+${shown}%`, text: "larger than the cadastral parcel." };
+  if (deltaPct === 0) return { delta: null, text: t("cmp.same") };
+  if (deltaPct < 0) return { delta: `−${shown}%`, text: t("cmp.taken") };
+  return { delta: `+${shown}%`, text: t("cmp.larger") };
 }
 
 function VsMini({ label }: { label: string }) {
@@ -68,6 +72,11 @@ function VsMini({ label }: { label: string }) {
   );
 }
 
+/** An area as the cards print it: the figure and its unit in bold (`1,370.9 m²`). */
+export function AreaFigure({ m2 }: { m2: number }) {
+  return <b>{formatArea(m2)} m²</b>;
+}
+
 /**
  * `Cadastral 1,370.9 m² → urban 959.6 m². −30% taken for roads / public space.` Several planned
  * areas (a split cadastral parcel) are listed and the delta is taken on their total.
@@ -85,20 +94,25 @@ export function AreaCompare({
   /** A line after the comparison (the calculation basis on the urban panel). */
   children?: ReactNode;
 }) {
+  const t = useT();
   const total = urbanM2.reduce((a, b) => a + b, 0);
-  const d = deltaPhrase(cadastralM2 > 0 ? ((total - cadastralM2) / cadastralM2) * 100 : 0);
+  const d = deltaPhrase(cadastralM2 > 0 ? ((total - cadastralM2) / cadastralM2) * 100 : 0, t);
+  const urban = (
+    <>
+      {urbanM2.map((m2, i) => (
+        <span key={i}>
+          {i > 0 && " + "}
+          <AreaFigure m2={m2} />
+        </span>
+      ))}
+      {urbanM2.length > 1 && t("cmp.count", { n: urbanM2.length })}
+    </>
+  );
   return (
     <div className="vscard">
       <VsMini label={label} />
       <div className="txt">
-        Cadastral <b>{formatArea(cadastralM2)} m²</b> → urban{" "}
-        {urbanM2.map((m2, i) => (
-          <span key={i}>
-            {i > 0 && " + "}
-            <b>{formatArea(m2)} m²</b>
-          </span>
-        ))}
-        {urbanM2.length > 1 && ` (${urbanM2.length} urban parcels)`}.{" "}
+        {fillNodes(t("cmp.line"), { cad: <AreaFigure m2={cadastralM2} />, urb: urban })}{" "}
         {d.delta && (
           <>
             <span className="vsdelta">{d.delta}</span>{" "}
@@ -111,7 +125,6 @@ export function AreaCompare({
   );
 }
 
-/** The comparison card when there is nothing to compare with (the fact is still stated). */
 /** The comparison card's last line: which area the calculations use (the planned one when there is one). */
 export function BasisLine({ children }: { children: ReactNode }) {
   return (
@@ -122,6 +135,7 @@ export function BasisLine({ children }: { children: ReactNode }) {
   );
 }
 
+/** The comparison card when there is nothing to compare with (the fact is still stated). */
 export function AreaNote({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="vscard">
@@ -140,6 +154,7 @@ export function AreaNote({ label, children }: { label: string; children: ReactNo
  */
 export function RowSource({ fields }: { fields: (PlanningField | undefined)[] }) {
   const openSource = useOpenSource();
+  const { lang } = useLang();
   const seen = new Set<string>();
   const sources = fields.flatMap((f) => {
     const s = f?.status === "stated" ? f.source : null;
@@ -147,7 +162,7 @@ export function RowSource({ fields }: { fields: (PlanningField | undefined)[] })
     const key = s.value_id != null ? `v${s.value_id}` : `d${s.document_id}:${s.page ?? 1}`;
     if (seen.has(key)) return [];
     seen.add(key);
-    return [{ key, source: s, label: f.label_en, fallback: !!f.fallback }];
+    return [{ key, source: s, label: pickLang(lang, f.label_en, f.label_me), fallback: !!f.fallback }];
   });
   // a row without a source keeps the icon's width so its value lines up with the others
   if (sources.length === 0) return <span className="rowsrc spacer" aria-hidden />;
@@ -183,21 +198,22 @@ export function RowSource({ fields }: { fields: (PlanningField | undefined)[] })
 /** Zone type name for the eyebrow, from the zone index the search also uses. */
 export function useZoneTypeName(zoneId: number | null | undefined): string | null {
   const { data } = useZones(zoneId != null);
+  const t = useT();
   const type = data?.zones.find((z) => z.id === zoneId)?.zone_type;
-  return ZONE_TYPES.find((z) => z.key === type)?.name ?? null;
+  const known = ZONE_TYPES.find((z) => z.key === type);
+  return known ? t(`zoneType.${known.key}`) : null;
 }
-
-/** Acknowledgement of "Unlock full market data" (provisional copy): nothing is locked or unlocked. */
-export const MARKET_INTEREST_NOTED = "Thanks — we have noted your interest in more market data.";
 
 /**
  * The parcel panel's button stack: gold "Order expert analysis" + price, the pilot's two intent
- * buttons (ghost "Unlock full market data" on the urban parcel panel, where Group 2 shows, and
- * ghost "Ask about this site"), line "How we analyze this parcel". The intent buttons only log
- * interest (`market_data_interest`, `ai_interest`) and say so in a toast: the POC builds no
- * subscription and no assistant, so nothing opens, unlocks or changes. The panel's parcel is
- * registered as the order target while the panel is on screen, so the methodology's last step
- * orders it too.
+ * buttons on one row (ghost "Unlock full market data" on the urban parcel panel, where Group 2
+ * shows, and ghost "Ask about this site"), and the methodology as a text link ("How we analyze
+ * this parcel"). The stack is compact so the data keeps the panel's height (not the mock's four
+ * 50 px buttons: they took a quarter to half of the panel on a laptop screen). The intent buttons
+ * only log interest (`market_data_interest`, `ai_interest`) and say so in a toast, each with its
+ * own sentence: the POC builds no subscription and no assistant, so nothing opens, unlocks or
+ * changes. The panel's parcel is registered as the order target while the panel is on screen, so
+ * the methodology's last step orders it too.
  */
 export function ParcelCtas({
   target,
@@ -236,39 +252,41 @@ export function ParcelCtas({
   }, [parcelType, parcelId, parcel, ko, plannedParcel, dataVersion, basisAreaM2, calculationBasis, idsKey, setOrderTarget]);
 
   return (
-    <div className="ctastack">
+    <div className="ctastack compact">
       <Cta
         variant="gold"
         icon={<IconOrder />}
         trailing={price != null ? formatPrice(price, pricing?.currency) : undefined}
         onClick={() => requestOrder("panel")}
       >
-        Order expert analysis
+        {t("cta.order")}
       </Cta>
-      {marketIntent && (
+      <div className="ctarow">
+        {marketIntent && (
+          <Cta
+            variant="ghost"
+            onClick={() => {
+              track("market_data_interest", { ...ids, trigger: "parcel_panel", panel_type: parcelType });
+              showToast(t("market.noted"));
+            }}
+          >
+            {t("cta.market")}
+          </Cta>
+        )}
         <Cta
           variant="ghost"
+          icon={<IconAsk />}
           onClick={() => {
-            track("market_data_interest", { ...ids, trigger: "parcel_panel", panel_type: parcelType });
-            showToast(MARKET_INTEREST_NOTED);
+            track("ai_interest", { ...ids, trigger: "parcel_panel", panel_type: parcelType });
+            showToast(t("ai.noted"));
           }}
         >
-          Unlock full market data
+          {t("cta.ask")}
         </Cta>
-      )}
-      <Cta
-        variant="ghost"
-        icon={<IconAsk />}
-        onClick={() => {
-          track("ai_interest", { ...ids, trigger: "parcel_panel", panel_type: parcelType });
-          showToast(t("ai.noted"));
-        }}
-      >
-        Ask about this site
-      </Cta>
-      <Cta
-        variant="line"
-        icon={<IconSteps />}
+      </div>
+      <button
+        type="button"
+        className="ctalink"
         onClick={() =>
           openModal({
             label: METHODOLOGY_LABEL,
@@ -279,8 +297,9 @@ export function ParcelCtas({
           })
         }
       >
-        How we analyze this parcel
-      </Cta>
+        <IconSteps />
+        {t("cta.method")}
+      </button>
     </div>
   );
 }

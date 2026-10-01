@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from core.land_use import profile_classifier
 from core.parcel_links import LinkRules
 from jobs.base import JobContext, JobResult, JobTask
 from jobs.celery_app import celery_app
@@ -92,6 +93,7 @@ def _pipeline(engine: Any, municipality_id: str) -> PublishPipeline:
         municipality_id=municipality_id,
         link_rules=LinkRules.from_settings(settings),
         price_breaks=_price_breaks(municipality_id),
+        land_use_category=profile_classifier(municipality_id),
         keep_versions=settings.publish_keep_versions,
         min_zoom=settings.tiles_min_zoom,
         max_zoom=settings.tiles_max_zoom,

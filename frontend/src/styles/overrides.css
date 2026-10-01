@@ -2090,3 +2090,58 @@ textarea.rinput {
   font-size: 12.5px;
   color: var(--paid-dark);
 }
+
+/* 24. Public map fixes after the tester's report of 2026-10-02:
+       - the parcel panel's button stack is compact (the mock's four 50 px buttons took a quarter
+         to half of the panel's height on a laptop screen): the gold order button at 44 px, the two
+         intent buttons side by side at 36 px, the methodology as a text link;
+       - `notstated`: a planning value the plan does not give reads "Not stated" in words, in the
+         label's weight (not a dash, not a mono figure);
+       - the search box's shortcut hint names the key of the visitor's system (`Ctrl K` outside
+         macOS), so the input leaves room for the longer label. */
+.ctastack.compact {
+  padding: 12px 22px 10px;
+  gap: 8px;
+}
+.ctastack.compact > .cta {
+  height: 44px;
+}
+.ctastack .ctarow {
+  display: flex;
+  gap: 8px;
+}
+.ctastack .ctarow .cta {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  gap: 7px;
+  justify-content: center;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.ctastack .ctalink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 22px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  font-family: var(--body);
+}
+.ctastack .ctalink:hover,
+.ctastack .ctalink:focus-visible {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prow .pv .notstated {
+  font-family: var(--body);
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.searchwrap.kbdwide input {
+  padding-right: 66px;
+}

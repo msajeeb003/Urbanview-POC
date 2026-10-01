@@ -121,6 +121,9 @@ class ExtractionProfile(BaseModel):
     glossary: list[GlossaryEntry] = Field(default_factory=list)
     floor_notation: FloorNotation = Field(default_factory=FloorNotation)
     land_use_terms: list[LandUseTerm] = Field(default_factory=list)
+    # legend code a parameter table prints instead of a wording -> the name the plan's legend
+    # gives it ("SS" -> "stanovanje srednje gustine"); core.land_use
+    land_use_codes: dict[str, str] = Field(default_factory=dict)
     # words dropped from the start of a block label to get its key ("Blok A", "UKUPNO BLOK A")
     block_label_words: list[str] = Field(default_factory=list)
     # planning section (urban_parcels, regulation, land_use, infrastructure) -> heading patterns
