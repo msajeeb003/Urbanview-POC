@@ -127,6 +127,11 @@ class LayerRule(_Model):
     select: list[Selector] = Field(default_factory=list)
     closing: list[str] = Field(default_factory=list)  # target layers closing the faces
     fallback: list[Selector] = Field(default_factory=list)  # extra linework for unmatched labels
+    # polygonize with a fallback: unlabelled fallback pieces join the labelled neighbour they
+    # share the longest edge with (parcels cut up by cadastral lines). False = a parcel is its
+    # labelled piece alone: for plans whose parcels are separate outlines in open ground
+    # (buildings in a housing estate), where the pieces between them are streets and yards
+    absorb: bool = True
     gap_mm: float | None = None
     dot_max_mm: float = 3.0  # polygonize: closed pieces up to this size are dots / dashes
     extend_mm: float = 0.0  # polygonize: dangling ends reach other linework within this

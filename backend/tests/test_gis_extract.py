@@ -263,6 +263,20 @@ def test_without_fallback_the_pair_is_one_multi_label_face(sheet_a: bytes) -> No
     assert ex.qa["layers"]["urban_parcels"]["multi_label"] == 1
 
 
+def test_absorb_false_keeps_a_parcel_to_its_labelled_piece(sheet_a: bytes, extraction) -> None:
+    """Plans whose parcels are separate outlines in open ground: the unlabelled piece next to a
+    parcel is a street or a yard, not part of it."""
+    ex = extract_document(_rules(**{"layers.urban_parcels.absorb": False}), lambda s: sheet_a)
+    parcels = _by_key(ex, "urban_parcels")
+    absorbed = _by_key(extraction, "urban_parcels")
+    assert sorted(parcels) == ["1", "2", "3", "4"]
+    # UP 4 no longer takes the unlabelled piece north of y = 210; UP 3 and the others are as before
+    assert parcels["4"].geom.area < absorbed["4"].geom.area * 0.95
+    assert absorbed["4"].geom.contains(parcels["4"].geom.buffer(-0.05))
+    for key in ("1", "2", "3"):
+        assert parcels[key].geom.area == pytest.approx(absorbed[key].geom.area, rel=1e-6)
+
+
 def test_keep_all_flags_unlabelled_faces(sheet_a: bytes) -> None:
     ex = extract_document(_rules(**{"layers.urban_parcels.keep": "all"}), lambda s: sheet_a)
     faces = [f for f in ex.layers["urban_parcels"] if "unlabelled" in f.qa_flags]

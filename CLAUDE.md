@@ -218,13 +218,21 @@ demand: the analytics districts place them by their point.
   market-interest message in the string table (17), the order reference without a doubled "UP"
   (18), the reopened `?order=` link shows the status (19), the price legend's unit (20), a
   legend code named beside itself (21, the profile's `[extraction.land_use_codes]`), the section
-  source chip opens a cited value so a cell is framed (23). **Not code, still open:** the Novi
-  Grad parcel shapes (2: a QGIS redraw or a better boundary extraction), SMTP on the server (3:
+  source chip opens a cited value so a cell is framed (23). **Novi Grad parcel shapes (2), fixed in the extraction rules
+  2026-10-02:** the parcel of an existing building is the building's outline
+  (`OBJEKTI-POSTOJECI` / `OBJEKTI-NOVI`, with the numbered vertices), which the rules never read,
+  so its label fell into the open ground and took the streets around it; the rules now read
+  those layers as fallback linework with `absorb: false` (new `LayerRule` option: unlabelled
+  fallback pieces are left out instead of joining a parcel) and `gap_mm: 1`; 79 of the 82
+  parcels with a stated area are within 10 % of it (39 before; still off: UP 14 / 15 merged, 26,
+  44, 56, 66, 91). It reaches the map through the console: geometry job on the boundaries sheet,
+  geometry review, Publish. **Not code, still open:** SMTP on the server (3:
   the confirmation now says honestly that no e-mail went out; the account is still needed), the
   client's bank name and SWIFT (8: `ORDER_BANK_*` in `deploy/.env`), the codes U, SR and TS of
-  Stara Varoš (the plan's legend names UK and SKR; the client's planner confirms). Not
-  reproduced: the pin behind the legend (22: a failed parcel search leaves the earlier pin where
-  it was).
+  Stara Varoš are named as the legend's UK, SKR and a transformer station (product owner
+  2026-10-02; the client's planner still confirms). The pin behind the legend (22): on a small
+  window the open legend covers the map's middle, so a flown-to place now lands beside it
+  (`lib/map/camera.ts` `legendOffset`).
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
   POC plans are prepared from their parameter tables by the table reader and loaded as approved
   items (see "Prepared planning values"), not AI-extracted and not reviewed item by item by an

@@ -38,13 +38,30 @@ layers:
     gap_mm: 1.0
     min_area_m2: 10000
 
-  # R-PARCELE draws the planned parcel boundaries 1.2 mm wide; where a planned parcel follows
-  # the cadastral base the plan leaves the edge to PARCELE_GRANICE (the fallback). The thin
-  # R-PARCELE strokes are vertex numbers written in a stroke font, not linework.
+  # R-PARCELE draws the planned parcel boundaries 1.2 mm wide, but only for the parcels the
+  # plan lays out anew (27 closed outlines). The parcel of an existing or planned building is
+  # the building's own outline (OBJEKTI-POSTOJECI / OBJEKTI-NOVI) with the numbered parcel
+  # vertices on its corners: the parameter table states these parcels with 100 % site coverage.
+  # Where a planned parcel follows the cadastral base the plan leaves the edge to
+  # PARCELE_GRANICE. All three are the fallback: they cut up only the open ground that holds
+  # several labels, never a parcel R-PARCELE closes. The thin R-PARCELE strokes are vertex
+  # numbers written in a stroke font, not linework.
+  #
+  # `absorb: false`: the pieces between the buildings are streets, parking and yards, not parts
+  # of a parcel (absorbed, they gave UP 18 59 000 m2 for the 1 387 m2 the table states).
+  # `gap_mm: 1`: closes the 1 mm openings some outlines are plotted with (UP 1).
+  # Check, 2026-10-02: 79 of the 82 parcels with a stated area are within 10 % of it (39 before);
+  # still off: UP 26, 44, 56 (a building of several segments: only the labelled one), UP 14,
+  # 66, 91.
   urban_parcels:
     method: polygonize
     select: [{layer: R-PARCELE, width_min: 3}]
-    fallback: [{layer: PARCELE_GRANICE, stroke: "#989898"}]
+    fallback:
+      - {layer: OBJEKTI-POSTOJECI}
+      - {layer: OBJEKTI-NOVI}
+      - {layer: PARCELE_GRANICE, stroke: "#989898"}
+    absorb: false
+    gap_mm: 1.0
     closing: [plan_boundary]
     min_area_m2: 10
     keep: labelled

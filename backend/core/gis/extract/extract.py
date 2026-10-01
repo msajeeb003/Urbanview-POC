@@ -480,7 +480,9 @@ def _labelled_candidates(
         cands[i].labels = labs
         cands[i].flags |= flags.get(i, set())
     if fallback is not None:
-        cands, unassigned = _resolve_with_fallback(cands, unassigned, fallback, sheet)
+        cands, unassigned = _resolve_with_fallback(
+            cands, unassigned, fallback, sheet, absorb=rule.absorb
+        )
         if unassigned and nearest > 0:
             per_face, flags, unassigned = assign_labels(
                 [c.geom for c in cands], unassigned, nearest
@@ -498,12 +500,19 @@ def _labelled_candidates(
 
 
 def _resolve_with_fallback(
-    cands: list[_Candidate], unassigned: list[Label], fallback: Callable, sheet: Sheet
+    cands: list[_Candidate],
+    unassigned: list[Label],
+    fallback: Callable,
+    sheet: Sheet,
+    *,
+    absorb: bool = True,
 ) -> tuple[list[_Candidate], list[Label]]:
     """Faces holding labels of several parcels (their separating edges are drawn only on the
     fallback linework, e.g. the cadastral base) are replaced by the fallback faces inside them;
     fallback pieces without a label join the labelled neighbour they share the longest edge
-    with. Labels no primary face took look for a fallback face too."""
+    with, unless the rule says ``absorb: false`` (then they are left out: the ground between
+    separately outlined parcels is not a parcel). Labels no primary face took look for a
+    fallback face too."""
     multi = [i for i, c in enumerate(cands) if len(_values(c.labels)) > 1]
     if not multi and not unassigned:
         return cands, unassigned
@@ -526,7 +535,8 @@ def _resolve_with_fallback(
         pieces = [fb_geoms[j] for j in inside]
         per_piece, flags, left = assign_labels(pieces, primary.labels, 0.0)
         owner: dict[int, int] = {k: k for k in per_piece}  # piece -> piece that owns it
-        _absorb(pieces, owner)
+        if absorb:
+            _absorb(pieces, owner)
         groups: dict[int, list[int]] = defaultdict(list)
         for k, o in owner.items():
             groups[o].append(k)
