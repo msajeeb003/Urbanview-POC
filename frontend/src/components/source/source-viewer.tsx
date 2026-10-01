@@ -158,9 +158,9 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
         canvas.style.width = `${Math.floor(css.width)}px`;
         canvas.style.height = `${Math.floor(css.height)}px`;
         setShownScale(scale);
-        task = page.render({ canvas, viewport: render });
-        await task.promise;
-        if (cancelled) return;
+        // The frame goes on before the page is drawn: its place is known from the page's size
+        // alone, and a heavy plan page can take a while to draw (the frame used to wait for
+        // that, so the value looked unmarked meanwhile).
         const highlight = highlightRef.current;
         const bbox = pageNo === meta.page ? meta.value?.bbox : null;
         if (highlight) {
@@ -178,6 +178,8 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
             highlight.hidden = true;
           }
         }
+        task = page.render({ canvas, viewport: render });
+        await task.promise;
       } catch (error) {
         if (!cancelled && (error as { name?: string })?.name !== "RenderingCancelledException") {
           setFailure(sourceFailure(error));

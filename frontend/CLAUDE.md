@@ -371,7 +371,9 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   worker copied to `public/pdfjs/` by `scripts/copy-pdf-worker.mjs` (`predev` / `prebuild`,
   git-ignored); range requests with auto-fetch and streaming off (64 KB chunks), so only the
   requested page's bytes are read. The page fits the width (× device pixel ratio); the value's
-  `bbox` (PDF points, origin bottom-left) is a translucent brand rectangle scrolled into view.
+  `bbox` (PDF points, origin bottom-left) is a translucent brand rectangle scrolled into view. The
+  rectangle is placed before the page is drawn (its place needs only the page's size), so the
+  value is framed at once even while a heavy page is still drawing (2026-10-02).
   Controls: ‹ page input "of N" ›, − zoom %
   + (50–400 %), ← → keys, "Open PDF ↗" (the whole document at `#page=N` in a new tab; a fresh
   link when the current one expires within a minute); a typed page beyond the last snaps back
