@@ -399,6 +399,10 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   governing document; `Parcel ID 1001 · urban parcel ID 1` (mono meta line, `.parcelid`);
   "Cadastral vs urban parcel": the comparison card + "All calculations use the urban parcel
   area." (or the cadastral basis with the API's reason; `no_cadastral_parcel` stated as such);
+  the area shown is the basis (`basis_area_m2`: the plan's stated area, else the drawn
+  parcel's), and when the two differ by 2 % or more (`stated_vs_geometry_delta_pct`) the card
+  says "The plan states X m² for this parcel; the shape drawn on the map measures Y m²." + "All
+  calculations use the area the plan states." (not in the mock: the mismatch rule, 2026-10-02);
   "Planning parameters" (source chip = the first cited page): the mock's seven rows —
   Land use designation, Max building height (`27.5 m · P+8`: metres and floors, each with its
   source), Max site coverage (IZ) %, Floor Area Ratio (II), Planned parcel area (the plan's

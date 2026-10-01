@@ -378,11 +378,11 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
             v=result["version_id"],
         )
     }
-    (up7,) = await rows(app, "SELECT area_m2 FROM urban_parcels WHERE id = 3")
     far = cells[("far", 2)]
     assert (far["value"], far["parcel_count"], far["source_kind"]) == (2.4, 1, "planning")
     gfa = cells[("gfa", 2)]["value"]
-    assert gfa == pytest.approx(2.4 * up7["area_m2"], abs=0.01)  # the engine's formula
+    # the engine's formula on the area the plan states for UP 7 (1370.9; drawn: 1371.1)
+    assert gfa == pytest.approx(2.4 * 1370.9, abs=0.01)
     assert (cells[("height", 2)]["value"], cells[("height", 2)]["label"]) == (7, "P+5+Pk")
     for zone_id, rate, band_no in ((1, 2450, 4), (2, 1650, 2)):
         zone = cells[("sale_price", zone_id)]

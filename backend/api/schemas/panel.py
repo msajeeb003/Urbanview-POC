@@ -142,10 +142,13 @@ class Areas(BaseModel):
         default=None, description="The plan's own planned_parcel_area_m2 value when stated"
     )
     stated_vs_geometry_delta_pct: float | None = Field(
-        default=None, description="(stated − basis geometry area) / basis geometry area × 100"
+        default=None, description="(stated − drawn parcel area) / drawn parcel area × 100"
     )
     calculation_basis: CalculationBasis
-    basis_area_m2: float
+    basis_area_m2: float = Field(
+        description="The area the calculations use: the planned parcel's area as its plan "
+        "states it, else the drawn parcel's; the cadastral area without a planned parcel"
+    )
     basis_reason_code: Literal["urban_covers_cadastral", "no_urban_parcel", "no_cadastral_parcel"]
     basis_reason_params: dict[str, Any]
     basis_reason_en: str

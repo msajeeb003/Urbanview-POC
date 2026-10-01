@@ -487,7 +487,10 @@ def basis_view(
     cadastral_area_m2: float,
     document_name: str | None,
     case: Mapping[str, Any] | None = None,
+    plan_area_m2: float | None = None,
 ) -> CalculationBasisView:
+    """``plan_area_m2``: the basis planned parcel's area as its plan states it, used before the
+    drawn parcel's (the same rule as ``/v1/panel``)."""
     cadastral = _r1(cadastral_area_m2) or 0.0
     params: dict[str, Any] = {"cadastral_m2": cadastral}
     # the parcel's case in the published links (core.parcel_links)
@@ -501,13 +504,14 @@ def basis_view(
         basis, area, reason = "cadastral", cadastral, "unpublished"
     elif links:
         primary = links[0]
+        planned = plan_area_m2 or primary.area_m2
         # the shared planned-first rule (engine: select_calculation_basis)
-        choice = select_calculation_basis(primary.area_m2, cadastral)
+        choice = select_calculation_basis(planned, cadastral)
         basis, area = choice["calculation_basis"], choice["plot_area"]
         reason = "split" if relation == "split" else "planned_parcel"
         params.update(
             urban_parcel_number=primary.urban_parcel_number,
-            planned_m2=primary.area_m2,
+            planned_m2=planned,
             overlap_pct=primary.overlap_pct,
             count=len(links),
             numbers=", ".join(link.urban_parcel_number for link in links),
@@ -609,6 +613,20 @@ def build_parcel_panel(row: Mapping[str, Any], profile: MunicipalityProfile) -> 
 
     cadastral_area = float(cad["area_m2"])
     links = linked_parcels(_as_json(row["links"]) or [])
+    fields_raw = _as_json(row["fields"]) or [] if covered else []
+    fields = (
+        group1_fields(
+            fields_raw,
+            _as_json(row["values"]) or [],
+            _as_json(row["gaps"]) or [],
+            published=published,
+        )
+        if covered
+        else []
+    )
+    by_key = {f.key: f for f in fields}
+    stated = by_key.get("planned_parcel_area_m2")
+    stated_area = _number(stated.value) if stated is not None else None
     basis = basis_view(
         covered=covered,
         published=published,
@@ -616,27 +634,19 @@ def build_parcel_panel(row: Mapping[str, Any], profile: MunicipalityProfile) -> 
         cadastral_area_m2=cadastral_area,
         document_name=basis_document.name if basis_document else None,
         case=_as_json(row.get("link_case")),
+        plan_area_m2=stated_area
+        if stated is not None and stated.scope == "parcel" and (stated_area or 0) > 0
+        else None,
     )
 
     group1 = market = assumptions = group2 = engine = None
-    stated_area = None
     if covered:
-        fields_raw = _as_json(row["fields"]) or []
-        fields = group1_fields(
-            fields_raw,
-            _as_json(row["values"]) or [],
-            _as_json(row["gaps"]) or [],
-            published=published,
-        )
-        by_key = {f.key: f for f in fields}
         far = _number(by_key["max_far"].value) if "max_far" in by_key else None
         coverage = (
             _number(by_key["max_site_coverage_pct"].value)
             if "max_site_coverage_pct" in by_key
             else None
         )
-        if "planned_parcel_area_m2" in by_key:
-            stated_area = _number(by_key["planned_parcel_area_m2"].value)
         market_raw = _as_json(row["market"])
         result = run_engine(
             basis=basis.basis,
@@ -646,7 +656,7 @@ def build_parcel_panel(row: Mapping[str, Any], profile: MunicipalityProfile) -> 
             market_raw=market_raw,
             zone=zone,
             context={
-                "planned_area": links[0].area_m2 if links and basis.basis == "urban" else None,
+                "planned_area": basis.area_m2 if links and basis.basis == "urban" else None,
                 "cadastral_area": _r1(cadastral_area),
                 "max_height_m": _number(by_key["max_height_m"].value)
                 if "max_height_m" in by_key

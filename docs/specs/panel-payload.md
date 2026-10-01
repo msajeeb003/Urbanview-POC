@@ -350,10 +350,12 @@ confirms the numbers; never regenerate it from an engine.
   planned_area_stated_m2 | null, stated_vs_geometry_delta_pct | null, calculation_basis:
   "urban" | "cadastral", basis_area_m2, basis_reason_code, basis_reason_params, basis_reason_en,
   basis_reason_me}` with `delta_pct = (urban − cadastral) / cadastral × 100` (negative = planned
-  parcel smaller), `basis_area_m2 = urban_parcels.area_m2` (geometry) for urban basis and
-  `cadastral_parcels.area_m2` for cadastral basis; `planned_area_stated_m2` = the stated
-  `planned_parcel_area_m2` value when present; `stated_vs_geometry_delta_pct` surfaces any
-  difference (null when not stated). Basis reason codes: `urban_covers_cadastral` (params
+  parcel smaller), `basis_area_m2` for urban basis = the planned parcel's area as its plan
+  states it (the published parcel-level `planned_parcel_area_m2`), else `urban_parcels.area_m2`
+  (the drawn parcel; 2026-10-02), and `cadastral_parcels.area_m2` for cadastral basis;
+  `planned_area_stated_m2` = the stated `planned_parcel_area_m2` value when present;
+  `stated_vs_geometry_delta_pct` = (stated − drawn) / drawn × 100 surfaces any difference (null
+  when not stated). Basis reason codes: `urban_covers_cadastral` (params
   `{urban_parcel_number, cadastral_parcel_number, share_pct}`, en "planned parcel UP 12 covers
   70% of cadastral parcel 1042", me "urbanistička parcela UP 12 pokriva 70% katastarske parcele
   1042"), `no_urban_parcel` (params `{cadastral_parcel_number}`, en "no planned parcel is defined

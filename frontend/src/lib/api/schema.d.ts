@@ -1268,7 +1268,7 @@ export interface components {
             planned_area_stated_m2?: number | null;
             /**
              * Stated Vs Geometry Delta Pct
-             * @description (stated − basis geometry area) / basis geometry area × 100
+             * @description (stated − drawn parcel area) / drawn parcel area × 100
              */
             stated_vs_geometry_delta_pct?: number | null;
             /**
@@ -1276,7 +1276,10 @@ export interface components {
              * @enum {string}
              */
             calculation_basis: "urban" | "cadastral";
-            /** Basis Area M2 */
+            /**
+             * Basis Area M2
+             * @description The area the calculations use: the planned parcel's area as its plan states it, else the drawn parcel's; the cadastral area without a planned parcel
+             */
             basis_area_m2: number;
             /**
              * Basis Reason Code

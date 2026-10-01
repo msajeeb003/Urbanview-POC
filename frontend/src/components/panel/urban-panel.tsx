@@ -176,8 +176,26 @@ export function UrbanPanel({ urbanParcelId }: { urbanParcelId: number }) {
     .map((f) => f.source!)
     .sort((a, b) => (a.page ?? Infinity) - (b.page ?? Infinity))[0];
 
+  // The plan's own parcel area drives the figures; the shape drawn on the map is shown beside it
+  // when the two differ (a drawing can close a wrong shape; a mismatch is always surfaced).
+  const drawnArea = areas.urban_parcel_area_m2;
+  const statedArea = areas.planned_area_stated_m2;
+  const urbanArea = basisIsUrban ? (data.basis_area_m2 ?? drawnArea) : drawnArea;
+  const statedOff =
+    basisIsUrban && statedArea != null && drawnArea != null && Math.abs(areas.stated_vs_geometry_delta_pct ?? 0) >= 2;
   const basisLine = basisIsUrban ? (
-    <BasisLine>All calculations use the urban parcel area.</BasisLine>
+    <>
+      {statedOff && (
+        <>
+          {" "}
+          The plan states <b>{formatArea(statedArea)} m²</b> for this parcel; the shape drawn on the map measures{" "}
+          <b>{formatArea(drawnArea)} m²</b>.
+        </>
+      )}
+      <BasisLine>
+        {statedOff ? "All calculations use the area the plan states." : "All calculations use the urban parcel area."}
+      </BasisLine>
+    </>
   ) : (
     <>
       <BasisLine>All calculations use the cadastral parcel area</BasisLine> ({areas.basis_reason_en}).
@@ -250,9 +268,9 @@ export function UrbanPanel({ urbanParcelId }: { urbanParcelId: number }) {
             </AreaCompare>
           ) : (
             <AreaNote label="planned">
-              {areas.urban_parcel_area_m2 != null && (
+              {urbanArea != null && (
                 <>
-                  Urban <b>{formatArea(areas.urban_parcel_area_m2)} m²</b>.{" "}
+                  Urban <b>{formatArea(urbanArea)} m²</b>.{" "}
                 </>
               )}
               {areas.basis_reason_en.charAt(0).toUpperCase() + areas.basis_reason_en.slice(1)}.{basisLine}

@@ -38,6 +38,15 @@ input).
 labelled **separately, never merged** (`cadastral_parcels` vs `urban_parcels`). All calculations
 use the **planned urban parcel area**; cadastral area only as fallback; any mismatch between the
 two is **always surfaced** (`area_comparison` in the locate payload, present whenever both exist).
+**The planned parcel's area is the one its plan states** (the published parcel-level
+`planned_parcel_area_m2`), else the drawn parcel's (`urban_parcels.area_m2`): product owner,
+2026-10-02, after Novi Grad's drawing closed block-sized shapes for about half its parcels (UP 18:
+1 387 m² in the plan, 59 201 m² as drawn). One rule in the panels (`basis_area_m2`,
+`api.services.panel._plan_area`, `parcel_panel.basis_view`), the tiles' `max_gfa_m2` and the
+heatmaps (`jobs.publish_layers.PLAN_AREA`), so the order price too; the drawn area stays in
+`areas.urban_parcel_area_m2` with `stated_vs_geometry_delta_pct`, and the map's panel says both
+when they differ by 2 % or more. An area stated at block / zone / document scope is not a
+parcel's area; an uncovered parcel has no served value and keeps the drawn area.
 
 **Zones and documents:** a "zone" is UrbanView's internal city division (~city quarter) grouping
 several planning documents (in Montenegro zones are not official bounded areas). Document status
@@ -1429,7 +1438,8 @@ demand: the analytics districts place them by their point.
   parcel's value is its effective one (parcel → block → zone → document, the tiles' precedence),
   so a block-level figure the plan states applies to every parcel of the block. Rules per field:
   coverage % (IZ) and FAR (II) = **area-weighted mean** over the block's planned parcels that
-  state them (weights: the planned parcel areas); height = the **maximum** floors above ground,
+  state them (weights: the planned parcel areas, as the plan states them, else as drawn:
+  `jobs.publish_layers.PLAN_AREA`); height = the **maximum** floors above ground,
   parsed from the plan's notation with the profile's `[extraction.floor_notation]` tokens
   (`P+4` = 5, `P+5+Pk` = 7; `label` keeps the notation); GFA = **sum** of FAR x planned parcel
   area (the engine's formula). Sale price = the expected €/m² of the zone's assumptions version

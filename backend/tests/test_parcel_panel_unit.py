@@ -443,7 +443,10 @@ def test_split_parcel_explains_the_primary_link():
     }
     cad = {**CAD, "area_m2": 2193.4}
     case = {"relation": "split", "reduction_pct": 2.5}
-    panel = build_parcel_panel(row(cadastral=cad, links=[up31, up32], link_case=case), PROFILE)
+    values = all_values(skip=("planned_parcel_area_m2",))  # the plan states no area for UP 31
+    panel = build_parcel_panel(
+        row(cadastral=cad, links=[up31, up32], link_case=case, values=values), PROFILE
+    )
     basis = panel.header.calculation_basis
     assert basis.reason == "split" and basis.split and basis.area_m2 == 1233.8
     assert basis.relation == "split" and basis.reduction_pct == 2.5 and not basis.no_urban_parcel
@@ -455,6 +458,32 @@ def test_split_parcel_explains_the_primary_link():
     assert "UP 31" in basis.explanation_me
     assert panel.header.areas.linked_planned_total_m2 == 2138.6
     assert panel.group1.urban_parcel_number == "UP 31"
+
+
+def test_the_plans_stated_area_is_the_basis_before_the_drawn_parcels():
+    """A drawing can close a wrong shape: the plan's own parcel area drives the figures."""
+    drawn = {**UP12, "area_m2": 59200.9, "area_delta_m2": 57830.0}
+    values = [
+        value_row(k, 1387.38 if k == "planned_parcel_area_m2" else v, p)
+        for k, (_, v, p) in STATED.items()
+    ]
+    panel = build_parcel_panel(row(links=[drawn], values=values), PROFILE)
+    basis = panel.header.calculation_basis
+    assert (basis.basis, basis.area_m2) == ("urban", 1387.38)
+    assert "UP 12 (1387.38 m²)" in basis.explanation_en
+    computed = {c.key: c.value for c in panel.group1.computed}
+    assert computed["max_gfa_m2"] == round(3.2 * 1387.38, 2)  # FAR x the plan's area
+    assert panel.engine.inputs["planning"]["plot_area"] == 1387.38
+    areas = panel.header.areas  # both areas stay visible: the drawn one and the plan's
+    assert (areas.planned_m2, areas.planned_stated_m2) == (59200.9, 1387.38)
+
+    # an area stated for the whole block or document is not this parcel's area
+    block_level = [
+        value_row(k, v, p, scope="block" if k == "planned_parcel_area_m2" else "parcel")
+        for k, (_, v, p) in STATED.items()
+    ]
+    panel = build_parcel_panel(row(links=[drawn], values=block_level), PROFILE)
+    assert panel.header.calculation_basis.area_m2 == 59200.9
 
 
 def test_no_planned_parcel_uses_the_cadastral_area():

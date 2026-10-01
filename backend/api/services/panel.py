@@ -231,6 +231,17 @@ def _number(resolved: Mapping[str, _Resolved], key: str) -> float | None:
     return float(item.row["value_number"])
 
 
+def _plan_area(resolved: Mapping[str, _Resolved]) -> float | None:
+    """The planned parcel's area as its plan states it (a parcel-level value): the area the
+    calculations use, before the drawn parcel's (a drawing can close a wrong shape; the plan's
+    own figure is the parcel's area)."""
+    item = resolved.get("planned_parcel_area_m2")
+    if item is None or item.scope != "parcel" or item.row.get("value_number") is None:
+        return None
+    area = float(item.row["value_number"])
+    return area if area > 0 else None
+
+
 def _source(row: Mapping[str, Any]) -> Source:
     value_id = row.get("value_id")
     return Source(
@@ -565,8 +576,8 @@ def _areas(
         delta_m2 = _r1(delta)
         delta_pct = _pct(delta, cadastral_area_m2)
     stated_delta_pct = None
-    if planned_area_stated_m2 is not None and basis_area_m2:
-        stated_delta_pct = _pct(planned_area_stated_m2 - basis_area_m2, basis_area_m2)
+    if planned_area_stated_m2 is not None and urban_parcel_area_m2:
+        stated_delta_pct = _pct(planned_area_stated_m2 - urban_parcel_area_m2, urban_parcel_area_m2)
     reason = panel_text.basis_reason_text(reason_code, reason_params)
     return Areas(
         cadastral_area_m2=_r1(cadastral_area_m2),
@@ -704,6 +715,8 @@ class PanelService:
         if covered:
             resolved = _resolve_values(_as_json(row["values"]) or [])
             stated_area = _number(resolved, "planned_parcel_area_m2")
+            if basis == "urban":
+                basis_area = _plan_area(resolved) or basis_area
             blocks = _blocks(
                 basis=basis,
                 basis_area_m2=basis_area,
@@ -843,6 +856,7 @@ class PanelService:
         if covered:
             resolved = _resolve_values(_as_json(row["values"]) or [])
             stated_area = _number(resolved, "planned_parcel_area_m2")
+            basis_area = _plan_area(resolved) or basis_area
             blocks = _blocks(
                 basis="urban",
                 basis_area_m2=basis_area,

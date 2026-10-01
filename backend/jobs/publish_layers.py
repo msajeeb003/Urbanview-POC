@@ -51,6 +51,15 @@ def effective(key: str, col: str = "value_number") -> str:
     return EFFECTIVE_VALUE.format(key=key, col=col)
 
 
+# The area of a planned parcel the calculations use: as its plan states it (the parcel's own
+# value of the serving set), else the drawn parcel's (the panel's rule, api.services.panel).
+PLAN_AREA = """COALESCE(
+    (SELECT v.value_number FROM planning_parameter_values v
+     WHERE v.publish_version_id = :v AND v.urban_parcel_id = u.id
+       AND v.field_key = 'planned_parcel_area_m2' AND v.value_number > 0),
+    u.area_m2)"""
+
+
 # The legend row of a low / high sale price: the rule of the stored bands (core.choropleth.band)
 # over the stored classes, 0 = not saleable
 _PRICE_BAND = """CASE WHEN {col} IS NULL THEN NULL WHEN {col} <= 0 THEN 0 ELSE 1 + (
@@ -66,7 +75,8 @@ __all__ = ["ZONE_COVERED"]
 # `zone_id` is the urban panel's rule: the plan's zone, else the block's (blocks staged from a
 # plan's drawing carry none), so a click on a planned parcel names its zone in the analytics.
 URBAN_PARCEL_INPUTS_SQL = f"""
-    SELECT u.id, u.urban_parcel_number, u.area_m2, u.block_id, b.block_ref,
+    SELECT u.id, u.urban_parcel_number, u.area_m2, {PLAN_AREA} AS plan_area_m2,
+           u.block_id, b.block_ref,
            COALESCE(d.zone_id, b.zone_id) AS zone_id,
            u.document_id, d.name AS document_name,
            {effective("max_far")} AS max_far,
@@ -183,13 +193,14 @@ LAYERS: tuple[LayerSpec, ...] = (
                 "u.geom",
                 "jsonb_build_object('id', i.id,"
                 " 'urban_parcel_number', i.urban_parcel_number, 'area_m2', i.area_m2,"
+                " 'plan_area_m2', i.plan_area_m2,"
                 " 'block_id', i.block_id, 'block_ref', i.block_ref, 'zone_id', i.zone_id,"
                 " 'document_id', i.document_id, 'document_name', i.document_name,"
                 " 'max_far', i.max_far, 'max_site_coverage_pct', i.max_site_coverage_pct,"
                 " 'max_height_m', i.max_height_m, 'max_floors', i.max_floors,"
                 " 'land_use', i.land_use,"
                 " 'max_gfa_m2', CASE WHEN i.max_far IS NOT NULL"
-                " THEN round(CAST(i.max_far * i.area_m2 AS numeric), 2) END)",
+                " THEN round(CAST(i.max_far * i.plan_area_m2 AS numeric), 2) END)",
             )
         }
         FROM inputs i JOIN urban_parcels u ON u.id = i.id ORDER BY i.id

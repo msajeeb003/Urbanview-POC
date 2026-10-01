@@ -232,9 +232,10 @@ def layer_classes(
 
 # --- SQL ------------------------------------------------------------------------------------------
 
-# planned parcels of adopted, live, current documents with a block, and their effective values
+# planned parcels of adopted, live, current documents with a block, their effective values and
+# the area the calculations use (the plan's stated area, else the drawn parcel's)
 PARCELS_SQL = """
-    SELECT u.id, u.block_id, u.area_m2,
+    SELECT u.id, u.block_id, {area} AS area_m2,
            {far} AS max_far, {coverage} AS max_site_coverage_pct, {floors} AS max_floors
     FROM urban_parcels u
     JOIN planning_documents d ON d.id = u.document_id
@@ -327,8 +328,11 @@ def _effective(key: str, col: str = "value_number") -> str:
 
 
 def _parcels_sql():
+    from jobs.publish_layers import PLAN_AREA
+
     return text(
         PARCELS_SQL.format(
+            area=PLAN_AREA,
             far=_effective("max_far"),
             coverage=_effective("max_site_coverage_pct"),
             floors=_effective("max_floors", "value_text"),

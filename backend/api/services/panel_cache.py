@@ -38,7 +38,8 @@ log = logging.getLogger("urbanview.panel.cache")
 # (a new field, a new rule), so a deploy never serves bodies cached by the previous code.
 # 2: effective-dated assumptions and the zone's saleable share (migration 0023).
 # 4: the zone view's counts.covered is filled in.
-PANEL_PAYLOAD_FORMAT = "4"
+# 5: the calculation basis is the planned parcel's area as its plan states it.
+PANEL_PAYLOAD_FORMAT = "5"
 
 CacheStatus = str  # hit | miss | bypass | revalidated
 

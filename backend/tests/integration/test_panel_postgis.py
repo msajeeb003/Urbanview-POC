@@ -1004,8 +1004,10 @@ async def test_urban_up7_without_a_stated_height(pg_client):
     _assert_stated(fields["max_far"], 2.4, 8, DUP_SA)
     _assert_stated(fields["max_site_coverage_pct"], 40, 8, DUP_SA)
     _assert_stated(fields["max_floors"], "P+5+Pk", 9, DUP_SA)
+    # the figures use the area the plan states for UP 7 (1370.9), not the drawn parcel's (1371.1)
     basis = body["basis_area_m2"]
-    assert basis == pytest.approx(1371.1, abs=0.05)
+    assert basis == body["areas"]["basis_area_m2"] == 1370.9
+    assert body["areas"]["urban_parcel_area_m2"] == pytest.approx(1371.1, abs=0.05)
     assert fields["max_gfa_m2"]["value"] == pytest.approx(2.4 * basis, abs=0.05)
     assert fields["max_coverage_area_m2"]["value"] == pytest.approx(0.4 * basis, abs=0.05)
 
@@ -1243,7 +1245,9 @@ async def test_document_no_longer_adopted_is_uncovered(pg_conn, pg_client, pg_se
             # identity, header and areas are still facts
             assert body["identification"]["urban_parcel_number"] == "UP 7"
             assert body["header"]["ko_and_number"] == "KO Podgorica II, 1042"
-            assert body["areas"]["basis_area_m2"] == before["areas"]["basis_area_m2"]
+            # no served value counts any more: the basis is the drawn parcel's area again
+            assert body["areas"]["basis_area_m2"] == before["areas"]["urban_parcel_area_m2"]
+            assert before["areas"]["basis_area_m2"] == before["areas"]["planned_area_stated_m2"]
 
             # the cadastral parcel under it has no governing document any more
             cad = await _get(client, type="cadastral", id=1002)
