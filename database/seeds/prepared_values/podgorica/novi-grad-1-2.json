@@ -1,0 +1,7849 @@
+{
+ "format": 1,
+ "municipality": "podgorica",
+ "document": "novi-grad-1-2",
+ "name": "Izmjena i dopuna DUP-a \"Novi Grad 1 i 2\" u Podgorici",
+ "registry": "eRegistri #4182, https://lamp.gov.me/PlanningDocument/Details/4182",
+ "source": {
+  "file": "Novi Grad 1 i 2 - Urban parcels - Planning parameters.pdf",
+  "sha256": "cd368d64de9d0f36554209fdc5ed6eb0317b3d0b4cd136fce7c656c177c9c089",
+  "pages": 12
+ },
+ "reader": "table-reader",
+ "preprocess_version": "1.2",
+ "prepared_on": "2026-10-02",
+ "basis": "Read from the parameter table by the table reader (the PDF stage's grids with the document's column map), no model. Checked against the rendered pages: Claude (AI) visual check: every page rendered at 170 dpi and compared row by row, digit by digit, with the gold rows (9 independent checkers, one per page range); a human reviewer's sign-off is still pending (2026-09-26, 12 pages)",
+ "fields": [
+  "planned_parcel_area_m2",
+  "land_use",
+  "max_site_coverage_pct",
+  "max_far",
+  "max_floors"
+ ],
+ "parcels": [
+  {
+   "number": "UP 1",
+   "key": "1",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 5705.17,
+     "unit": "m²",
+     "printed": "5705.17",
+     "page": 1,
+     "bbox": [
+      176.7,
+      378.4,
+      222.1,
+      428.4
+     ],
+     "cell": "r1c2",
+     "note": "UP 1 – Površina UP"
+    },
+    "land_use": {
+     "value": "mješovita namjena - prostor namjenjen za razradu konkursnim rjesenjem",
+     "unit": null,
+     "printed": "mješovita namjena - prostor namjenjen za razradu konkursnim rjesenjem",
+     "page": 1,
+     "bbox": [
+      222.1,
+      378.4,
+      302.1,
+      428.4
+     ],
+     "cell": "r1c3",
+     "note": "UP 1 – Namjena objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 2",
+   "key": "2",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1906.09,
+     "unit": "m²",
+     "printed": "1906.09",
+     "page": 1,
+     "bbox": [
+      176.7,
+      351.1,
+      222.1,
+      378.4
+     ],
+     "cell": "r2c2",
+     "note": "UP 2 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 1,
+     "bbox": [
+      222.1,
+      351.1,
+      302.1,
+      378.4
+     ],
+     "cell": "r2c3",
+     "note": "UP 2 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 1,
+     "bbox": [
+      665.3,
+      335.6,
+      716.1,
+      378.4
+     ],
+     "cell": "r2c11",
+     "note": "UP 2 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 1,
+     "bbox": [
+      716.1,
+      335.6,
+      775.6,
+      378.4
+     ],
+     "cell": "r2c12",
+     "note": "UP 2 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 1,
+     "bbox": [
+      353.0,
+      351.1,
+      403.8,
+      378.4
+     ],
+     "cell": "r2c5",
+     "note": "UP 2 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 3",
+   "key": "3",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1022.25,
+     "unit": "m²",
+     "printed": "1022.25",
+     "page": 1,
+     "bbox": [
+      176.7,
+      308.2,
+      222.1,
+      335.6
+     ],
+     "cell": "r4c2",
+     "note": "UP 3 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 1,
+     "bbox": [
+      222.1,
+      308.2,
+      302.1,
+      335.6
+     ],
+     "cell": "r4c3",
+     "note": "UP 3 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 1,
+     "bbox": [
+      665.3,
+      308.2,
+      716.1,
+      335.6
+     ],
+     "cell": "r4c11",
+     "note": "UP 3 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 1,
+     "bbox": [
+      716.1,
+      308.2,
+      775.6,
+      335.6
+     ],
+     "cell": "r4c12",
+     "note": "UP 3 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+5",
+     "unit": null,
+     "printed": "S+P+5",
+     "page": 1,
+     "bbox": [
+      353.0,
+      308.2,
+      403.8,
+      335.6
+     ],
+     "cell": "r4c5",
+     "note": "UP 3 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 4",
+   "key": "4",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1050.91,
+     "unit": "m²",
+     "printed": "1050.91",
+     "page": 1,
+     "bbox": [
+      176.7,
+      280.8,
+      222.1,
+      308.2
+     ],
+     "cell": "r5c2",
+     "note": "UP 4 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 1,
+     "bbox": [
+      222.1,
+      280.8,
+      302.1,
+      308.2
+     ],
+     "cell": "r5c3",
+     "note": "UP 4 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 1,
+     "bbox": [
+      665.3,
+      265.4,
+      716.1,
+      308.2
+     ],
+     "cell": "r5c11",
+     "note": "UP 4 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 1,
+     "bbox": [
+      716.1,
+      265.4,
+      775.6,
+      308.2
+     ],
+     "cell": "r5c12",
+     "note": "UP 4 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+6",
+     "unit": null,
+     "printed": "S+P+6",
+     "page": 1,
+     "bbox": [
+      353.0,
+      280.8,
+      403.8,
+      308.2
+     ],
+     "cell": "r5c5",
+     "note": "UP 4 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 5",
+   "key": "5",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1663.88,
+     "unit": "m²",
+     "printed": "1663.88",
+     "page": 1,
+     "bbox": [
+      176.7,
+      238.0,
+      222.1,
+      265.4
+     ],
+     "cell": "r7c2",
+     "note": "UP 5 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 1,
+     "bbox": [
+      222.1,
+      238.0,
+      302.1,
+      265.4
+     ],
+     "cell": "r7c3",
+     "note": "UP 5 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 1,
+     "bbox": [
+      665.3,
+      238.0,
+      716.1,
+      265.4
+     ],
+     "cell": "r7c11",
+     "note": "UP 5 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 1,
+     "bbox": [
+      716.1,
+      238.0,
+      775.6,
+      265.4
+     ],
+     "cell": "r7c12",
+     "note": "UP 5 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+5",
+     "unit": null,
+     "printed": "S+P+5",
+     "page": 1,
+     "bbox": [
+      353.0,
+      238.0,
+      403.8,
+      265.4
+     ],
+     "cell": "r7c5",
+     "note": "UP 5 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 6",
+   "key": "6",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1568.83,
+     "unit": "m²",
+     "printed": "1568.83",
+     "page": 1,
+     "bbox": [
+      176.7,
+      208.1,
+      222.1,
+      238.0
+     ],
+     "cell": "r8c2",
+     "note": "UP 6 – Površina UP"
+    },
+    "land_use": {
+     "value": "površine saobraćajne infrastrukture",
+     "unit": null,
+     "printed": "površine saobraćajne infrastrukture",
+     "page": 1,
+     "bbox": [
+      222.1,
+      208.1,
+      302.1,
+      238.0
+     ],
+     "cell": "r8c3",
+     "note": "UP 6 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 90.0,
+     "unit": "%",
+     "printed": "0.9",
+     "page": 1,
+     "bbox": [
+      665.3,
+      208.1,
+      716.1,
+      238.0
+     ],
+     "cell": "r8c11",
+     "note": "UP 6 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 1.8,
+     "unit": null,
+     "printed": "1.8",
+     "page": 1,
+     "bbox": [
+      716.1,
+      208.1,
+      775.6,
+      238.0
+     ],
+     "cell": "r8c12",
+     "note": "UP 6 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+1",
+     "unit": null,
+     "printed": "P+1",
+     "page": 1,
+     "bbox": [
+      353.0,
+      208.1,
+      403.8,
+      238.0
+     ],
+     "cell": "r8c5",
+     "note": "UP 6 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 7",
+   "key": "7",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 5349.7,
+     "unit": "m²",
+     "printed": "5349.7",
+     "page": 1,
+     "bbox": [
+      176.7,
+      185.7,
+      222.1,
+      208.1
+     ],
+     "cell": "r9c2",
+     "note": "UP 7 – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 1,
+     "bbox": [
+      222.1,
+      185.7,
+      302.1,
+      208.1
+     ],
+     "cell": "r9c3",
+     "note": "UP 7 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 32.0,
+     "unit": "%",
+     "printed": "0.32",
+     "page": 1,
+     "bbox": [
+      665.3,
+      185.7,
+      716.1,
+      208.1
+     ],
+     "cell": "r9c11",
+     "note": "UP 7 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.4,
+     "unit": null,
+     "printed": "0.4",
+     "page": 1,
+     "bbox": [
+      716.1,
+      185.7,
+      775.6,
+      208.1
+     ],
+     "cell": "r9c12",
+     "note": "UP 7 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+1",
+     "unit": null,
+     "printed": "P+1",
+     "page": 1,
+     "bbox": [
+      353.0,
+      185.7,
+      403.8,
+      208.1
+     ],
+     "cell": "r9c5",
+     "note": "UP 7 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 8",
+   "key": "8",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 885.34,
+     "unit": "m²",
+     "printed": "885.34",
+     "page": 1,
+     "bbox": [
+      176.7,
+      170.2,
+      222.1,
+      185.7
+     ],
+     "cell": "r10c2",
+     "note": "UP 8 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 1,
+     "bbox": [
+      222.1,
+      170.2,
+      302.1,
+      185.7
+     ],
+     "cell": "r10c3",
+     "note": "UP 8 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 1,
+     "bbox": [
+      665.3,
+      154.7,
+      716.1,
+      185.7
+     ],
+     "cell": "r10c11",
+     "note": "UP 8 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 1,
+     "bbox": [
+      716.1,
+      154.7,
+      775.6,
+      185.7
+     ],
+     "cell": "r10c12",
+     "note": "UP 8 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 1,
+     "bbox": [
+      353.0,
+      170.2,
+      403.8,
+      185.7
+     ],
+     "cell": "r10c5",
+     "note": "UP 8 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 9",
+   "key": "9",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1573.1,
+     "unit": "m²",
+     "printed": "1573.1",
+     "page": 1,
+     "bbox": [
+      176.7,
+      132.3,
+      222.1,
+      154.7
+     ],
+     "cell": "r12c2",
+     "note": "UP 9 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 1,
+     "bbox": [
+      222.1,
+      132.3,
+      302.1,
+      154.7
+     ],
+     "cell": "r12c3",
+     "note": "UP 9 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 42.0,
+     "unit": "%",
+     "printed": "0.42",
+     "page": 1,
+     "bbox": [
+      665.3,
+      132.3,
+      716.1,
+      154.7
+     ],
+     "cell": "r12c11",
+     "note": "UP 9 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 2.9,
+     "unit": null,
+     "printed": "2.9",
+     "page": 1,
+     "bbox": [
+      716.1,
+      132.3,
+      775.6,
+      154.7
+     ],
+     "cell": "r12c12",
+     "note": "UP 9 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+6",
+     "unit": null,
+     "printed": "S+P+6",
+     "page": 1,
+     "bbox": [
+      353.0,
+      132.3,
+      403.8,
+      154.7
+     ],
+     "cell": "r12c5",
+     "note": "UP 9 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 10",
+   "key": "10",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 770.01,
+     "unit": "m²",
+     "printed": "770.01",
+     "page": 1,
+     "bbox": [
+      176.7,
+      116.7,
+      222.1,
+      132.3
+     ],
+     "cell": "r13c2",
+     "note": "UP 10 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 1,
+     "bbox": [
+      222.1,
+      116.7,
+      302.1,
+      132.3
+     ],
+     "cell": "r13c3",
+     "note": "UP 10 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 1,
+     "bbox": [
+      665.3,
+      116.7,
+      716.1,
+      132.3
+     ],
+     "cell": "r13c11",
+     "note": "UP 10 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 1,
+     "bbox": [
+      716.1,
+      116.7,
+      775.6,
+      132.3
+     ],
+     "cell": "r13c12",
+     "note": "UP 10 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 1,
+     "bbox": [
+      353.0,
+      116.7,
+      403.8,
+      132.3
+     ],
+     "cell": "r13c5",
+     "note": "UP 10 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 11",
+   "key": "11",
+   "page": 1,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 828.0,
+     "unit": "m²",
+     "printed": "828",
+     "page": 1,
+     "bbox": [
+      176.7,
+      89.3,
+      222.1,
+      116.7
+     ],
+     "cell": "r14c2",
+     "note": "UP 11 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 1,
+     "bbox": [
+      222.1,
+      89.3,
+      302.1,
+      116.7
+     ],
+     "cell": "r14c3",
+     "note": "UP 11 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 71.0,
+     "unit": "%",
+     "printed": "0.71",
+     "page": 1,
+     "bbox": [
+      665.3,
+      89.3,
+      716.1,
+      116.7
+     ],
+     "cell": "r14c11",
+     "note": "UP 11 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 3.6,
+     "unit": null,
+     "printed": "3.6",
+     "page": 1,
+     "bbox": [
+      716.1,
+      89.3,
+      775.6,
+      116.7
+     ],
+     "cell": "r14c12",
+     "note": "UP 11 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+3+ M",
+     "unit": null,
+     "printed": "S+P+3+ M",
+     "page": 1,
+     "bbox": [
+      353.0,
+      89.3,
+      403.8,
+      116.7
+     ],
+     "cell": "r14c5",
+     "note": "UP 11 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 12",
+   "key": "12",
+   "page": 2,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1270.56,
+     "unit": "m²",
+     "printed": "1270.56",
+     "page": 2,
+     "bbox": [
+      176.3,
+      483.1,
+      222.1,
+      510.2
+     ],
+     "cell": "r0c2",
+     "note": "UP 12 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 2,
+     "bbox": [
+      222.1,
+      483.1,
+      303.4,
+      510.2
+     ],
+     "cell": "r0c3",
+     "note": "UP 12 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 2,
+     "bbox": [
+      665.7,
+      467.6,
+      716.4,
+      510.2
+     ],
+     "cell": "r0c11",
+     "note": "UP 12 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 2,
+     "bbox": [
+      716.4,
+      467.6,
+      775.6,
+      510.2
+     ],
+     "cell": "r0c12",
+     "note": "UP 12 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 2,
+     "bbox": [
+      354.0,
+      483.1,
+      403.8,
+      510.2
+     ],
+     "cell": "r0c5",
+     "note": "UP 12 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 13",
+   "key": "13",
+   "page": 2,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1324.74,
+     "unit": "m²",
+     "printed": "1324.74",
+     "page": 2,
+     "bbox": [
+      176.3,
+      440.3,
+      222.1,
+      467.6
+     ],
+     "cell": "r2c2",
+     "note": "UP 13 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 2,
+     "bbox": [
+      222.1,
+      440.3,
+      303.4,
+      467.6
+     ],
+     "cell": "r2c3",
+     "note": "UP 13 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 2,
+     "bbox": [
+      665.7,
+      424.8,
+      716.4,
+      467.6
+     ],
+     "cell": "r2c11",
+     "note": "UP 13 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 2,
+     "bbox": [
+      716.4,
+      424.8,
+      775.6,
+      467.6
+     ],
+     "cell": "r2c12",
+     "note": "UP 13 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 2,
+     "bbox": [
+      354.0,
+      440.3,
+      403.8,
+      467.6
+     ],
+     "cell": "r2c5",
+     "note": "UP 13 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 14",
+   "key": "14",
+   "page": 2,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1620.02,
+     "unit": "m²",
+     "printed": "1620.02",
+     "page": 2,
+     "bbox": [
+      176.3,
+      397.4,
+      222.1,
+      424.8
+     ],
+     "cell": "r4c2",
+     "note": "UP 14 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 2,
+     "bbox": [
+      222.1,
+      397.4,
+      303.4,
+      424.8
+     ],
+     "cell": "r4c3",
+     "note": "UP 14 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 2,
+     "bbox": [
+      665.7,
+      381.9,
+      716.4,
+      424.8
+     ],
+     "cell": "r4c11",
+     "note": "UP 14 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 2,
+     "bbox": [
+      716.4,
+      381.9,
+      775.6,
+      424.8
+     ],
+     "cell": "r4c12",
+     "note": "UP 14 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 2,
+     "bbox": [
+      354.0,
+      397.4,
+      403.8,
+      424.8
+     ],
+     "cell": "r4c5",
+     "note": "UP 14 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 15",
+   "key": "15",
+   "page": 2,
+   "block_ref": "A",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 783.5,
+     "unit": "m²",
+     "printed": "783.5",
+     "page": 2,
+     "bbox": [
+      176.3,
+      366.4,
+      222.1,
+      381.9
+     ],
+     "cell": "r6c2",
+     "note": "UP 15 – Površina UP"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 2,
+     "bbox": [
+      665.7,
+      351.0,
+      716.4,
+      381.9
+     ],
+     "cell": "r6c11",
+     "note": "UP 15 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 2,
+     "bbox": [
+      716.4,
+      351.0,
+      775.6,
+      381.9
+     ],
+     "cell": "r6c12",
+     "note": "UP 15 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 2,
+     "bbox": [
+      354.0,
+      366.4,
+      403.8,
+      381.9
+     ],
+     "cell": "r6c5",
+     "note": "UP 15 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 16",
+   "key": "16",
+   "page": 2,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1434.35,
+     "unit": "m²",
+     "printed": "1434.35",
+     "page": 2,
+     "bbox": [
+      176.3,
+      185.6,
+      226.0,
+      209.0
+     ],
+     "cell": "r1c2",
+     "note": "UP 16 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 2,
+     "bbox": [
+      226.0,
+      185.6,
+      303.4,
+      209.0
+     ],
+     "cell": "r1c3",
+     "note": "UP 16 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 2,
+     "bbox": [
+      665.7,
+      170.1,
+      716.4,
+      209.0
+     ],
+     "cell": "r1c11",
+     "note": "UP 16 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 2,
+     "bbox": [
+      716.4,
+      170.1,
+      775.6,
+      209.0
+     ],
+     "cell": "r1c12",
+     "note": "UP 16 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 2,
+     "bbox": [
+      354.0,
+      185.6,
+      407.6,
+      209.0
+     ],
+     "cell": "r1c5",
+     "note": "UP 16 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 17",
+   "key": "17",
+   "page": 2,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1617.37,
+     "unit": "m²",
+     "printed": "1617.37",
+     "page": 2,
+     "bbox": [
+      176.3,
+      147.6,
+      226.0,
+      170.1
+     ],
+     "cell": "r3c2",
+     "note": "UP 17 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 2,
+     "bbox": [
+      226.0,
+      147.6,
+      303.4,
+      170.1
+     ],
+     "cell": "r3c3",
+     "note": "UP 17 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 2,
+     "bbox": [
+      665.7,
+      132.1,
+      716.4,
+      170.1
+     ],
+     "cell": "r3c11",
+     "note": "UP 17 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 2,
+     "bbox": [
+      716.4,
+      132.1,
+      775.6,
+      170.1
+     ],
+     "cell": "r3c12",
+     "note": "UP 17 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 2,
+     "bbox": [
+      354.0,
+      147.6,
+      407.6,
+      170.1
+     ],
+     "cell": "r3c5",
+     "note": "UP 17 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 18",
+   "key": "18",
+   "page": 2,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1387.38,
+     "unit": "m²",
+     "printed": "1387.38",
+     "page": 2,
+     "bbox": [
+      176.3,
+      109.7,
+      226.0,
+      132.1
+     ],
+     "cell": "r5c2",
+     "note": "UP 18 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 2,
+     "bbox": [
+      226.0,
+      109.7,
+      303.4,
+      132.1
+     ],
+     "cell": "r5c3",
+     "note": "UP 18 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 2,
+     "bbox": [
+      665.7,
+      94.1,
+      716.4,
+      132.1
+     ],
+     "cell": "r5c11",
+     "note": "UP 18 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 2,
+     "bbox": [
+      716.4,
+      94.1,
+      775.6,
+      132.1
+     ],
+     "cell": "r5c12",
+     "note": "UP 18 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 2,
+     "bbox": [
+      354.0,
+      109.7,
+      407.6,
+      132.1
+     ],
+     "cell": "r5c5",
+     "note": "UP 18 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 19",
+   "key": "19",
+   "page": 3,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 14294.17,
+     "unit": "m²",
+     "printed": "14294.17",
+     "page": 3,
+     "bbox": [
+      175.8,
+      483.1,
+      226.0,
+      510.2
+     ],
+     "cell": "r0c2",
+     "note": "UP 19 – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 3,
+     "bbox": [
+      226.0,
+      483.1,
+      305.1,
+      510.2
+     ],
+     "cell": "r0c3",
+     "note": "UP 19 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 18.0,
+     "unit": "%",
+     "printed": "0.18",
+     "page": 3,
+     "bbox": [
+      666.3,
+      483.1,
+      716.7,
+      510.2
+     ],
+     "cell": "r0c11",
+     "note": "UP 19 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.43,
+     "unit": null,
+     "printed": "0.43",
+     "page": 3,
+     "bbox": [
+      716.7,
+      483.1,
+      775.6,
+      510.2
+     ],
+     "cell": "r0c12",
+     "note": "UP 19 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+2",
+     "unit": null,
+     "printed": "P+2",
+     "page": 3,
+     "bbox": [
+      355.2,
+      483.1,
+      407.6,
+      510.2
+     ],
+     "cell": "r0c5",
+     "note": "UP 19 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 20",
+   "key": "20",
+   "page": 3,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1195.43,
+     "unit": "m²",
+     "printed": "1195.43",
+     "page": 3,
+     "bbox": [
+      175.8,
+      467.6,
+      226.0,
+      483.1
+     ],
+     "cell": "r1c2",
+     "note": "UP 20 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 3,
+     "bbox": [
+      226.0,
+      467.6,
+      305.1,
+      483.1
+     ],
+     "cell": "r1c3",
+     "note": "UP 20 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 3,
+     "bbox": [
+      666.3,
+      452.1,
+      716.7,
+      483.1
+     ],
+     "cell": "r1c11",
+     "note": "UP 20 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 3,
+     "bbox": [
+      716.7,
+      452.1,
+      775.6,
+      483.1
+     ],
+     "cell": "r1c12",
+     "note": "UP 20 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 3,
+     "bbox": [
+      355.2,
+      467.6,
+      407.6,
+      483.1
+     ],
+     "cell": "r1c5",
+     "note": "UP 20 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 21",
+   "key": "21",
+   "page": 3,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 890.49,
+     "unit": "m²",
+     "printed": "890.49",
+     "page": 3,
+     "bbox": [
+      175.8,
+      436.7,
+      226.0,
+      452.1
+     ],
+     "cell": "r3c2",
+     "note": "UP 21 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 3,
+     "bbox": [
+      226.0,
+      436.7,
+      305.1,
+      452.1
+     ],
+     "cell": "r3c3",
+     "note": "UP 21 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 3,
+     "bbox": [
+      666.3,
+      421.2,
+      716.7,
+      452.1
+     ],
+     "cell": "r3c11",
+     "note": "UP 21 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 3,
+     "bbox": [
+      716.7,
+      421.2,
+      775.6,
+      452.1
+     ],
+     "cell": "r3c12",
+     "note": "UP 21 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+4+M",
+     "unit": null,
+     "printed": "P+4+M",
+     "page": 3,
+     "bbox": [
+      355.2,
+      436.7,
+      407.6,
+      452.1
+     ],
+     "cell": "r3c5",
+     "note": "UP 21 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 22",
+   "key": "22",
+   "page": 3,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1404.6,
+     "unit": "m²",
+     "printed": "1404.6",
+     "page": 3,
+     "bbox": [
+      175.8,
+      398.7,
+      226.0,
+      421.2
+     ],
+     "cell": "r5c2",
+     "note": "UP 22 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 3,
+     "bbox": [
+      226.0,
+      398.7,
+      305.1,
+      421.2
+     ],
+     "cell": "r5c3",
+     "note": "UP 22 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 3,
+     "bbox": [
+      666.3,
+      383.1,
+      716.7,
+      421.2
+     ],
+     "cell": "r5c11",
+     "note": "UP 22 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 8.0,
+     "unit": null,
+     "printed": "8",
+     "page": 3,
+     "bbox": [
+      716.7,
+      383.1,
+      775.6,
+      421.2
+     ],
+     "cell": "r5c12",
+     "note": "UP 22 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+7",
+     "unit": null,
+     "printed": "Po+P+7",
+     "page": 3,
+     "bbox": [
+      355.2,
+      398.7,
+      407.6,
+      421.2
+     ],
+     "cell": "r5c5",
+     "note": "UP 22 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 23",
+   "key": "23",
+   "page": 3,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 969.82,
+     "unit": "m²",
+     "printed": "969.82",
+     "page": 3,
+     "bbox": [
+      175.8,
+      360.7,
+      226.0,
+      383.1
+     ],
+     "cell": "r7c2",
+     "note": "UP 23 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 3,
+     "bbox": [
+      226.0,
+      360.7,
+      305.1,
+      383.1
+     ],
+     "cell": "r7c3",
+     "note": "UP 23 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 3,
+     "bbox": [
+      666.3,
+      345.2,
+      716.7,
+      383.1
+     ],
+     "cell": "r7c11",
+     "note": "UP 23 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 3,
+     "bbox": [
+      716.7,
+      345.2,
+      775.6,
+      383.1
+     ],
+     "cell": "r7c12",
+     "note": "UP 23 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+5+M",
+     "unit": null,
+     "printed": "P+5+M",
+     "page": 3,
+     "bbox": [
+      355.2,
+      360.7,
+      407.6,
+      383.1
+     ],
+     "cell": "r7c5",
+     "note": "UP 23 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 24",
+   "key": "24",
+   "page": 3,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 3813.46,
+     "unit": "m²",
+     "printed": "3813.46",
+     "page": 3,
+     "bbox": [
+      175.8,
+      315.4,
+      226.0,
+      345.2
+     ],
+     "cell": "r9c2",
+     "note": "UP 24 – Površina UP"
+    },
+    "land_use": {
+     "value": "površine saobraćajne infrastrukture",
+     "unit": null,
+     "printed": "površine saobraćajne infrastrukture",
+     "page": 3,
+     "bbox": [
+      226.0,
+      315.4,
+      305.1,
+      345.2
+     ],
+     "cell": "r9c3",
+     "note": "UP 24 – Namjena objekta"
+    },
+    "max_floors": {
+     "value": "3S",
+     "unit": null,
+     "printed": "3S",
+     "page": 3,
+     "bbox": [
+      355.2,
+      315.4,
+      407.6,
+      345.2
+     ],
+     "cell": "r9c5",
+     "note": "UP 24 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 25",
+   "key": "25",
+   "page": 3,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1014.15,
+     "unit": "m²",
+     "printed": "1014.15",
+     "page": 3,
+     "bbox": [
+      175.8,
+      266.1,
+      226.0,
+      315.4
+     ],
+     "cell": "r10c2",
+     "note": "UP 25 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelat. - prostor namjenjen za razradu konkursnim rjesenjem",
+     "unit": null,
+     "printed": "stanovanje sa djelat. - prostor namjenjen za razradu konkursnim rjesenjem",
+     "page": 3,
+     "bbox": [
+      226.0,
+      266.1,
+      305.1,
+      315.4
+     ],
+     "cell": "r10c3",
+     "note": "UP 25 – Namjena objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 26",
+   "key": "26",
+   "page": 3,
+   "block_ref": "B",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1235.8,
+     "unit": "m²",
+     "printed": "1235.8",
+     "page": 3,
+     "bbox": [
+      175.8,
+      241.1,
+      226.0,
+      266.1
+     ],
+     "cell": "r11c2",
+     "note": "UP 26 – Površina UP"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 3,
+     "bbox": [
+      666.3,
+      225.7,
+      716.7,
+      266.1
+     ],
+     "cell": "r11c11",
+     "note": "UP 26 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 8.75,
+     "unit": null,
+     "printed": "8.75",
+     "page": 3,
+     "bbox": [
+      716.7,
+      225.7,
+      775.6,
+      266.1
+     ],
+     "cell": "r11c12",
+     "note": "UP 26 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+8+ M",
+     "unit": null,
+     "printed": "Po+P+8+ M",
+     "page": 3,
+     "bbox": [
+      355.2,
+      241.1,
+      407.6,
+      266.1
+     ],
+     "cell": "r11c5",
+     "note": "UP 26 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 27",
+   "key": "27",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 2257.6,
+     "unit": "m²",
+     "printed": "2257.6",
+     "page": 4,
+     "bbox": [
+      175.8,
+      420.6,
+      225.9,
+      444.0
+     ],
+     "cell": "r1c2",
+     "note": "UP 27 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 4,
+     "bbox": [
+      225.9,
+      420.6,
+      304.8,
+      444.0
+     ],
+     "cell": "r1c3",
+     "note": "UP 27 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 4,
+     "bbox": [
+      666.6,
+      420.6,
+      716.9,
+      444.0
+     ],
+     "cell": "r1c11",
+     "note": "UP 27 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 4,
+     "bbox": [
+      716.9,
+      420.6,
+      775.6,
+      444.0
+     ],
+     "cell": "r1c12",
+     "note": "UP 27 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 4,
+     "bbox": [
+      354.9,
+      420.6,
+      408.3,
+      444.0
+     ],
+     "cell": "r1c5",
+     "note": "UP 27 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 28",
+   "key": "28",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1707.0,
+     "unit": "m²",
+     "printed": "1707",
+     "page": 4,
+     "bbox": [
+      175.8,
+      398.1,
+      225.9,
+      420.6
+     ],
+     "cell": "r2c2",
+     "note": "UP 28 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 4,
+     "bbox": [
+      225.9,
+      398.1,
+      304.8,
+      420.6
+     ],
+     "cell": "r2c3",
+     "note": "UP 28 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 4,
+     "bbox": [
+      666.6,
+      382.6,
+      716.9,
+      420.6
+     ],
+     "cell": "r2c11",
+     "note": "UP 28 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 4,
+     "bbox": [
+      716.9,
+      382.6,
+      775.6,
+      420.6
+     ],
+     "cell": "r2c12",
+     "note": "UP 28 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 4,
+     "bbox": [
+      354.9,
+      398.1,
+      408.3,
+      420.6
+     ],
+     "cell": "r2c5",
+     "note": "UP 28 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 29",
+   "key": "29",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1712.38,
+     "unit": "m²",
+     "printed": "1712.38",
+     "page": 4,
+     "bbox": [
+      175.8,
+      360.1,
+      225.9,
+      382.6
+     ],
+     "cell": "r4c2",
+     "note": "UP 29 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 4,
+     "bbox": [
+      225.9,
+      360.1,
+      304.8,
+      382.6
+     ],
+     "cell": "r4c3",
+     "note": "UP 29 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 4,
+     "bbox": [
+      666.6,
+      360.1,
+      716.9,
+      382.6
+     ],
+     "cell": "r4c11",
+     "note": "UP 29 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 4,
+     "bbox": [
+      716.9,
+      360.1,
+      775.6,
+      382.6
+     ],
+     "cell": "r4c12",
+     "note": "UP 29 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+5",
+     "unit": null,
+     "printed": "Po+P+5",
+     "page": 4,
+     "bbox": [
+      354.9,
+      360.1,
+      408.3,
+      382.6
+     ],
+     "cell": "r4c5",
+     "note": "UP 29 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 30",
+   "key": "30",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1171.53,
+     "unit": "m²",
+     "printed": "1171.53",
+     "page": 4,
+     "bbox": [
+      175.8,
+      335.2,
+      225.9,
+      360.1
+     ],
+     "cell": "r5c2",
+     "note": "UP 30 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 4,
+     "bbox": [
+      225.9,
+      335.2,
+      304.8,
+      360.1
+     ],
+     "cell": "r5c3",
+     "note": "UP 30 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 4,
+     "bbox": [
+      666.6,
+      319.8,
+      716.9,
+      360.1
+     ],
+     "cell": "r5c11",
+     "note": "UP 30 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 4,
+     "bbox": [
+      716.9,
+      319.8,
+      775.6,
+      360.1
+     ],
+     "cell": "r5c12",
+     "note": "UP 30 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4+ M",
+     "unit": null,
+     "printed": "Po+P+4+ M",
+     "page": 4,
+     "bbox": [
+      354.9,
+      335.2,
+      408.3,
+      360.1
+     ],
+     "cell": "r5c5",
+     "note": "UP 30 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 31",
+   "key": "31",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 907.1,
+     "unit": "m²",
+     "printed": "907.1",
+     "page": 4,
+     "bbox": [
+      175.8,
+      294.8,
+      225.9,
+      319.8
+     ],
+     "cell": "r7c2",
+     "note": "UP 31 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 4,
+     "bbox": [
+      225.9,
+      294.8,
+      304.8,
+      319.8
+     ],
+     "cell": "r7c3",
+     "note": "UP 31 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 4,
+     "bbox": [
+      666.6,
+      279.3,
+      716.9,
+      319.8
+     ],
+     "cell": "r7c11",
+     "note": "UP 31 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 4,
+     "bbox": [
+      716.9,
+      279.3,
+      775.6,
+      319.8
+     ],
+     "cell": "r7c12",
+     "note": "UP 31 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4+ M",
+     "unit": null,
+     "printed": "Po+P+4+ M",
+     "page": 4,
+     "bbox": [
+      354.9,
+      294.8,
+      408.3,
+      319.8
+     ],
+     "cell": "r7c5",
+     "note": "UP 31 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 32",
+   "key": "32",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 914.34,
+     "unit": "m²",
+     "printed": "914.34",
+     "page": 4,
+     "bbox": [
+      175.8,
+      256.8,
+      225.9,
+      279.3
+     ],
+     "cell": "r9c2",
+     "note": "UP 32 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 4,
+     "bbox": [
+      225.9,
+      256.8,
+      304.8,
+      279.3
+     ],
+     "cell": "r9c3",
+     "note": "UP 32 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 60.0,
+     "unit": "%",
+     "printed": "0.6",
+     "page": 4,
+     "bbox": [
+      666.6,
+      256.8,
+      716.9,
+      279.3
+     ],
+     "cell": "r9c11",
+     "note": "UP 32 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 3.42,
+     "unit": null,
+     "printed": "3.42",
+     "page": 4,
+     "bbox": [
+      716.9,
+      256.8,
+      775.6,
+      279.3
+     ],
+     "cell": "r9c12",
+     "note": "UP 32 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "G+P+4+Pk",
+     "unit": null,
+     "printed": "G+P+4+Pk",
+     "page": 4,
+     "bbox": [
+      354.9,
+      256.8,
+      408.3,
+      279.3
+     ],
+     "cell": "r9c5",
+     "note": "UP 32 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 33",
+   "key": "33",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 2141.89,
+     "unit": "m²",
+     "printed": "2141.89",
+     "page": 4,
+     "bbox": [
+      175.8,
+      227.0,
+      225.9,
+      256.8
+     ],
+     "cell": "r10c2",
+     "note": "UP 33 – Površina UP"
+    },
+    "land_use": {
+     "value": "površine saobraćajne infrastrukture",
+     "unit": null,
+     "printed": "površine saobraćajne infrastrukture",
+     "page": 4,
+     "bbox": [
+      225.9,
+      227.0,
+      304.8,
+      256.8
+     ],
+     "cell": "r10c3",
+     "note": "UP 33 – Namjena objekta"
+    },
+    "max_floors": {
+     "value": "S",
+     "unit": null,
+     "printed": "S",
+     "page": 4,
+     "bbox": [
+      354.9,
+      227.0,
+      408.3,
+      256.8
+     ],
+     "cell": "r10c5",
+     "note": "UP 33 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 34",
+   "key": "34",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 980.12,
+     "unit": "m²",
+     "printed": "980.12",
+     "page": 4,
+     "bbox": [
+      175.8,
+      202.1,
+      225.9,
+      227.0
+     ],
+     "cell": "r11c2",
+     "note": "UP 34 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 4,
+     "bbox": [
+      225.9,
+      202.1,
+      304.8,
+      227.0
+     ],
+     "cell": "r11c3",
+     "note": "UP 34 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 4,
+     "bbox": [
+      666.6,
+      186.7,
+      716.9,
+      227.0
+     ],
+     "cell": "r11c11",
+     "note": "UP 34 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 4,
+     "bbox": [
+      716.9,
+      186.7,
+      775.6,
+      227.0
+     ],
+     "cell": "r11c12",
+     "note": "UP 34 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4+ M",
+     "unit": null,
+     "printed": "Po+P+4+ M",
+     "page": 4,
+     "bbox": [
+      354.9,
+      202.1,
+      408.3,
+      227.0
+     ],
+     "cell": "r11c5",
+     "note": "UP 34 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 35",
+   "key": "35",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 641.66,
+     "unit": "m²",
+     "printed": "641.66",
+     "page": 4,
+     "bbox": [
+      175.8,
+      161.7,
+      225.9,
+      186.7
+     ],
+     "cell": "r13c2",
+     "note": "UP 35 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 4,
+     "bbox": [
+      225.9,
+      161.7,
+      304.8,
+      186.7
+     ],
+     "cell": "r13c3",
+     "note": "UP 35 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 4,
+     "bbox": [
+      666.6,
+      146.2,
+      716.9,
+      186.7
+     ],
+     "cell": "r13c11",
+     "note": "UP 35 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 4,
+     "bbox": [
+      716.9,
+      146.2,
+      775.6,
+      186.7
+     ],
+     "cell": "r13c12",
+     "note": "UP 35 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4+ M",
+     "unit": null,
+     "printed": "Po+P+4+ M",
+     "page": 4,
+     "bbox": [
+      354.9,
+      161.7,
+      408.3,
+      186.7
+     ],
+     "cell": "r13c5",
+     "note": "UP 35 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 36",
+   "key": "36",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 495.76,
+     "unit": "m²",
+     "printed": "495.76",
+     "page": 4,
+     "bbox": [
+      175.8,
+      130.7,
+      225.9,
+      146.2
+     ],
+     "cell": "r15c2",
+     "note": "UP 36 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 4,
+     "bbox": [
+      225.9,
+      130.7,
+      304.8,
+      146.2
+     ],
+     "cell": "r15c3",
+     "note": "UP 36 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 4,
+     "bbox": [
+      666.6,
+      115.1,
+      716.9,
+      146.2
+     ],
+     "cell": "r15c11",
+     "note": "UP 36 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 4,
+     "bbox": [
+      716.9,
+      115.1,
+      775.6,
+      146.2
+     ],
+     "cell": "r15c12",
+     "note": "UP 36 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+5",
+     "unit": null,
+     "printed": "Po+P+5",
+     "page": 4,
+     "bbox": [
+      354.9,
+      130.7,
+      408.3,
+      146.2
+     ],
+     "cell": "r15c5",
+     "note": "UP 36 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 37",
+   "key": "37",
+   "page": 4,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1008.14,
+     "unit": "m²",
+     "printed": "1008.14",
+     "page": 4,
+     "bbox": [
+      175.8,
+      92.6,
+      225.9,
+      115.1
+     ],
+     "cell": "r17c2",
+     "note": "UP 37 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 4,
+     "bbox": [
+      225.9,
+      92.6,
+      304.8,
+      115.1
+     ],
+     "cell": "r17c3",
+     "note": "UP 37 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 40.0,
+     "unit": "%",
+     "printed": "0.4",
+     "page": 4,
+     "bbox": [
+      666.6,
+      92.6,
+      716.9,
+      115.1
+     ],
+     "cell": "r17c11",
+     "note": "UP 37 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 3.85,
+     "unit": null,
+     "printed": "3.85",
+     "page": 4,
+     "bbox": [
+      716.9,
+      92.6,
+      775.6,
+      115.1
+     ],
+     "cell": "r17c12",
+     "note": "UP 37 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 4,
+     "bbox": [
+      354.9,
+      92.6,
+      408.3,
+      115.1
+     ],
+     "cell": "r17c5",
+     "note": "UP 37 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 38",
+   "key": "38",
+   "page": 5,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 581.17,
+     "unit": "m²",
+     "printed": "581.17",
+     "page": 5,
+     "bbox": [
+      176.0,
+      495.0,
+      226.1,
+      510.2
+     ],
+     "cell": "r0c2",
+     "note": "UP 38 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 5,
+     "bbox": [
+      226.1,
+      495.0,
+      305.3,
+      510.2
+     ],
+     "cell": "r0c3",
+     "note": "UP 38 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 5,
+     "bbox": [
+      666.3,
+      479.5,
+      716.7,
+      510.2
+     ],
+     "cell": "r0c11",
+     "note": "UP 38 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 5,
+     "bbox": [
+      716.7,
+      479.5,
+      775.6,
+      510.2
+     ],
+     "cell": "r0c12",
+     "note": "UP 38 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 5,
+     "bbox": [
+      355.5,
+      495.0,
+      407.5,
+      510.2
+     ],
+     "cell": "r0c5",
+     "note": "UP 38 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 39",
+   "key": "39",
+   "page": 5,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 784.56,
+     "unit": "m²",
+     "printed": "784.56",
+     "page": 5,
+     "bbox": [
+      176.0,
+      454.5,
+      226.1,
+      479.5
+     ],
+     "cell": "r2c2",
+     "note": "UP 39 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 5,
+     "bbox": [
+      226.1,
+      454.5,
+      305.3,
+      479.5
+     ],
+     "cell": "r2c3",
+     "note": "UP 39 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 55.0,
+     "unit": "%",
+     "printed": "0.55",
+     "page": 5,
+     "bbox": [
+      666.3,
+      454.5,
+      716.7,
+      479.5
+     ],
+     "cell": "r2c11",
+     "note": "UP 39 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 2.8,
+     "unit": null,
+     "printed": "2.8",
+     "page": 5,
+     "bbox": [
+      716.7,
+      454.5,
+      775.6,
+      479.5
+     ],
+     "cell": "r2c12",
+     "note": "UP 39 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+3+Pk",
+     "unit": null,
+     "printed": "Po+P+3+Pk",
+     "page": 5,
+     "bbox": [
+      355.5,
+      454.5,
+      407.5,
+      479.5
+     ],
+     "cell": "r2c5",
+     "note": "UP 39 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 40",
+   "key": "40",
+   "page": 5,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 2087.46,
+     "unit": "m²",
+     "printed": "2087.46",
+     "page": 5,
+     "bbox": [
+      176.0,
+      439.1,
+      226.1,
+      454.5
+     ],
+     "cell": "r3c2",
+     "note": "UP 40 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 5,
+     "bbox": [
+      226.1,
+      439.1,
+      305.3,
+      454.5
+     ],
+     "cell": "r3c3",
+     "note": "UP 40 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 5,
+     "bbox": [
+      666.3,
+      439.1,
+      716.7,
+      454.5
+     ],
+     "cell": "r3c11",
+     "note": "UP 40 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 4.0,
+     "unit": null,
+     "printed": "4",
+     "page": 5,
+     "bbox": [
+      716.7,
+      439.1,
+      775.6,
+      454.5
+     ],
+     "cell": "r3c12",
+     "note": "UP 40 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+3",
+     "unit": null,
+     "printed": "S+P+3",
+     "page": 5,
+     "bbox": [
+      355.5,
+      439.1,
+      407.5,
+      454.5
+     ],
+     "cell": "r3c5",
+     "note": "UP 40 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 41",
+   "key": "41",
+   "page": 5,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 603.13,
+     "unit": "m²",
+     "printed": "603.13",
+     "page": 5,
+     "bbox": [
+      176.0,
+      414.2,
+      226.1,
+      439.1
+     ],
+     "cell": "r4c2",
+     "note": "UP 41 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 5,
+     "bbox": [
+      226.1,
+      414.2,
+      305.3,
+      439.1
+     ],
+     "cell": "r4c3",
+     "note": "UP 41 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 5,
+     "bbox": [
+      666.3,
+      398.7,
+      716.7,
+      439.1
+     ],
+     "cell": "r4c11",
+     "note": "UP 41 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 5,
+     "bbox": [
+      716.7,
+      398.7,
+      775.6,
+      439.1
+     ],
+     "cell": "r4c12",
+     "note": "UP 41 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+3+ M",
+     "unit": null,
+     "printed": "Po+P+3+ M",
+     "page": 5,
+     "bbox": [
+      355.5,
+      414.2,
+      407.5,
+      439.1
+     ],
+     "cell": "r4c5",
+     "note": "UP 41 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 42",
+   "key": "42",
+   "page": 5,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1217.49,
+     "unit": "m²",
+     "printed": "1217.49",
+     "page": 5,
+     "bbox": [
+      176.0,
+      376.2,
+      226.1,
+      398.7
+     ],
+     "cell": "r6c2",
+     "note": "UP 42 – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 5,
+     "bbox": [
+      226.1,
+      376.2,
+      305.3,
+      398.7
+     ],
+     "cell": "r6c3",
+     "note": "UP 42 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 20.0,
+     "unit": "%",
+     "printed": "0.2",
+     "page": 5,
+     "bbox": [
+      666.3,
+      376.2,
+      716.7,
+      398.7
+     ],
+     "cell": "r6c11",
+     "note": "UP 42 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.2,
+     "unit": null,
+     "printed": "0.2",
+     "page": 5,
+     "bbox": [
+      716.7,
+      376.2,
+      775.6,
+      398.7
+     ],
+     "cell": "r6c12",
+     "note": "UP 42 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P",
+     "unit": null,
+     "printed": "P",
+     "page": 5,
+     "bbox": [
+      355.5,
+      376.2,
+      407.5,
+      398.7
+     ],
+     "cell": "r6c5",
+     "note": "UP 42 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 43",
+   "key": "43",
+   "page": 5,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 387.15,
+     "unit": "m²",
+     "printed": "387.15",
+     "page": 5,
+     "bbox": [
+      176.0,
+      353.7,
+      226.1,
+      376.2
+     ],
+     "cell": "r7c2",
+     "note": "UP 43 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 5,
+     "bbox": [
+      226.1,
+      353.7,
+      305.3,
+      376.2
+     ],
+     "cell": "r7c3",
+     "note": "UP 43 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 70.0,
+     "unit": "%",
+     "printed": "0.7",
+     "page": 5,
+     "bbox": [
+      666.3,
+      353.7,
+      716.7,
+      376.2
+     ],
+     "cell": "r7c11",
+     "note": "UP 43 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.48,
+     "unit": null,
+     "printed": "5.48",
+     "page": 5,
+     "bbox": [
+      716.7,
+      353.7,
+      775.6,
+      376.2
+     ],
+     "cell": "r7c12",
+     "note": "UP 43 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 5,
+     "bbox": [
+      355.5,
+      353.7,
+      407.5,
+      376.2
+     ],
+     "cell": "r7c5",
+     "note": "UP 43 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 44",
+   "key": "44",
+   "page": 5,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 2439.18,
+     "unit": "m²",
+     "printed": "2439.18",
+     "page": 5,
+     "bbox": [
+      176.0,
+      331.3,
+      226.1,
+      353.7
+     ],
+     "cell": "r8c2",
+     "note": "UP 44 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 5,
+     "bbox": [
+      226.1,
+      331.3,
+      305.3,
+      353.7
+     ],
+     "cell": "r8c3",
+     "note": "UP 44 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 5,
+     "bbox": [
+      666.3,
+      315.8,
+      716.7,
+      353.7
+     ],
+     "cell": "r8c11",
+     "note": "UP 44 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 4.56,
+     "unit": null,
+     "printed": "4.56",
+     "page": 5,
+     "bbox": [
+      716.7,
+      315.8,
+      775.6,
+      353.7
+     ],
+     "cell": "r8c12",
+     "note": "UP 44 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 5,
+     "bbox": [
+      355.5,
+      331.3,
+      407.5,
+      353.7
+     ],
+     "cell": "r8c5",
+     "note": "UP 44 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 45",
+   "key": "45",
+   "page": 5,
+   "block_ref": "C",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 441.79,
+     "unit": "m²",
+     "printed": "441.79",
+     "page": 5,
+     "bbox": [
+      176.0,
+      293.2,
+      226.1,
+      315.8
+     ],
+     "cell": "r10c2",
+     "note": "UP 45 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 5,
+     "bbox": [
+      226.1,
+      293.2,
+      305.3,
+      315.8
+     ],
+     "cell": "r10c3",
+     "note": "UP 45 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 5,
+     "bbox": [
+      666.3,
+      293.2,
+      716.7,
+      315.8
+     ],
+     "cell": "r10c11",
+     "note": "UP 45 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 4.0,
+     "unit": null,
+     "printed": "4",
+     "page": 5,
+     "bbox": [
+      716.7,
+      293.2,
+      775.6,
+      315.8
+     ],
+     "cell": "r10c12",
+     "note": "UP 45 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+3",
+     "unit": null,
+     "printed": "Po+P+3",
+     "page": 5,
+     "bbox": [
+      355.5,
+      293.2,
+      407.5,
+      315.8
+     ],
+     "cell": "r10c5",
+     "note": "UP 45 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 46",
+   "key": "46",
+   "page": 5,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 4489.28,
+     "unit": "m²",
+     "printed": "4489.28",
+     "page": 5,
+     "bbox": [
+      176.0,
+      158.7,
+      226.1,
+      182.1
+     ],
+     "cell": "r1c2",
+     "note": "UP 46 – Površina UP"
+    },
+    "land_use": {
+     "value": "centralne djelatnosti",
+     "unit": null,
+     "printed": "centralne djelatnosti",
+     "page": 5,
+     "bbox": [
+      226.1,
+      158.7,
+      305.3,
+      182.1
+     ],
+     "cell": "r1c3",
+     "note": "UP 46 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 32.0,
+     "unit": "%",
+     "printed": "0.32",
+     "page": 5,
+     "bbox": [
+      666.3,
+      158.7,
+      716.7,
+      182.1
+     ],
+     "cell": "r1c11",
+     "note": "UP 46 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 1.3,
+     "unit": null,
+     "printed": "1.3",
+     "page": 5,
+     "bbox": [
+      716.7,
+      158.7,
+      775.6,
+      182.1
+     ],
+     "cell": "r1c12",
+     "note": "UP 46 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+3",
+     "unit": null,
+     "printed": "S+P+3",
+     "page": 5,
+     "bbox": [
+      355.5,
+      158.7,
+      407.5,
+      182.1
+     ],
+     "cell": "r1c5",
+     "note": "UP 46 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 47",
+   "key": "47",
+   "page": 5,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 3787.34,
+     "unit": "m²",
+     "printed": "3787.34",
+     "page": 5,
+     "bbox": [
+      176.0,
+      136.2,
+      226.1,
+      158.7
+     ],
+     "cell": "r2c2",
+     "note": "UP 47 – Površina UP"
+    },
+    "land_use": {
+     "value": "centralne djelatnosti",
+     "unit": null,
+     "printed": "centralne djelatnosti",
+     "page": 5,
+     "bbox": [
+      226.1,
+      136.2,
+      305.3,
+      158.7
+     ],
+     "cell": "r2c3",
+     "note": "UP 47 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 40.0,
+     "unit": "%",
+     "printed": "0.4",
+     "page": 5,
+     "bbox": [
+      666.3,
+      136.2,
+      716.7,
+      158.7
+     ],
+     "cell": "r2c11",
+     "note": "UP 47 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 2.0,
+     "unit": null,
+     "printed": "2",
+     "page": 5,
+     "bbox": [
+      716.7,
+      136.2,
+      775.6,
+      158.7
+     ],
+     "cell": "r2c12",
+     "note": "UP 47 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+4",
+     "unit": null,
+     "printed": "S+P+4",
+     "page": 5,
+     "bbox": [
+      355.5,
+      136.2,
+      407.5,
+      158.7
+     ],
+     "cell": "r2c5",
+     "note": "UP 47 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 48",
+   "key": "48",
+   "page": 5,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 515.17,
+     "unit": "m²",
+     "printed": "515.17",
+     "page": 5,
+     "bbox": [
+      176.0,
+      120.7,
+      226.1,
+      136.2
+     ],
+     "cell": "r3c2",
+     "note": "UP 48 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 5,
+     "bbox": [
+      226.1,
+      120.7,
+      305.3,
+      136.2
+     ],
+     "cell": "r3c3",
+     "note": "UP 48 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 5,
+     "bbox": [
+      666.3,
+      120.7,
+      716.7,
+      136.2
+     ],
+     "cell": "r3c11",
+     "note": "UP 48 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 4.0,
+     "unit": null,
+     "printed": "4",
+     "page": 5,
+     "bbox": [
+      716.7,
+      120.7,
+      775.6,
+      136.2
+     ],
+     "cell": "r3c12",
+     "note": "UP 48 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+3",
+     "unit": null,
+     "printed": "Po+P+3",
+     "page": 5,
+     "bbox": [
+      355.5,
+      120.7,
+      407.5,
+      136.2
+     ],
+     "cell": "r3c5",
+     "note": "UP 48 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 49",
+   "key": "49",
+   "page": 5,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 311.22,
+     "unit": "m²",
+     "printed": "311.22",
+     "page": 5,
+     "bbox": [
+      176.0,
+      105.3,
+      226.1,
+      120.7
+     ],
+     "cell": "r4c2",
+     "note": "UP 49 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 5,
+     "bbox": [
+      226.1,
+      105.3,
+      305.3,
+      120.7
+     ],
+     "cell": "r4c3",
+     "note": "UP 49 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 5,
+     "bbox": [
+      666.3,
+      105.3,
+      716.7,
+      120.7
+     ],
+     "cell": "r4c11",
+     "note": "UP 49 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 4.0,
+     "unit": null,
+     "printed": "4",
+     "page": 5,
+     "bbox": [
+      716.7,
+      105.3,
+      775.6,
+      120.7
+     ],
+     "cell": "r4c12",
+     "note": "UP 49 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+3",
+     "unit": null,
+     "printed": "Po+P+3",
+     "page": 5,
+     "bbox": [
+      355.5,
+      105.3,
+      407.5,
+      120.7
+     ],
+     "cell": "r4c5",
+     "note": "UP 49 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 50",
+   "key": "50",
+   "page": 5,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 507.47,
+     "unit": "m²",
+     "printed": "507.47",
+     "page": 5,
+     "bbox": [
+      176.0,
+      89.6,
+      226.1,
+      105.3
+     ],
+     "cell": "r5c2",
+     "note": "UP 50 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 5,
+     "bbox": [
+      226.1,
+      89.6,
+      305.3,
+      105.3
+     ],
+     "cell": "r5c3",
+     "note": "UP 50 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 5,
+     "bbox": [
+      666.3,
+      89.6,
+      716.7,
+      105.3
+     ],
+     "cell": "r5c11",
+     "note": "UP 50 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 4.0,
+     "unit": null,
+     "printed": "4",
+     "page": 5,
+     "bbox": [
+      716.7,
+      89.6,
+      775.6,
+      105.3
+     ],
+     "cell": "r5c12",
+     "note": "UP 50 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+3",
+     "unit": null,
+     "printed": "Po+P+3",
+     "page": 5,
+     "bbox": [
+      355.5,
+      89.6,
+      407.5,
+      105.3
+     ],
+     "cell": "r5c5",
+     "note": "UP 50 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 51(a)",
+   "key": "51(a)",
+   "page": 6,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 16273.23,
+     "unit": "m²",
+     "printed": "16273.23",
+     "page": 6,
+     "bbox": [
+      176.3,
+      412.9,
+      226.7,
+      510.2
+     ],
+     "cell": "r0c2",
+     "note": "UP 51(a) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 6,
+     "bbox": [
+      226.7,
+      412.9,
+      306.3,
+      510.2
+     ],
+     "cell": "r0c3",
+     "note": "UP 51(a) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 20.0,
+     "unit": "%",
+     "printed": "0.2",
+     "page": 6,
+     "bbox": [
+      665.9,
+      412.9,
+      716.4,
+      510.2
+     ],
+     "cell": "r0c11",
+     "note": "UP 51(a) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.5,
+     "unit": null,
+     "printed": "0.5",
+     "page": 6,
+     "bbox": [
+      716.4,
+      412.9,
+      775.6,
+      510.2
+     ],
+     "cell": "r0c12",
+     "note": "UP 51(a) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+3",
+     "unit": null,
+     "printed": "Po+P+3",
+     "page": 6,
+     "bbox": [
+      356.7,
+      483.1,
+      405.9,
+      510.2
+     ],
+     "cell": "r0c5",
+     "note": "UP 51(a) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 51(b)",
+   "key": "51(b)",
+   "page": 6,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 16273.23,
+     "unit": "m²",
+     "printed": "16273.23",
+     "page": 6,
+     "bbox": [
+      176.3,
+      412.9,
+      226.7,
+      510.2
+     ],
+     "cell": "r0c2",
+     "note": "UP 51(b) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 6,
+     "bbox": [
+      226.7,
+      412.9,
+      306.3,
+      510.2
+     ],
+     "cell": "r0c3",
+     "note": "UP 51(b) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 20.0,
+     "unit": "%",
+     "printed": "0.2",
+     "page": 6,
+     "bbox": [
+      665.9,
+      412.9,
+      716.4,
+      510.2
+     ],
+     "cell": "r0c11",
+     "note": "UP 51(b) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.5,
+     "unit": null,
+     "printed": "0.5",
+     "page": 6,
+     "bbox": [
+      716.4,
+      412.9,
+      775.6,
+      510.2
+     ],
+     "cell": "r0c12",
+     "note": "UP 51(b) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Pv",
+     "unit": null,
+     "printed": "Pv",
+     "page": 6,
+     "bbox": [
+      356.7,
+      440.3,
+      405.9,
+      467.6
+     ],
+     "cell": "r2c5",
+     "note": "UP 51(b) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 51(c)",
+   "key": "51(c)",
+   "page": 6,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 16273.23,
+     "unit": "m²",
+     "printed": "16273.23",
+     "page": 6,
+     "bbox": [
+      176.3,
+      412.9,
+      226.7,
+      510.2
+     ],
+     "cell": "r0c2",
+     "note": "UP 51(c) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 6,
+     "bbox": [
+      226.7,
+      412.9,
+      306.3,
+      510.2
+     ],
+     "cell": "r0c3",
+     "note": "UP 51(c) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 20.0,
+     "unit": "%",
+     "printed": "0.2",
+     "page": 6,
+     "bbox": [
+      665.9,
+      412.9,
+      716.4,
+      510.2
+     ],
+     "cell": "r0c11",
+     "note": "UP 51(c) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.5,
+     "unit": null,
+     "printed": "0.5",
+     "page": 6,
+     "bbox": [
+      716.4,
+      412.9,
+      775.6,
+      510.2
+     ],
+     "cell": "r0c12",
+     "note": "UP 51(c) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+1",
+     "unit": null,
+     "printed": "P+1",
+     "page": 6,
+     "bbox": [
+      356.7,
+      412.9,
+      405.9,
+      440.3
+     ],
+     "cell": "r3c5",
+     "note": "UP 51(c) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 52",
+   "key": "52",
+   "page": 6,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 457.18,
+     "unit": "m²",
+     "printed": "457.18",
+     "page": 6,
+     "bbox": [
+      176.3,
+      397.4,
+      226.7,
+      412.9
+     ],
+     "cell": "r4c2",
+     "note": "UP 52 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 6,
+     "bbox": [
+      226.7,
+      397.4,
+      306.3,
+      412.9
+     ],
+     "cell": "r4c3",
+     "note": "UP 52 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 6,
+     "bbox": [
+      665.9,
+      381.9,
+      716.4,
+      412.9
+     ],
+     "cell": "r4c11",
+     "note": "UP 52 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 6,
+     "bbox": [
+      716.4,
+      381.9,
+      775.6,
+      412.9
+     ],
+     "cell": "r4c12",
+     "note": "UP 52 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+4",
+     "unit": null,
+     "printed": "S+P+4",
+     "page": 6,
+     "bbox": [
+      356.7,
+      397.4,
+      405.9,
+      412.9
+     ],
+     "cell": "r4c5",
+     "note": "UP 52 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 53",
+   "key": "53",
+   "page": 6,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 682.56,
+     "unit": "m²",
+     "printed": "682.56",
+     "page": 6,
+     "bbox": [
+      176.3,
+      366.4,
+      226.7,
+      381.9
+     ],
+     "cell": "r6c2",
+     "note": "UP 53 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 6,
+     "bbox": [
+      226.7,
+      366.4,
+      306.3,
+      381.9
+     ],
+     "cell": "r6c3",
+     "note": "UP 53 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 6,
+     "bbox": [
+      665.9,
+      351.0,
+      716.4,
+      381.9
+     ],
+     "cell": "r6c11",
+     "note": "UP 53 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 6,
+     "bbox": [
+      716.4,
+      351.0,
+      775.6,
+      381.9
+     ],
+     "cell": "r6c12",
+     "note": "UP 53 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+4",
+     "unit": null,
+     "printed": "S+P+4",
+     "page": 6,
+     "bbox": [
+      356.7,
+      366.4,
+      405.9,
+      381.9
+     ],
+     "cell": "r6c5",
+     "note": "UP 53 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 54",
+   "key": "54",
+   "page": 6,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 692.21,
+     "unit": "m²",
+     "printed": "692.21",
+     "page": 6,
+     "bbox": [
+      176.3,
+      335.5,
+      226.7,
+      351.0
+     ],
+     "cell": "r8c2",
+     "note": "UP 54 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 6,
+     "bbox": [
+      226.7,
+      335.5,
+      306.3,
+      351.0
+     ],
+     "cell": "r8c3",
+     "note": "UP 54 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 6,
+     "bbox": [
+      665.9,
+      319.9,
+      716.4,
+      351.0
+     ],
+     "cell": "r8c11",
+     "note": "UP 54 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 6,
+     "bbox": [
+      716.4,
+      319.9,
+      775.6,
+      351.0
+     ],
+     "cell": "r8c12",
+     "note": "UP 54 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+4",
+     "unit": null,
+     "printed": "S+P+4",
+     "page": 6,
+     "bbox": [
+      356.7,
+      335.5,
+      405.9,
+      351.0
+     ],
+     "cell": "r8c5",
+     "note": "UP 54 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 55",
+   "key": "55",
+   "page": 6,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 3349.37,
+     "unit": "m²",
+     "printed": "3349.37",
+     "page": 6,
+     "bbox": [
+      176.3,
+      297.4,
+      226.7,
+      319.9
+     ],
+     "cell": "r10c2",
+     "note": "UP 55 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 6,
+     "bbox": [
+      226.7,
+      297.4,
+      306.3,
+      319.9
+     ],
+     "cell": "r10c3",
+     "note": "UP 55 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 55.0,
+     "unit": "%",
+     "printed": "0.55",
+     "page": 6,
+     "bbox": [
+      665.9,
+      297.4,
+      716.4,
+      319.9
+     ],
+     "cell": "r10c11",
+     "note": "UP 55 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 2.5,
+     "unit": null,
+     "printed": "2.5",
+     "page": 6,
+     "bbox": [
+      716.4,
+      297.4,
+      775.6,
+      319.9
+     ],
+     "cell": "r10c12",
+     "note": "UP 55 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "G+S+P+5+Pk",
+     "unit": null,
+     "printed": "G+S+P+5+Pk",
+     "page": 6,
+     "bbox": [
+      356.7,
+      297.4,
+      405.9,
+      319.9
+     ],
+     "cell": "r10c5",
+     "note": "UP 55 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 56",
+   "key": "56",
+   "page": 6,
+   "block_ref": "D",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 895.25,
+     "unit": "m²",
+     "printed": "895.25",
+     "page": 6,
+     "bbox": [
+      176.3,
+      275.0,
+      226.7,
+      297.4
+     ],
+     "cell": "r11c2",
+     "note": "UP 56 – Površina UP"
+    },
+    "land_use": {
+     "value": "centralne djelatnosti",
+     "unit": null,
+     "printed": "centralne djelatnosti",
+     "page": 6,
+     "bbox": [
+      226.7,
+      275.0,
+      306.3,
+      297.4
+     ],
+     "cell": "r11c3",
+     "note": "UP 56 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 6,
+     "bbox": [
+      665.9,
+      259.5,
+      716.4,
+      297.4
+     ],
+     "cell": "r11c11",
+     "note": "UP 56 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 6,
+     "bbox": [
+      716.4,
+      259.5,
+      775.6,
+      297.4
+     ],
+     "cell": "r11c12",
+     "note": "UP 56 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+4",
+     "unit": null,
+     "printed": "S+P+4",
+     "page": 6,
+     "bbox": [
+      356.7,
+      275.0,
+      405.9,
+      297.4
+     ],
+     "cell": "r11c5",
+     "note": "UP 56 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 57",
+   "key": "57",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 615.77,
+     "unit": "m²",
+     "printed": "615.77",
+     "page": 7,
+     "bbox": [
+      176.9,
+      426.8,
+      222.4,
+      444.0
+     ],
+     "cell": "r1c2",
+     "note": "UP 57 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 7,
+     "bbox": [
+      222.4,
+      426.8,
+      302.6,
+      444.0
+     ],
+     "cell": "r1c3",
+     "note": "UP 57 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 7,
+     "bbox": [
+      665.0,
+      411.3,
+      716.0,
+      444.0
+     ],
+     "cell": "r1c11",
+     "note": "UP 57 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 7,
+     "bbox": [
+      716.0,
+      411.3,
+      775.6,
+      444.0
+     ],
+     "cell": "r1c12",
+     "note": "UP 57 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+4",
+     "unit": null,
+     "printed": "S+P+4",
+     "page": 7,
+     "bbox": [
+      350.1,
+      426.8,
+      403.1,
+      444.0
+     ],
+     "cell": "r1c5",
+     "note": "UP 57 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 58",
+   "key": "58",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 8508.0,
+     "unit": "m²",
+     "printed": "8508",
+     "page": 7,
+     "bbox": [
+      176.9,
+      388.9,
+      222.4,
+      411.3
+     ],
+     "cell": "r3c2",
+     "note": "UP 58 – Površina UP"
+    },
+    "land_use": {
+     "value": "centralne djelatnosti",
+     "unit": null,
+     "printed": "centralne djelatnosti",
+     "page": 7,
+     "bbox": [
+      222.4,
+      388.9,
+      302.6,
+      411.3
+     ],
+     "cell": "r3c3",
+     "note": "UP 58 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 50.0,
+     "unit": "%",
+     "printed": "0.5",
+     "page": 7,
+     "bbox": [
+      665.0,
+      357.8,
+      716.0,
+      411.3
+     ],
+     "cell": "r3c11",
+     "note": "UP 58 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 1.5,
+     "unit": null,
+     "printed": "1.5",
+     "page": 7,
+     "bbox": [
+      716.0,
+      357.8,
+      775.6,
+      411.3
+     ],
+     "cell": "r3c12",
+     "note": "UP 58 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+3",
+     "unit": null,
+     "printed": "S+P+3",
+     "page": 7,
+     "bbox": [
+      350.1,
+      388.9,
+      403.1,
+      411.3
+     ],
+     "cell": "r3c5",
+     "note": "UP 58 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 59",
+   "key": "59",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 551.34,
+     "unit": "m²",
+     "printed": "551.34",
+     "page": 7,
+     "bbox": [
+      176.9,
+      342.3,
+      222.4,
+      357.8
+     ],
+     "cell": "r6c2",
+     "note": "UP 59 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 7,
+     "bbox": [
+      222.4,
+      342.3,
+      302.6,
+      357.8
+     ],
+     "cell": "r6c3",
+     "note": "UP 59 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 7,
+     "bbox": [
+      665.0,
+      326.8,
+      716.0,
+      357.8
+     ],
+     "cell": "r6c11",
+     "note": "UP 59 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 7,
+     "bbox": [
+      716.0,
+      326.8,
+      775.6,
+      357.8
+     ],
+     "cell": "r6c12",
+     "note": "UP 59 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "S+P+4",
+     "unit": null,
+     "printed": "S+P+4",
+     "page": 7,
+     "bbox": [
+      350.1,
+      342.3,
+      403.1,
+      357.8
+     ],
+     "cell": "r6c5",
+     "note": "UP 59 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 60",
+   "key": "60",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 431.04,
+     "unit": "m²",
+     "printed": "431.04",
+     "page": 7,
+     "bbox": [
+      176.9,
+      311.3,
+      222.4,
+      326.8
+     ],
+     "cell": "r8c2",
+     "note": "UP 60 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 7,
+     "bbox": [
+      222.4,
+      311.3,
+      302.6,
+      326.8
+     ],
+     "cell": "r8c3",
+     "note": "UP 60 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 7,
+     "bbox": [
+      665.0,
+      295.9,
+      716.0,
+      326.8
+     ],
+     "cell": "r8c11",
+     "note": "UP 60 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 7,
+     "bbox": [
+      716.0,
+      295.9,
+      775.6,
+      326.8
+     ],
+     "cell": "r8c12",
+     "note": "UP 60 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 7,
+     "bbox": [
+      350.1,
+      311.3,
+      403.1,
+      326.8
+     ],
+     "cell": "r8c5",
+     "note": "UP 60 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 61",
+   "key": "61",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 956.35,
+     "unit": "m²",
+     "printed": "956.35",
+     "page": 7,
+     "bbox": [
+      176.9,
+      273.3,
+      222.4,
+      295.9
+     ],
+     "cell": "r10c2",
+     "note": "UP 61 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 7,
+     "bbox": [
+      222.4,
+      273.3,
+      302.6,
+      295.9
+     ],
+     "cell": "r10c3",
+     "note": "UP 61 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 50.0,
+     "unit": "%",
+     "printed": "0.5",
+     "page": 7,
+     "bbox": [
+      665.0,
+      273.3,
+      716.0,
+      295.9
+     ],
+     "cell": "r10c11",
+     "note": "UP 61 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 2.35,
+     "unit": null,
+     "printed": "2.35",
+     "page": 7,
+     "bbox": [
+      716.0,
+      273.3,
+      775.6,
+      295.9
+     ],
+     "cell": "r10c12",
+     "note": "UP 61 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "G+P+3+Pk",
+     "unit": null,
+     "printed": "G+P+3+Pk",
+     "page": 7,
+     "bbox": [
+      350.1,
+      273.3,
+      403.1,
+      295.9
+     ],
+     "cell": "r10c5",
+     "note": "UP 61 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 62",
+   "key": "62",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1313.24,
+     "unit": "m²",
+     "printed": "1313.24",
+     "page": 7,
+     "bbox": [
+      176.9,
+      245.9,
+      222.4,
+      273.3
+     ],
+     "cell": "r11c2",
+     "note": "UP 62 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 7,
+     "bbox": [
+      222.4,
+      245.9,
+      302.6,
+      273.3
+     ],
+     "cell": "r11c3",
+     "note": "UP 62 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 50.0,
+     "unit": "%",
+     "printed": "0.5",
+     "page": 7,
+     "bbox": [
+      665.0,
+      245.9,
+      716.0,
+      273.3
+     ],
+     "cell": "r11c11",
+     "note": "UP 62 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 2.0,
+     "unit": null,
+     "printed": "2",
+     "page": 7,
+     "bbox": [
+      716.0,
+      245.9,
+      775.6,
+      273.3
+     ],
+     "cell": "r11c12",
+     "note": "UP 62 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "G+P+3+Pk",
+     "unit": null,
+     "printed": "G+P+3+Pk",
+     "page": 7,
+     "bbox": [
+      350.1,
+      245.9,
+      403.1,
+      273.3
+     ],
+     "cell": "r11c5",
+     "note": "UP 62 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 63",
+   "key": "63",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 289.27,
+     "unit": "m²",
+     "printed": "289.27",
+     "page": 7,
+     "bbox": [
+      176.9,
+      221.1,
+      222.4,
+      245.9
+     ],
+     "cell": "r12c2",
+     "note": "UP 63 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 7,
+     "bbox": [
+      222.4,
+      221.1,
+      302.6,
+      245.9
+     ],
+     "cell": "r12c3",
+     "note": "UP 63 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 7,
+     "bbox": [
+      665.0,
+      205.6,
+      716.0,
+      245.9
+     ],
+     "cell": "r12c11",
+     "note": "UP 63 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 4.0,
+     "unit": null,
+     "printed": "4",
+     "page": 7,
+     "bbox": [
+      716.0,
+      205.6,
+      775.6,
+      245.9
+     ],
+     "cell": "r12c12",
+     "note": "UP 63 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+2+ M",
+     "unit": null,
+     "printed": "Po+P+2+ M",
+     "page": 7,
+     "bbox": [
+      350.1,
+      221.1,
+      403.1,
+      245.9
+     ],
+     "cell": "r12c5",
+     "note": "UP 63 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 64",
+   "key": "64",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 452.99,
+     "unit": "m²",
+     "printed": "452.99",
+     "page": 7,
+     "bbox": [
+      176.9,
+      183.0,
+      222.4,
+      205.6
+     ],
+     "cell": "r14c2",
+     "note": "UP 64 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 7,
+     "bbox": [
+      222.4,
+      183.0,
+      302.6,
+      205.6
+     ],
+     "cell": "r14c3",
+     "note": "UP 64 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 7,
+     "bbox": [
+      665.0,
+      183.0,
+      716.0,
+      205.6
+     ],
+     "cell": "r14c11",
+     "note": "UP 64 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 3.0,
+     "unit": null,
+     "printed": "3",
+     "page": 7,
+     "bbox": [
+      716.0,
+      183.0,
+      775.6,
+      205.6
+     ],
+     "cell": "r14c12",
+     "note": "UP 64 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+2",
+     "unit": null,
+     "printed": "Po+P+2",
+     "page": 7,
+     "bbox": [
+      350.1,
+      183.0,
+      403.1,
+      205.6
+     ],
+     "cell": "r14c5",
+     "note": "UP 64 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 65",
+   "key": "65",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 484.4,
+     "unit": "m²",
+     "printed": "484.4",
+     "page": 7,
+     "bbox": [
+      176.9,
+      160.6,
+      222.4,
+      183.0
+     ],
+     "cell": "r15c2",
+     "note": "UP 65 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 7,
+     "bbox": [
+      222.4,
+      160.6,
+      302.6,
+      183.0
+     ],
+     "cell": "r15c3",
+     "note": "UP 65 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 50.0,
+     "unit": "%",
+     "printed": "0.5",
+     "page": 7,
+     "bbox": [
+      665.0,
+      160.6,
+      716.0,
+      183.0
+     ],
+     "cell": "r15c11",
+     "note": "UP 65 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 2.2,
+     "unit": null,
+     "printed": "2.2",
+     "page": 7,
+     "bbox": [
+      716.0,
+      160.6,
+      775.6,
+      183.0
+     ],
+     "cell": "r15c12",
+     "note": "UP 65 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "G+P+3+Pk",
+     "unit": null,
+     "printed": "G+P+3+Pk",
+     "page": 7,
+     "bbox": [
+      350.1,
+      160.6,
+      403.1,
+      183.0
+     ],
+     "cell": "r15c5",
+     "note": "UP 65 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 66",
+   "key": "66",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 497.22,
+     "unit": "m²",
+     "printed": "497.22",
+     "page": 7,
+     "bbox": [
+      176.9,
+      145.1,
+      222.4,
+      160.6
+     ],
+     "cell": "r16c2",
+     "note": "UP 66 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 7,
+     "bbox": [
+      222.4,
+      145.1,
+      302.6,
+      160.6
+     ],
+     "cell": "r16c3",
+     "note": "UP 66 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 7,
+     "bbox": [
+      665.0,
+      129.6,
+      716.0,
+      160.6
+     ],
+     "cell": "r16c11",
+     "note": "UP 66 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 7,
+     "bbox": [
+      716.0,
+      129.6,
+      775.6,
+      160.6
+     ],
+     "cell": "r16c12",
+     "note": "UP 66 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 7,
+     "bbox": [
+      350.1,
+      145.1,
+      403.1,
+      160.6
+     ],
+     "cell": "r16c5",
+     "note": "UP 66 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 67",
+   "key": "67",
+   "page": 7,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 527.03,
+     "unit": "m²",
+     "printed": "527.03",
+     "page": 7,
+     "bbox": [
+      176.9,
+      114.1,
+      222.4,
+      129.6
+     ],
+     "cell": "r18c2",
+     "note": "UP 67 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 7,
+     "bbox": [
+      222.4,
+      114.1,
+      302.6,
+      129.6
+     ],
+     "cell": "r18c3",
+     "note": "UP 67 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 7,
+     "bbox": [
+      665.0,
+      98.5,
+      716.0,
+      129.6
+     ],
+     "cell": "r18c11",
+     "note": "UP 67 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 7,
+     "bbox": [
+      716.0,
+      98.5,
+      775.6,
+      129.6
+     ],
+     "cell": "r18c12",
+     "note": "UP 67 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 7,
+     "bbox": [
+      350.1,
+      114.1,
+      403.1,
+      129.6
+     ],
+     "cell": "r18c5",
+     "note": "UP 67 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 68",
+   "key": "68",
+   "page": 8,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 573.81,
+     "unit": "m²",
+     "printed": "573.81",
+     "page": 8,
+     "bbox": [
+      176.7,
+      495.0,
+      222.4,
+      510.2
+     ],
+     "cell": "r0c2",
+     "note": "UP 68 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 8,
+     "bbox": [
+      222.4,
+      495.0,
+      302.6,
+      510.2
+     ],
+     "cell": "r0c3",
+     "note": "UP 68 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 8,
+     "bbox": [
+      665.4,
+      479.5,
+      716.2,
+      510.2
+     ],
+     "cell": "r0c11",
+     "note": "UP 68 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 8,
+     "bbox": [
+      716.2,
+      479.5,
+      775.6,
+      510.2
+     ],
+     "cell": "r0c12",
+     "note": "UP 68 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 8,
+     "bbox": [
+      350.1,
+      495.0,
+      404.3,
+      510.2
+     ],
+     "cell": "r0c5",
+     "note": "UP 68 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 69",
+   "key": "69",
+   "page": 8,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 447.87,
+     "unit": "m²",
+     "printed": "447.87",
+     "page": 8,
+     "bbox": [
+      176.7,
+      464.0,
+      222.4,
+      479.5
+     ],
+     "cell": "r2c2",
+     "note": "UP 69 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 8,
+     "bbox": [
+      222.4,
+      464.0,
+      302.6,
+      479.5
+     ],
+     "cell": "r2c3",
+     "note": "UP 69 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 8,
+     "bbox": [
+      665.4,
+      448.5,
+      716.2,
+      479.5
+     ],
+     "cell": "r2c11",
+     "note": "UP 69 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 8,
+     "bbox": [
+      716.2,
+      448.5,
+      775.6,
+      479.5
+     ],
+     "cell": "r2c12",
+     "note": "UP 69 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 8,
+     "bbox": [
+      350.1,
+      464.0,
+      404.3,
+      479.5
+     ],
+     "cell": "r2c5",
+     "note": "UP 69 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 70",
+   "key": "70",
+   "page": 8,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1219.72,
+     "unit": "m²",
+     "printed": "1219.72",
+     "page": 8,
+     "bbox": [
+      176.7,
+      421.2,
+      222.4,
+      448.5
+     ],
+     "cell": "r4c2",
+     "note": "UP 70 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 8,
+     "bbox": [
+      222.4,
+      421.2,
+      302.6,
+      448.5
+     ],
+     "cell": "r4c3",
+     "note": "UP 70 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 8,
+     "bbox": [
+      665.4,
+      405.7,
+      716.2,
+      448.5
+     ],
+     "cell": "r4c11",
+     "note": "UP 70 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 8,
+     "bbox": [
+      716.2,
+      405.7,
+      775.6,
+      448.5
+     ],
+     "cell": "r4c12",
+     "note": "UP 70 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 8,
+     "bbox": [
+      350.1,
+      421.2,
+      404.3,
+      448.5
+     ],
+     "cell": "r4c5",
+     "note": "UP 70 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 71",
+   "key": "71",
+   "page": 8,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 439.38,
+     "unit": "m²",
+     "printed": "439.38",
+     "page": 8,
+     "bbox": [
+      176.7,
+      383.1,
+      222.4,
+      405.7
+     ],
+     "cell": "r6c2",
+     "note": "UP 71 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 8,
+     "bbox": [
+      222.4,
+      383.1,
+      302.6,
+      405.7
+     ],
+     "cell": "r6c3",
+     "note": "UP 71 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 8,
+     "bbox": [
+      665.4,
+      383.1,
+      716.2,
+      405.7
+     ],
+     "cell": "r6c11",
+     "note": "UP 71 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 15.0,
+     "unit": null,
+     "printed": "15",
+     "page": 8,
+     "bbox": [
+      716.2,
+      383.1,
+      775.6,
+      405.7
+     ],
+     "cell": "r6c12",
+     "note": "UP 71 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+14",
+     "unit": null,
+     "printed": "Po+P+14",
+     "page": 8,
+     "bbox": [
+      350.1,
+      383.1,
+      404.3,
+      405.7
+     ],
+     "cell": "r6c5",
+     "note": "UP 71 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 72",
+   "key": "72",
+   "page": 8,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 432.44,
+     "unit": "m²",
+     "printed": "432.44",
+     "page": 8,
+     "bbox": [
+      176.7,
+      360.7,
+      222.4,
+      383.1
+     ],
+     "cell": "r7c2",
+     "note": "UP 72 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 8,
+     "bbox": [
+      222.4,
+      360.7,
+      302.6,
+      383.1
+     ],
+     "cell": "r7c3",
+     "note": "UP 72 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 8,
+     "bbox": [
+      665.4,
+      360.7,
+      716.2,
+      383.1
+     ],
+     "cell": "r7c11",
+     "note": "UP 72 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 15.0,
+     "unit": null,
+     "printed": "15",
+     "page": 8,
+     "bbox": [
+      716.2,
+      360.7,
+      775.6,
+      383.1
+     ],
+     "cell": "r7c12",
+     "note": "UP 72 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+14",
+     "unit": null,
+     "printed": "Po+P+14",
+     "page": 8,
+     "bbox": [
+      350.1,
+      360.7,
+      404.3,
+      383.1
+     ],
+     "cell": "r7c5",
+     "note": "UP 72 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 73",
+   "key": "73",
+   "page": 8,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 489.79,
+     "unit": "m²",
+     "printed": "489.79",
+     "page": 8,
+     "bbox": [
+      176.7,
+      335.7,
+      222.4,
+      360.7
+     ],
+     "cell": "r8c2",
+     "note": "UP 73 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 8,
+     "bbox": [
+      222.4,
+      335.7,
+      302.6,
+      360.7
+     ],
+     "cell": "r8c3",
+     "note": "UP 73 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 8,
+     "bbox": [
+      665.4,
+      320.2,
+      716.2,
+      360.7
+     ],
+     "cell": "r8c11",
+     "note": "UP 73 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 4.0,
+     "unit": null,
+     "printed": "4",
+     "page": 8,
+     "bbox": [
+      716.2,
+      320.2,
+      775.6,
+      360.7
+     ],
+     "cell": "r8c12",
+     "note": "UP 73 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+2+ M",
+     "unit": null,
+     "printed": "Po+P+2+ M",
+     "page": 8,
+     "bbox": [
+      350.1,
+      335.7,
+      404.3,
+      360.7
+     ],
+     "cell": "r8c5",
+     "note": "UP 73 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 74",
+   "key": "74",
+   "page": 8,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 630.57,
+     "unit": "m²",
+     "printed": "630.57",
+     "page": 8,
+     "bbox": [
+      176.7,
+      236.6,
+      226.8,
+      253.7
+     ],
+     "cell": "r1c2",
+     "note": "UP 74 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 8,
+     "bbox": [
+      226.8,
+      236.6,
+      306.4,
+      253.7
+     ],
+     "cell": "r1c3",
+     "note": "UP 74 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 8,
+     "bbox": [
+      665.4,
+      221.1,
+      716.2,
+      253.7
+     ],
+     "cell": "r1c11",
+     "note": "UP 74 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 5.0,
+     "unit": null,
+     "printed": "5",
+     "page": 8,
+     "bbox": [
+      716.2,
+      221.1,
+      775.6,
+      253.7
+     ],
+     "cell": "r1c12",
+     "note": "UP 74 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 8,
+     "bbox": [
+      356.8,
+      236.6,
+      404.3,
+      253.7
+     ],
+     "cell": "r1c5",
+     "note": "UP 74 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 75",
+   "key": "75",
+   "page": 8,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 422.95,
+     "unit": "m²",
+     "printed": "422.95",
+     "page": 8,
+     "bbox": [
+      176.7,
+      205.6,
+      226.8,
+      221.1
+     ],
+     "cell": "r3c2",
+     "note": "UP 75 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 8,
+     "bbox": [
+      226.8,
+      205.6,
+      306.4,
+      221.1
+     ],
+     "cell": "r3c3",
+     "note": "UP 75 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 8,
+     "bbox": [
+      665.4,
+      190.0,
+      716.2,
+      221.1
+     ],
+     "cell": "r3c11",
+     "note": "UP 75 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 4.0,
+     "unit": null,
+     "printed": "4",
+     "page": 8,
+     "bbox": [
+      716.2,
+      190.0,
+      775.6,
+      221.1
+     ],
+     "cell": "r3c12",
+     "note": "UP 75 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+3",
+     "unit": null,
+     "printed": "Po+P+3",
+     "page": 8,
+     "bbox": [
+      356.8,
+      205.6,
+      404.3,
+      221.1
+     ],
+     "cell": "r3c5",
+     "note": "UP 75 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 76",
+   "key": "76",
+   "page": 8,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 541.79,
+     "unit": "m²",
+     "printed": "541.79",
+     "page": 8,
+     "bbox": [
+      176.7,
+      167.5,
+      226.8,
+      190.0
+     ],
+     "cell": "r5c2",
+     "note": "UP 76 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 8,
+     "bbox": [
+      226.8,
+      167.5,
+      306.4,
+      190.0
+     ],
+     "cell": "r5c3",
+     "note": "UP 76 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 8,
+     "bbox": [
+      665.4,
+      167.5,
+      716.2,
+      190.0
+     ],
+     "cell": "r5c11",
+     "note": "UP 76 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 8,
+     "bbox": [
+      716.2,
+      167.5,
+      775.6,
+      190.0
+     ],
+     "cell": "r5c12",
+     "note": "UP 76 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 8,
+     "bbox": [
+      356.8,
+      167.5,
+      404.3,
+      190.0
+     ],
+     "cell": "r5c5",
+     "note": "UP 76 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 77",
+   "key": "77",
+   "page": 8,
+   "block_ref": "E",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 431.12,
+     "unit": "m²",
+     "printed": "431.12",
+     "page": 8,
+     "bbox": [
+      176.7,
+      152.1,
+      226.8,
+      167.5
+     ],
+     "cell": "r6c2",
+     "note": "UP 77 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 8,
+     "bbox": [
+      226.8,
+      152.1,
+      306.4,
+      167.5
+     ],
+     "cell": "r6c3",
+     "note": "UP 77 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 8,
+     "bbox": [
+      665.4,
+      136.6,
+      716.2,
+      167.5
+     ],
+     "cell": "r6c11",
+     "note": "UP 77 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 8,
+     "bbox": [
+      716.2,
+      136.6,
+      775.6,
+      167.5
+     ],
+     "cell": "r6c12",
+     "note": "UP 77 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+5",
+     "unit": null,
+     "printed": "Po+P+5",
+     "page": 8,
+     "bbox": [
+      356.8,
+      152.1,
+      404.3,
+      167.5
+     ],
+     "cell": "r6c5",
+     "note": "UP 77 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 78",
+   "key": "78",
+   "page": 9,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 381.14,
+     "unit": "m²",
+     "printed": "381.14",
+     "page": 9,
+     "bbox": [
+      176.7,
+      384.2,
+      227.3,
+      401.3
+     ],
+     "cell": "r1c2",
+     "note": "UP 78 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 9,
+     "bbox": [
+      227.3,
+      384.2,
+      307.4,
+      401.3
+     ],
+     "cell": "r1c3",
+     "note": "UP 78 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 9,
+     "bbox": [
+      665.3,
+      368.7,
+      716.1,
+      401.3
+     ],
+     "cell": "r1c11",
+     "note": "UP 78 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 9,
+     "bbox": [
+      716.1,
+      368.7,
+      775.6,
+      401.3
+     ],
+     "cell": "r1c12",
+     "note": "UP 78 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+5",
+     "unit": null,
+     "printed": "Po+P+5",
+     "page": 9,
+     "bbox": [
+      354.8,
+      384.2,
+      403.8,
+      401.3
+     ],
+     "cell": "r1c5",
+     "note": "UP 78 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 79",
+   "key": "79",
+   "page": 9,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 390.82,
+     "unit": "m²",
+     "printed": "390.82",
+     "page": 9,
+     "bbox": [
+      176.7,
+      353.2,
+      227.3,
+      368.7
+     ],
+     "cell": "r3c2",
+     "note": "UP 79 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 9,
+     "bbox": [
+      227.3,
+      353.2,
+      307.4,
+      368.7
+     ],
+     "cell": "r3c3",
+     "note": "UP 79 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 9,
+     "bbox": [
+      665.3,
+      337.6,
+      716.1,
+      368.7
+     ],
+     "cell": "r3c11",
+     "note": "UP 79 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 9,
+     "bbox": [
+      716.1,
+      337.6,
+      775.6,
+      368.7
+     ],
+     "cell": "r3c12",
+     "note": "UP 79 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+5",
+     "unit": null,
+     "printed": "Po+P+5",
+     "page": 9,
+     "bbox": [
+      354.8,
+      353.2,
+      403.8,
+      368.7
+     ],
+     "cell": "r3c5",
+     "note": "UP 79 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 80",
+   "key": "80",
+   "page": 9,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 342.74,
+     "unit": "m²",
+     "printed": "342.74",
+     "page": 9,
+     "bbox": [
+      176.7,
+      322.1,
+      227.3,
+      337.6
+     ],
+     "cell": "r5c2",
+     "note": "UP 80 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 9,
+     "bbox": [
+      227.3,
+      322.1,
+      307.4,
+      337.6
+     ],
+     "cell": "r5c3",
+     "note": "UP 80 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 9,
+     "bbox": [
+      665.3,
+      306.7,
+      716.1,
+      337.6
+     ],
+     "cell": "r5c11",
+     "note": "UP 80 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 6.0,
+     "unit": null,
+     "printed": "6",
+     "page": 9,
+     "bbox": [
+      716.1,
+      306.7,
+      775.6,
+      337.6
+     ],
+     "cell": "r5c12",
+     "note": "UP 80 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+5",
+     "unit": null,
+     "printed": "Po+P+5",
+     "page": 9,
+     "bbox": [
+      354.8,
+      322.1,
+      403.8,
+      337.6
+     ],
+     "cell": "r5c5",
+     "note": "UP 80 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 81(a)",
+   "key": "81(a)",
+   "page": 9,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 7224.11,
+     "unit": "m²",
+     "printed": "7224.11",
+     "page": 9,
+     "bbox": [
+      176.7,
+      166.2,
+      227.3,
+      306.7
+     ],
+     "cell": "r7c2",
+     "note": "UP 81(a) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 9,
+     "bbox": [
+      227.3,
+      166.2,
+      307.4,
+      306.7
+     ],
+     "cell": "r7c3",
+     "note": "UP 81(a) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 30.0,
+     "unit": "%",
+     "printed": "0.3",
+     "page": 9,
+     "bbox": [
+      665.3,
+      166.2,
+      716.1,
+      306.7
+     ],
+     "cell": "r7c11",
+     "note": "UP 81(a) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 1.0,
+     "unit": null,
+     "printed": "1",
+     "page": 9,
+     "bbox": [
+      716.1,
+      166.2,
+      775.6,
+      306.7
+     ],
+     "cell": "r7c12",
+     "note": "UP 81(a) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 9,
+     "bbox": [
+      354.8,
+      279.3,
+      403.8,
+      306.7
+     ],
+     "cell": "r7c5",
+     "note": "UP 81(a) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 81(b)",
+   "key": "81(b)",
+   "page": 9,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 7224.11,
+     "unit": "m²",
+     "printed": "7224.11",
+     "page": 9,
+     "bbox": [
+      176.7,
+      166.2,
+      227.3,
+      306.7
+     ],
+     "cell": "r7c2",
+     "note": "UP 81(b) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 9,
+     "bbox": [
+      227.3,
+      166.2,
+      307.4,
+      306.7
+     ],
+     "cell": "r7c3",
+     "note": "UP 81(b) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 30.0,
+     "unit": "%",
+     "printed": "0.3",
+     "page": 9,
+     "bbox": [
+      665.3,
+      166.2,
+      716.1,
+      306.7
+     ],
+     "cell": "r7c11",
+     "note": "UP 81(b) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 1.0,
+     "unit": null,
+     "printed": "1",
+     "page": 9,
+     "bbox": [
+      716.1,
+      166.2,
+      775.6,
+      306.7
+     ],
+     "cell": "r7c12",
+     "note": "UP 81(b) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 9,
+     "bbox": [
+      354.8,
+      251.9,
+      403.8,
+      279.3
+     ],
+     "cell": "r8c5",
+     "note": "UP 81(b) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 81(c)",
+   "key": "81(c)",
+   "page": 9,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 7224.11,
+     "unit": "m²",
+     "printed": "7224.11",
+     "page": 9,
+     "bbox": [
+      176.7,
+      166.2,
+      227.3,
+      306.7
+     ],
+     "cell": "r7c2",
+     "note": "UP 81(c) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 9,
+     "bbox": [
+      227.3,
+      166.2,
+      307.4,
+      306.7
+     ],
+     "cell": "r7c3",
+     "note": "UP 81(c) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 30.0,
+     "unit": "%",
+     "printed": "0.3",
+     "page": 9,
+     "bbox": [
+      665.3,
+      166.2,
+      716.1,
+      306.7
+     ],
+     "cell": "r7c11",
+     "note": "UP 81(c) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 1.0,
+     "unit": null,
+     "printed": "1",
+     "page": 9,
+     "bbox": [
+      716.1,
+      166.2,
+      775.6,
+      306.7
+     ],
+     "cell": "r7c12",
+     "note": "UP 81(c) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+4",
+     "unit": null,
+     "printed": "Po+P+4",
+     "page": 9,
+     "bbox": [
+      354.8,
+      209.1,
+      403.8,
+      236.5
+     ],
+     "cell": "r10c5",
+     "note": "UP 81(c) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 81(d)",
+   "key": "81(d)",
+   "page": 9,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 7224.11,
+     "unit": "m²",
+     "printed": "7224.11",
+     "page": 9,
+     "bbox": [
+      176.7,
+      166.2,
+      227.3,
+      306.7
+     ],
+     "cell": "r7c2",
+     "note": "UP 81(d) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 9,
+     "bbox": [
+      227.3,
+      166.2,
+      307.4,
+      306.7
+     ],
+     "cell": "r7c3",
+     "note": "UP 81(d) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 30.0,
+     "unit": "%",
+     "printed": "0.3",
+     "page": 9,
+     "bbox": [
+      665.3,
+      166.2,
+      716.1,
+      306.7
+     ],
+     "cell": "r7c11",
+     "note": "UP 81(d) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 1.0,
+     "unit": null,
+     "printed": "1",
+     "page": 9,
+     "bbox": [
+      716.1,
+      166.2,
+      775.6,
+      306.7
+     ],
+     "cell": "r7c12",
+     "note": "UP 81(d) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+1",
+     "unit": null,
+     "printed": "Po+P+1",
+     "page": 9,
+     "bbox": [
+      354.8,
+      166.2,
+      403.8,
+      193.6
+     ],
+     "cell": "r12c5",
+     "note": "UP 81(d) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 82 a",
+   "key": "82a",
+   "page": 9,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1093.09,
+     "unit": "m²",
+     "printed": "1093.09",
+     "page": 9,
+     "bbox": [
+      176.7,
+      143.8,
+      227.3,
+      166.2
+     ],
+     "cell": "r13c2",
+     "note": "UP 82 a – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 9,
+     "bbox": [
+      227.3,
+      143.8,
+      307.4,
+      166.2
+     ],
+     "cell": "r13c3",
+     "note": "UP 82 a – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 50.0,
+     "unit": "%",
+     "printed": "0.5",
+     "page": 9,
+     "bbox": [
+      665.3,
+      143.8,
+      716.1,
+      166.2
+     ],
+     "cell": "r13c11",
+     "note": "UP 82 a – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 3.5,
+     "unit": null,
+     "printed": "3.5",
+     "page": 9,
+     "bbox": [
+      716.1,
+      143.8,
+      775.6,
+      166.2
+     ],
+     "cell": "r13c12",
+     "note": "UP 82 a – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "G+P+5",
+     "unit": null,
+     "printed": "G+P+5",
+     "page": 9,
+     "bbox": [
+      354.8,
+      143.8,
+      403.8,
+      166.2
+     ],
+     "cell": "r13c5",
+     "note": "UP 82 a – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 82 b",
+   "key": "82b",
+   "page": 9,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1146.69,
+     "unit": "m²",
+     "printed": "1146.69",
+     "page": 9,
+     "bbox": [
+      176.7,
+      121.2,
+      227.3,
+      143.8
+     ],
+     "cell": "r14c2",
+     "note": "UP 82 b – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 9,
+     "bbox": [
+      227.3,
+      121.2,
+      307.4,
+      143.8
+     ],
+     "cell": "r14c3",
+     "note": "UP 82 b – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 50.0,
+     "unit": "%",
+     "printed": "0.5",
+     "page": 9,
+     "bbox": [
+      665.3,
+      121.2,
+      716.1,
+      143.8
+     ],
+     "cell": "r14c11",
+     "note": "UP 82 b – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 3.5,
+     "unit": null,
+     "printed": "3.5",
+     "page": 9,
+     "bbox": [
+      716.1,
+      121.2,
+      775.6,
+      143.8
+     ],
+     "cell": "r14c12",
+     "note": "UP 82 b – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "G+P+5",
+     "unit": null,
+     "printed": "G+P+5",
+     "page": 9,
+     "bbox": [
+      354.8,
+      121.2,
+      403.8,
+      143.8
+     ],
+     "cell": "r14c5",
+     "note": "UP 82 b – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 82 c",
+   "key": "82c",
+   "page": 9,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1121.86,
+     "unit": "m²",
+     "printed": "1121.86",
+     "page": 9,
+     "bbox": [
+      176.7,
+      98.8,
+      227.3,
+      121.2
+     ],
+     "cell": "r15c2",
+     "note": "UP 82 c – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 9,
+     "bbox": [
+      227.3,
+      98.8,
+      307.4,
+      121.2
+     ],
+     "cell": "r15c3",
+     "note": "UP 82 c – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 50.0,
+     "unit": "%",
+     "printed": "0.5",
+     "page": 9,
+     "bbox": [
+      665.3,
+      98.8,
+      716.1,
+      121.2
+     ],
+     "cell": "r15c11",
+     "note": "UP 82 c – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 3.5,
+     "unit": null,
+     "printed": "3.5",
+     "page": 9,
+     "bbox": [
+      716.1,
+      98.8,
+      775.6,
+      121.2
+     ],
+     "cell": "r15c12",
+     "note": "UP 82 c – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "G+P+5",
+     "unit": null,
+     "printed": "G+P+5",
+     "page": 9,
+     "bbox": [
+      354.8,
+      98.8,
+      403.8,
+      121.2
+     ],
+     "cell": "r15c5",
+     "note": "UP 82 c – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 83",
+   "key": "83",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 773.82,
+     "unit": "m²",
+     "printed": "773.82",
+     "page": 10,
+     "bbox": [
+      176.7,
+      488.0,
+      227.3,
+      510.2
+     ],
+     "cell": "r0c2",
+     "note": "UP 83 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 10,
+     "bbox": [
+      227.3,
+      488.0,
+      307.4,
+      510.2
+     ],
+     "cell": "r0c3",
+     "note": "UP 83 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 50.0,
+     "unit": "%",
+     "printed": "0.5",
+     "page": 10,
+     "bbox": [
+      665.3,
+      488.0,
+      716.1,
+      510.2
+     ],
+     "cell": "r0c11",
+     "note": "UP 83 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 3.5,
+     "unit": null,
+     "printed": "3.5",
+     "page": 10,
+     "bbox": [
+      716.1,
+      488.0,
+      775.6,
+      510.2
+     ],
+     "cell": "r0c12",
+     "note": "UP 83 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "G+P+5",
+     "unit": null,
+     "printed": "G+P+5",
+     "page": 10,
+     "bbox": [
+      354.8,
+      488.0,
+      403.8,
+      510.2
+     ],
+     "cell": "r0c5",
+     "note": "UP 83 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 84",
+   "key": "84",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 843.14,
+     "unit": "m²",
+     "printed": "843.14",
+     "page": 10,
+     "bbox": [
+      176.7,
+      465.6,
+      227.3,
+      488.0
+     ],
+     "cell": "r1c2",
+     "note": "UP 84 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 10,
+     "bbox": [
+      227.3,
+      465.6,
+      307.4,
+      488.0
+     ],
+     "cell": "r1c3",
+     "note": "UP 84 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 83.0,
+     "unit": "%",
+     "printed": "0.83",
+     "page": 10,
+     "bbox": [
+      665.3,
+      465.6,
+      716.1,
+      488.0
+     ],
+     "cell": "r1c11",
+     "note": "UP 84 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 4.2,
+     "unit": null,
+     "printed": "4.2",
+     "page": 10,
+     "bbox": [
+      716.1,
+      465.6,
+      775.6,
+      488.0
+     ],
+     "cell": "r1c12",
+     "note": "UP 84 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+4+Pk",
+     "unit": null,
+     "printed": "P+4+Pk",
+     "page": 10,
+     "bbox": [
+      354.8,
+      465.6,
+      403.8,
+      488.0
+     ],
+     "cell": "r1c5",
+     "note": "UP 84 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 85(a)",
+   "key": "85(a)",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 16545.83,
+     "unit": "m²",
+     "printed": "16545.83",
+     "page": 10,
+     "bbox": [
+      176.7,
+      270.4,
+      227.3,
+      465.6
+     ],
+     "cell": "r2c2",
+     "note": "UP 85(a) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 10,
+     "bbox": [
+      227.3,
+      270.4,
+      307.4,
+      465.6
+     ],
+     "cell": "r2c3",
+     "note": "UP 85(a) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 32.0,
+     "unit": "%",
+     "printed": "0.32",
+     "page": 10,
+     "bbox": [
+      665.3,
+      270.4,
+      716.1,
+      465.6
+     ],
+     "cell": "r2c11",
+     "note": "UP 85(a) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.5,
+     "unit": null,
+     "printed": "0.5",
+     "page": 10,
+     "bbox": [
+      716.1,
+      270.4,
+      775.6,
+      465.6
+     ],
+     "cell": "r2c12",
+     "note": "UP 85(a) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+1",
+     "unit": null,
+     "printed": "P+1",
+     "page": 10,
+     "bbox": [
+      354.8,
+      438.2,
+      403.8,
+      465.6
+     ],
+     "cell": "r2c5",
+     "note": "UP 85(a) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 85(b)",
+   "key": "85(b)",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 16545.83,
+     "unit": "m²",
+     "printed": "16545.83",
+     "page": 10,
+     "bbox": [
+      176.7,
+      270.4,
+      227.3,
+      465.6
+     ],
+     "cell": "r2c2",
+     "note": "UP 85(b) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 10,
+     "bbox": [
+      227.3,
+      270.4,
+      307.4,
+      465.6
+     ],
+     "cell": "r2c3",
+     "note": "UP 85(b) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 32.0,
+     "unit": "%",
+     "printed": "0.32",
+     "page": 10,
+     "bbox": [
+      665.3,
+      270.4,
+      716.1,
+      465.6
+     ],
+     "cell": "r2c11",
+     "note": "UP 85(b) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.5,
+     "unit": null,
+     "printed": "0.5",
+     "page": 10,
+     "bbox": [
+      716.1,
+      270.4,
+      775.6,
+      465.6
+     ],
+     "cell": "r2c12",
+     "note": "UP 85(b) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P",
+     "unit": null,
+     "printed": "P",
+     "page": 10,
+     "bbox": [
+      354.8,
+      395.3,
+      403.8,
+      422.7
+     ],
+     "cell": "r4c5",
+     "note": "UP 85(b) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 85(c)",
+   "key": "85(c)",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 16545.83,
+     "unit": "m²",
+     "printed": "16545.83",
+     "page": 10,
+     "bbox": [
+      176.7,
+      270.4,
+      227.3,
+      465.6
+     ],
+     "cell": "r2c2",
+     "note": "UP 85(c) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 10,
+     "bbox": [
+      227.3,
+      270.4,
+      307.4,
+      465.6
+     ],
+     "cell": "r2c3",
+     "note": "UP 85(c) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 32.0,
+     "unit": "%",
+     "printed": "0.32",
+     "page": 10,
+     "bbox": [
+      665.3,
+      270.4,
+      716.1,
+      465.6
+     ],
+     "cell": "r2c11",
+     "note": "UP 85(c) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.5,
+     "unit": null,
+     "printed": "0.5",
+     "page": 10,
+     "bbox": [
+      716.1,
+      270.4,
+      775.6,
+      465.6
+     ],
+     "cell": "r2c12",
+     "note": "UP 85(c) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+1",
+     "unit": null,
+     "printed": "P+1",
+     "page": 10,
+     "bbox": [
+      354.8,
+      368.0,
+      403.8,
+      395.3
+     ],
+     "cell": "r5c5",
+     "note": "UP 85(c) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 85(d)",
+   "key": "85(d)",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 16545.83,
+     "unit": "m²",
+     "printed": "16545.83",
+     "page": 10,
+     "bbox": [
+      176.7,
+      270.4,
+      227.3,
+      465.6
+     ],
+     "cell": "r2c2",
+     "note": "UP 85(d) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 10,
+     "bbox": [
+      227.3,
+      270.4,
+      307.4,
+      465.6
+     ],
+     "cell": "r2c3",
+     "note": "UP 85(d) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 32.0,
+     "unit": "%",
+     "printed": "0.32",
+     "page": 10,
+     "bbox": [
+      665.3,
+      270.4,
+      716.1,
+      465.6
+     ],
+     "cell": "r2c11",
+     "note": "UP 85(d) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.5,
+     "unit": null,
+     "printed": "0.5",
+     "page": 10,
+     "bbox": [
+      716.1,
+      270.4,
+      775.6,
+      465.6
+     ],
+     "cell": "r2c12",
+     "note": "UP 85(d) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P",
+     "unit": null,
+     "printed": "P",
+     "page": 10,
+     "bbox": [
+      354.8,
+      340.6,
+      403.8,
+      368.0
+     ],
+     "cell": "r6c5",
+     "note": "UP 85(d) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 85(e)",
+   "key": "85(e)",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 16545.83,
+     "unit": "m²",
+     "printed": "16545.83",
+     "page": 10,
+     "bbox": [
+      176.7,
+      270.4,
+      227.3,
+      465.6
+     ],
+     "cell": "r2c2",
+     "note": "UP 85(e) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 10,
+     "bbox": [
+      227.3,
+      270.4,
+      307.4,
+      465.6
+     ],
+     "cell": "r2c3",
+     "note": "UP 85(e) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 32.0,
+     "unit": "%",
+     "printed": "0.32",
+     "page": 10,
+     "bbox": [
+      665.3,
+      270.4,
+      716.1,
+      465.6
+     ],
+     "cell": "r2c11",
+     "note": "UP 85(e) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.5,
+     "unit": null,
+     "printed": "0.5",
+     "page": 10,
+     "bbox": [
+      716.1,
+      270.4,
+      775.6,
+      465.6
+     ],
+     "cell": "r2c12",
+     "note": "UP 85(e) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+1",
+     "unit": null,
+     "printed": "P+1",
+     "page": 10,
+     "bbox": [
+      354.8,
+      297.8,
+      403.8,
+      325.1
+     ],
+     "cell": "r8c5",
+     "note": "UP 85(e) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 85(f)",
+   "key": "85(f)",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 16545.83,
+     "unit": "m²",
+     "printed": "16545.83",
+     "page": 10,
+     "bbox": [
+      176.7,
+      270.4,
+      227.3,
+      465.6
+     ],
+     "cell": "r2c2",
+     "note": "UP 85(f) – Površina UP"
+    },
+    "land_use": {
+     "value": "školstvo i soc.zaštita",
+     "unit": null,
+     "printed": "školstvo i soc.zaštita",
+     "page": 10,
+     "bbox": [
+      227.3,
+      270.4,
+      307.4,
+      465.6
+     ],
+     "cell": "r2c3",
+     "note": "UP 85(f) – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 32.0,
+     "unit": "%",
+     "printed": "0.32",
+     "page": 10,
+     "bbox": [
+      665.3,
+      270.4,
+      716.1,
+      465.6
+     ],
+     "cell": "r2c11",
+     "note": "UP 85(f) – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 0.5,
+     "unit": null,
+     "printed": "0.5",
+     "page": 10,
+     "bbox": [
+      716.1,
+      270.4,
+      775.6,
+      465.6
+     ],
+     "cell": "r2c12",
+     "note": "UP 85(f) – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P",
+     "unit": null,
+     "printed": "P",
+     "page": 10,
+     "bbox": [
+      354.8,
+      270.4,
+      403.8,
+      297.8
+     ],
+     "cell": "r9c5",
+     "note": "UP 85(f) – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 86",
+   "key": "86",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1686.84,
+     "unit": "m²",
+     "printed": "1686.84",
+     "page": 10,
+     "bbox": [
+      176.7,
+      245.5,
+      227.3,
+      270.4
+     ],
+     "cell": "r10c2",
+     "note": "UP 86 – Površina UP"
+    },
+    "land_use": {
+     "value": "sport i rekreacija",
+     "unit": null,
+     "printed": "sport i rekreacija",
+     "page": 10,
+     "bbox": [
+      227.3,
+      245.5,
+      307.4,
+      270.4
+     ],
+     "cell": "r10c3",
+     "note": "UP 86 – Namjena objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 87",
+   "key": "87",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 2940.23,
+     "unit": "m²",
+     "printed": "2940.23",
+     "page": 10,
+     "bbox": [
+      176.7,
+      215.7,
+      227.3,
+      245.5
+     ],
+     "cell": "r11c2",
+     "note": "UP 87 – Površina UP"
+    },
+    "land_use": {
+     "value": "površine saobraćajne infrastrukture",
+     "unit": null,
+     "printed": "površine saobraćajne infrastrukture",
+     "page": 10,
+     "bbox": [
+      227.3,
+      215.7,
+      307.4,
+      245.5
+     ],
+     "cell": "r11c3",
+     "note": "UP 87 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 80.0,
+     "unit": "%",
+     "printed": "0.8",
+     "page": 10,
+     "bbox": [
+      665.3,
+      215.7,
+      716.1,
+      245.5
+     ],
+     "cell": "r11c11",
+     "note": "UP 87 – Indeks zauzetosti"
+    },
+    "max_far": {
+     "value": 1.6,
+     "unit": null,
+     "printed": "1.6",
+     "page": 10,
+     "bbox": [
+      716.1,
+      215.7,
+      775.6,
+      245.5
+     ],
+     "cell": "r11c12",
+     "note": "UP 87 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "P+1",
+     "unit": null,
+     "printed": "P+1",
+     "page": 10,
+     "bbox": [
+      354.8,
+      215.7,
+      403.8,
+      245.5
+     ],
+     "cell": "r11c5",
+     "note": "UP 87 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 88",
+   "key": "88",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1460.56,
+     "unit": "m²",
+     "printed": "1460.56",
+     "page": 10,
+     "bbox": [
+      165.6,
+      125.8,
+      223.2,
+      149.1
+     ],
+     "cell": "r1c2",
+     "note": "UP 88 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 10,
+     "bbox": [
+      223.2,
+      125.8,
+      293.9,
+      149.1
+     ],
+     "cell": "r1c3",
+     "note": "UP 88 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 10,
+     "bbox": [
+      683.9,
+      110.2,
+      721.5,
+      149.1
+     ],
+     "cell": "r1c11",
+     "note": "UP 88 – Indeks zauzet osti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 10,
+     "bbox": [
+      721.5,
+      110.2,
+      775.6,
+      149.1
+     ],
+     "cell": "r1c12",
+     "note": "UP 88 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 10,
+     "bbox": [
+      343.8,
+      125.8,
+      390.5,
+      149.1
+     ],
+     "cell": "r1c5",
+     "note": "UP 88 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 89",
+   "key": "89",
+   "page": 10,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 1751.13,
+     "unit": "m²",
+     "printed": "1751.13",
+     "page": 10,
+     "bbox": [
+      165.6,
+      94.7,
+      223.2,
+      110.2
+     ],
+     "cell": "r3c2",
+     "note": "UP 89 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 10,
+     "bbox": [
+      223.2,
+      94.7,
+      293.9,
+      110.2
+     ],
+     "cell": "r3c3",
+     "note": "UP 89 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 10,
+     "bbox": [
+      683.9,
+      94.7,
+      721.5,
+      110.2
+     ],
+     "cell": "r3c11",
+     "note": "UP 89 – Indeks zauzet osti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 10,
+     "bbox": [
+      721.5,
+      94.7,
+      775.6,
+      110.2
+     ],
+     "cell": "r3c12",
+     "note": "UP 89 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 10,
+     "bbox": [
+      343.8,
+      94.7,
+      390.5,
+      110.2
+     ],
+     "cell": "r3c5",
+     "note": "UP 89 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 90",
+   "key": "90",
+   "page": 11,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 2320.36,
+     "unit": "m²",
+     "printed": "2320.36",
+     "page": 11,
+     "bbox": [
+      165.6,
+      488.0,
+      223.2,
+      510.2
+     ],
+     "cell": "r0c2",
+     "note": "UP 90 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje sa djelatn.",
+     "unit": null,
+     "printed": "stanovanje sa djelatn.",
+     "page": 11,
+     "bbox": [
+      223.2,
+      488.0,
+      293.9,
+      510.2
+     ],
+     "cell": "r0c3",
+     "note": "UP 90 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 11,
+     "bbox": [
+      683.9,
+      472.5,
+      721.5,
+      510.2
+     ],
+     "cell": "r0c11",
+     "note": "UP 90 – Indeks zauzet osti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 11,
+     "bbox": [
+      721.5,
+      472.5,
+      775.6,
+      510.2
+     ],
+     "cell": "r0c12",
+     "note": "UP 90 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 11,
+     "bbox": [
+      343.8,
+      488.0,
+      390.5,
+      510.2
+     ],
+     "cell": "r0c5",
+     "note": "UP 90 – Spratnost objekta"
+    }
+   }
+  },
+  {
+   "number": "UP 91",
+   "key": "91",
+   "page": 11,
+   "block_ref": "F",
+   "values": {
+    "planned_parcel_area_m2": {
+     "value": 914.33,
+     "unit": "m²",
+     "printed": "914.33",
+     "page": 11,
+     "bbox": [
+      165.6,
+      457.1,
+      223.2,
+      472.5
+     ],
+     "cell": "r2c2",
+     "note": "UP 91 – Površina UP"
+    },
+    "land_use": {
+     "value": "stanovanje",
+     "unit": null,
+     "printed": "stanovanje",
+     "page": 11,
+     "bbox": [
+      223.2,
+      457.1,
+      293.9,
+      472.5
+     ],
+     "cell": "r2c3",
+     "note": "UP 91 – Namjena objekta"
+    },
+    "max_site_coverage_pct": {
+     "value": 100.0,
+     "unit": "%",
+     "printed": "1",
+     "page": 11,
+     "bbox": [
+      683.9,
+      441.6,
+      721.5,
+      472.5
+     ],
+     "cell": "r2c11",
+     "note": "UP 91 – Indeks zauzet osti"
+    },
+    "max_far": {
+     "value": 7.0,
+     "unit": null,
+     "printed": "7",
+     "page": 11,
+     "bbox": [
+      721.5,
+      441.6,
+      775.6,
+      472.5
+     ],
+     "cell": "r2c12",
+     "note": "UP 91 – Indeks izgrađenosti"
+    },
+    "max_floors": {
+     "value": "Po+P+6",
+     "unit": null,
+     "printed": "Po+P+6",
+     "page": 11,
+     "bbox": [
+      343.8,
+      457.1,
+      390.5,
+      472.5
+     ],
+     "cell": "r2c5",
+     "note": "UP 91 – Spratnost objekta"
+    }
+   }
+  }
+ ]
+}

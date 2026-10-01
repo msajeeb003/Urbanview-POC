@@ -8,6 +8,9 @@ python -m core.extraction eval
     never-guessed cases. Exit 1 when a never-guessed case fails.
 python -m core.extraction corpus ...
     The evaluation corpus of the client's documents (``core.extraction.evalcli``).
+python -m core.extraction prepared build | load ...
+    Planning values prepared from a parameter table without the model, staged as approved items
+    (``core.extraction.prepared``).
 """
 
 from __future__ import annotations
@@ -61,12 +64,15 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("export", help="write the JSON Schemas")
     commands.add_parser("eval", help="ask the model the never-guessed cases (costs tokens)")
-    from core.extraction import evalcli
+    from core.extraction import evalcli, prepared
 
     evalcli.add_parser(commands)
+    prepared.add_parser(commands)
     args = parser.parse_args(argv)
     if args.command == "corpus":
         return evalcli.run(args)
+    if args.command == "prepared":
+        return prepared.run(args)
     if args.command == "export":
         for path in export():
             print(path)

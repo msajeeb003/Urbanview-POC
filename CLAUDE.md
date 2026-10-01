@@ -199,6 +199,10 @@ demand: the analytics districts place them by their point.
   account is needed; `deploy/.env.example` now says `change-me`).
 - **Open (S3 check):** a separate `land_use_code` in Group 1 and a `sample_size` per market
   input: neither is in the data yet (`docs/specs/frontend-design.md` §10 item 22).
+- **POC data without the model (2026-10-01, product owner):** the planning values of the two
+  POC plans are prepared from their parameter tables by the table reader and loaded as approved
+  items (see "Prepared planning values"), not AI-extracted and not reviewed item by item by an
+  expert; the 100 % review rule holds for what the AI extracts from later documents.
 
 ## Location resolution (`backend/api/services/locate_sql.py`, `resolver.py`)
 
@@ -1020,6 +1024,37 @@ demand: the analytics districts place them by their point.
   Stara Varoš were not read (the API account ran out of credit); no baseline yet.
 - Tests: `tests/test_extraction_eval.py` (outcomes, merged cells in the table view, cost, the
   regression check, manifest vs gold sets).
+
+## Prepared planning values (`core/extraction/prepared.py`, `database/seeds/prepared_values/`)
+
+- **The two POC plans are loaded without the model** (product owner, 2026-10-01: "add it to the
+  code", cheaper than the AI run; BRD 2.6 lets input data be prepared by hand where that is
+  faster). Later documents go through upload → AI extraction → review → publish as before.
+- **Data files** `database/seeds/prepared_values/<municipality>/<corpus id>.json`
+  (`PreparedDocument`): per urban parcel the stated planning values of the corpus gold set
+  (deterministic table reader, column map of `corpus.toml`, checked against the page images; no
+  model), each with canonical value and unit, the value as printed, page, the cell's box (PDF
+  points, bottom-left) and a note (`UP 12 – <column header>`); blank and deferred cells are left
+  out. `python -m core.extraction prepared build [--doc ID]` writes them from the gold sets and
+  the PDF stage's grids (needs the source PDFs); a test holds the committed files to the gold
+  sets. Today: Novi Grad 103 parcels / 500 values, Stara Varoš 560 / 2 800.
+- **Load** `python -m core.extraction prepared load --doc <corpus id> --document-id N [--by]
+  [--note] [--dry-run] [--json]` (run it in the worker container): one transaction, STAGING only.
+  The document must be the current version and hold a file with the data's PDF checksum (pages
+  and boxes belong to that file). One `extraction_runs` row per load (`model = table-reader`, no
+  job, `ready_for_review`, cost 0, `summary.data_sha256`); one item per value on its urban
+  parcel (`parcel_key` match), **`approved`** with reviewer, time and note, `extracted_by =
+  table-reader:<preprocess version>`, method `table`, no payload / confidence; `previous_item_id`
+  and `change` against the previous reading of the target. Like a newer run it supersedes the
+  pending items of earlier runs over the same file (the runner's `SUPERSEDE_SQL`), retires an
+  older unpublished decision it restates, keeps a target that already holds the same approved
+  value, and reports parcels without geometry (no item) and what differed. The same data file
+  again changes nothing. Audit: one `review.approve_prepared` row per load (entity
+  `extraction_run`, review counters before / after, the summary). Nothing is served until the
+  publish job runs.
+- **Not an expert review:** the items say so in their note; the client's expert can check any
+  value from its source link. Tests: `tests/test_prepared_values.py`,
+  `tests/integration/test_prepared_values_postgis.py`.
 
 ## Orders (`api/services/orders.py`, `core/pricing.py`, `core/payments.py`, `api/services/order_mail.py`)
 
