@@ -18,7 +18,9 @@ def test_a_code_is_named_by_the_plans_legend():
     assert legend_name("MN", codes) == "mješovita namjena – stanovanje sa poslovanjem"
     # a wording is not a code, and a code the legend does not name stays as printed
     assert legend_name("stanovanje", codes) is None
-    assert legend_name("U", codes) is None
+    assert legend_name("U", codes) == "usluge ishrane i pića, ugostiteljstvo"  # the legend's UK
+    assert legend_name("SR", codes) == "sport i rekreacija"  # the legend's SKR
+    assert legend_name("XX", codes) is None
     assert legend_name(None, codes) is None
     assert legend_name(12.0, codes) is None
 
@@ -38,6 +40,9 @@ def test_a_code_is_named_by_the_plans_legend():
         ("VO", "pub"),
         ("K", "pub"),
         ("sport i rekreacija", "grn"),
+        ("SR", "grn"),
+        ("U", "com"),
+        ("TS", "pub"),
     ],
 )
 def test_every_wording_of_the_two_poc_plans_has_a_colour_group(wording, group):
@@ -46,7 +51,7 @@ def test_every_wording_of_the_two_poc_plans_has_a_colour_group(wording, group):
 
 def test_an_unknown_wording_has_no_group():
     classify = profile_classifier("podgorica")
-    assert classify("U") is None  # not in the plan's legend: left for the client's planner
+    assert classify("XX") is None  # a code no legend names
     assert classify("nepoznata namjena") is None
     rules = compile_land_use_terms([("stanovanj", "residential")])
     assert map_category("SS", rules) is None  # a code without a legend has no class

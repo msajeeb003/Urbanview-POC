@@ -24,7 +24,7 @@ import {
   priceScheme,
   type MetricClasses,
 } from "./classes";
-import { fitOptions, fitPadding } from "./camera";
+import { fitOptions, fitPadding, legendOffset } from "./camera";
 import { LAYER_GROUPS, NONE, UV_LAYERS, choroplethStyle, uvLayers } from "./style";
 
 /** Minimal evaluator for the colour expressions the schemes build (step / case / to-number / get). */
@@ -298,5 +298,24 @@ describe("?layers= links", () => {
 
   it("writes readable URLs next to ?parcel=", () => {
     expect(withParcelParam("http://x/?layers=planned,heatFAR:far", 7)).toBe("http://x/?layers=planned,heatFAR:far&parcel=7");
+  });
+});
+
+describe("a searched place never lands under the legend", () => {
+  const legend = { right: 280, bottom: 400 };
+
+  it("stays centred on a wide map, where the legend does not reach the middle", () => {
+    expect(legendOffset({ width: 1322, height: 1018 }, legend)).toBe(0);
+    expect(legendOffset({ width: 420, height: 1018 }, legend)).toBe(0); // narrow but tall: the centre is below it
+    expect(legendOffset({ width: 420, height: 480 }, null)).toBe(0);
+  });
+
+  it("moves to the middle of the strip beside the legend on a small map", () => {
+    // 420 px wide, 480 high: the centre (210, 240) is under the legend; the free strip is 280..420
+    expect(legendOffset({ width: 420, height: 480 }, legend)).toBe(140);
+    // a minimised legend is short: nothing to avoid
+    expect(legendOffset({ width: 420, height: 480 }, { right: 280, bottom: 60 })).toBe(0);
+    // no strip worth using
+    expect(legendOffset({ width: 320, height: 480 }, legend)).toBe(0);
   });
 });

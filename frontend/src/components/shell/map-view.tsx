@@ -41,7 +41,7 @@ import type { MunicipalityProfile, TilesCurrent } from "@/lib/api/types";
 import { formatZoomFactor, scaleBar } from "@/lib/format";
 import { sourceLayerEmpty } from "@/lib/layers";
 import { LIGHT_STYLE, wireframeBasemap } from "@/lib/map/basemap";
-import { fitOptions, fitPadding } from "@/lib/map/camera";
+import { fitOptions, fitPadding, legendOffset } from "@/lib/map/camera";
 import { pickFeature, type PickType } from "@/lib/map/pick";
 import {
   HATCH_IMAGE,
@@ -387,11 +387,30 @@ export function MapView({
         }
       });
 
+      /** How far right of the centre a flown-to place goes so the open legend does not cover it. */
+      const legendShift = () => {
+        const el = container.parentElement?.querySelector<HTMLElement>("#legend");
+        if (!el) return 0;
+        const box = container.getBoundingClientRect();
+        const rect = el.getBoundingClientRect();
+        return legendOffset(
+          { width: box.width, height: box.height },
+          { right: rect.right - box.left, bottom: rect.bottom - box.top },
+        );
+      };
+
       useShell.getState().registerMap({
         zoomIn: () => map.zoomIn(),
         zoomOut: () => map.zoomOut(),
         reset: () => map.fitBounds(cityBounds, fitOptions(padFor(FIT_PADDING))),
-        flyTo: (p, zoom = 17) => map.flyTo({ center: [p.lng, p.lat], zoom: Math.max(map.getZoom(), zoom), essential: true }),
+        flyTo: (p, zoom = 17) =>
+          map.flyTo({
+            center: [p.lng, p.lat],
+            zoom: Math.max(map.getZoom(), zoom),
+            essential: true,
+            // on a small window the legend covers the map's middle: land beside it, not under it
+            offset: [legendShift(), 0],
+          }),
         fitBounds: (bbox) => map.fitBounds(toBounds(bbox), fitOptions(padFor(FOCUS_PADDING), FOCUS_MAX_ZOOM)),
       });
 

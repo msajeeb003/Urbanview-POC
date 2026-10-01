@@ -206,9 +206,10 @@ land_use_terms = [
 # Land-use codes a parameter table prints instead of a wording, with the name the plan's own
 # legend gives them (core.land_use: shown beside the code in the parcel panel, and classified with
 # land_use_terms above for the land-use layer). Source: the legend "Kategorije detaljne namjene
-# površina" on the land-use sheet of UP Stara Varoš. Only codes that legend names letter for
-# letter are listed; the table's U, SR and TS are not in it (the legend has UK and SKR) and wait
-# for the client's planner.
+# površina" on the land-use sheet of UP Stara Varoš. SS, SV, MN, CD, K and VO are that legend's
+# codes letter for letter. The parameter table shortens three more (product owner, 2026-10-02:
+# name them too; the client's planner still confirms): U = the legend's UK, SR = the legend's
+# SKR, TS = the transformer station the table lists as a parcel of its own (not a legend entry).
 [extraction.land_use_codes]
 SS = "stanovanje srednje gustine"
 SV = "stanovanje veće gustine"
@@ -216,6 +217,9 @@ MN = "mješovita namjena – stanovanje sa poslovanjem"
 CD = "centralne djelatnosti"
 K = "kultura"
 VO = "vjerski objekti"
+U = "usluge ishrane i pića, ugostiteljstvo"
+SR = "sport i rekreacija"
+TS = "trafostanica"
 
 [extraction.floor_notation]
 below_ground = ["Po", "S", "G"]
