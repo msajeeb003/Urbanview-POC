@@ -971,12 +971,16 @@ demand: the analytics districts place them by their point.
   the serving tables. Live model runs need `ANTHROPIC_API_KEY` (`backend/.env`, git-ignored) and
   `ANTHROPIC_BASE_URL` (`anthropic_base_url`, default `https://api.anthropic.com`: the key never
   goes to a proxy the shell environment may name; the shell's own `ANTHROPIC_BASE_URL` beats
-  `.env`, so run live commands with `env -u ANTHROPIC_BASE_URL`). **Since 2026-09-30 local and
-  production run through Cheaper Inference** (`ANTHROPIC_BASE_URL=https://api.cheaperinference.com`,
-  a `ci_live_` key; its Anthropic-compatible `/v1/messages` accepts `output_config`, adaptive
-  thinking and effort unchanged; `claude-sonnet-5` at USD 1.40 / 7.00 per MTok, 30 % under list:
-  the cheapest model with thinking and effort; Stara Varoš p. 24 read live at 100 %). Job costs
-  still use `LLM_PRICE_*` (list prices) until set to the discounted rates.
+  `.env`, so run live commands with `env -u ANTHROPIC_BASE_URL`). **Since 2026-10-01 local and
+  production call Anthropic directly** (`ANTHROPIC_BASE_URL=https://api.anthropic.com`, an
+  `sk-ant-` service key, `claude-sonnet-5`; a never-guessed case read live through the adapter).
+  From 2026-09-30 until then both ran through Cheaper Inference
+  (`https://api.cheaperinference.com`, a `ci_live_` key; its Anthropic-compatible `/v1/messages`
+  accepts `output_config`, adaptive thinking and effort unchanged; `claude-sonnet-5` at USD 1.40 /
+  7.00 per MTok, 30 % under list; Stara Varoš p. 24 read live at 100 %): that pair is kept in each
+  `.env.bak-20261001` (and as comments in the local `backend/.env`). The key and the endpoint are
+  changed together: an Anthropic key must never be sent to the proxy, nor the proxy's key to
+  Anthropic. Job costs are estimates from `LLM_PRICE_*`.
 - Tests: `tests/test_extraction_job_unit.py` and `tests/integration/test_extraction_job_postgis.py`
   with `tests/extraction_script.Transcriber` (a scripted model that copies parameter tables).
 
