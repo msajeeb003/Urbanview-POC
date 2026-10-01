@@ -254,9 +254,10 @@ def create_app(
             "Uncovered locations are returned as 200 with an explicit uncovered result."
         ),
         lifespan=lifespan,
-        docs_url=None if settings.is_prod else "/docs",
+        # dev only: the server runs as staging or prod, where the route list is not public
+        docs_url="/docs" if settings.is_dev else None,
         redoc_url=None,
-        openapi_url=None if settings.is_prod else "/openapi.json",
+        openapi_url="/openapi.json" if settings.is_dev else None,
     )
 
     # State available before lifespan runs (used by dependencies and tests). The PostGIS resolver

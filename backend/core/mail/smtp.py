@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import re
 import smtplib
+import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage as MimeMessage
 from email.utils import getaddresses, parseaddr
@@ -82,7 +83,9 @@ class SmtpTransport:
 
     def _connect(self) -> smtplib.SMTP:
         if self.use_ssl:
-            return smtplib.SMTP_SSL(self.host, self.port, timeout=self.timeout)
+            return smtplib.SMTP_SSL(
+                self.host, self.port, timeout=self.timeout, context=ssl.create_default_context()
+            )
         return smtplib.SMTP(self.host, self.port, timeout=self.timeout)
 
     def send(self, mime: MimeMessage) -> SendReceipt:
@@ -94,7 +97,8 @@ class SmtpTransport:
         try:
             with self._connect() as smtp:
                 if self.use_tls and not self.use_ssl:
-                    smtp.starttls()
+                    # smtplib's own default context verifies neither certificate nor host name
+                    smtp.starttls(context=ssl.create_default_context())
                 if self.username:
                     smtp.login(self.username, self.password or "")
                 code, reply = smtp.mail(sender)

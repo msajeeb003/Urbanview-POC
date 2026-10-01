@@ -52,7 +52,7 @@ services:
     environment:
       <<: *app-env
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes: *app-volumes
     depends_on:
       migrate:
@@ -90,8 +90,8 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
@@ -108,7 +108,7 @@ services:
       POSTGRES_PASSWORD: urbanview
       POSTGRES_DB: urbanview
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       # runs after the image's own 10_postgis.sh: creates urbanview_test with PostGIS
@@ -122,7 +122,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -136,8 +136,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - miniodata:/data
     healthcheck:

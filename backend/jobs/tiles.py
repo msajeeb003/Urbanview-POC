@@ -96,9 +96,15 @@ def tile_join_command(binary: str, parts: Sequence[Path], archive: Path) -> list
 
 
 class TippecanoeTileBuilder:
-    def __init__(self, tippecanoe: str = "tippecanoe", tile_join: str = "tile-join") -> None:
+    def __init__(
+        self,
+        tippecanoe: str = "tippecanoe",
+        tile_join: str = "tile-join",
+        timeout: float = 1800.0,
+    ) -> None:
         self.tippecanoe = tippecanoe
         self.tile_join = tile_join
+        self.timeout = timeout  # per command: a hung build fails the job instead of the worker
 
     def _run(self, command: list[str]) -> None:
         if shutil.which(command[0]) is None:
@@ -106,10 +112,15 @@ class TippecanoeTileBuilder:
                 f"{command[0]!r} is not installed on this worker (tippecanoe 2.17+ is required)"
             )
         log.info("running %s", " ".join(command[:3]))
-        completed = subprocess.run(command, capture_output=True, text=True, check=False)
+        tool = Path(command[0]).name  # the tool, not where it is installed
+        try:
+            completed = subprocess.run(
+                command, capture_output=True, text=True, check=False, timeout=self.timeout
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise TileBuildError(f"{tool} did not finish within {self.timeout:.0f} s") from exc
         if completed.returncode != 0:
             tail = (completed.stderr or completed.stdout or "").strip()[-2000:]
-            tool = Path(command[0]).name  # the tool, not where it is installed
             raise TileBuildError(f"{tool} exited with {completed.returncode}: {tail}")
 
     def build(self, layers: Sequence[LayerFile], archive: Path) -> TileBuildReport:

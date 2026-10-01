@@ -9,8 +9,21 @@ http://{$SERVER_IP} {
 	redir https://{$SITE_DOMAIN}{uri}
 }
 
+# Browser hardening for the map and the API. No Content-Security-Policy: the map needs Mapbox's
+# hosts, blob workers and the signed bucket links, and a wrong policy blanks it.
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
 # The public map (Next.js).
 {$SITE_DOMAIN} {
+	import security_headers
 	encode zstd gzip
 	reverse_proxy web:3000
 }
@@ -18,6 +31,7 @@ http://{$SERVER_IP} {
 # The API (FastAPI). Caddy replaces any X-Forwarded-For the client sent, so the API's rate
 # limiter sees the real client address.
 {$API_DOMAIN} {
+	import security_headers
 	encode zstd gzip
 	reverse_proxy api:8000
 }
