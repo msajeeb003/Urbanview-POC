@@ -10,6 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 EmailStatus = Literal["queued", "sent", "suppressed", "failed"]
 EmailTemplate = Literal["payment_instructions", "order_delivered", "magic_link"]
+# the app's languages (core.mail.templates.LANGUAGES): an e-mail is written in one of them
+MailLanguage = Literal["en", "me"]
 
 
 class EmailLogOut(BaseModel):
@@ -38,6 +40,11 @@ class MagicLinkRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     email: str = Field(max_length=254)
+    language: MailLanguage | None = Field(
+        default=None,
+        description="The language the console is in: the sign-in e-mail is written in it "
+        "(default: MAIL_DEFAULT_LANGUAGE)",
+    )
 
     @field_validator("email")
     @classmethod

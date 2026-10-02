@@ -1,8 +1,10 @@
 """Transactional e-mail without a database or an SMTP server: every template rendered against
-fixture data (required fields present in subject, text and HTML; HTML escaped), the sending
-policy, the MIME message, the provider-id parsing, and the send_email job body on the in-memory
-repository (sent with a provider id, retried on transient trouble then failed, permanent
-failures not retried, suppressed without SMTP_HOST, the magic-link token minted by the job)."""
+fixture data in each of the app's languages (required fields present in subject, text and HTML;
+one language per message; HTML escaped), the language a message takes (the request's, else the
+order's, else the default), the sending policy, the MIME message, the provider-id parsing, and
+the send_email job body on the in-memory repository (sent with a provider id, retried on
+transient trouble then failed, permanent failures not retried, suppressed without SMTP_HOST, the
+magic-link token minted by the job)."""
 
 from __future__ import annotations
 
@@ -20,6 +22,7 @@ from api.services.order_mail import (
 )
 from core.auth import hash_token
 from core.mail import (
+    LANGUAGES,
     TEMPLATES,
     EmailMessage,
     MailPermanentError,
@@ -27,6 +30,7 @@ from core.mail import (
     SendReceipt,
     build_mime,
     decide,
+    mail_language,
     new_message_id,
     plain_text_of,
     render,
@@ -61,69 +65,111 @@ def test_status_url_helper():
     assert FACTS.status_url == "http://localhost:3000/orders/UV-PODI-1042-260925-01"
 
 
+# what only one of the two languages says, per template: a message must hold its own language's
+# wording and none of the other's
+ONLY = {
+    "payment_instructions": {
+        "en": ("Dear Ana", "5 business days", "Beneficiary", "Payment reference", "Questions"),
+        "me": ("Poštovani/a Ana", "5 radnih dana", "Primalac", "Poziv na broj", "Pitanja"),
+    },
+    "order_delivered": {
+        "en": ("Dear Ana", "is ready", "Track your order"),
+        "me": ("Poštovani/a Ana", "je gotova", "Status narudžbe"),
+    },
+    "magic_link": {
+        "en": ("Sign in", "works once", "Questions"),
+        "me": ("Prijav", "samo jednom", "Pitanja"),
+    },
+}
+
+
+def one_language(mail, template: str, language: str) -> None:
+    other = "me" if language == "en" else "en"
+    for needle in ONLY[template][language]:
+        assert needle in mail.text and needle in mail.html, (language, needle)
+    for needle in ONLY[template][other]:
+        assert needle not in mail.text and needle not in mail.html, (language, needle)
+    assert "\n---\n" not in mail.text and "<hr" not in mail.html  # no second half
+
+
 def test_payment_instructions_template_carries_every_required_fact():
-    mail = render("payment_instructions", payment_instructions_context(FACTS, INSTRUCTIONS))
-    assert mail.subject == (
-        "UrbanView narudžba UV-PODI-1042-260925-01: uputstvo za plaćanje / payment instructions"
-    )
-    for needle in (
-        "UV-PODI-1042-260925-01",  # order reference (also the payment reference)
-        "KO Podgorica I, parcela 1042 (DUP Centar – Zona C2)",  # location ordered
-        "200.00 EUR",  # price
-        "UrbanView d.o.o.",  # beneficiary
-        "ME12 3456 7890",  # IBAN
-        "CKB",
-        "CKBCMEPG",
-        "5 radnih dana",  # turnaround, both languages
-        "5 business days",
-        "02.10.2026",  # expected by
-        FACTS.status_url,
-        "support@urbanview.io",
-        "Poštovani/a Ana",
-        "Dear Ana",
-    ):
-        assert needle in mail.text, needle
-        assert needle in mail.html, needle
-    assert "<" not in mail.text.replace("<no-reply", "")
-    assert "<!doctype html>" in mail.html.lower()
+    context = payment_instructions_context(FACTS, INSTRUCTIONS)
+    subjects = {
+        "en": "UrbanView order UV-PODI-1042-260925-01: payment instructions",
+        "me": "UrbanView narudžba UV-PODI-1042-260925-01: uputstvo za plaćanje",
+    }
+    for language, subject in subjects.items():
+        mail = render("payment_instructions", context, language=language)
+        assert mail.subject == subject
+        for needle in (
+            "UV-PODI-1042-260925-01",  # order reference (also the payment reference)
+            "KO Podgorica I, parcela 1042 (DUP Centar – Zona C2)",  # location ordered
+            "200.00 EUR",  # price
+            "UrbanView d.o.o.",  # beneficiary
+            "ME12 3456 7890",  # IBAN
+            "CKB",
+            "CKBCMEPG",
+            "02.10.2026",  # expected by
+            FACTS.status_url,
+            "support@urbanview.io",
+        ):
+            assert needle in mail.text, (language, needle)
+            assert needle in mail.html, (language, needle)
+        one_language(mail, "payment_instructions", language)
+        assert "<" not in mail.text.replace("<no-reply", "")
+        assert "<!doctype html>" in mail.html.lower()
+        assert f'<html lang="{"cnr-Latn" if language == "me" else "en"}">' in mail.html
+        assert mail.text.rstrip().endswith("UrbanView")
+    # English unless a language is asked for
+    assert render("payment_instructions", context).subject == subjects["en"]
 
 
 def test_order_delivered_template_has_the_link_and_the_support_inbox():
     expires = datetime(2026, 10, 9, 14, 0, tzinfo=UTC)
-    mail = render(
-        "order_delivered",
-        order_delivered_context(FACTS, "https://files.example/report.pdf?sig=abc", expires),
-    )
-    assert "UV-PODI-1042-260925-01" in mail.subject and "ready" in mail.subject
-    for needle in (
-        "UV-PODI-1042-260925-01",
-        "KO Podgorica I, parcela 1042",
-        "https://files.example/report.pdf?sig=abc",
-        "09.10.2026 14:00 UTC",
-        "support@urbanview.io",
-    ):
-        assert needle in mail.text, needle
-        assert needle in mail.html, needle
+    context = order_delivered_context(FACTS, "https://files.example/report.pdf?sig=abc", expires)
+    subjects = {
+        "en": "UrbanView order UV-PODI-1042-260925-01: your report is ready",
+        "me": "UrbanView narudžba UV-PODI-1042-260925-01: izvještaj je spreman",
+    }
+    for language, subject in subjects.items():
+        mail = render("order_delivered", context, language=language)
+        assert mail.subject == subject
+        for needle in (
+            "UV-PODI-1042-260925-01",
+            "KO Podgorica I, parcela 1042",
+            "https://files.example/report.pdf?sig=abc",
+            "09.10.2026 14:00 UTC",
+            "support@urbanview.io",
+        ):
+            assert needle in mail.text, (language, needle)
+            assert needle in mail.html, (language, needle)
+        one_language(mail, "order_delivered", language)
 
 
 def test_magic_link_template_says_single_use_and_expiry():
-    mail = render(
-        "magic_link",
-        magic_link_context(
-            email="vesna@example.com",
-            login_url="http://localhost:3001/login?token=abc123def456",
-            expires_minutes=15,
-            support_email="support@urbanview.io",
-        ),
+    context = magic_link_context(
+        email="vesna@example.com",
+        login_url="http://localhost:3001/login?token=abc123def456",
+        expires_minutes=15,
+        support_email="support@urbanview.io",
     )
-    assert "login" in mail.subject.lower() and "prijav" in mail.subject.lower()
-    for needle in (
-        "http://localhost:3001/login?token=abc123def456",
-        "15 minut",
-        "vesna@example.com",
-    ):
-        assert needle in mail.text and needle in mail.html, needle
-    assert "samo jednom" in mail.text and "works once" in mail.text
+    subjects = {
+        "en": "UrbanView admin: your sign-in link",
+        "me": "UrbanView admin: link za prijavu",
+    }
+    for language, subject in subjects.items():
+        mail = render("magic_link", context, language=language)
+        assert mail.subject == subject
+        for needle in (
+            "http://localhost:3001/login?token=abc123def456",
+            "15 minut",
+            "vesna@example.com",
+            "support@urbanview.io",
+        ):
+            assert needle in mail.text and needle in mail.html, (language, needle)
+        one_language(mail, "magic_link", language)
+        # the link stands on a line of its own in the text part (the sign-in tests read it there)
+        assert "http://localhost:3001/login?token=abc123def456" in mail.text.splitlines()
 
 
 def test_html_is_escaped_and_contexts_are_checked():
@@ -134,7 +180,20 @@ def test_html_is_escaped_and_contexts_are_checked():
         render("magic_link", {"login_url": "x"})
     with pytest.raises(ValueError, match="unknown"):
         render("newsletter", {})
+    with pytest.raises(ValueError, match="unknown e-mail language 'de'"):
+        render("magic_link", {"login_url": "x"}, language="de")
     assert set(TEMPLATES) == {"payment_instructions", "order_delivered", "magic_link"}
+    assert LANGUAGES == ("en", "me")
+
+
+def test_the_language_of_a_message():
+    # the first one that is a language of the app, else the default
+    assert mail_language("me", "en") == "me"
+    assert mail_language(None, "me") == "me"
+    assert mail_language(None, None) == "en"
+    assert mail_language(None, None, default="me") == "me"
+    assert mail_language("de", "", 7, default="me") == "me"
+    assert mail_language("de", default="fr") == "en"
 
 
 def test_sending_policy():
@@ -252,11 +311,12 @@ async def test_payment_instructions_are_sent_and_logged_with_the_provider_id():
         "email_log_id": log_id,
         "status": "sent",
         "template": "payment_instructions",
+        "language": "en",
         "provider_message_id": "prov-123",
     }
     row = repo.logs[log_id]
     assert (row["status"], row["attempts"], row["provider_message_id"]) == ("sent", 1, "prov-123")
-    assert row["subject"].startswith("UrbanView narudžba UV-PODI-1042-260925-01")
+    assert row["subject"] == "UrbanView order UV-PODI-1042-260925-01: payment instructions"
     assert "body" not in row and "text" not in row  # bodies are never stored
     mime = transport.sent[0]
     assert mime["To"] == "ana@example.com" and mime["Reply-To"] == "support@urbanview.io"
@@ -271,6 +331,45 @@ async def test_payment_instructions_are_sent_and_logged_with_the_provider_id():
         settings,
     )
     assert again.result["skipped"] is True and len(transport.sent) == 1
+
+
+async def test_a_message_is_written_in_the_orders_or_the_requests_language():
+    """The order's language (the map's when it was placed) for its e-mails, the request's for a
+    sign-in link, the configured default when neither says."""
+    repo, transport = repository(), FakeTransport()
+    repo.orders[8] = replace(repo.orders[7], id=8, language="me")
+    store = MemoryJobStore()
+
+    async def send(template, payload, settings, **target):
+        log_id = repo.add_log(template, "x@example.com", **target)
+        job_id = store.add(type="send_email", payload={"email_log_id": log_id, **payload})
+        outcome = await run(store, job_id, repo, transport, settings)
+        assert outcome.status == "succeeded", outcome.error
+        return outcome.result["language"], repo.logs[log_id]["subject"], transport.sent[-1]
+
+    english = settings_with()
+    # an order placed in Montenegrin: both of its e-mails are Montenegrin
+    language, subject, mime = await send("payment_instructions", {}, english, order_id=8)
+    assert language == "me" and subject.endswith("uputstvo za plaćanje")
+    assert "Poštovani/a Ana" in plain_text_of(mime) and "Dear Ana" not in plain_text_of(mime)
+    language, subject, _ = await send("order_delivered", {}, english, order_id=8)
+    assert language == "me" and subject.endswith("izvještaj je spreman")
+    # an order that kept no language (placed before orders did): the default
+    language, subject, _ = await send("order_delivered", {}, english, order_id=7)
+    assert language == "en" and subject.endswith("your report is ready")
+    language, subject, _ = await send(
+        "order_delivered", {}, settings_with(mail_default_language="me"), order_id=7
+    )
+    assert language == "me" and subject.endswith("izvještaj je spreman")
+    # a sign-in link: the language the console was in travels in the job's payload
+    language, subject, mime = await send("magic_link", {"language": "me"}, english, user_id=3)
+    assert language == "me" and subject == "UrbanView admin: link za prijavu"
+    assert "Prijava na UrbanView admin panel" in plain_text_of(mime)
+    language, subject, _ = await send("magic_link", {}, english, user_id=3)
+    assert language == "en" and subject == "UrbanView admin: your sign-in link"
+    # a payload language that is none of the app's is ignored
+    language, _, _ = await send("magic_link", {"language": "de"}, english, user_id=3)
+    assert language == "en"
 
 
 async def test_transient_provider_errors_are_retried_then_failed():

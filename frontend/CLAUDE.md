@@ -529,6 +529,8 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
     (`explainFailure`: connection / server trouble, the per-email daily cap, the rate limiter, a
     parcel that is gone, field errors mapped back onto the fields). What was typed lives in the
     store (`orderDraft`, memory only, never storage) and is cleared once an order is placed.
+  - *Language:* the request carries the language the map is in (`language`, `useLang()`):
+    the order's e-mails are written in that one language, now and when the report is delivered.
   - *Request:* `POST /v1/orders` with the location, the name, telephone and email, a legal
     entity's company name and PIB when given (else null), and the visitor's edited assumptions
     (the server snapshots the panel with them). 30 s timeout.
@@ -626,8 +628,9 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   plus `/admin/users` (the account menu), `/admin/login` and `/admin/no-access`. `/admin` goes to
   the role's first tab (Documents; Orders for an expert).
 - **Sign-in: magic links only (Auth.js v5, `src/auth.ts`).** The backend owns the link: the form's
-  server action posts `POST /v1/auth/magic-link` (always 202, same "Check your email" for any
-  well-formed address: no enumeration), the backend's `magic_link` e-mail opens
+  server action posts `POST /v1/auth/magic-link` with the console's language (the `uv.lang`
+  cookie: the sign-in e-mail is written in that one language; always 202, same "Check your
+  email" for any well-formed address: no enumeration), the backend's `magic_link` e-mail opens
   `${ADMIN_BASE_URL}/login?token=…` (ADMIN_BASE_URL = site + `/admin`), and that page exchanges the
   single-use token (15 min) once through the Credentials provider `magic-link` →
   `POST /v1/auth/magic-link/exchange` → staff bearer token → `GET /v1/admin/users/me` for the role.

@@ -1,9 +1,11 @@
 """Staff login by magic link (public routes, rate-limited like everything else).
 
-- ``POST /v1/auth/magic-link {email}``: always 202 with the same neutral message, answered
+- ``POST /v1/auth/magic-link {email, language?}``: always 202 with the same neutral message,
+  answered
   before anything is looked up (the lookup, the audit row and the e-mail job run after the
   response), so neither the body nor the time taken tells whether the address is a staff
-  account; an active staff address gets a single-use login link by e-mail (``magic_link``);
+  account; an active staff address gets a single-use login link by e-mail (``magic_link``),
+  written in ``language`` (the console's: en | me), else in ``MAIL_DEFAULT_LANGUAGE``;
 - ``POST /v1/auth/magic-link/exchange {token}``: consumes the link, answers the session bearer
   token for the staff routes (401 for an unknown, used or expired link);
 - ``POST /v1/auth/sign-out`` (bearer): revokes that session; 204 whatever the token.
@@ -41,14 +43,14 @@ router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[Depends(_no_stor
 async def request_magic_link(
     payload: MagicLinkRequest, service: MagicLinkServiceDep, background: BackgroundTasks
 ) -> MagicLinkAccepted:
-    background.add_task(_send_link, service, payload.email)
+    background.add_task(_send_link, service, payload.email, payload.language)
     return ACCEPTED
 
 
-async def _send_link(service: MagicLinkService, email: str) -> None:
+async def _send_link(service: MagicLinkService, email: str, language: str | None) -> None:
     """After the response: never an error the caller could see (or time)."""
     try:
-        await service.request(email)
+        await service.request(email, language)
     except Exception:  # noqa: BLE001 - logged, the neutral answer is already sent
         log.exception("magic-link request failed")
 

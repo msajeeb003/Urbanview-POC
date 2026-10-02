@@ -37,6 +37,7 @@ class OrderMailFacts:
     turnaround_business_days: int
     expected_by: date
     report_key: str | None
+    language: str | None = None  # the language the map was in at the order (en | me)
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +81,7 @@ ORDER_SQL = text(
     """
     SELECT o.id, o.reference, o.email, o.first_name, o.parcel_label, o.document_name,
            o.price_eur, o.currency, o.turnaround_business_days, o.expected_by,
-           f.object_key AS report_key
+           f.object_key AS report_key, o.language
     FROM orders o LEFT JOIN stored_files f ON f.id = o.report_file_id
     WHERE o.id = :id AND o.municipality_id = :m
     """
@@ -164,6 +165,7 @@ class SqlEmailRepository:
             turnaround_business_days=int(row["turnaround_business_days"]),
             expected_by=row["expected_by"],
             report_key=row["report_key"],
+            language=row["language"],
         )
 
     async def load_staff_user(self, user_id: int) -> StaffUserFacts | None:

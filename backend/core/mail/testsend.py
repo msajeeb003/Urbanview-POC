@@ -1,7 +1,7 @@
 """Send one template with fixture data straight over the configured SMTP provider, for the
 deliverability check (DKIM / SPF / spam placement in Gmail and Outlook)::
 
-    python -m core.mail.testsend --template payment_instructions --to you@example.com
+    python -m core.mail.testsend --template payment_instructions --to you@example.com [--lang me]
 
 Bypasses the queue and the log on purpose; prints the provider's reply and the message id.
 """
@@ -20,7 +20,15 @@ from api.services.order_mail import (
     payment_instructions_context,
 )
 from core.config import get_settings
-from core.mail import EmailMessage, SmtpTransport, build_mime, decide, new_message_id, render
+from core.mail import (
+    LANGUAGES,
+    EmailMessage,
+    SmtpTransport,
+    build_mime,
+    decide,
+    new_message_id,
+    render,
+)
 from core.payments import BankTransferProvider
 
 
@@ -68,6 +76,9 @@ def main(argv: list[str] | None = None) -> int:
         default="payment_instructions",
     )
     parser.add_argument("--to", required=True, help="recipient address")
+    parser.add_argument(
+        "--lang", choices=LANGUAGES, help="the message's language (default: MAIL_DEFAULT_LANGUAGE)"
+    )
     args = parser.parse_args(argv)
     settings = get_settings()
     decision = decide(
@@ -79,7 +90,10 @@ def main(argv: list[str] | None = None) -> int:
     if not decision.send:
         print(f"refused by the sending policy: {decision.reason}", file=sys.stderr)
         return 2
-    rendered = render(args.template, fixture_context(args.template, settings, args.to))
+    language = args.lang or settings.mail_default_language
+    rendered = render(
+        args.template, fixture_context(args.template, settings, args.to), language=language
+    )
     mime = build_mime(
         EmailMessage(
             to=[args.to],
@@ -93,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
         message_id=new_message_id(settings.smtp_from),
     )
     receipt = SmtpTransport.from_settings(settings).send(mime)
-    print(f"sent {args.template} to {args.to}")
+    print(f"sent {args.template} ({language}) to {args.to}")
     print(f"provider message id: {receipt.provider_message_id}")
     print(f"provider reply: {receipt.response}")
     return 0

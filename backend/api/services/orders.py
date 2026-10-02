@@ -249,7 +249,7 @@ INSERT_ORDER_SQL = text(
         cadastral_parcel_id, urban_parcel_id, parcel_label, document_name, zone_id, zone_name,
         basis_area_m2, calculation_basis, price_eur, currency, pricing_tier,
         turnaround_business_days, expected_by, assumption_edits, snapshot, data_version,
-        publish_version_id, market_version_id, market_version, formula_version)
+        publish_version_id, market_version_id, market_version, formula_version, language)
     VALUES (
         :m, :reference, 'pending_payment', :customer_id, :purchaser_type, :first_name,
         :last_name, :email, :telephone, :company_name, :tax_number, :message, :parcel_type,
@@ -260,7 +260,7 @@ INSERT_ORDER_SQL = text(
         (SELECT v.id FROM publish_versions v
          WHERE v.municipality_id = :m AND v.label = CAST(:data_version AS text)
          ORDER BY v.is_current DESC, v.id DESC LIMIT 1),
-        :market_version_id, :market_version, :formula_version)
+        :market_version_id, :market_version, :formula_version, :language)
     RETURNING id, placed_at, status_changed_at
     """
 )
@@ -556,6 +556,8 @@ class OrderService:
             "market_version_id": market_version.id if market_version else None,
             "market_version": market_version.version if market_version else None,
             "formula_version": panel.formula_version,
+            # the order's e-mails (now and when the report is delivered) are written in it
+            "language": payload.language,
         }
 
         async with self.session_factory() as session:

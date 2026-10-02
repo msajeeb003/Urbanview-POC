@@ -1138,7 +1138,8 @@ demand: the analytics districts place them by their point.
   purchaser type `individual` | `legal_entity`, whose company name and PIB `tax_number` are both
   optional and dropped for an individual; the first form's `contact_person` /
   `registered_address` are refused since 0031 and their columns dropped in 0037), the
-  assumptions the visitor edited, and an optional message. It
+  assumptions the visitor edited, an optional message and the `language` the map is in (en | me,
+  optional: kept on the order, its e-mails are written in it). It
   answers 201 with the reference, the price, the turnaround, the bank-transfer instructions,
   `data_version`, `location.cadastral_parcel_id` and the public status URL
   (`ORDER_PUBLIC_BASE_URL` + `/orders/{reference}`, the public map's order page). Capped per e-mail
@@ -1229,9 +1230,9 @@ demand: the analytics districts place them by their point.
 
 ## Transactional e-mail and staff login (`core/mail/`, `jobs/tasks/email.py`, `api/services/email.py`, `api/services/auth.py`)
 
-- **Only the job sends.** `EmailService.queue(template, to, order_id | user_id)` inserts an
-  `email_log` row (`queued`) and one `send_email` job (email queue) whose payload carries ids
-  only. The worker (`jobs.tasks.email.deliver`) loads the row, resolves the recipient and the
+- **Only the job sends.** `EmailService.queue(template, to, order_id | user_id, language?)`
+  inserts an `email_log` row (`queued`) and one `send_email` job (email queue) whose payload
+  carries ids only (and the language of a sign-in link). The worker (`jobs.tasks.email.deliver`) loads the row, resolves the recipient and the
   facts from the order or the staff user at send time (`core.mail.repository`), renders the
   template, applies the sending policy, sends over SMTP and records the outcome on the row:
   `sent` with `provider_message_id` (the id in the provider's 250 reply, else our
@@ -1243,24 +1244,34 @@ demand: the analytics districts place them by their point.
   `payment_instructions` (reference, location, price, beneficiary / IBAN / bank / SWIFT /
   amount / payment reference, turnaround + expected date, status URL, support inbox),
   `order_delivered` (reference, location, signed download link + expiry, support inbox),
-  `magic_link` (login URL, expiry minutes, single-use note). Montenegrin first, then English,
-  in one message; wording provisional until the client approves it. Contexts come from
-  `api/services/order_mail.py`; `core.mail.render` checks the required keys.
+  `magic_link` (login URL, expiry minutes, single-use note). Wording provisional until the
+  client approves it. Contexts come from `api/services/order_mail.py`; `core.mail.render` checks
+  the required keys.
+- **One language per message** (product owner, 2026-10-02; before, every message carried
+  Montenegrin then English): `render(template, context, language=)` with the app's languages
+  (`core.mail.templates.LANGUAGES`: en | me), every template holding both wordings. The language
+  is the app's at the moment the e-mail is asked for (`mail_language`, first that is known):
+  the job payload's `language` (a sign-in link: `POST /v1/auth/magic-link {email, language?}`,
+  the console's language cookie), else the order's (`orders.language`, migration 0040, from
+  `POST /v1/orders {…, language?}`: the map's language at the order, so the e-mail that brings
+  the report days later is in it too), else `MAIL_DEFAULT_LANGUAGE` (en: orders placed before
+  0040, the CLI). Anything but en / me in a request is a 422.
 - **Transport and policy** (`core/mail/smtp.py`, `core/mail/policy.py`): `SMTP_HOST` / `PORT` /
   `USERNAME` / `PASSWORD` / `USE_TLS` (STARTTLS) / `USE_SSL` (465) / `FROM` / `TIMEOUT_SECONDS`,
-  `MAIL_REPLY_TO` (default `ORDER_SUPPORT_EMAIL`), `MAIL_APP_NAME`. No `SMTP_HOST` → every row
+  `MAIL_REPLY_TO` (default `ORDER_SUPPORT_EMAIL`), `MAIL_APP_NAME`, `MAIL_DEFAULT_LANGUAGE`.
+  No `SMTP_HOST` → every row
   `suppressed (no_smtp_host)`. `APP_ENV=staging` mails only `MAIL_ALLOWLIST` (addresses or
   `@domain`; empty = nothing goes out); a non-empty allow-list is enforced in every environment.
   Dev: compose's Mailpit (SMTP 1025, inbox http://localhost:8025); without Docker
   `python -m core.mail.devsink` (SMTP 1025, each message an `.eml` file in the temp folder's
   `urbanview-mail`) with `SMTP_USE_TLS=false`. Deliverability check:
-  `python -m core.mail.testsend --template payment_instructions --to you@…` sends fixture data
-  through the real provider (DKIM / SPF / DMARC are the provider account's job).
+  `python -m core.mail.testsend --template payment_instructions --to you@… [--lang me]` sends
+  fixture data through the real provider (DKIM / SPF / DMARC are the provider account's job).
 - **Log**: the `email_log` rows (queued | sent | suppressed | failed). Orders show
   `email_alerts` in the queue and `emails` in the detail; there is no separate log route and no
   bounce tracking (provider webhooks are not in the POC plan; 0036 dropped the bounce columns).
-- **Magic-link login** (`api/routers/v1/auth.py`, public): `POST /v1/auth/magic-link {email}`
-  always answers 202 with the same neutral message, **before** anything is looked up: the lookup,
+- **Magic-link login** (`api/routers/v1/auth.py`, public): `POST /v1/auth/magic-link {email,
+  language?}` always answers 202 with the same neutral message, **before** anything is looked up: the lookup,
   the audit row and the e-mail job run after the response (Starlette background task; a failure
   there is logged, never shown), so neither the body nor the time taken tells a staff address
   from any other (auth check 2026-09-29); an active staff address gets a `magic_link`

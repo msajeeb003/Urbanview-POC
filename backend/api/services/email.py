@@ -1,7 +1,8 @@
 """The API side of transactional e-mail: queue a send.
 
 ``queue`` inserts the ``email_log`` row (``queued``) and one ``send_email`` job for it (payload:
-template and ids, never an address or a body); the worker does the rendering, the policy check,
+template, ids and, for a request that names one, the language to write it in; never an address
+or a body); the worker does the rendering, the policy check,
 the SMTP send and the outcome (``core.mail``, ``jobs.tasks.email``). A queue outage marks the row
 ``failed`` instead of failing the caller (an order is never lost over mail). The staff order
 detail lists the order's rows (``EMAIL_LOG_JSON``).
@@ -26,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from api.schemas.email import EmailLogOut
 from core.errors import ServiceUnavailableError
 from core.mail.policy import SendDecision
-from core.mail.templates import TEMPLATES
+from core.mail.templates import LANGUAGES, TEMPLATES
 from jobs.enqueue import JobDispatcher, enqueue_job
 
 EMAIL_LOG_JSON = """jsonb_build_object(
@@ -99,9 +100,14 @@ class EmailService:
         user_id: int | None = None,
         requested_by: str = "system",
         requested_by_user_id: int | None = None,
+        language: str | None = None,
     ) -> EmailQueued:
+        """``language`` (en | me): the app's language when the e-mail was asked for (a sign-in
+        link). An order's e-mails need none: the worker reads the order's own language."""
         if template not in TEMPLATES:
             raise ValueError(f"unknown e-mail template {template!r}")
+        if language is not None and language not in LANGUAGES:
+            raise ValueError(f"unknown e-mail language {language!r}")
         m = self.municipality_id
         async with self.session_factory() as session:
             log_id = int(
@@ -130,6 +136,7 @@ class EmailService:
                     "email_log_id": log_id,
                     "order_id": order_id,
                     "user_id": user_id,
+                    **({"language": language} if language else {}),
                 },
                 target_type="email",
                 target_id=log_id,

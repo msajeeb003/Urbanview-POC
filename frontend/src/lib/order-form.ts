@@ -11,6 +11,7 @@ import type { EventProperties } from "./analytics/tracker";
 import { ApiError } from "./api/client";
 import type { OrderIn } from "./api/types";
 import { hasEdits, toRequestAssumptions, type AssumptionEdits } from "./assumptions";
+import type { Lang } from "./i18n/strings";
 
 /** The `product` of the order events (the analytics dashboard groups revenue by it). */
 export const ORDER_PRODUCT = "expert_report";
@@ -118,9 +119,10 @@ export interface OrderTarget extends OrderLocation {
 
 /**
  * The request body: the location the panel showed, the name, telephone and e-mail, a legal
- * entity's company name and PIB when given, and the visitor's edited assumptions, if any.
+ * entity's company name and PIB when given, the visitor's edited assumptions, if any, and the
+ * language the map is in (the order's e-mails are written in it, one language per e-mail).
  */
-export function toOrderIn(draft: OrderDraft, location: OrderLocation, edits: AssumptionEdits): OrderIn {
+export function toOrderIn(draft: OrderDraft, location: OrderLocation, edits: AssumptionEdits, language: Lang): OrderIn {
   const t = (v: string) => v.trim();
   const body: OrderIn = {
     location: { parcel_type: location.parcelType, parcel_id: location.parcelId },
@@ -130,6 +132,7 @@ export function toOrderIn(draft: OrderDraft, location: OrderLocation, edits: Ass
     email: t(draft.email),
     telephone: t(draft.telephone),
     assumptions: hasEdits(edits) ? toRequestAssumptions(edits) : null,
+    language,
   };
   if (draft.purchaserType === "legal_entity") {
     body.company_name = t(draft.companyName) || null;

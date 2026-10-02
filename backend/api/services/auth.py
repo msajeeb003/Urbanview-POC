@@ -1,7 +1,8 @@
 """Magic-link login for the admin panel.
 
-``request(email)`` queues the ``magic_link`` e-mail for an active staff user and answers the
-same way whether or not the address is known (no enumeration); the route runs it after its
+``request(email, language)`` queues the ``magic_link`` e-mail for an active staff user, written
+in the language the console was in, and answers the same way whether or not the address is known
+(no enumeration); the route runs it after its
 neutral 202 has been sent, so the time taken says nothing either. The worker mints the single-use
 token (hash in ``staff_login_tokens``, ``MAGIC_LINK_EXPIRES_SECONDS``) and sends the link
 ``{ADMIN_BASE_URL}/login?token=…``. ``exchange(token)`` consumes the token once, opens a staff
@@ -74,7 +75,7 @@ class MagicLinkService:
         self.session_ttl = timedelta(days=int(session_ttl_days))
         self.clock = clock
 
-    async def request(self, email: str) -> MagicLinkAccepted:
+    async def request(self, email: str, language: str | None = None) -> MagicLinkAccepted:
         normalised = email.strip().lower()
         async with self.session_factory() as session:
             user = (
@@ -103,6 +104,7 @@ class MagicLinkService:
                 user_id=int(user["id"]),
                 requested_by=normalised,
                 requested_by_user_id=int(user["id"]),
+                language=language,
             )
         return ACCEPTED
 

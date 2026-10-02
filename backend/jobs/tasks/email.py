@@ -1,13 +1,15 @@
 """Transactional e-mail: ``send_email`` on the ``email`` queue, one job per ``email_log`` row.
 
-Payload ``{"template", "email_log_id", "order_id"?, "user_id"?}``: ids only. The body loads the
-row, resolves the recipient and the facts from the order or the staff user at send time
-(``core.mail.repository``), applies the sending policy (``core.mail.policy``), renders the
-template, sends over SMTP and records the outcome on the row: ``sent`` with the provider's
-message id, ``suppressed`` with the reason, ``failed`` with the error. Transient provider errors
-(connection, timeout, 4xx) are raised as ``TransientError`` so the base task retries with
-backoff; the row keeps the attempt count and the last error. A magic-link job mints the
-single-use token itself (hash in ``staff_login_tokens``, the raw token only in the e-mail).
+Payload ``{"template", "email_log_id", "order_id"?, "user_id"?, "language"?}``: ids and a
+language code only. The body loads the row, resolves the recipient and the facts from the order
+or the staff user at send time (``core.mail.repository``), applies the sending policy
+(``core.mail.policy``), renders the template in one language (the payload's: the app's when a
+sign-in link was asked for; else the order's: the app's when it was placed; else
+``MAIL_DEFAULT_LANGUAGE``), sends over SMTP and records the outcome on the row: ``sent`` with
+the provider's message id, ``suppressed`` with the reason, ``failed`` with the error. Transient
+provider errors (connection, timeout, 4xx) are raised as ``TransientError`` so the base task
+retries with backoff; the row keeps the attempt count and the last error. A magic-link job mints
+the single-use token itself (hash in ``staff_login_tokens``, the raw token only in the e-mail).
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ from core.mail import (
     MailTransientError,
     build_mime,
     decide,
+    mail_language,
     new_message_id,
     render,
 )
@@ -84,8 +87,9 @@ async def resolve_context(
     settings: Any,
     storage: Any,
     clock: Any,
-) -> tuple[str, dict[str, Any]]:
-    """The recipient address and the template context, from the order / staff user."""
+) -> tuple[str, dict[str, Any], str | None]:
+    """The recipient address, the template context and the order's language (None for a staff
+    e-mail, or an order that kept none), from the order / staff user."""
     support = settings.order_support_email
     if template in ("payment_instructions", "order_delivered"):
         if row.order_id is None:
@@ -115,15 +119,18 @@ async def resolve_context(
             instructions = provider.instructions(
                 reference=order.reference, amount_eur=order.price_eur
             )
-            return order.email, payment_instructions_context(facts, instructions)
+            context = payment_instructions_context(facts, instructions)
+            return order.email, context, order.language
         if not order.report_key:
             raise MailPermanentError(f"order {order.reference} has no report to deliver")
         expires_in = settings.order_report_link_expires_seconds
         url = storage.presigned_get_url(
             order.report_key, expires_in, content_type="application/pdf", inline=False
         )
-        return order.email, order_delivered_context(
-            facts, url, clock() + timedelta(seconds=expires_in)
+        return (
+            order.email,
+            order_delivered_context(facts, url, clock() + timedelta(seconds=expires_in)),
+            order.language,
         )
     if template == "magic_link":
         if row.user_id is None:
@@ -135,12 +142,13 @@ async def resolve_context(
         expires_at = clock() + timedelta(seconds=settings.magic_link_expires_seconds)
         await repo.create_login_token(user.id, hash_token(token), expires_at, row.id)
         login_url = f"{settings.admin_base_url.rstrip('/')}/login?token={token}"
-        return user.email, magic_link_context(
+        context = magic_link_context(
             email=user.email,
             login_url=login_url,
             expires_minutes=max(1, settings.magic_link_expires_seconds // 60),
             support_email=support,
         )
+        return user.email, context, None
     raise MailPermanentError(f"unknown e-mail template {template!r}")
 
 
@@ -159,8 +167,13 @@ async def deliver(
     if row.status in ("sent", "suppressed"):
         return JobResult(result={"email_log_id": log_id, "status": row.status, "skipped": True})
     template = row.template
-    recipient, context = await resolve_context(template, row, repo, settings, storage, clock)
-    rendered = render(template, context, app_name=settings.mail_app_name)
+    recipient, context, order_language = await resolve_context(
+        template, row, repo, settings, storage, clock
+    )
+    language = mail_language(
+        job.payload.get("language"), order_language, default=settings.mail_default_language
+    )
+    rendered = render(template, context, app_name=settings.mail_app_name, language=language)
     decision = decide(
         app_env=settings.app_env.value,
         smtp_host=settings.smtp_host,
@@ -208,6 +221,7 @@ async def deliver(
             "email_log_id": log_id,
             "status": "sent",
             "template": template,
+            "language": language,
             "provider_message_id": receipt.provider_message_id,
         }
     )

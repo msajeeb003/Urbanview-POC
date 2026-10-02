@@ -13432,6 +13432,22 @@
             "type": "string",
             "maxLength": 254,
             "title": "Email"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "me"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "The language the console is in: the sign-in e-mail is written in it (default: MAIL_DEFAULT_LANGUAGE)"
           }
         },
         "additionalProperties": false,
@@ -14960,6 +14976,22 @@
               }
             ],
             "title": "Message"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "me"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "The language the map is in: the order's e-mails are written in it (default: MAIL_DEFAULT_LANGUAGE)"
           }
         },
         "additionalProperties": false,

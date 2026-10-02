@@ -145,6 +145,10 @@ class Order(Base):
     placed_at: Mapped[datetime] = _ts(nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = _ts(nullable=False, server_default=func.now())
     notes: Mapped[str | None] = mapped_column(Text)
+    language: Mapped[str | None] = mapped_column(
+        Text,
+        comment="en | me: the language the map was in at the order; its e-mails are written in it",
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -156,6 +160,7 @@ class Order(Base):
         ),
         CheckConstraint("parcel_type IN ('cadastral', 'urban')", name="ck_orders_parcel_type"),
         CheckConstraint("price_eur >= 0", name="ck_orders_price"),
+        CheckConstraint("language IN ('en', 'me')", name="ck_orders_language"),
         Index("uq_orders_reference", "reference", unique=True),
         Index("ix_orders_status", "municipality_id", "status", "placed_at"),
         Index("ix_orders_assignee", "municipality_id", "assignee_user_id"),

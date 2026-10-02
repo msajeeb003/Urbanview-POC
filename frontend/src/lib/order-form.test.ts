@@ -49,7 +49,7 @@ describe("order form validation (the API's rules)", () => {
 
 describe("the order request", () => {
   it("sends an individual's names, trimmed, and no company fields", () => {
-    expect(toOrderIn(individual, location, {})).toEqual({
+    expect(toOrderIn(individual, location, {}, "en")).toEqual({
       location: { parcel_type: "urban", parcel_id: 12 },
       purchaser_type: "individual",
       email: "marko@email.me",
@@ -57,11 +57,17 @@ describe("the order request", () => {
       assumptions: null,
       first_name: "Marko",
       last_name: null,
+      language: "en",
     });
   });
 
+  it("sends the language the map is in, so the order's e-mails are written in it", () => {
+    expect(toOrderIn(individual, location, {}, "me").language).toBe("me");
+    expect(toOrderIn(company, location, {}, "en").language).toBe("en");
+  });
+
   it("sends a company's name and PIB with the person's name, and the visitor's edits", () => {
-    const body = toOrderIn(company, location, { sale_price_eur_m2: 2600 });
+    const body = toOrderIn(company, location, { sale_price_eur_m2: 2600 }, "en");
     expect(body).toMatchObject({
       purchaser_type: "legal_entity",
       first_name: "Marko",
@@ -73,7 +79,7 @@ describe("the order request", () => {
     expect(body).not.toHaveProperty("contact_person");
     expect(body).not.toHaveProperty("registered_address");
     // left empty, the optional company fields go as null
-    expect(toOrderIn({ ...company, companyName: " ", taxNumber: "" }, location, {})).toMatchObject({
+    expect(toOrderIn({ ...company, companyName: " ", taxNumber: "" }, location, {}, "en")).toMatchObject({
       company_name: null,
       tax_number: null,
     });

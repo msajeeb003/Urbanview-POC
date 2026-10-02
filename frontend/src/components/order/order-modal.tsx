@@ -23,6 +23,7 @@ import { useId, useRef, useState, type FormEvent, type KeyboardEvent } from "rea
 import { getTracker } from "@/lib/analytics/react";
 import { formatArea } from "@/lib/format";
 import { useCreateOrder, useOrderPricing } from "@/lib/api/hooks";
+import { useLang } from "@/lib/i18n";
 import {
   FIELDS,
   MAX_LENGTH,
@@ -108,6 +109,7 @@ function OrderModal({ target }: { target: OrderTarget }) {
   const setDraft = useShell((s) => s.setOrderDraft);
   const clearDraft = useShell((s) => s.clearOrderDraft);
   const edits = useShell((s) => s.assumptionEdits);
+  const { lang } = useLang(); // the order's e-mails are written in the language the map is in
   const openModal = useShell((s) => s.openModal);
   const closeModal = useShell((s) => s.closeModal);
   const pricing = useOrderPricing();
@@ -156,7 +158,7 @@ function OrderModal({ target }: { target: OrderTarget }) {
     if (price == null || noArea) return;
     sending.current = true;
     const email = draft.email.trim();
-    create.mutate(toOrderIn(draft, target, edits), {
+    create.mutate(toOrderIn(draft, target, edits, lang), {
       onSuccess: (order) => {
         getTracker().track("checkout_completed", {
           ...target.ids,

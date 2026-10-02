@@ -182,9 +182,15 @@ async def test_magic_link_login_is_single_use_and_short_lived(mail_env, transpor
             email="Vesna@Example.com",
             role="admin",
         )
-        requested = await client.post("/v1/auth/magic-link", json={"email": "vesna@example.com"})
+        # asked for with the console in Montenegrin: the e-mail is written in it
+        requested = await client.post(
+            "/v1/auth/magic-link", json={"email": "vesna@example.com", "language": "me"}
+        )
         unknown = await client.post("/v1/auth/magic-link", json={"email": "nobody@example.com"})
         malformed = await client.post("/v1/auth/magic-link", json={"email": "not-an-address"})
+        not_a_language = await client.post(
+            "/v1/auth/magic-link", json={"email": "vesna@example.com", "language": "de"}
+        )
         mail = transport.sent[0]
         url = next(line for line in mail.text.splitlines() if "login?token=" in line)
         token = url.split("token=", 1)[1].strip()
@@ -209,8 +215,13 @@ async def test_magic_link_login_is_single_use_and_short_lived(mail_env, transpor
 
     assert requested.status_code == 202 and unknown.status_code == 202
     assert requested.json() == unknown.json()  # no account enumeration
-    assert malformed.status_code == 422
+    assert malformed.status_code == 422 and not_a_language.status_code == 422
     assert len(transport.sent) == 2 and mail.to == ["vesna@example.com"]
+    assert mail.subject == "UrbanView admin: link za prijavu"
+    assert "Prijava na UrbanView admin panel" in mail.text and "Sign in to" not in mail.text
+    # the second link was asked for without a language: the default, English
+    assert transport.sent[1].subject == "UrbanView admin: your sign-in link"
+    assert "Sign in to the UrbanView admin panel" in transport.sent[1].text
     assert mail.template == "magic_link" and url.startswith("http://admin.test/login?token=")
     assert "10 minut" in mail.text
     assert exchanged.status_code == 200, exchanged.text

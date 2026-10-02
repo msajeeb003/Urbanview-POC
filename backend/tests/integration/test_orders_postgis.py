@@ -235,8 +235,10 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
     mail = mailer.sent[0]
     assert mail.to == ["ana.novak@example.com"]
     assert reference in mail.subject
-    for needle in ("200.00 EUR", "placeholder", reference, "Poštovani", body["status_url"]):
+    # no language on the order: the e-mail is in the default language, and in that one only
+    for needle in ("200.00 EUR", "placeholder", reference, "Dear Ana", body["status_url"]):
         assert needle in mail.text, needle
+    assert "Poštovani" not in mail.text
     log = await rows(app, "SELECT template, status, to_email FROM email_log ORDER BY id")
     assert log[0] == {
         "template": "payment_instructions",
@@ -366,12 +368,19 @@ async def test_mail_trouble_never_fails_the_order(postgis_url):
 async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
     app = order_app
     async with app.router.lifespan_context(app), make_client(app) as client:
-        reference = (await client.post("/v1/orders", json=FORM)).json()["reference"]
+        # placed with the map in Montenegrin: the order keeps the language for its e-mails
+        reference = (await client.post("/v1/orders", json={**FORM, "language": "me"})).json()[
+            "reference"
+        ]
         other_ref = (
             await client.post("/v1/orders", json={**FORM, "email": "c@example.com"})
         ).json()["reference"]
         oid = await order_id_of(app, reference)
         other = await order_id_of(app, other_ref)
+        languages = await rows(
+            app, "SELECT id, language FROM orders WHERE id IN (:a, :b) ORDER BY id", a=oid, b=other
+        )
+        not_a_language = await client.post("/v1/orders", json={**FORM, "language": "de"})
         expert_id, expert = await staff_token(app, "expert@example.com", "expert")
         reviewer_id, reviewer = await staff_token(app, "reviewer@example.com", "reviewer")
 
@@ -492,8 +501,15 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
     assert body["report"]["original_filename"] == "Expert_analysis.pdf"
     assert body["report"]["download_url"].endswith("?X-Amz-Signature=sig")
     assert body["report"]["download_expires_at"]
+    # the report's e-mail, days later, is in the language the order was placed in
+    assert languages == [{"id": oid, "language": "me"}, {"id": other, "language": None}]
+    assert not_a_language.status_code == 422
+    assert mailer.sent[0].subject.endswith("uputstvo za plaćanje")
+    assert mailer.sent[1].subject.endswith("payment instructions")
     assert (
-        "ready" in mailer.sent[-1].subject
+        mailer.sent[-1].subject.endswith("izvještaj je spreman")
+        and "Poštovani/a Ana" in mailer.sent[-1].text
+        and "Dear Ana" not in mailer.sent[-1].text
         and body["report"]["download_url"] in mailer.sent[-1].text
     )
     assert back_to_work.status_code == 409  # delivered never goes back

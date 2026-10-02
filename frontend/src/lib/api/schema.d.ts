@@ -3951,6 +3951,11 @@ export interface components {
         MagicLinkRequest: {
             /** Email */
             email: string;
+            /**
+             * Language
+             * @description The language the console is in: the sign-in e-mail is written in it (default: MAIL_DEFAULT_LANGUAGE)
+             */
+            language?: ("en" | "me") | null;
         };
         /**
          * MarketAmendIn
@@ -4519,6 +4524,11 @@ export interface components {
             assumptions?: components["schemas"]["EditedAssumptions"] | null;
             /** Message */
             message?: string | null;
+            /**
+             * Language
+             * @description The language the map is in: the order's e-mails are written in it (default: MAIL_DEFAULT_LANGUAGE)
+             */
+            language?: ("en" | "me") | null;
         };
         /** OrderList */
         OrderList: {

@@ -126,6 +126,9 @@ class Settings(BaseSettings):
     # transactional e-mail (core.mail, jobs.tasks.email) and the magic-link login
     mail_app_name: str = "UrbanView"  # the brand name in subjects and bodies
     mail_reply_to: str | None = None  # None = ORDER_SUPPORT_EMAIL
+    # an e-mail is written in one language: the app's when the order was placed or the sign-in
+    # link asked for; this one when neither says (orders placed before 0040, the CLI)
+    mail_default_language: Literal["en", "me"] = "en"
     # addresses or @domains that may be mailed; enforced in staging (empty = nothing goes out)
     mail_allowlist: Annotated[list[str], NoDecode] = []
     admin_base_url: str = "http://localhost:3000/admin"  # magic links point here (the console)

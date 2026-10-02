@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from api.schemas.email import EmailLogOut
+from api.schemas.email import EmailLogOut, MailLanguage
 from api.schemas.feasibility import EditedAssumptions
 from core.models.orders import ORDER_STATUSES
 
@@ -55,6 +55,11 @@ class OrderIn(BaseModel):
         default=None, description="The assumptions the visitor edited on the panel, if any"
     )
     message: str | None = Field(default=None, max_length=1000)
+    language: MailLanguage | None = Field(
+        default=None,
+        description="The language the map is in: the order's e-mails are written in it "
+        "(default: MAIL_DEFAULT_LANGUAGE)",
+    )
 
     @field_validator("first_name")
     @classmethod

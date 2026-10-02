@@ -1,1 +1,5 @@
-{{ app_name }} narudžba {{ reference }}: izvještaj je spreman / your report is ready
+{% if lang == "me" %}
+{{ app_name }} narudžba {{ reference }}: izvještaj je spreman
+{% else %}
+{{ app_name }} order {{ reference }}: your report is ready
+{% endif %}

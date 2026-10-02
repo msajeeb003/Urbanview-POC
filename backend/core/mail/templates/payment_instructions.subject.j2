@@ -1,1 +1,5 @@
-{{ app_name }} narudžba {{ reference }}: uputstvo za plaćanje / payment instructions
+{% if lang == "me" %}
+{{ app_name }} narudžba {{ reference }}: uputstvo za plaćanje
+{% else %}
+{{ app_name }} order {{ reference }}: payment instructions
+{% endif %}

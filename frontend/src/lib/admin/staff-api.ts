@@ -8,6 +8,7 @@
  */
 import { ApiError, apiRequest } from "@/lib/api/client";
 import type { StaffMe, StaffSession } from "@/lib/api/types";
+import type { Lang } from "@/lib/i18n/strings";
 
 import { isStaffRole, type StaffRole } from "./sections";
 
@@ -17,12 +18,15 @@ export function bearer(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
-/** Queue the login e-mail. Resolves for every well-formed address (no enumeration). */
-export async function requestMagicLink(email: string): Promise<"sent" | "invalid_email"> {
+/**
+ * Queue the login e-mail, written in the language the console is in. Resolves for every
+ * well-formed address (no enumeration).
+ */
+export async function requestMagicLink(email: string, language: Lang): Promise<"sent" | "invalid_email"> {
   try {
     await apiRequest("/v1/auth/magic-link", {
       method: "POST",
-      body: { email },
+      body: { email, language },
       timeoutMs: TIMEOUT_MS,
       retry429: 0,
     });

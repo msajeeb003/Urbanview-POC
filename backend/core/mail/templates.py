@@ -1,5 +1,8 @@
-"""The e-mail templates (Jinja2): subject, plain text and HTML per kind, Montenegrin first then
-English in one message. Wording is provisional until the client approves it.
+"""The e-mail templates (Jinja2): subject, plain text and HTML per kind, each written in both of
+the app's languages. A message is rendered in one language (``LANGUAGES``): the one the app was
+in when the order was placed or the sign-in link was asked for (product owner, 2026-10-02;
+before, every message carried Montenegrin then English). Wording is provisional until the client
+approves it.
 
 Each template declares the context keys it needs; ``render`` refuses a context that lacks one
 (``StrictUndefined``: a typo in a template or a missing fact fails in tests, not in a customer's
@@ -18,6 +21,19 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 APP_NAME = "UrbanView"
+# the app's languages (the public map's switch): English and Montenegrin
+LANGUAGES: tuple[str, ...] = ("en", "me")
+DEFAULT_LANGUAGE = "en"
+HTML_LANG = {"en": "en", "me": "cnr-Latn"}  # as the site's <html lang>
+
+
+def mail_language(*candidates: Any, default: str = DEFAULT_LANGUAGE) -> str:
+    """The first candidate that is one of the app's languages, else the default (a request
+    without a language, an order placed before orders kept theirs)."""
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate in LANGUAGES:
+            return candidate
+    return default if default in LANGUAGES else DEFAULT_LANGUAGE
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,16 +131,24 @@ _env = Environment(
 _env.filters.update(money=_money, date_short=_date_short, datetime_utc=_datetime_utc)
 
 
-def render(template: str, context: Mapping[str, Any], *, app_name: str = APP_NAME) -> RenderedEmail:
-    """Subject, text and HTML for ``template``; ``ValueError`` on an unknown template or a
-    context missing a required key."""
+def render(
+    template: str,
+    context: Mapping[str, Any],
+    *,
+    app_name: str = APP_NAME,
+    language: str = DEFAULT_LANGUAGE,
+) -> RenderedEmail:
+    """Subject, text and HTML for ``template`` in one language; ``ValueError`` on an unknown
+    template or language, or a context missing a required key."""
     spec = TEMPLATES.get(template)
     if spec is None:
         raise ValueError(f"unknown e-mail template {template!r}")
+    if language not in LANGUAGES:
+        raise ValueError(f"unknown e-mail language {language!r} (have {', '.join(LANGUAGES)})")
     missing = [key for key in spec.required if key not in context]
     if missing:
         raise ValueError(f"template {template!r} needs {', '.join(missing)}")
-    ctx = {"app_name": app_name, **context}
+    ctx = {"app_name": app_name, **context, "lang": language, "html_lang": HTML_LANG[language]}
     subject = _env.get_template(f"{template}.subject.j2").render(ctx).strip()
     text = _env.get_template(f"{template}.txt.j2").render(ctx)
     html = _env.get_template(f"{template}.html.j2").render(ctx)

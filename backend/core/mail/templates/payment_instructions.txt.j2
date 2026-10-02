@@ -1,3 +1,4 @@
+{% if lang == "me" %}
 Poštovani/a {{ first_name }},
 
 Hvala na narudžbi stručne analize za {{ location }}.
@@ -23,9 +24,7 @@ Rok izrade: do {{ turnaround_business_days }} radnih dana od prijema uplate
 Status narudžbe: {{ status_url }}
 
 Pitanja: {{ support_email }}
-
----
-
+{% else %}
 Dear {{ first_name }},
 
 Thank you for ordering an expert analysis of {{ location }}.
@@ -51,5 +50,6 @@ Turnaround: within {{ turnaround_business_days }} business days after the paymen
 Track your order: {{ status_url }}
 
 Questions: {{ support_email }}
+{% endif %}
 
 {{ app_name }}

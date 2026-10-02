@@ -1,1 +1,5 @@
-{{ app_name }} admin: link za prijavu / your login link
+{% if lang == "me" %}
+{{ app_name }} admin: link za prijavu
+{% else %}
+{{ app_name }} admin: your sign-in link
+{% endif %}

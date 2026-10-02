@@ -168,6 +168,10 @@ def test_order_form_validation():
     assert OrderIn(**{**FORM, "last_name": None}).last_name == ""
     assert OrderIn(**{k: v for k, v in FORM.items() if k != "last_name"}).last_name == ""
     assert OrderIn(**{**FORM, "first_name": " Ana "}).first_name == "Ana"
+    # the language the map was in: one of the app's two, or none (the default applies)
+    assert order.language is None and OrderIn(**{**FORM, "language": "me"}).language == "me"
+    with pytest.raises(ValidationError):
+        OrderIn(**{**FORM, "language": "de"})
 
 
 def test_payment_payload():
@@ -206,11 +210,15 @@ def test_bank_transfer_provider_and_emails():
         "CKBCMEPG",
         "01.10.2026",
         facts.status_url,
-        "Poštovani",
+        "Dear Ana",
         "DUP Centar – Zona C2",
     ):
         assert needle in mail.text, needle
         assert needle in mail.html, needle
+    context = payment_instructions_context(facts, instructions)
+    in_montenegrin = render("payment_instructions", context, language="me")
+    assert "Poštovani/a Ana" in in_montenegrin.text and "Dear Ana" not in in_montenegrin.text
+    assert instructions.note_me in in_montenegrin.text and instructions.note_en in mail.text
     delivered = render(
         "order_delivered",
         order_delivered_context(
