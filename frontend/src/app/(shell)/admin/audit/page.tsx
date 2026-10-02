@@ -1,11 +1,13 @@
 import { AdminCard, AdminUnavailable, DataTable } from "@/components/admin/parts";
 import { AdminAccessDenied, adminGet } from "@/lib/admin/api";
-import { auditChanges, utcStamp } from "@/lib/admin/format";
+import { auditChanges } from "@/lib/admin/format";
 import { guard } from "@/lib/admin/guard";
+import { staffZone } from "@/lib/admin/zone-server";
 import type { AuditEntry, AuditPage } from "@/lib/api/types";
 
 // The audit trail (admins): who changed what and when, newest first, from GET /v1/admin/audit
 // (append-only). Filters (action prefix, actor) are a plain GET form, so a filtered view is a link.
+// The time column is the municipality's clock, named in its header.
 const PAGE = 50;
 
 type Params = Record<string, string | string[] | undefined>;
@@ -33,6 +35,7 @@ export default async function AuditPageView({ searchParams }: { searchParams: Pr
   const actor = one(params.actor);
   const offset = Math.max(0, Number.parseInt(one(params.offset) || "0", 10) || 0);
 
+  const zonePromise = staffZone();
   let page: AuditPage;
   try {
     page = await adminGet<AuditPage>("/v1/admin/audit", {
@@ -54,6 +57,7 @@ export default async function AuditPageView({ searchParams }: { searchParams: Pr
     return s ? `/admin/audit?${s}` : "/admin/audit";
   };
   const more = page.items.length === PAGE;
+  const zone = await zonePromise;
 
   return (
     <AdminCard
@@ -79,7 +83,7 @@ export default async function AuditPageView({ searchParams }: { searchParams: Pr
         rowKey={(e) => e.id}
         empty="No audited changes match these filters."
         columns={[
-          { key: "time", label: "Time (UTC)", mono: true, render: (e) => utcStamp(e.created_at) },
+          { key: "time", label: `Time (${zone.name})`, mono: true, render: (e) => zone.stamp(e.created_at) },
           { key: "actor", label: "Actor", render: (e) => e.actor },
           { key: "action", label: "Action", mono: true, render: (e) => e.action },
           {

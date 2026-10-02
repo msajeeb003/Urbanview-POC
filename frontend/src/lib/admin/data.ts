@@ -10,7 +10,7 @@
  * drawing = the geometry job, both).
  */
 import type { ChipTone } from "@/components/admin/parts";
-import { relativeTime, utcStamp } from "@/lib/admin/format";
+import { relativeTime, UTC, zoneName, zoneStamp } from "@/lib/admin/format";
 import type {
   AdminDocument,
   AdminDocumentFile,
@@ -220,26 +220,31 @@ export interface Pill {
   reason?: string | null;
   /** Not a state but "does not apply" (a drawing is not extracted, a text file has no geometry). */
   muted?: boolean;
-  /** When the job ran, exact (UTC): the detail's tooltip. */
+  /** When the job ran, exact (the console's clock, named): the detail's tooltip. */
   times?: string | null;
 }
 
-/** When a job ran, short for the table (and the exact UTC times for the tooltip). */
+/**
+ * When a job ran, short for the table (and the exact times for the tooltip, on the console's
+ * clock: the municipality's zone, named).
+ */
 export function jobTimes(
   job: AdminJob | null | undefined,
   now: Date = new Date(),
+  zone: string = UTC,
 ): { short: string | null; full: string | null } {
   if (!job) return { short: null, full: null };
+  const at = (iso: string) => `${zoneStamp(iso, zone)} ${zoneName(zone)}`;
   const parts: string[] = [];
-  if (job.started_at) parts.push(`started ${utcStamp(job.started_at)} UTC`);
-  if (job.finished_at) parts.push(`finished ${utcStamp(job.finished_at)} UTC`);
+  if (job.started_at) parts.push(`started ${at(job.started_at)}`);
+  if (job.finished_at) parts.push(`finished ${at(job.finished_at)}`);
   if (job.cost?.wall_time_ms != null && job.finished_at) parts.push(`took ${formatDuration(job.cost.wall_time_ms)}`);
-  const full = parts.length ? parts.join(" · ") : `queued ${utcStamp(job.requested_at)} UTC`;
+  const full = parts.length ? parts.join(" · ") : `queued ${at(job.requested_at)}`;
   const short = job.finished_at
-    ? `finished ${relativeTime(job.finished_at, now)}`
+    ? `finished ${relativeTime(job.finished_at, now, zone)}`
     : job.started_at
-      ? `started ${relativeTime(job.started_at, now)}`
-      : `queued ${relativeTime(job.requested_at, now)}`;
+      ? `started ${relativeTime(job.started_at, now, zone)}`
+      : `queued ${relativeTime(job.requested_at, now, zone)}`;
   return { short, full };
 }
 
@@ -282,12 +287,12 @@ function join(...parts: (string | null | undefined)[]): string | undefined {
 }
 
 /** The file's extraction: queued → extracting → ready for review / failed with reason. */
-export function extractionPill(file: AdminDocumentFile, now: Date = new Date()): Pill {
+export function extractionPill(file: AdminDocumentFile, now: Date = new Date(), zone: string = UTC): Pill {
   const state = file.extraction_state ?? "none";
   const run = file.extraction;
   const job = file.extraction_job;
   const cost = formatCost(run?.estimated_cost_eur ?? job?.cost?.estimated_cost_eur);
-  const times = jobTimes(job, now);
+  const times = jobTimes(job, now, zone);
   switch (state) {
     case "queued":
       return { tone: "pend", label: "Queued", detail: join(attempts(job), times.short), times: times.full };
@@ -329,10 +334,10 @@ export function extractionPill(file: AdminDocumentFile, now: Date = new Date()):
 }
 
 /** A job's status in the table's words (the geometry column). */
-export function jobPill(job: AdminJob | null | undefined, role?: FileRole, now: Date = new Date()): Pill {
+export function jobPill(job: AdminJob | null | undefined, role?: FileRole, now: Date = new Date(), zone: string = UTC): Pill {
   if (!job) return role === "text" ? { tone: "rev", label: "— text file", muted: true } : { tone: "rev", label: "Not run" };
   const cost = formatCost(job.cost?.estimated_cost_eur);
-  const times = jobTimes(job, now);
+  const times = jobTimes(job, now, zone);
   switch (job.status) {
     case "queued":
       return { tone: "pend", label: "Queued", detail: join(times.short), times: times.full };

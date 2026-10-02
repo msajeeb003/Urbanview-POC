@@ -268,6 +268,30 @@ demand: the analytics districts place them by their point.
   pointer flip can prune the version just left; explicit nulls on `PATCH /v1/admin/users/{id}`
   and `PUT /v1/admin/assumptions/{id}` answer 500; job cost is recorded on success only;
   `/v1/locate` states the drawn planned area; the orders list shows the newest 200.
+- **Tester's report on expert orders (2026-10-02, 13 items):** fixed in code (2026-10-03): the
+  reopened `?order=` confirmation of a closed order says so ("Report delivered" / "Order
+  refunded", 1; it said "Order confirmed … your payment has been received" for a delivered or
+  refunded order; the order page `/orders/<reference>` was right all along, and it carries no
+  download link on purpose: the reference alone opens it, the report link is e-mailed); the
+  console's bar after sign-in (2: behind the reverse proxy the redirect out of the sign-in action
+  did not render the layout again, so the first page had no tabs and no account menu; the
+  sign-in page now loads the console as a new page); the console's exact times on the
+  municipality's clock, named on every screen (8: "placed 2026-10-02 18:07 (Podgorica time)";
+  they were bare UTC); a refund's amount, date and bank reference in the order's Payment
+  section (12); data versions by their number (13: `v12` in the orders queue and drawer, the
+  number on the order page; the answers carry `data_version_no`). Already fixed on 2 October:
+  the confirmation of an order whose e-mail is not sent says so (3: that order was placed while
+  the server had no SMTP host). **Not code:** the payment-instructions e-mail of
+  UV-UP-40-261002-01 was accepted by the mail provider (4: `email_log` holds its 250 reply) and
+  `urbanview.io` has no DKIM record for the provider and no DMARC record (11: its DNS holds the
+  provider's verification code and Google's mail records only), which is why Outlook distrusts
+  the messages; the domain's owner adds the provider's DKIM records and a DMARC record. The bank
+  name and SWIFT (6) and the support address (10) are the client's to give (`ORDER_BANK_*`,
+  `ORDER_SUPPORT_EMAIL` in `deploy/.env`). **Open, the client's decision:** e-mails on payment
+  received / not received / refunded (5: the plan funds two order e-mails), company name and PIB
+  required for a legal entity (7: optional by the pilot scope's form), the expected date counted
+  from the payment instead of the order (9: `expected_by` is set when the order is placed; the
+  e-mail says "if paid today").
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
   POC plans are prepared from their parameter tables by the table reader and loaded as approved
   items (see "Prepared planning values"), not AI-extracted and not reviewed item by item by an
@@ -1217,13 +1241,16 @@ demand: the analytics districts place them by their point.
   `/?parcel=`, also for urban orders). The queue (`GET /v1/admin/orders`, newest first, filters
   status / assignee / search: reference, e-mail, first or last name, company, parcel) gives per order the reference, customer, `ko_and_number` and
   `planned_parcel` (from the order's columns and snapshot), `urban_parcel_id`, the `data_version`
-  seen, price, status, placed, `turnaround_business_days`, `expected_by`, `delivered_at` and the
+  seen with its number `data_version_no` (`publish_versions.version_no` of the order's
+  `publish_version_id`: the console writes `v12`, the label is free text typed at each publish),
+  price, status, placed, `turnaround_business_days`, `expected_by`, `delivered_at` and the
   assignee. `GET /v1/admin/orders/experts` (admins; 403 for the others): the active `expert` users
   with their `open_orders` (in progress) for the assign picker.
 - **Confirmation data** `GET /v1/orders/{reference}` (the pilot scope's "confirmation page data",
   public, `no-store`, reference case-insensitive): status + labels, location, pricing,
   turnaround, `payment_due` (pending_payment | payment_failed), `payment_instructions` while it is
-  due (else null), `data_version`, `status_url`; never personal data. The public map's order page
+  due (else null), `data_version` and `data_version_no` (the version's number, what the page
+  shows), `status_url`; never personal data. The public map's order page
   `/orders/{reference}` (`frontend/src/app/orders/`) and the reloaded S5 confirmation read it; the
   confirmation and every order e-mail link to the page. There is no compact status variant.
 - **The public map's flow** (`frontend/src/components/order/`): S4 order modal from the parcel
@@ -1231,7 +1258,8 @@ demand: the analytics districts place them by their point.
   turnaround from `GET /v1/orders/pricing`, inline validation with the API's rules),
   `POST /v1/orders`, S5 confirmation with the
   bank-transfer instructions on screen and `?order=<reference>` in the address bar (a reload
-  shows it again from `GET /v1/orders/{reference}`); `order_started` / `checkout_completed
+  shows it again from `GET /v1/orders/{reference}` with the order's status as it is now: a
+  delivered or refunded order says so, `lib/order-status.ts`); `order_started` / `checkout_completed
   {order_id: <reference>, amount_eur}`. Legal pages are not in the POC plan: none is built (the
   client's lawyer supplies the copy).
 - **Pricing for the panel** `GET /v1/orders/pricing` (public, configuration only, `Cache-Control:
@@ -1324,7 +1352,10 @@ demand: the analytics districts place them by their point.
   (`id`, `email`, `display_name`, `role`, `subject`, `via` session | token) the console takes its
   role from; `POST /v1/auth/sign-out` (bearer) revokes that staff session (204 whatever the token,
   audited `auth.logout`). There is no Overview dashboard (not in the POC plan): the console opens
-  on Documents (Orders for an expert). Tests: `tests/integration/test_admin_console_postgis.py`.
+  on Documents (Orders for an expert). After the link is exchanged the sign-in page loads the
+  console as a new page (never a redirect out of the server action: behind the reverse proxy
+  that left the bar without its tabs and account menu until the next page load, 2026-10-03).
+  Tests: `tests/integration/test_admin_console_postgis.py`.
   Temporary: with `ADMIN_OPEN_ACCESS_TOKEN` set in the web container (an admin entry of
   `ADMIN_API_TOKENS`) the console skips the sign-in and serves every visitor as that admin, for as
   long as the server cannot mail the links (`frontend/CLAUDE.md`, "Open access"); off on the live

@@ -199,6 +199,42 @@ function money(value: unknown): string | null {
   return typeof value === "number" ? `€${value.toFixed(2).replace(/\.00$/, "")}` : null;
 }
 
+export interface RefundFacts {
+  /** "€200" */
+  amount: string | null;
+  /** The date the money went back, as recorded (`2026-10-02`). */
+  on: string | null;
+  reference: string | null;
+}
+
+/**
+ * What went back to the customer: the refund's amount, date and bank reference. They are
+ * recorded with the status change (the order's audit entry), so the Payment section reads them
+ * from the timeline instead of leaving them to be found there. Null for an order not refunded.
+ */
+export function refundOf(order: Pick<OrderDetail, "timeline">): RefundFacts | null {
+  const event = [...(order.timeline ?? [])]
+    .reverse()
+    .find((e) => e.action === "order.status" && (e.after as Record<string, unknown> | null)?.status === "refunded");
+  if (!event) return null;
+  const d = (event.details ?? {}) as Record<string, unknown>;
+  return {
+    amount: money(d.refund_amount_eur),
+    on: typeof d.refunded_on === "string" && d.refunded_on ? d.refunded_on : null,
+    reference: typeof d.bank_reference === "string" && d.bank_reference ? d.bank_reference : null,
+  };
+}
+
+/**
+ * The published data version an order was placed on, as every screen names a version: its number
+ * (`v12`). The label is free text typed at each publish ("first-publish", "stara-varos-live"), so
+ * it only stands in for an order whose version is no longer known.
+ */
+export function versionText(order: Pick<OrderSummary, "data_version" | "data_version_no">): string | null {
+  if (order.data_version_no != null) return `v${order.data_version_no}`;
+  return order.data_version ?? null;
+}
+
 /** One line per audit entry of the order, in plain words. */
 export function eventLine(event: Pick<OrderEvent, "action" | "details" | "before" | "after">): string {
   const d = (event.details ?? {}) as Record<string, unknown>;

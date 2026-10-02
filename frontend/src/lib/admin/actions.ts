@@ -7,10 +7,13 @@
  *   email" answer, whether or not it belongs to a staff account (the backend decides, silently).
  *   The e-mail is written in the language the console is in.
  * - `completeSignInAction`: the page the e-mailed link opens calls it once with the token; a good
- *   link signs in (Auth.js redirects), a bad one answers a code the page explains.
+ *   link signs in and answers where to go, a bad one answers a code the page explains. The page
+ *   then loads the console afresh (`sign-in.tsx`), no redirect from here: the console's bar is
+ *   rendered by the layout, which a redirect out of a server action does not render again behind
+ *   the server's reverse proxy, so the first page after sign-in had no tabs and no account menu.
  * - `signOutAction`: clears the Auth.js cookie; the `signOut` event revokes the backend session.
  */
-import { AuthError, CredentialsSignin } from "next-auth";
+import { CredentialsSignin } from "next-auth";
 import { cookies } from "next/headers";
 
 import { signIn, signOut } from "@/auth";
@@ -41,17 +44,19 @@ export async function requestLinkAction(_: LinkState, form: FormData): Promise<L
 
 export type SignInCode = "invalid_link" | "unavailable";
 
-export async function completeSignInAction(token: string, callbackUrl: string | null): Promise<{ error: SignInCode }> {
+export type SignInResult = { error: SignInCode } | { error: null; redirectTo: string };
+
+export async function completeSignInAction(token: string, callbackUrl: string | null): Promise<SignInResult> {
+  const redirectTo = safeCallback(callbackUrl) ?? "/admin";
   try {
-    await signIn("magic-link", { token, redirectTo: safeCallback(callbackUrl) ?? "/admin" });
+    await signIn("magic-link", { token, redirectTo, redirect: false });
   } catch (err) {
     if (err instanceof CredentialsSignin) {
       return { error: err.code === "unavailable" ? "unavailable" : "invalid_link" };
     }
-    if (err instanceof AuthError) return { error: "unavailable" };
-    throw err; // Next's redirect after a successful sign-in
+    return { error: "unavailable" };
   }
-  return { error: "invalid_link" };
+  return { error: null, redirectTo };
 }
 
 export async function signOutAction(): Promise<void> {

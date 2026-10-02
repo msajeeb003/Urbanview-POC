@@ -20,7 +20,7 @@ import {
   type SetDraft,
   type ZoneRow,
 } from "@/lib/admin/assumptions";
-import { utcStamp } from "@/lib/admin/format";
+import { useStaffZone } from "@/lib/admin/use-staff-zone";
 
 import { StatusChip } from "../parts";
 
@@ -98,6 +98,7 @@ export function ZoneDetail({
 
 function History({ row, today, timezone }: { row: ZoneRow; today: string; timezone: string }) {
   const [diffOf, setDiffOf] = useState<number | null>(null);
+  const { named } = useStaffZone();
   if (!row.history.length) {
     return (
       <section className="finsect">
@@ -126,7 +127,7 @@ function History({ row, today, timezone }: { row: ZoneRow; today: string; timezo
                   from {dayLabel(set.applies_from)}
                   {set.effective_from !== set.applies_from ? ` (dated ${dayLabel(set.effective_from)})` : ""}
                   {set.effective_to ? ` until ${dayLabel(set.effective_to)}` : ""} · {set.created_by ?? "—"} ·{" "}
-                  {utcStamp(set.created_at)}
+                  {named(set.created_at)}
                 </span>
                 <button type="button" className="abtn sm ghost" onClick={() => setDiffOf(diffOf === set.id ? null : set.id)}>
                   {diffOf === set.id ? "Hide diff" : previous ? `View diff vs v${previous.version}` : "View figures"}

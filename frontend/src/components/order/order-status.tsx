@@ -14,6 +14,7 @@ import { ApiError } from "@/lib/api/client";
 import { useOrder } from "@/lib/api/hooks";
 import type { OrderPublic } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
+import { ORDER_LEAD } from "@/lib/order-status";
 import { formatPrice, turnaroundText } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
@@ -28,17 +29,6 @@ const STEPS: { status: Status; label: string }[] = [
   { status: "in_progress", label: "Expert at work" },
   { status: "delivered", label: "Report delivered by email" },
 ];
-
-// provisional copy (not in the wireframe)
-const LEAD: Record<Status, string> = {
-  pending_payment: "We are waiting for your bank transfer. Work starts once it arrives.",
-  payment_failed:
-    "Your bank transfer has not reached us yet. Work starts once it arrives.",
-  paid: "Payment received. An expert will start on your analysis shortly.",
-  in_progress: "An expert is preparing your analysis.",
-  delivered: "Your analysis has been delivered. Check your email for the download link.",
-  refunded: "This order was refunded.",
-};
 
 const IconCard = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
@@ -115,7 +105,7 @@ export function OrderStatusPage({ reference }: { reference: string }) {
     card = (
       <Card
         title={capital(order.status_label_en)}
-        lead={LEAD[order.status]}
+        lead={ORDER_LEAD[order.status]}
         foot={
           <>
             <BackToMap />
@@ -164,7 +154,8 @@ export function OrderStatusPage({ reference }: { reference: string }) {
           {order.data_version && (
             <div className="osrow">
               <span className="osl">Planning data version</span>
-              <span className="mono">{versionName ?? order.data_version}</span>
+              {/* the version's number, as the panel names it; its label only when the number is unknown */}
+              <span className="mono">{order.data_version_no ?? versionName ?? order.data_version}</span>
             </div>
           )}
           <div className="osrow deliv">

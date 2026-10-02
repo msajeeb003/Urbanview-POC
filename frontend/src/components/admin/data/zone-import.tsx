@@ -14,6 +14,7 @@ import { useState, useTransition } from "react";
 import { ACCEPT_GEOPACKAGE, jobPill, type UploadKind } from "@/lib/admin/data";
 import { importZonesAction } from "@/lib/admin/data-actions";
 import { relativeTime } from "@/lib/admin/format";
+import { useStaffZone } from "@/lib/admin/use-staff-zone";
 import type { AdminJob, StoredFile } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
@@ -46,6 +47,7 @@ export function zoneImportSummary(job: AdminJob): string | null {
 
 export function ZoneImportCard({ imports }: { imports: AdminJob[] }) {
   const showToast = useShell((s) => s.showToast);
+  const { zone } = useStaffZone();
   const [file, setFile] = useState<StoredFile | null>(null);
   const [pending, start] = useTransition();
   const uploads = useUploads({
@@ -111,10 +113,10 @@ export function ZoneImportCard({ imports }: { imports: AdminJob[] }) {
                   {job.payload?.dry_run ? " · check only" : ""}
                 </td>
                 <td className="mono">
-                  {relativeTime(job.requested_at)} · {job.requested_by}
+                  {relativeTime(job.requested_at, undefined, zone)} · {job.requested_by}
                 </td>
                 <td>
-                  <PillView pill={{ ...jobPill(job), reason: null }} />
+                  <PillView pill={{ ...jobPill(job, undefined, undefined, zone), reason: null }} />
                 </td>
                 <td className="zoneoutcome">{zoneImportSummary(job) ?? jobPill(job).reason ?? "—"}</td>
               </tr>

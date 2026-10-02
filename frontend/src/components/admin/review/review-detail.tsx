@@ -22,7 +22,7 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { relativeTime, utcStamp } from "@/lib/admin/format";
+import { relativeTime } from "@/lib/admin/format";
 import {
   canDecide,
   editorFor,
@@ -40,6 +40,7 @@ import {
   type Editor,
 } from "@/lib/admin/review";
 import { optionsAction } from "@/lib/admin/review-actions";
+import { useStaffZone } from "@/lib/admin/use-staff-zone";
 import type { ReviewItem, ReviewOptions } from "@/lib/api/types";
 
 import { StatusChip } from "../parts";
@@ -293,6 +294,7 @@ export function ReviewDetail({
   onApprove: () => void;
   submit: Submit;
 }) {
+  const { named, zone } = useStaffZone();
   const chip = statusChip(item);
   const open = canDecide(item);
   const editor = editorFor(item);
@@ -335,7 +337,7 @@ export function ReviewDetail({
         <div className="rlast">
           {item.reviewed_by && item.reviewed_at ? (
             <>
-              {chip.label} by <b>{item.reviewed_by}</b> · <span title={utcStamp(item.reviewed_at)}>{relativeTime(item.reviewed_at)}</span>
+              {chip.label} by <b>{item.reviewed_by}</b> · <span title={named(item.reviewed_at)}>{relativeTime(item.reviewed_at, undefined, zone)}</span>
               {item.review_note && <span className="rnoteline">“{item.review_note}”</span>}
             </>
           ) : (

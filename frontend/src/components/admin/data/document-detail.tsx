@@ -44,7 +44,8 @@ import {
   updateDocumentAction,
   type DocumentEdit,
 } from "@/lib/admin/data-actions";
-import { relativeTime, utcStamp } from "@/lib/admin/format";
+import { relativeTime } from "@/lib/admin/format";
+import { useStaffZone } from "@/lib/admin/use-staff-zone";
 import type { AdminDocument, AdminDocumentFile, AdminGeoreference, DocumentStatus, FileRole } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
@@ -84,6 +85,7 @@ function RoleSelect({ doc, file }: { doc: AdminDocument; file: AdminDocumentFile
 }
 
 function FilesTable({ doc }: { doc: AdminDocument }) {
+  const { zone } = useStaffZone();
   const files = doc.files ?? [];
   if (!files.length) {
     return (
@@ -119,7 +121,7 @@ function FilesTable({ doc }: { doc: AdminDocument }) {
                 </span>
                 <span className="fmeta mono">
                   #{file.file_id}
-                  {file.is_primary ? " · primary" : ""} · added {relativeTime(file.added_at)}
+                  {file.is_primary ? " · primary" : ""} · added {relativeTime(file.added_at, undefined, zone)}
                 </span>
               </td>
               <td>
@@ -149,11 +151,11 @@ function FilesTable({ doc }: { doc: AdminDocument }) {
                 )}
               </td>
               <td>
-                <PillView pill={extractionPill(file)} />
+                <PillView pill={extractionPill(file, undefined, zone)} />
               </td>
               <td className="mono">{cost ?? "—"}</td>
               <td>
-                <PillView pill={jobPill(file.geometry_job, file.role)} />
+                <PillView pill={jobPill(file.geometry_job, file.role, undefined, zone)} />
               </td>
               <td>
                 <div className="rowacts">
@@ -196,6 +198,7 @@ function percent(value: number | null | undefined): string {
 /** The residual report of the latest georeferencing run: RMSE per sheet against the document's
  * threshold, the snapping to the cadastral base and the validation (core.gis.georef). */
 function GeoreferenceCard({ geo }: { geo: AdminGeoreference | null | undefined }) {
+  const { stamp, named } = useStaffZone();
   if (!geo) {
     return (
       <AdminCard title="Georeferencing" sub="Control points on the sheets fitted to the plan's coordinate system">
@@ -256,8 +259,8 @@ function GeoreferenceCard({ geo }: { geo: AdminGeoreference | null | undefined }
         <div>
           <dt>Dataset</dt>
           <dd className="mono">
-            {geo.dataset_version} · {utcStamp(geo.created_at)}
-            {geo.published_at ? ` · published ${utcStamp(geo.published_at)}` : ""}
+            {geo.dataset_version} · {named(geo.created_at)}
+            {geo.published_at ? ` · published ${stamp(geo.published_at)}` : ""}
           </dd>
         </div>
         {(geo.errors?.length ?? 0) + (geo.warnings?.length ?? 0) > 0 && (
@@ -476,6 +479,7 @@ export function DocumentDetail({
   readOnly?: boolean;
 }) {
   const [addAs, setAddAs] = useState<FileRole>("text");
+  const { stamp, named, name: clock } = useStaffZone();
   const [versionKey, setVersionKey] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const uploads = useUploads({
@@ -599,7 +603,7 @@ export function DocumentDetail({
           <div>
             <dt>Registered</dt>
             <dd className="mono">
-              {doc.registered_at ? `${utcStamp(doc.registered_at)} · ${doc.registered_by ?? ""}` : "seeded"}
+              {doc.registered_at ? `${named(doc.registered_at)} · ${doc.registered_by ?? ""}` : "seeded"}
             </dd>
           </div>
         </dl>
@@ -663,7 +667,7 @@ export function DocumentDetail({
               <th>Name</th>
               <th>Status</th>
               <th>Files</th>
-              <th>Registered</th>
+              <th>Registered ({clock})</th>
               <th />
             </tr>
           </thead>
@@ -679,7 +683,7 @@ export function DocumentDetail({
                   </td>
                   <td className="mono">{v.file_count ?? 0}</td>
                   <td className="mono">
-                    {v.registered_at ? `${utcStamp(v.registered_at)}${v.registered_by ? ` · ${v.registered_by}` : ""}` : "seeded"}
+                    {v.registered_at ? `${stamp(v.registered_at)}${v.registered_by ? ` · ${v.registered_by}` : ""}` : "seeded"}
                   </td>
                   <td>{v.is_current_version ? <StatusChip tone="ok">Current</StatusChip> : null}</td>
                 </tr>

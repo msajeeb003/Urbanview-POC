@@ -271,14 +271,18 @@ EMAIL_SINCE_SQL = text(
     "SELECT count(*) FROM orders WHERE municipality_id = :m AND email = :email "
     "AND placed_at >= :since"
 )
+# The number of the published version an order was placed on (`publish_versions.version_no`):
+# the labels are free text typed at each publish, the numbers are what every screen shows.
+_VERSION_NO = "(SELECT v.version_no FROM publish_versions v WHERE v.id = o.publish_version_id)"
 # the public views (status page, confirmation): no personal data is selected
 PUBLIC_ORDER_SQL = text(
-    """
-    SELECT reference, status, placed_at, status_changed_at, parcel_type, parcel_id,
-           cadastral_parcel_id, parcel_label, document_name, zone_name, turnaround_business_days,
-           expected_by, basis_area_m2, calculation_basis, price_eur, currency, pricing_tier,
-           data_version
-    FROM orders WHERE municipality_id = :m AND reference = :reference
+    f"""
+    SELECT o.reference, o.status, o.placed_at, o.status_changed_at, o.parcel_type, o.parcel_id,
+           o.cadastral_parcel_id, o.parcel_label, o.document_name, o.zone_name,
+           o.turnaround_business_days, o.expected_by, o.basis_area_m2, o.calculation_basis,
+           o.price_eur, o.currency, o.pricing_tier, o.data_version,
+           {_VERSION_NO} AS data_version_no
+    FROM orders o WHERE o.municipality_id = :m AND o.reference = :reference
     """
 )
 _ORDER_COLUMNS = """
@@ -291,6 +295,7 @@ _ORDER_COLUMNS = """
            o.snapshot -> 'header' ->> 'ko_and_number' AS ko_and_number,
            o.calculation_basis, o.price_eur, o.currency, o.pricing_tier,
            o.turnaround_business_days, o.expected_by, o.assumption_edits, o.data_version,
+           {version_no} AS data_version_no,
            o.publish_version_id, o.customer_id, o.market_version_id, o.market_version,
            o.formula_version, o.assignee_user_id,
            u.email AS assignee_email, u.display_name AS assignee_name, o.paid_at,
@@ -314,7 +319,10 @@ _ORDER_COLUMNS = """
 
 def _order_sql(extra: str, *, with_snapshot: bool) -> str:
     return _ORDER_COLUMNS.format(
-        snapshot=", o.snapshot" if with_snapshot else "", extra=extra, email_log_json=EMAIL_LOG_JSON
+        snapshot=", o.snapshot" if with_snapshot else "",
+        extra=extra,
+        email_log_json=EMAIL_LOG_JSON,
+        version_no=_VERSION_NO,
     )
 
 
@@ -422,6 +430,7 @@ def _summary_fields(row: Mapping[str, Any]) -> dict[str, Any]:
         "planned_parcel": row["planned_parcel"],
         "ko_and_number": row["ko_and_number"],
         "data_version": row["data_version"],
+        "data_version_no": row["data_version_no"],
         "price_eur": float(row["price_eur"]),
         "currency": row["currency"],
         "placed_at": _utc(row["placed_at"]),
@@ -703,6 +712,7 @@ class OrderService:
             payment_due=due,
             payment_instructions=instructions,
             data_version=row["data_version"],
+            data_version_no=row["data_version_no"],
             status_url=self.status_url(row["reference"]),
         )
 

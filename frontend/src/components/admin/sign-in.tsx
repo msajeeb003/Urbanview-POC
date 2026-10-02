@@ -6,8 +6,9 @@
  *
  * - the form: e-mail + "Send magic link", then "Check your email" whatever the address (the
  *   backend never says whether it belongs to a staff account);
- * - the link: `/admin/login?token=…` signs in once on arrival (Auth.js then redirects), or explains
- *   that the link is invalid, expired or already used and offers the form again.
+ * - the link: `/admin/login?token=…` signs in once on arrival and then loads the console as a new
+ *   page (so its bar is rendered for the member who signed in), or explains that the link is
+ *   invalid, expired or already used and offers the form again.
  */
 import { useActionState, useEffect, useRef, useState } from "react";
 
@@ -36,10 +37,21 @@ export function SignInCard({
   useEffect(() => {
     if (!token || started.current) return;
     started.current = true; // the link is single-use: exchange it once, also in strict mode
-    void completeSignInAction(token, callbackUrl).then((result) => {
-      setLinkError(result.error);
-      setSigningIn(false);
-    });
+    completeSignInAction(token, callbackUrl).then(
+      (result) => {
+        if (result.error === null) {
+          // a full page load, not a move inside the app: "Signing you in…" stays until it arrives
+          window.location.replace(result.redirectTo);
+          return;
+        }
+        setLinkError(result.error);
+        setSigningIn(false);
+      },
+      () => {
+        setLinkError("unavailable");
+        setSigningIn(false);
+      },
+    );
   }, [token, callbackUrl]);
 
   if (signingIn) {

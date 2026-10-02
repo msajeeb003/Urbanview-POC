@@ -183,6 +183,6 @@ async def test_assignment_waits_for_the_payment_and_a_delivered_order_can_be_ref
     for order in (urban, cadastral):
         assert order["ko_and_number"] == "KO Podgorica I, 1042"
         assert order["planned_parcel"] == "UP 12"
-        assert order["data_version"] == "sample-2026-09-22"
+        assert order["data_version"] == "sample-2026-09-22" and order["data_version_no"] == 1
         assert order["turnaround_business_days"] == 5 and order["price_eur"] > 0
     assert cadastral["delivered_at"] and urban["delivered_at"] is None

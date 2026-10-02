@@ -18,7 +18,7 @@ import Form from "next/form";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-import { relativeTime, utcStamp } from "@/lib/admin/format";
+import { relativeTime } from "@/lib/admin/format";
 import {
   decisionChip,
   draftSource,
@@ -43,6 +43,7 @@ import {
   type GeometryDecision,
   type Result,
 } from "@/lib/admin/geometry-actions";
+import { useStaffZone } from "@/lib/admin/use-staff-zone";
 import type { GeometryCounts, GeometryDraft, GeometryPage } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
@@ -133,6 +134,7 @@ function GeometryDetail({
   onApprove: () => void;
   onSubmitReject: (note: string) => Promise<string | null>;
 }) {
+  const { named, zone } = useStaffZone();
   const chip = decisionChip(draft);
   const qa = qaChip(draft.qa_status);
   const geo = draft.georeference;
@@ -152,7 +154,7 @@ function GeometryDetail({
         <div className="rlast">
           {draft.reviewed_by && draft.reviewed_at ? (
             <>
-              {chip.label} by <b>{draft.reviewed_by}</b> · <span title={utcStamp(draft.reviewed_at)}>{relativeTime(draft.reviewed_at)}</span>
+              {chip.label} by <b>{draft.reviewed_by}</b> · <span title={named(draft.reviewed_at)}>{relativeTime(draft.reviewed_at, undefined, zone)}</span>
               {draft.review_note && <span className="rnoteline">“{draft.review_note}”</span>}
             </>
           ) : open ? (
@@ -239,7 +241,7 @@ function GeometryDetail({
         </Fact>
         <Fact label="Features">{draft.feature_count.toLocaleString("en-US")}</Fact>
         <Fact label="Staged">
-          <span title={utcStamp(draft.created_at)}>{relativeTime(draft.created_at)}</span>
+          <span title={named(draft.created_at)}>{relativeTime(draft.created_at, undefined, zone)}</span>
         </Fact>
         {geo && (
           <Fact label="Georeferencing" wide>
@@ -257,7 +259,7 @@ function GeometryDetail({
         )}
         {draft.published_at && (
           <Fact label="Published">
-            <span title={utcStamp(draft.published_at)}>{relativeTime(draft.published_at)}</span>
+            <span title={named(draft.published_at)}>{relativeTime(draft.published_at, undefined, zone)}</span>
             {draft.published_version_id != null && <span className="rsub"> · version #{draft.published_version_id}</span>}
           </Fact>
         )}

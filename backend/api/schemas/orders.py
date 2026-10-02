@@ -195,6 +195,10 @@ class OrderPublic(BaseModel):
     data_version: str | None = Field(
         default=None, description="Label of the published version the order was placed on"
     )
+    data_version_no: int | None = Field(
+        default=None,
+        description="Number of that published version (1, 2, 3 …): what the order page shows",
+    )
     status_url: str
 
 
@@ -232,6 +236,10 @@ class OrderSummary(BaseModel):
     )
     data_version: str | None = Field(
         default=None, description="Label of the published version the visitor saw"
+    )
+    data_version_no: int | None = Field(
+        default=None,
+        description="Number of that published version (1, 2, 3 …): what the queue shows (`v12`)",
     )
     price_eur: float
     currency: str

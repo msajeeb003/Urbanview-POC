@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { relativeTime, utcStamp } from "@/lib/admin/format";
+import { relativeTime } from "@/lib/admin/format";
 import {
   blockersText,
   countsText,
@@ -25,6 +25,7 @@ import {
   type PublishVersion,
 } from "@/lib/admin/publish";
 import { publishAction, publishStatusAction } from "@/lib/admin/review-actions";
+import { useStaffZone } from "@/lib/admin/use-staff-zone";
 import type { PublishStatus } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
@@ -36,6 +37,7 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
   const [label, setLabel] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const { stamp, name: clock, zone } = useStaffZone();
   const active = status.active_job;
   const current = status.current;
   const blockers = blockersText(status.blockers, status.geometry_blockers);
@@ -88,7 +90,7 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
               {/* "N min ago" is computed again in the browser: a minute may have passed */}
               <span className="rsub" suppressHydrationWarning>
                 {" "}
-                · published {relativeTime(current.published_at)}
+                · published {relativeTime(current.published_at, undefined, zone)}
                 {current.published_by ? ` by ${current.published_by}` : ""}
               </span>
             </span>
@@ -143,8 +145,8 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
                   return <StatusChip tone={chip.tone}>{chip.label}</StatusChip>;
                 },
               },
-              { key: "started", label: "Started", mono: true, render: (s) => (s.started_at ? utcStamp(s.started_at) : "—") },
-              { key: "finished", label: "Finished", mono: true, render: (s) => (s.finished_at ? utcStamp(s.finished_at) : "—") },
+              { key: "started", label: `Started (${clock})`, mono: true, render: (s) => (s.started_at ? stamp(s.started_at) : "—") },
+              { key: "finished", label: "Finished", mono: true, render: (s) => (s.finished_at ? stamp(s.finished_at) : "—") },
             ]}
           />
         </AdminCard>
@@ -167,9 +169,9 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
             },
             {
               key: "published",
-              label: "Published",
+              label: `Published (${clock})`,
               mono: true,
-              render: (v) => `${utcStamp(v.published_at)}${v.published_by ? ` · ${v.published_by}` : ""}`,
+              render: (v) => `${stamp(v.published_at)}${v.published_by ? ` · ${v.published_by}` : ""}`,
             },
             { key: "counts", label: "Holds", render: (v) => countsText(v.counts) },
             {

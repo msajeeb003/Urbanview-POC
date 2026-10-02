@@ -19,7 +19,7 @@ import { Cta } from "@/components/ui/cta";
 import { Modal, ModalHead } from "@/components/ui/modal";
 import { ACCEPT_DRAWING, documentHref, DOCUMENT_STATUSES, FILE_ROLES, rolesFor, statusChip } from "@/lib/admin/data";
 import { registerDocumentAction, type RegisterInput } from "@/lib/admin/data-actions";
-import { utcStamp } from "@/lib/admin/format";
+import { useStaffZone } from "@/lib/admin/use-staff-zone";
 import type { AdminDocument, DocumentStatus, FileRole } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
@@ -75,6 +75,7 @@ export function RegisterDialog({
 }) {
   const router = useRouter();
   const showToast = useShell((s) => s.showToast);
+  const { named } = useStaffZone();
   const [form, setForm] = useState(() => initialState(replaces, types));
   const [files, setFiles] = useState<PickedFile[]>(initialFiles);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -340,7 +341,7 @@ export function RegisterDialog({
                         <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
                       </td>
                       <td className="mono">{v.file_count ?? 0} files</td>
-                      <td className="mono">{v.registered_at ? utcStamp(v.registered_at) : "seeded"}</td>
+                      <td className="mono">{v.registered_at ? named(v.registered_at) : "seeded"}</td>
                       <td>{v.is_current_version ? "current" : ""}</td>
                     </tr>
                   );

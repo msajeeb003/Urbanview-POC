@@ -47,6 +47,7 @@ import {
   retryJobAction,
   setCoverageLiveAction,
 } from "@/lib/admin/data-actions";
+import { useStaffZone } from "@/lib/admin/use-staff-zone";
 import type { AdminDocument, AdminDocumentFile, AdminJob } from "@/lib/api/types";
 
 import { AdminButton, AdminCard, DataTable, StatusChip } from "../parts";
@@ -148,6 +149,7 @@ export function FileActions({ doc, file }: { doc: AdminDocument; file: AdminDocu
 }
 
 function DocumentsTable({ documents, onNewVersion }: { documents: AdminDocument[]; onNewVersion: (doc: AdminDocument) => void }) {
+  const { zone } = useStaffZone();
   return (
     <table className="tbl doctbl">
       <thead>
@@ -222,10 +224,10 @@ function DocumentsTable({ documents, onNewVersion }: { documents: AdminDocument[
                   </td>
                 <td />
                 <td>
-                  <PillView pill={extractionPill(file)} />
+                  <PillView pill={extractionPill(file, undefined, zone)} />
                 </td>
                 <td>
-                  <PillView pill={jobPill(file.geometry_job, file.role)} />
+                  <PillView pill={jobPill(file.geometry_job, file.role, undefined, zone)} />
                 </td>
                   <td>
                     <FileActions doc={doc} file={file} />

@@ -17,14 +17,17 @@ import {
   parcelCells,
   parseOrderFilters,
   statusChip,
+  versionText,
 } from "@/lib/admin/orders";
+import { staffZone } from "@/lib/admin/zone-server";
 import { ApiError } from "@/lib/api/client";
 import type { OrderDetail, OrderExpert, OrderList } from "@/lib/api/types";
 
 // Orders (wireframe `adminOrders`): the manual fulfilment queue, newest first. Admins see every
 // order, record payments and assign experts; an expert sees the orders assigned to them and
 // uploads the report. Each row: reference, parcel (KO + number, the planned parcel), customer,
-// placed, age, status, price, turnaround, the data version the customer saw, delivered, expert.
+// placed, age, status, price, turnaround, the data version the customer saw (its number, `v12`:
+// the label on hover), delivered, expert. The exact times on hover are the municipality's, named.
 // `?order=<id>` opens the order's drawer.
 export default async function OrdersPage({
   searchParams,
@@ -39,6 +42,7 @@ export default async function OrdersPage({
 
   let data: OrderList;
   let experts: OrderExpert[] = [];
+  const zonePromise = staffZone();
   try {
     [data, experts] = await Promise.all([
       adminGet<OrderList>("/v1/admin/orders", orderQuery(filters)),
@@ -64,6 +68,7 @@ export default async function OrdersPage({
     }
   }
   const now = new Date();
+  const zone = await zonePromise;
   const filtered = !!(filters.status || filters.expert || filters.q);
 
   return (
@@ -137,7 +142,7 @@ export default async function OrdersPage({
                       {customerLine(o)}
                       <span className="fmeta">{o.email}</span>
                     </td>
-                    <td title={o.placed_at}>{relativeTime(o.placed_at, now)}</td>
+                    <td title={zone.named(o.placed_at)}>{relativeTime(o.placed_at, now, zone.zone)}</td>
                     <td className="mono">{daysSince(o.placed_at, now)}</td>
                     <td>
                       <span className="pillcell">
@@ -153,8 +158,12 @@ export default async function OrdersPage({
                     <td className="mono" title={`expected by ${o.expected_by}`}>
                       {o.turnaround_business_days} d
                     </td>
-                    <td className="mono">{o.data_version ?? "—"}</td>
-                    <td title={o.delivered_at ?? undefined}>{o.delivered_at ? relativeTime(o.delivered_at, now) : <span className="osub">—</span>}</td>
+                    <td className="mono" title={o.data_version ?? undefined}>
+                      {versionText(o) ?? "—"}
+                    </td>
+                    <td title={o.delivered_at ? zone.named(o.delivered_at) : undefined}>
+                      {o.delivered_at ? relativeTime(o.delivered_at, now, zone.zone) : <span className="osub">—</span>}
+                    </td>
                     <td>{o.assignee ? (o.assignee.display_name ?? o.assignee.email) : <span className="osub">—</span>}</td>
                     <td>
                       <Link className="abtn sm ghost" href={href} scroll={false}>

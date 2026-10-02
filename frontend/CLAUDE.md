@@ -354,7 +354,8 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   <date>`, mono, also under the document, cadastral and urban panels and in the assumption
   sandbox, the order form and the order page: `useVersionName` shows the published version's
   number, which the tile pointer carries for the current label, and the label itself for an
-  earlier version).
+  earlier version; the order page shows the order's own `data_version_no`, so an order placed
+  on an earlier version is numbered too).
 - **Planning document** (`renderPanelDoc`): eyebrow `PLANNING DOCUMENT` + `adopted plan` / `plan
   in progress` / `superseded plan`, title, sub `DUP — Detailed urban plan` (profile
   `terminology.document_types_en`, else `document_types`); "Document details" + source
@@ -561,8 +562,12 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
     URL carries `?order=<reference>` (`lib/url-state.ts`); the shell reopens it on load from
     `GET /v1/orders/{reference}` (`reopenConfirmation`: the order's status as it is now,
     "Status: awaiting payment.", never the first moment's "a confirmation is on its way" and no
-    claim about an e-mail; "Your payment has been received" and no instructions once paid; an
-    unknown reference drops the parameter). Closing it removes the parameter.
+    claim about an e-mail; "Your payment has been received" and no instructions once paid; a
+    closed order says so instead of the delivery promise: "Report delivered" / "Order refunded"
+    as the title with the order page's sentence, `closedOrderWords` in `lib/order-status.ts`,
+    which also holds the order page's leads (2026-10-03: a delivered or refunded order still
+    read "Order confirmed … an expert will prepare your analysis"); an unknown reference drops
+    the parameter). Closing it removes the parameter.
 - **Order page** (`app/orders/[reference]`, `components/order/order-status.tsx`): the link of the
   confirmation and of every order email (`ORDER_PUBLIC_BASE_URL/orders/<reference>`). `GET
   /v1/orders/{reference}` (`useOrder`: status, location, price, turnaround, data version, the
@@ -647,6 +652,13 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   `${ADMIN_BASE_URL}/login?token=…` (ADMIN_BASE_URL = site + `/admin`), and that page exchanges the
   single-use token (15 min) once through the Credentials provider `magic-link` →
   `POST /v1/auth/magic-link/exchange` → staff bearer token → `GET /v1/admin/users/me` for the role.
+  The page then loads the console as a new page (`completeSignInAction` answers where to go,
+  `window.location.replace`), never a redirect out of the server action: `AdminLayout` renders
+  the bar once per page load, and behind the server's reverse proxy that redirect did not
+  render it again, so the first page after sign-in had no tabs and no account menu
+  (2026-10-03; reproduced locally with a proxy in front of `next start`). The bar shows no
+  member on the sign-in page (`AdminFrame`: after a sign-out or an ended session the one it
+  was rendered for is gone).
   A Credentials provider rather than Auth.js's Email provider: the Email provider would mint its
   own tokens and need a database adapter; the backend already issues, stores and consumes them.
   Sessions are JWTs (encrypted, httpOnly cookie, `AUTH_SESSION_MAX_AGE`, 24 h). The backend token
@@ -675,7 +687,8 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   `guard(section)`, and the API's own 403 on every `/v1/admin/*` route.
 - **Data** comes from the Next server (`lib/admin/api.ts` `adminGet`: the staff bearer token, 401
   → sign-in, 403 → no access); nothing staff-only reaches the browser. Orders (below);
-  Audit log (admins) `GET /v1/admin/audit`, one table, newest first (time, actor, action,
+  Audit log (admins) `GET /v1/admin/audit`, one table, newest first (time on the
+  municipality's clock, named in the column header, actor, action,
   entity, before → after as the changed keys), filters action prefix and actor as a GET form, 50
   per page; **Analytics** (`/admin/analytics`, admins; `lib/admin/analytics.ts`, no mock screen:
   plain tables, no dashboard) `GET /v1/admin/analytics` with a from / to GET form (default the
@@ -802,7 +815,9 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   (Ref, Parcel `#1042 · Podgorica I` with "urban parcel UP 12" under it (`parcelCells`, the API's
   `ko_and_number` / `planned_parcel`), customer · company + e-mail, Placed (relative), Days,
   Status chip + "⚠ e-mail" when an e-mail failed, Price, Turnaround (business days, the expected
-  date on hover), Data (the version the customer saw), Delivered, Expert, Open). The drawer (fixed right, 600 px,
+  date on hover), Data (the version the customer saw, by its number: `v12`, `versionText`, the
+  publish label on hover), Delivered, Expert, Open; the exact time of Placed and Delivered on
+  hover). The drawer (fixed right, 600 px,
   a scrim closes it): Customer (an individual's name, or company, PIB and the name; the contact
   person and registered address of orders placed before migration 0031; e-mail, telephone, the
   customer id, message); Location ordered (cadastral parcel, urban parcel, the panel it was
@@ -813,7 +828,10 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   received" (a note: the order becomes `Payment not received`, chip `rev`, which the customer's
   order page shows with the instructions; again on a failed order it only records the check),
   "Refund" (amount, date, reference; also after delivery), each confirmed in a
-  line before `POST …/payment` is sent; **Fulfilment**: the expert picker (active experts with
+  line before `POST …/payment` is sent; the section states what was received (amount, date,
+  bank reference) and, for a refunded order, what went back (`refundOf`: amount, date and
+  reference from the status change in the timeline; they were only readable there);
+  **Fulfilment**: the expert picker (active experts with
   their orders in progress, `GET /v1/admin/orders/experts`) + Assign / Reassign (only once the
   order is paid: work starts; the API refuses earlier), the report (download, `vN`) and its
   upload (`report-upload.tsx`: drop zone,
@@ -858,6 +876,17 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   ("Send magic link" → "Check your email"; the link state "Signing you in…" or the invalid-link
   note). Words and chips of the tables: `lib/admin/format.ts`. Styles not in the mock: block 16 of
   `overrides.css`.
+- **The console's clock** (`lib/admin/format.ts`, 2026-10-03): every exact time is written in
+  the municipality's time zone (the profile's `timezone`, Europe/Podgorica) and the screen
+  names it: "placed 2026-10-02 18:07 (Podgorica time)" in the order drawer, "Podgorica time"
+  on its timeline, "Time (Podgorica time)" / "Published (Podgorica time)" as column headers,
+  "… 18:07 Podgorica time" in tooltips (the orders queue, the review screens, the job times).
+  `zoneStamp(iso, zone)`, `zoneName(zone)`, `relativeTime(iso, now, zone)` are pure; client
+  components take the zone from `useStaffZone()` (the profile the shell already holds), server
+  pages from `staffZone()` (`zone-server.ts`: read once per server process). Never the
+  browser's zone: the server and the browser must render the same text. Until the profile is
+  known the times are UTC and say "UTC". They were bare UTC stamps before (the tester read
+  16:07 for an order placed at 18:07 local time).
 - First admin on a server: `python -m core.staff login-link --email <e-mail> --create --role
   admin` (backend) prints a one-time sign-in link (works without SMTP; `deploy/README.md` step 6).
   Tests: `lib/admin/sections.test.ts` (tabs per role, guard decisions, callback URLs),

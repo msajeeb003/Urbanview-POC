@@ -12,6 +12,8 @@
  * with it reads `GET /v1/orders/{reference}` (no personal data: the e-mail address is only known
  * right after the order) and shows the order again (`reopenConfirmation`) with its status as it
  * is now ("Status: awaiting payment"), never the first moment's "a confirmation is on its way".
+ * An order that is closed says so: "Report delivered" / "Order refunded" with the order page's
+ * sentence instead of "Order confirmed … an expert will prepare your analysis" (`closedOrderWords`).
  * Closing it removes the parameter.
  *
  * The e-mail sentence follows the API's `email_status`: only a queued or sent message is
@@ -21,6 +23,7 @@ import { useEffect, useState } from "react";
 
 import { api } from "@/lib/api/endpoints";
 import type { OrderCreated, OrderPublic } from "@/lib/api/types";
+import { closedOrderWords, type PublicOrderStatus } from "@/lib/order-status";
 import { turnaroundText } from "@/lib/pricing";
 import { useShell, type ModalSpec } from "@/lib/store";
 import { syncOrderParam } from "@/lib/url-state";
@@ -46,6 +49,8 @@ interface Confirmation {
   emailed: boolean;
   /** Read back after a reload: the order's status as it is now (`awaiting payment`). */
   statusNow: string | null;
+  /** Read back after a reload: the status itself (a closed order says so). */
+  status: PublicOrderStatus | null;
 }
 
 export function confirmationSpec(order: OrderCreated, parcel: string, email: string): ModalSpec {
@@ -58,6 +63,7 @@ export function confirmationSpec(order: OrderCreated, parcel: string, email: str
     email,
     emailed: order.email_status === "queued" || order.email_status === "sent",
     statusNow: null,
+    status: null,
   });
 }
 
@@ -73,10 +79,14 @@ export function publicConfirmationSpec(order: OrderPublic): ModalSpec {
     // whether the first e-mail went out is not known from the reference alone: nothing is claimed
     emailed: false,
     statusNow: order.status_label_en,
+    status: order.status,
   });
 }
 
-const spec = (c: Confirmation): ModalSpec => ({ label: CONFIRMED_LABEL, content: <OrderConfirmation c={c} /> });
+const spec = (c: Confirmation): ModalSpec => ({
+  label: closedOrderWords(c.status)?.title ?? CONFIRMED_LABEL,
+  content: <OrderConfirmation c={c} />,
+});
 
 /** Opens the confirmation of `?order=` again; a reference that matches nothing drops the parameter. */
 export async function reopenConfirmation(reference: string): Promise<void> {
@@ -164,6 +174,7 @@ function OrderConfirmation({ c }: { c: Confirmation }) {
   const showToast = useShell((s) => s.showToast);
   const turnaround = turnaroundText(c.businessDays);
   const pay = c.instructions;
+  const closed = closedOrderWords(c.status);
 
   // the address bar names the order while the confirmation is open (a reload shows it again)
   useEffect(() => {
@@ -180,17 +191,21 @@ function OrderConfirmation({ c }: { c: Confirmation }) {
               <path d="M8 15l5 5 9-11" stroke="#B5613B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h2>Order confirmed</h2>
-          <p>
-            An expert will prepare your site &amp; feasibility analysis and email it within <b>{turnaround}</b>.{" "}
-            {c.paid
-              ? "Your payment has been received."
-              : c.statusNow
-                ? `Status: ${c.statusNow}.`
-                : c.emailed
-                  ? "A confirmation is on its way now."
-                  : "The confirmation email could not be sent, so please keep the details below."}
-          </p>
+          <h2>{closed ? closed.title : CONFIRMED_LABEL}</h2>
+          {closed ? (
+            <p>{closed.text}</p>
+          ) : (
+            <p>
+              An expert will prepare your site &amp; feasibility analysis and email it within <b>{turnaround}</b>.{" "}
+              {c.paid
+                ? "Your payment has been received."
+                : c.statusNow
+                  ? `Status: ${c.statusNow}.`
+                  : c.emailed
+                    ? "A confirmation is on its way now."
+                    : "The confirmation email could not be sent, so please keep the details below."}
+            </p>
+          )}
           <div className="orderref">
             {c.reference} · {c.parcel}
           </div>

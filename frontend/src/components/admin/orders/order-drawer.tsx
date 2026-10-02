@@ -12,13 +12,16 @@
  * instructions) and "Refund" (amount, date, reference; also after delivery); each asks for
  * confirmation first. Fulfilment: assign an expert once the order is paid (work starts; reassign
  * later) and the report upload (also the assigned expert's only action). Every action follows the
- * API's status flow; a disabled one says why.
+ * API's status flow; a disabled one says why. A refunded order states what went back (amount, date,
+ * bank reference) in the Payment section, beside what was received.
+ *
+ * Every exact time is the municipality's (`useStaffZone`), named in the header and on the timeline.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 
-import { relativeTime, utcStamp } from "@/lib/admin/format";
+import { relativeTime } from "@/lib/admin/format";
 import { assignAction, paymentAction, type PaymentInput } from "@/lib/admin/order-actions";
 import {
   allowed,
@@ -30,13 +33,16 @@ import {
   isManager,
   mapHref,
   parcelCells,
+  refundOf,
   snapshotAssumptions,
   snapshotFeasibility,
   snapshotPlanning,
   statusChip,
+  versionText,
   type SnapshotRow,
 } from "@/lib/admin/orders";
 import type { StaffRole } from "@/lib/admin/sections";
+import { useStaffZone } from "@/lib/admin/use-staff-zone";
 import type { OrderDetail, OrderExpert } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
@@ -100,8 +106,10 @@ function Payment({ order }: { order: OrderDetail }) {
   const [confirming, setConfirming] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const { stamp } = useStaffZone();
   const receive = allowed(order, "receive", "admin");
   const refund = allowed(order, "refund", "admin");
+  const refunded = refundOf(order);
 
   const choose = (next: PaymentInput["kind"]) => {
     setKind(next);
@@ -144,12 +152,21 @@ function Payment({ order }: { order: OrderDetail }) {
     });
 
   return (
-    <Section title="Payment" aside={order.paid_at ? <span className="osub">paid {utcStamp(order.paid_at)}</span> : undefined}>
+    <Section title="Payment" aside={order.paid_at ? <span className="osub">paid {stamp(order.paid_at)}</span> : undefined}>
       <Rows
         rows={[
           ["Received", order.payment_amount_eur != null ? `€${order.payment_amount_eur} on ${order.payment_received_on ?? "—"}` : ""],
           ["Bank reference", order.payment_reference ?? ""],
-          ["Refunded", order.refunded_at ? utcStamp(order.refunded_at) : ""],
+          // what went back, as it was recorded; an order refunded without these facts keeps the time
+          [
+            "Refunded",
+            refunded?.amount
+              ? `${refunded.amount} on ${refunded.on ?? "—"}`
+              : order.refunded_at
+                ? stamp(order.refunded_at)
+                : "",
+          ],
+          ["Refund reference", refunded?.reference ?? ""],
           ["Notes", order.notes ? <span className="opre">{order.notes}</span> : ""],
         ]}
       />
@@ -232,6 +249,7 @@ function Fulfilment({ order, experts, role }: { order: OrderDetail; experts: Ord
   const showToast = useShell((s) => s.showToast);
   const [expert, setExpert] = useState<string>(order.assignee ? String(order.assignee.user_id) : "");
   const [pending, start] = useTransition();
+  const { zone } = useStaffZone();
   const assign = allowed(order, "assign", role);
   const upload = allowed(order, "upload", role);
   // a paid order starts with its expert (also one picked before this rule: assign them again)
@@ -273,7 +291,7 @@ function Fulfilment({ order, experts, role }: { order: OrderDetail; experts: Ord
               {order.report.original_filename}
               {order.report_versions && order.report_versions > 1 ? ` · v${order.report_versions}` : ""}
             </span>
-            <span className="osub"> uploaded {relativeTime(order.report.uploaded_at)}</span>
+            <span className="osub"> uploaded {relativeTime(order.report.uploaded_at, undefined, zone)}</span>
             {order.report.download_url && (
               <a className="abtn sm ghost" href={order.report.download_url} target="_blank" rel="noreferrer">
                 Download ↗
@@ -307,6 +325,7 @@ export function OrderDrawer({
   const planning = snapshotPlanning(snapshot);
   const figures = snapshotFeasibility(snapshot);
   const assumptions = snapshotAssumptions(snapshot, (order.assumption_edits ?? {}) as Record<string, unknown>);
+  const { stamp, name: zone } = useStaffZone();
 
   return (
     <>
@@ -317,7 +336,7 @@ export function OrderDrawer({
             <div className="reyebrow mono">Expert analysis order</div>
             <h2 className="rtitle mono">{order.reference}</h2>
             <div className="osub">
-              placed {utcStamp(order.placed_at)} · {daysSince(order.placed_at)} days ago · expected by {order.expected_by}
+              placed {stamp(order.placed_at)} ({zone}) · {daysSince(order.placed_at)} days ago · expected by {order.expected_by}
             </div>
           </div>
           <div className="ohead-r">
@@ -394,7 +413,7 @@ export function OrderDrawer({
                       <StatusChip tone={c.tone}>{c.label}</StatusChip> <b>{emailName(e.template)}</b>
                       <span className="osub">
                         {" "}
-                        to {e.to_email} · {utcStamp(e.sent_at ?? e.created_at)}
+                        to {e.to_email} · {stamp(e.sent_at ?? e.created_at)}
                         {e.error ? ` · ${e.error.slice(0, 120)}` : e.suppressed_reason ? ` · ${e.suppressed_reason.replace(/_/g, " ")}` : ""}
                       </span>
                     </li>
@@ -409,10 +428,8 @@ export function OrderDrawer({
           <Section
             title="What the customer saw"
             aside={
-              <span className="osub mono">
-                data {order.data_version ?? "—"}
-                {order.publish_version_id != null && ` (#${order.publish_version_id})`} · market v{order.market_version ?? "—"} · formula{" "}
-                {order.formula_version ?? "—"}
+              <span className="osub mono" title={order.data_version ? `Published as “${order.data_version}”` : undefined}>
+                data {versionText(order) ?? "—"} · market v{order.market_version ?? "—"} · formula {order.formula_version ?? "—"}
               </span>
             }
           >
@@ -431,16 +448,16 @@ export function OrderDrawer({
             </details>
           </Section>
 
-          <Section title="Timeline">
+          <Section title="Timeline" aside={<span className="osub">{zone}</span>}>
             <ol className="otimeline">
               {!(order.timeline ?? []).some((e) => e.action === "order.create") && (
                 <li>
-                  <span className="mono">{utcStamp(order.placed_at)}</span> Order placed · {customerLine(order)}
+                  <span className="mono">{stamp(order.placed_at)}</span> Order placed · {customerLine(order)}
                 </li>
               )}
               {(order.timeline ?? []).map((e) => (
                 <li key={e.id}>
-                  <span className="mono">{utcStamp(e.created_at)}</span> {eventLine(e)} <span className="osub">· {e.actor}</span>
+                  <span className="mono">{stamp(e.created_at)}</span> {eventLine(e)} <span className="osub">· {e.actor}</span>
                   {e.note && <div className="osub opre">“{e.note}”</div>}
                 </li>
               ))}

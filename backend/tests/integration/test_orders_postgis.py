@@ -269,12 +269,14 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
         "payment_due",
         "payment_instructions",
         "data_version",
+        "data_version_no",
         "status_url",
     }
     assert again["reference"] == reference and again["payment_due"] is True
     for key in ("location", "pricing", "turnaround", "payment_instructions", "status_url"):
         assert again[key] == body[key], key
-    assert again["data_version"] == "sample-2026-09-22"
+    # the version by its label and by its number (what the order page shows)
+    assert again["data_version"] == "sample-2026-09-22" and again["data_version_no"] == 1
     for personal in ("novak", "+382", "first_name", "email"):
         assert personal not in confirmation.text.lower(), personal
     assert unknown_confirmation.status_code == 404

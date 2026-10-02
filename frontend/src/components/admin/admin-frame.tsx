@@ -11,7 +11,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { barLinks, sectionForPath, visibleTabs, type StaffRole } from "@/lib/admin/sections";
+import { barLinks, sectionForPath, SIGN_IN_PATH, visibleTabs, type StaffRole } from "@/lib/admin/sections";
 
 import { IconAdminTitle } from "../ui/icons";
 
@@ -25,10 +25,14 @@ export interface FrameUser {
   openAccess?: boolean;
 }
 
-export function AdminFrame({ user, children }: { user: FrameUser | null; children: ReactNode }) {
+export function AdminFrame({ user: signedIn, children }: { user: FrameUser | null; children: ReactNode }) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const current = sectionForPath(pathname)?.id;
+  // The layout renders this bar once per page load and keeps it while the member moves between
+  // tabs, so the sign-in page never shows a member: after a sign-out or an ended session the one
+  // it was rendered for is gone, and a new sign-in loads the console afresh (`sign-in.tsx`).
+  const user = pathname.replace(/\/+$/, "") === SIGN_IN_PATH ? null : signedIn;
   const tabs = visibleTabs(user?.role);
   const links = barLinks(user?.role);
 

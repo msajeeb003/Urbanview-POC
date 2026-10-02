@@ -150,6 +150,8 @@ describe("extraction and job pills", () => {
   it("says when a job ran", () => {
     expect(jobTimes(null)).toEqual({ short: null, full: null });
     expect(jobTimes(job(), NOW)).toEqual({ short: "queued 30 min ago", full: "queued 2026-09-26 10:00 UTC" });
+    // on the console's clock (the municipality's zone), named
+    expect(jobTimes(job(), NOW, "Europe/Podgorica").full).toBe("queued 2026-09-26 12:00 Podgorica time");
     expect(jobTimes(job({ status: "running", started_at: "2026-09-26T10:25:00Z" }), NOW).short).toBe("started 5 min ago");
     expect(formatDuration(650)).toBe("650 ms");
     expect(formatDuration(22_629)).toBe("22.6 s");

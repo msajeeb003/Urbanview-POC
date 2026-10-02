@@ -4614,6 +4614,11 @@ export interface components {
              * @description Label of the published version the visitor saw
              */
             data_version?: string | null;
+            /**
+             * Data Version No
+             * @description Number of that published version (1, 2, 3 …): what the queue shows (`v12`)
+             */
+            data_version_no?: number | null;
             /** Price Eur */
             price_eur: number;
             /** Currency */
@@ -4774,6 +4779,11 @@ export interface components {
              * @description Label of the published version the order was placed on
              */
             data_version?: string | null;
+            /**
+             * Data Version No
+             * @description Number of that published version (1, 2, 3 …): what the order page shows
+             */
+            data_version_no?: number | null;
             /** Status Url */
             status_url: string;
         };
@@ -4827,6 +4837,11 @@ export interface components {
              * @description Label of the published version the visitor saw
              */
             data_version?: string | null;
+            /**
+             * Data Version No
+             * @description Number of that published version (1, 2, 3 …): what the queue shows (`v12`)
+             */
+            data_version_no?: number | null;
             /** Price Eur */
             price_eur: number;
             /** Currency */

@@ -12,10 +12,12 @@ import {
   parcelCells,
   parcelLine,
   parseOrderFilters,
+  refundOf,
   snapshotAssumptions,
   snapshotFeasibility,
   snapshotPlanning,
   statusChip,
+  versionText,
 } from "./orders";
 
 const order = (status: OrderStatus, assigned = false) =>
@@ -86,6 +88,13 @@ describe("the queue", () => {
     expect(ordersHref(filters, null)).toBe("/admin/orders?status=paid&expert=6&q=UV-PODI");
     expect(parseOrderFilters({ status: "lost" }).status).toBeNull();
   });
+
+  it("names the data version by its number, the label only when the number is unknown", () => {
+    expect(versionText({ data_version: "novi-grad-up-51-81-85", data_version_no: 12 })).toBe("v12");
+    expect(versionText({ data_version: "first-publish", data_version_no: 1 })).toBe("v1");
+    expect(versionText({ data_version: "first-publish", data_version_no: null })).toBe("first-publish");
+    expect(versionText({ data_version: null, data_version_no: null })).toBeNull();
+  });
 });
 
 describe("timeline and snapshot", () => {
@@ -103,6 +112,34 @@ describe("timeline and snapshot", () => {
     ).toBe("Paid → Refunded · refund €200 · on 2026-09-26 · ref REFUND-8");
     expect(eventLine({ action: "order.report", details: { version: 2, filename: "r.pdf" }, before: null, after: null })).toBe("Report v2 uploaded · r.pdf");
     expect(eventLine({ action: "order.create", details: {}, before: null, after: null })).toBe("Order placed by the customer");
+  });
+
+  it("reads what was refunded from the status change, for the Payment section", () => {
+    const event = (action: string, after: Record<string, unknown>, details: Record<string, unknown>) => ({
+      id: 1,
+      action,
+      actor: "admin@urbanview.test",
+      created_at: "2026-10-02T16:47:05Z",
+      before: null,
+      after,
+      note: null,
+      details,
+    });
+    const timeline = [
+      event("order.payment", { status: "paid" }, { amount_eur: 200, bank_reference: "IN-1", received_on: "2026-10-02" }),
+      event("order.status", { status: "delivered" }, {}),
+      event("order.status", { status: "refunded" }, { refund_amount_eur: 200, refunded_on: "2026-10-02", bank_reference: "547567" }),
+    ];
+    expect(refundOf({ timeline })).toEqual({ amount: "€200", on: "2026-10-02", reference: "547567" });
+    // not refunded: nothing to state
+    expect(refundOf({ timeline: timeline.slice(0, 2) })).toBeNull();
+    expect(refundOf({ timeline: [] })).toBeNull();
+    // a refund recorded without its facts states none (the section keeps the time)
+    expect(refundOf({ timeline: [event("order.status", { status: "refunded" }, {})] })).toEqual({
+      amount: null,
+      on: null,
+      reference: null,
+    });
   });
 
   it("reads what the customer saw", () => {
