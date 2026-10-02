@@ -235,11 +235,16 @@ demand: the analytics districts place them by their point.
   GeoPackage staged in the worker with `python -m core.gis.georef apply … --stage` (the
   console's geometry job answers a vector PDF with that instruction), the geometry review,
   Publish; then the prepared values once more for the parcels drawn since (UP 14, UP 90: see
-  "Prepared planning values") and Publish. **Not code, still open:** SMTP on the server (3:
-  the confirmation now says honestly that no e-mail went out; the account is still needed), the
-  client's bank name and SWIFT (8: `ORDER_BANK_*` in `deploy/.env`), the codes U, SR and TS of
-  Stara Varoš are named as the legend's UK, SKR and a transformer station (product owner
-  2026-10-02; the client's planner still confirms). The pin behind the legend (22): on a small
+  "Prepared planning values") and Publish. **Server settings, not code:** SMTP (3) was set on
+  the server on 2026-10-02 (a Brevo account on port 587, sender `noreply@urbanview.io`) and the
+  server switched to `APP_ENV=prod`, the only difference from `staging` being that e-mails go
+  to every address instead of the allow-list: order e-mails and staff sign-in links are sent
+  (until then the confirmation said honestly that no e-mail went out). **Still open:** the
+  support address the e-mails name (`ORDER_SUPPORT_EMAIL` is the example placeholder), the
+  console's open access (to switch off now that links can be mailed), the client's bank name
+  and SWIFT (8: `ORDER_BANK_*` in `deploy/.env`), the codes U, SR and TS of Stara Varoš are
+  named as the legend's UK, SKR and a transformer station (product owner 2026-10-02; the
+  client's planner still confirms). The pin behind the legend (22): on a small
   window the open legend covers the map's middle, so a flown-to place now lands beside it
   (`lib/map/camera.ts` `legendOffset`).
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
