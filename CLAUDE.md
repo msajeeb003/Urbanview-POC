@@ -239,12 +239,14 @@ demand: the analytics districts place them by their point.
   the server on 2026-10-02 (a Brevo account on port 587, sender `noreply@urbanview.io`) and the
   server switched to `APP_ENV=prod`, the only difference from `staging` being that e-mails go
   to every address instead of the allow-list: order e-mails and staff sign-in links are sent
-  (until then the confirmation said honestly that no e-mail went out). **Still open:** the
-  support address the e-mails name (`ORDER_SUPPORT_EMAIL` is the example placeholder), the
-  console's open access (to switch off now that links can be mailed), the client's bank name
-  and SWIFT (8: `ORDER_BANK_*` in `deploy/.env`), the codes U, SR and TS of Stara Varoš are
-  named as the legend's UK, SKR and a transformer station (product owner 2026-10-02; the
-  client's planner still confirms). The pin behind the legend (22): on a small
+  (until then the confirmation said honestly that no e-mail went out). The console's open
+  access was switched off the same day (`ADMIN_OPEN_ACCESS_TOKEN` emptied and its entry taken
+  out of `ADMIN_API_TOKENS`): every `/admin` page asks for the e-mailed sign-in link again and
+  the admin API answers 401 without a staff token. **Still open:** the support address the
+  e-mails name (`ORDER_SUPPORT_EMAIL` is the example placeholder), the client's bank name and
+  SWIFT (8: `ORDER_BANK_*` in `deploy/.env`), the codes U, SR and TS of Stara Varoš are named
+  as the legend's UK, SKR and a transformer station (product owner 2026-10-02; the client's
+  planner still confirms). The pin behind the legend (22): on a small
   window the open legend covers the map's middle, so a flown-to place now lands beside it
   (`lib/map/camera.ts` `legendOffset`).
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
@@ -1281,7 +1283,8 @@ demand: the analytics districts place them by their point.
   on Documents (Orders for an expert). Tests: `tests/integration/test_admin_console_postgis.py`.
   Temporary: with `ADMIN_OPEN_ACCESS_TOKEN` set in the web container (an admin entry of
   `ADMIN_API_TOKENS`) the console skips the sign-in and serves every visitor as that admin, for as
-  long as the server cannot mail the links (`frontend/CLAUDE.md`, "Open access").
+  long as the server cannot mail the links (`frontend/CLAUDE.md`, "Open access"); off on the live
+  server since 2026-10-02, when its SMTP account was set.
 - Tests: `tests/test_mail_unit.py` (every template against fixture data, policy, MIME, provider
   ids, the job body on the in-memory repository) and `tests/integration/test_mail_postgis.py`
   (through the API with eager Celery and a transport double: log rows with provider ids, jobs,
