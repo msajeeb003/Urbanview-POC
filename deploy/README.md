@@ -69,8 +69,10 @@ Fill in every `change-me` (`openssl rand -hex 24` makes a secret; `ADMIN_API_TOK
 public token (`pk.…`; in the Mapbox account restrict it to `https://SITE_DOMAIN`).
 `deploy/.env` stays on the server: it is git-ignored.
 
-`APP_ENV=staging` keeps `/docs` on and only e-mails the addresses in `MAIL_ALLOWLIST`. Switch to
-`APP_ENV=prod` (and clear the allow-list) when the site is announced.
+`APP_ENV=staging` only e-mails the addresses in `MAIL_ALLOWLIST` (empty: no e-mail leaves the
+server). Switch to `APP_ENV=prod` and clear the allow-list (a list left there is still enforced)
+when the site is announced: every address is then e-mailed. That is the only difference between
+the two; the API's `/docs` page is served in dev only.
 
 ## 5. Start
 
