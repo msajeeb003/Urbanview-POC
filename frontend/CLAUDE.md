@@ -420,8 +420,10 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   parcel. Area in the plan: X m²." ;
   "Planning parameters" (source chip = the first cited page): the mock's seven rows —
   Land use designation, Max building height (`27.5 m · P+8`: metres and floors, each with its
-  source), Max site coverage (IZ) %, Floor Area Ratio (II), Planned parcel area (the plan's
-  stated value, else the geometry's area with a tooltip), Max Gross Floor Area (brand-dark),
+  source; a parcel of several buildings states the floors per building, `(a) Po+P+3, (b) Pv,
+  (c) P+1`: a height text longer than 24 characters wraps like a text value), Max site coverage
+  (IZ) %, Floor Area Ratio (II), Planned parcel area (the plan's stated value, else the
+  geometry's area with a tooltip), Max Gross Floor Area (brand-dark),
   Max coverage area (the engine's output): the plan's Group 1 (BRD: Parcel ID, planning
   document, land use, urban block, urban parcel number and area, max height / floors, IZ, FAR,
   max GFA; the identification ones in the IdGrid), an explicit list, nothing else. Building line,

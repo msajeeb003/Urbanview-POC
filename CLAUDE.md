@@ -1091,7 +1091,17 @@ demand: the analytics districts place them by their point.
   points, bottom-left) and a note (`UP 12 – <column header>`); blank and deferred cells are left
   out. `python -m core.extraction prepared build [--doc ID]` writes them from the gold sets and
   the PDF stage's grids (needs the source PDFs); a test holds the committed files to the gold
-  sets. Today: Novi Grad 103 parcels / 500 values, Stara Varoš 560 / 2 800.
+  sets. Today: Novi Grad 93 parcels / 450 values, Stara Varoš 560 / 2 800.
+- **Building rows** (`[document.prepared] building_rows` of the corpus document,
+  `merge_building_rows`; product owner, 2026-10-02): where the table lists the buildings of one
+  parcel as rows of their own (Novi Grad's UP 51(a)–(c), 81(a)–(d), 85(a)–(f): one parcel each on
+  the drawing), those rows are one prepared parcel. What the rows state alike is the parcel's
+  value (area, land use, IZ, II: printed once over the group); a wording that differs per row
+  (floors) is listed per building as printed (`(a) Po+P+3, (b) Pv, (c) P+1`), citing the
+  buildings' cells together (note `UP 51(a), (b), (c) – Spratnost objekta`); a number that
+  differs would be left out and reported. The gold set keeps the rows as the table prints them.
+  Such a listing is text, not a floor notation: the height heatmap leaves that parcel out of its
+  block's maximum, and the panel's height row wraps it.
 - **Load** `python -m core.extraction prepared load --doc <corpus id> --document-id N [--by]
   [--note] [--dry-run] [--json]` (run it in the worker container): one transaction, STAGING only.
   The document must be the current version and hold a file with the data's PDF checksum (pages
@@ -1503,8 +1513,9 @@ demand: the analytics districts place them by their point.
   state them (weights: the planned parcel areas, as the plan states them, else as drawn:
   `jobs.publish_layers.PLAN_AREA`); height = the **maximum** floors above ground,
   parsed from the plan's notation with the profile's `[extraction.floor_notation]` tokens
-  (`P+4` = 5, `P+5+Pk` = 7; `label` keeps the notation); GFA = **sum** of FAR x planned parcel
-  area (the engine's formula). Sale price = the expected €/m² of the zone's assumptions version
+  (`P+4` = 5, `P+5+Pk` = 7; `label` keeps the notation; a text the tokens do not read, such as
+  a per-building listing of a prepared parcel, is not counted); GFA = **sum** of FAR x planned
+  parcel area (the engine's formula). Sale price = the expected €/m² of the zone's assumptions version
   that applies today, exactly as stored, with low / high (absolute bounds, else expected x
   factors).
 - **`choropleth_cells`** (per version, layer and cell): `value`, `value_low` / `value_high`,

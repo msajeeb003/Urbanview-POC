@@ -9,6 +9,11 @@ the box and the column name of the cell it is printed in, written to
 value on its urban parcel, citing its page and cell. Nothing is served by the load: the publish
 job copies approved items as it copies a reviewer's.
 
+Where a table lists the buildings of one parcel as rows of their own (the corpus document's
+``[document.prepared] building_rows``), those rows are one prepared parcel: what they state alike
+is the parcel's value, the floors that differ per building are listed per building as printed
+(``merge_building_rows``).
+
 The load replaces what is open, like a newer run: the pending items of earlier runs over the same
 file are superseded (never deleted), an older unpublished decision on the same target and field
 is retired, a target that already holds the same approved value keeps its item, and a parcel the
@@ -188,6 +193,13 @@ def build_prepared(
                 values=values,
             )
         )
+    if doc.prepared.building_rows:
+        parcels, unmerged = merge_building_rows(
+            parcels,
+            doc.prepared.building_rows,
+            Conventions.from_profile(municipality).parcel_abbreviation,
+        )
+        problems += [f"{doc.id} {problem}" for problem in unmerged]
     checked = "; ".join(f"{v.by} ({v.on}, {len(v.pages)} pages)" for v in gold.verification)
     prepared = PreparedDocument(
         municipality=municipality,
@@ -206,6 +218,91 @@ def build_prepared(
         parcels=parcels,
     )
     return prepared, problems
+
+
+def merge_building_rows(
+    parcels: list[PreparedParcel], pattern: str, abbreviation: str
+) -> tuple[list[PreparedParcel], list[str]]:
+    """Table rows that are the buildings of one parcel (``pattern``: group 1 the parcel's number,
+    group 2 the building's mark, "UP 51(a)") become that parcel, at the place of its first row.
+    What every row states alike is the parcel's value (the cell printed once over the group). A
+    wording that differs from row to row is listed per building as printed, "(a) Po+P+3, (b) Pv",
+    citing the buildings' cells together. A number that differs is no parcel value: left out and
+    reported."""
+    rule = re.compile(pattern)
+    groups: dict[str, list[tuple[str, PreparedParcel]]] = {}
+    order: list[PreparedParcel | str] = []
+    for parcel in parcels:
+        found = rule.match(parcel.number)
+        if found is None:
+            order.append(parcel)
+            continue
+        number = " ".join(found.group(1).split())
+        if number not in groups:
+            groups[number] = []
+            order.append(number)
+        groups[number].append((found.group(2), parcel))
+
+    problems: list[str] = []
+    merged: list[PreparedParcel] = []
+    for entry in order:
+        if isinstance(entry, PreparedParcel):
+            merged.append(entry)
+            continue
+        rows = groups[entry]
+        first = rows[0][1]
+        if len({row.block_ref for _, row in rows}) > 1:
+            problems.append(f"{entry}: its building rows name different blocks")
+        values: dict[str, PreparedValue] = {}
+        for name in PLANNING_FIELDS:
+            stated = [
+                (mark, row.number, row.values[name]) for mark, row in rows if name in row.values
+            ]
+            if not stated:
+                continue
+            _, row_number, head = stated[0]
+            column = (head.note or "").removeprefix(f"{row_number} – ") or None
+            if len({(value.value, value.unit) for _, _, value in stated}) == 1:
+                note = " – ".join(part for part in (entry, column) if part)
+                values[name] = head.model_copy(update={"note": note})
+                continue
+            if FIELD_SPECS[name].kind == "number":
+                problems.append(
+                    f"{entry} {name}: its building rows state different numbers (left out)"
+                )
+                continue
+            listing = ", ".join(f"({mark}) {value.printed}" for mark, _, value in stated)
+            boxes = [value.bbox for _, _, value in stated]
+            together = len({value.page for _, _, value in stated}) == 1 and all(boxes)
+            if not together:
+                problems.append(f"{entry} {name}: its building rows are not on one page (no box)")
+            marks = ", ".join(f"({mark})" for mark, _, _ in stated)
+            values[name] = PreparedValue(
+                value=listing,
+                printed=listing,
+                page=head.page,
+                bbox=(
+                    (
+                        min(box[0] for box in boxes if box),
+                        min(box[1] for box in boxes if box),
+                        max(box[2] for box in boxes if box),
+                        max(box[3] for box in boxes if box),
+                    )
+                    if together
+                    else None
+                ),
+                note=" – ".join(part for part in (f"{entry}{marks}", column) if part),
+            )
+        merged.append(
+            PreparedParcel(
+                number=entry,
+                key=parcel_key(entry, abbreviation) or first.key,
+                page=first.page,
+                block_ref=first.block_ref,
+                values=values,
+            )
+        )
+    return merged, problems
 
 
 # --- load -----------------------------------------------------------------------------------------

@@ -71,6 +71,17 @@ class Labelling(_M):
     not_covered: list[str] = Field(default_factory=list)
 
 
+class PreparedRules(_M):
+    """How the gold rows become the parcels of the prepared values
+    (``core.extraction.prepared.build_prepared``)."""
+
+    # Rows that are the buildings of one parcel ("UP 51(a)", "UP 51(b)": one parcel on the
+    # drawing). Group 1 is the parcel's number, group 2 the building's mark. The parcel takes
+    # what its rows state alike (printed once over the group); a wording that differs from row
+    # to row (floors) is listed per building, as printed
+    building_rows: str | None = None
+
+
 class CorpusDocument(_M):
     id: str
     name: str
@@ -80,6 +91,7 @@ class CorpusDocument(_M):
     sha256: str
     pages: int
     labelling: Labelling
+    prepared: PreparedRules = Field(default_factory=PreparedRules)
 
 
 class Corpus(_M):

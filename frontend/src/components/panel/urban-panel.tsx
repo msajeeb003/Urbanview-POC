@@ -124,6 +124,10 @@ function PlanningRows({ data }: { data: UrbanPanelData }) {
     height?.status === "stated" && typeof height.value === "number" ? `${formatFigure(height.value, 1)} m` : null,
     floors?.status === "stated" && floors.value != null ? String(floors.value) : null,
   ].filter(Boolean);
+  // A parcel of several buildings states the floors per building ("(a) Po+P+3, (b) Pv, (c) P+1"):
+  // that wraps like any text value; the mock's short "27.5 m · P+8" keeps its look.
+  const heightText = heightParts.join(" · ");
+  const heightWraps = heightText.length > 24;
 
   // Planned parcel area: as the plan states it, else measured from the plan's geometry
   const planned = byKey.get("planned_parcel_area_m2");
@@ -135,7 +139,8 @@ function PlanningRows({ data }: { data: UrbanPanelData }) {
       <FieldRow label={t("row.landUse")} field={landUseText(byKey.get("land_use"))} />
       <PanelRow
         label={t("row.height")}
-        value={heightParts.length ? <span>{heightParts.join(" · ")}</span> : <NotStated title={missingTitle(height, t, lang)} />}
+        value={heightParts.length ? <span>{heightText}</span> : <NotStated title={missingTitle(height, t, lang)} />}
+        text={heightWraps}
         after={<RowSource fields={[height, floors]} />}
       />
       <FieldRow label={t("row.coverage", { abbr: iz })} field={byKey.get("max_site_coverage_pct")} />

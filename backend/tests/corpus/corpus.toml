@@ -65,6 +65,14 @@ pages = 12
     "gazette, decision number and date, area: not on these pages",
   ]
 
+  # The prepared values (python -m core.extraction prepared build): UP 51(a)-(c), UP 81(a)-(d)
+  # and UP 85(a)-(f) are the buildings of one parcel each (one parcel on the drawing, whose area
+  # is the one the rows share). The parcel takes the area, land use, IZ and II printed once over
+  # its rows; the floors, which differ per building, are listed per building as printed
+  # (product owner, 2026-10-02). UP 82 a / b / c are parcels of their own, not buildings.
+  [document.prepared]
+  building_rows = '^(UP\s*\d+)\(([a-z])\)$'
+
 [[document]]
 id = "stara-varos"
 name = 'Izmjene i dopune URBANISTIČKOG PROJEKTA „STARA VAROŠ" u Podgorici'

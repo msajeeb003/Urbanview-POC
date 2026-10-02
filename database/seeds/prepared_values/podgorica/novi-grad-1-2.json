@@ -3754,8 +3754,8 @@
    }
   },
   {
-   "number": "UP 51(a)",
-   "key": "51(a)",
+   "number": "UP 51",
+   "key": "51",
    "page": 6,
    "block_ref": "D",
    "values": {
@@ -3771,7 +3771,7 @@
       510.2
      ],
      "cell": "r0c2",
-     "note": "UP 51(a) – Površina UP"
+     "note": "UP 51 – Površina UP"
     },
     "land_use": {
      "value": "školstvo i soc.zaštita",
@@ -3785,7 +3785,7 @@
       510.2
      ],
      "cell": "r0c3",
-     "note": "UP 51(a) – Namjena objekta"
+     "note": "UP 51 – Namjena objekta"
     },
     "max_site_coverage_pct": {
      "value": 20.0,
@@ -3799,7 +3799,7 @@
       510.2
      ],
      "cell": "r0c11",
-     "note": "UP 51(a) – Indeks zauzetosti"
+     "note": "UP 51 – Indeks zauzetosti"
     },
     "max_far": {
      "value": 0.5,
@@ -3813,177 +3813,21 @@
       510.2
      ],
      "cell": "r0c12",
-     "note": "UP 51(a) – Indeks izgrađenosti"
+     "note": "UP 51 – Indeks izgrađenosti"
     },
     "max_floors": {
-     "value": "Po+P+3",
+     "value": "(a) Po+P+3, (b) Pv, (c) P+1",
      "unit": null,
-     "printed": "Po+P+3",
-     "page": 6,
-     "bbox": [
-      356.7,
-      483.1,
-      405.9,
-      510.2
-     ],
-     "cell": "r0c5",
-     "note": "UP 51(a) – Spratnost objekta"
-    }
-   }
-  },
-  {
-   "number": "UP 51(b)",
-   "key": "51(b)",
-   "page": 6,
-   "block_ref": "D",
-   "values": {
-    "planned_parcel_area_m2": {
-     "value": 16273.23,
-     "unit": "m²",
-     "printed": "16273.23",
-     "page": 6,
-     "bbox": [
-      176.3,
-      412.9,
-      226.7,
-      510.2
-     ],
-     "cell": "r0c2",
-     "note": "UP 51(b) – Površina UP"
-    },
-    "land_use": {
-     "value": "školstvo i soc.zaštita",
-     "unit": null,
-     "printed": "školstvo i soc.zaštita",
-     "page": 6,
-     "bbox": [
-      226.7,
-      412.9,
-      306.3,
-      510.2
-     ],
-     "cell": "r0c3",
-     "note": "UP 51(b) – Namjena objekta"
-    },
-    "max_site_coverage_pct": {
-     "value": 20.0,
-     "unit": "%",
-     "printed": "0.2",
-     "page": 6,
-     "bbox": [
-      665.9,
-      412.9,
-      716.4,
-      510.2
-     ],
-     "cell": "r0c11",
-     "note": "UP 51(b) – Indeks zauzetosti"
-    },
-    "max_far": {
-     "value": 0.5,
-     "unit": null,
-     "printed": "0.5",
-     "page": 6,
-     "bbox": [
-      716.4,
-      412.9,
-      775.6,
-      510.2
-     ],
-     "cell": "r0c12",
-     "note": "UP 51(b) – Indeks izgrađenosti"
-    },
-    "max_floors": {
-     "value": "Pv",
-     "unit": null,
-     "printed": "Pv",
-     "page": 6,
-     "bbox": [
-      356.7,
-      440.3,
-      405.9,
-      467.6
-     ],
-     "cell": "r2c5",
-     "note": "UP 51(b) – Spratnost objekta"
-    }
-   }
-  },
-  {
-   "number": "UP 51(c)",
-   "key": "51(c)",
-   "page": 6,
-   "block_ref": "D",
-   "values": {
-    "planned_parcel_area_m2": {
-     "value": 16273.23,
-     "unit": "m²",
-     "printed": "16273.23",
-     "page": 6,
-     "bbox": [
-      176.3,
-      412.9,
-      226.7,
-      510.2
-     ],
-     "cell": "r0c2",
-     "note": "UP 51(c) – Površina UP"
-    },
-    "land_use": {
-     "value": "školstvo i soc.zaštita",
-     "unit": null,
-     "printed": "školstvo i soc.zaštita",
-     "page": 6,
-     "bbox": [
-      226.7,
-      412.9,
-      306.3,
-      510.2
-     ],
-     "cell": "r0c3",
-     "note": "UP 51(c) – Namjena objekta"
-    },
-    "max_site_coverage_pct": {
-     "value": 20.0,
-     "unit": "%",
-     "printed": "0.2",
-     "page": 6,
-     "bbox": [
-      665.9,
-      412.9,
-      716.4,
-      510.2
-     ],
-     "cell": "r0c11",
-     "note": "UP 51(c) – Indeks zauzetosti"
-    },
-    "max_far": {
-     "value": 0.5,
-     "unit": null,
-     "printed": "0.5",
-     "page": 6,
-     "bbox": [
-      716.4,
-      412.9,
-      775.6,
-      510.2
-     ],
-     "cell": "r0c12",
-     "note": "UP 51(c) – Indeks izgrađenosti"
-    },
-    "max_floors": {
-     "value": "P+1",
-     "unit": null,
-     "printed": "P+1",
+     "printed": "(a) Po+P+3, (b) Pv, (c) P+1",
      "page": 6,
      "bbox": [
       356.7,
       412.9,
       405.9,
-      440.3
+      510.2
      ],
-     "cell": "r3c5",
-     "note": "UP 51(c) – Spratnost objekta"
+     "cell": null,
+     "note": "UP 51(a), (b), (c) – Spratnost objekta"
     }
    }
   },
@@ -6250,8 +6094,8 @@
    }
   },
   {
-   "number": "UP 81(a)",
-   "key": "81(a)",
+   "number": "UP 81",
+   "key": "81",
    "page": 9,
    "block_ref": "F",
    "values": {
@@ -6267,7 +6111,7 @@
       306.7
      ],
      "cell": "r7c2",
-     "note": "UP 81(a) – Površina UP"
+     "note": "UP 81 – Površina UP"
     },
     "land_use": {
      "value": "školstvo i soc.zaštita",
@@ -6281,7 +6125,7 @@
       306.7
      ],
      "cell": "r7c3",
-     "note": "UP 81(a) – Namjena objekta"
+     "note": "UP 81 – Namjena objekta"
     },
     "max_site_coverage_pct": {
      "value": 30.0,
@@ -6295,7 +6139,7 @@
       306.7
      ],
      "cell": "r7c11",
-     "note": "UP 81(a) – Indeks zauzetosti"
+     "note": "UP 81 – Indeks zauzetosti"
     },
     "max_far": {
      "value": 1.0,
@@ -6309,255 +6153,21 @@
       306.7
      ],
      "cell": "r7c12",
-     "note": "UP 81(a) – Indeks izgrađenosti"
+     "note": "UP 81 – Indeks izgrađenosti"
     },
     "max_floors": {
-     "value": "Po+P+4",
+     "value": "(a) Po+P+4, (b) Po+P+4, (c) Po+P+4, (d) Po+P+1",
      "unit": null,
-     "printed": "Po+P+4",
-     "page": 9,
-     "bbox": [
-      354.8,
-      279.3,
-      403.8,
-      306.7
-     ],
-     "cell": "r7c5",
-     "note": "UP 81(a) – Spratnost objekta"
-    }
-   }
-  },
-  {
-   "number": "UP 81(b)",
-   "key": "81(b)",
-   "page": 9,
-   "block_ref": "F",
-   "values": {
-    "planned_parcel_area_m2": {
-     "value": 7224.11,
-     "unit": "m²",
-     "printed": "7224.11",
-     "page": 9,
-     "bbox": [
-      176.7,
-      166.2,
-      227.3,
-      306.7
-     ],
-     "cell": "r7c2",
-     "note": "UP 81(b) – Površina UP"
-    },
-    "land_use": {
-     "value": "školstvo i soc.zaštita",
-     "unit": null,
-     "printed": "školstvo i soc.zaštita",
-     "page": 9,
-     "bbox": [
-      227.3,
-      166.2,
-      307.4,
-      306.7
-     ],
-     "cell": "r7c3",
-     "note": "UP 81(b) – Namjena objekta"
-    },
-    "max_site_coverage_pct": {
-     "value": 30.0,
-     "unit": "%",
-     "printed": "0.3",
-     "page": 9,
-     "bbox": [
-      665.3,
-      166.2,
-      716.1,
-      306.7
-     ],
-     "cell": "r7c11",
-     "note": "UP 81(b) – Indeks zauzetosti"
-    },
-    "max_far": {
-     "value": 1.0,
-     "unit": null,
-     "printed": "1",
-     "page": 9,
-     "bbox": [
-      716.1,
-      166.2,
-      775.6,
-      306.7
-     ],
-     "cell": "r7c12",
-     "note": "UP 81(b) – Indeks izgrađenosti"
-    },
-    "max_floors": {
-     "value": "Po+P+4",
-     "unit": null,
-     "printed": "Po+P+4",
-     "page": 9,
-     "bbox": [
-      354.8,
-      251.9,
-      403.8,
-      279.3
-     ],
-     "cell": "r8c5",
-     "note": "UP 81(b) – Spratnost objekta"
-    }
-   }
-  },
-  {
-   "number": "UP 81(c)",
-   "key": "81(c)",
-   "page": 9,
-   "block_ref": "F",
-   "values": {
-    "planned_parcel_area_m2": {
-     "value": 7224.11,
-     "unit": "m²",
-     "printed": "7224.11",
-     "page": 9,
-     "bbox": [
-      176.7,
-      166.2,
-      227.3,
-      306.7
-     ],
-     "cell": "r7c2",
-     "note": "UP 81(c) – Površina UP"
-    },
-    "land_use": {
-     "value": "školstvo i soc.zaštita",
-     "unit": null,
-     "printed": "školstvo i soc.zaštita",
-     "page": 9,
-     "bbox": [
-      227.3,
-      166.2,
-      307.4,
-      306.7
-     ],
-     "cell": "r7c3",
-     "note": "UP 81(c) – Namjena objekta"
-    },
-    "max_site_coverage_pct": {
-     "value": 30.0,
-     "unit": "%",
-     "printed": "0.3",
-     "page": 9,
-     "bbox": [
-      665.3,
-      166.2,
-      716.1,
-      306.7
-     ],
-     "cell": "r7c11",
-     "note": "UP 81(c) – Indeks zauzetosti"
-    },
-    "max_far": {
-     "value": 1.0,
-     "unit": null,
-     "printed": "1",
-     "page": 9,
-     "bbox": [
-      716.1,
-      166.2,
-      775.6,
-      306.7
-     ],
-     "cell": "r7c12",
-     "note": "UP 81(c) – Indeks izgrađenosti"
-    },
-    "max_floors": {
-     "value": "Po+P+4",
-     "unit": null,
-     "printed": "Po+P+4",
-     "page": 9,
-     "bbox": [
-      354.8,
-      209.1,
-      403.8,
-      236.5
-     ],
-     "cell": "r10c5",
-     "note": "UP 81(c) – Spratnost objekta"
-    }
-   }
-  },
-  {
-   "number": "UP 81(d)",
-   "key": "81(d)",
-   "page": 9,
-   "block_ref": "F",
-   "values": {
-    "planned_parcel_area_m2": {
-     "value": 7224.11,
-     "unit": "m²",
-     "printed": "7224.11",
-     "page": 9,
-     "bbox": [
-      176.7,
-      166.2,
-      227.3,
-      306.7
-     ],
-     "cell": "r7c2",
-     "note": "UP 81(d) – Površina UP"
-    },
-    "land_use": {
-     "value": "školstvo i soc.zaštita",
-     "unit": null,
-     "printed": "školstvo i soc.zaštita",
-     "page": 9,
-     "bbox": [
-      227.3,
-      166.2,
-      307.4,
-      306.7
-     ],
-     "cell": "r7c3",
-     "note": "UP 81(d) – Namjena objekta"
-    },
-    "max_site_coverage_pct": {
-     "value": 30.0,
-     "unit": "%",
-     "printed": "0.3",
-     "page": 9,
-     "bbox": [
-      665.3,
-      166.2,
-      716.1,
-      306.7
-     ],
-     "cell": "r7c11",
-     "note": "UP 81(d) – Indeks zauzetosti"
-    },
-    "max_far": {
-     "value": 1.0,
-     "unit": null,
-     "printed": "1",
-     "page": 9,
-     "bbox": [
-      716.1,
-      166.2,
-      775.6,
-      306.7
-     ],
-     "cell": "r7c12",
-     "note": "UP 81(d) – Indeks izgrađenosti"
-    },
-    "max_floors": {
-     "value": "Po+P+1",
-     "unit": null,
-     "printed": "Po+P+1",
+     "printed": "(a) Po+P+4, (b) Po+P+4, (c) Po+P+4, (d) Po+P+1",
      "page": 9,
      "bbox": [
       354.8,
       166.2,
       403.8,
-      193.6
+      306.7
      ],
-     "cell": "r12c5",
-     "note": "UP 81(d) – Spratnost objekta"
+     "cell": null,
+     "note": "UP 81(a), (b), (c), (d) – Spratnost objekta"
     }
    }
   },
@@ -6952,8 +6562,8 @@
    }
   },
   {
-   "number": "UP 85(a)",
-   "key": "85(a)",
+   "number": "UP 85",
+   "key": "85",
    "page": 10,
    "block_ref": "F",
    "values": {
@@ -6969,7 +6579,7 @@
       465.6
      ],
      "cell": "r2c2",
-     "note": "UP 85(a) – Površina UP"
+     "note": "UP 85 – Površina UP"
     },
     "land_use": {
      "value": "školstvo i soc.zaštita",
@@ -6983,7 +6593,7 @@
       465.6
      ],
      "cell": "r2c3",
-     "note": "UP 85(a) – Namjena objekta"
+     "note": "UP 85 – Namjena objekta"
     },
     "max_site_coverage_pct": {
      "value": 32.0,
@@ -6997,7 +6607,7 @@
       465.6
      ],
      "cell": "r2c11",
-     "note": "UP 85(a) – Indeks zauzetosti"
+     "note": "UP 85 – Indeks zauzetosti"
     },
     "max_far": {
      "value": 0.5,
@@ -7011,411 +6621,21 @@
       465.6
      ],
      "cell": "r2c12",
-     "note": "UP 85(a) – Indeks izgrađenosti"
+     "note": "UP 85 – Indeks izgrađenosti"
     },
     "max_floors": {
-     "value": "P+1",
+     "value": "(a) P+1, (b) P, (c) P+1, (d) P, (e) P+1, (f) P",
      "unit": null,
-     "printed": "P+1",
-     "page": 10,
-     "bbox": [
-      354.8,
-      438.2,
-      403.8,
-      465.6
-     ],
-     "cell": "r2c5",
-     "note": "UP 85(a) – Spratnost objekta"
-    }
-   }
-  },
-  {
-   "number": "UP 85(b)",
-   "key": "85(b)",
-   "page": 10,
-   "block_ref": "F",
-   "values": {
-    "planned_parcel_area_m2": {
-     "value": 16545.83,
-     "unit": "m²",
-     "printed": "16545.83",
-     "page": 10,
-     "bbox": [
-      176.7,
-      270.4,
-      227.3,
-      465.6
-     ],
-     "cell": "r2c2",
-     "note": "UP 85(b) – Površina UP"
-    },
-    "land_use": {
-     "value": "školstvo i soc.zaštita",
-     "unit": null,
-     "printed": "školstvo i soc.zaštita",
-     "page": 10,
-     "bbox": [
-      227.3,
-      270.4,
-      307.4,
-      465.6
-     ],
-     "cell": "r2c3",
-     "note": "UP 85(b) – Namjena objekta"
-    },
-    "max_site_coverage_pct": {
-     "value": 32.0,
-     "unit": "%",
-     "printed": "0.32",
-     "page": 10,
-     "bbox": [
-      665.3,
-      270.4,
-      716.1,
-      465.6
-     ],
-     "cell": "r2c11",
-     "note": "UP 85(b) – Indeks zauzetosti"
-    },
-    "max_far": {
-     "value": 0.5,
-     "unit": null,
-     "printed": "0.5",
-     "page": 10,
-     "bbox": [
-      716.1,
-      270.4,
-      775.6,
-      465.6
-     ],
-     "cell": "r2c12",
-     "note": "UP 85(b) – Indeks izgrađenosti"
-    },
-    "max_floors": {
-     "value": "P",
-     "unit": null,
-     "printed": "P",
-     "page": 10,
-     "bbox": [
-      354.8,
-      395.3,
-      403.8,
-      422.7
-     ],
-     "cell": "r4c5",
-     "note": "UP 85(b) – Spratnost objekta"
-    }
-   }
-  },
-  {
-   "number": "UP 85(c)",
-   "key": "85(c)",
-   "page": 10,
-   "block_ref": "F",
-   "values": {
-    "planned_parcel_area_m2": {
-     "value": 16545.83,
-     "unit": "m²",
-     "printed": "16545.83",
-     "page": 10,
-     "bbox": [
-      176.7,
-      270.4,
-      227.3,
-      465.6
-     ],
-     "cell": "r2c2",
-     "note": "UP 85(c) – Površina UP"
-    },
-    "land_use": {
-     "value": "školstvo i soc.zaštita",
-     "unit": null,
-     "printed": "školstvo i soc.zaštita",
-     "page": 10,
-     "bbox": [
-      227.3,
-      270.4,
-      307.4,
-      465.6
-     ],
-     "cell": "r2c3",
-     "note": "UP 85(c) – Namjena objekta"
-    },
-    "max_site_coverage_pct": {
-     "value": 32.0,
-     "unit": "%",
-     "printed": "0.32",
-     "page": 10,
-     "bbox": [
-      665.3,
-      270.4,
-      716.1,
-      465.6
-     ],
-     "cell": "r2c11",
-     "note": "UP 85(c) – Indeks zauzetosti"
-    },
-    "max_far": {
-     "value": 0.5,
-     "unit": null,
-     "printed": "0.5",
-     "page": 10,
-     "bbox": [
-      716.1,
-      270.4,
-      775.6,
-      465.6
-     ],
-     "cell": "r2c12",
-     "note": "UP 85(c) – Indeks izgrađenosti"
-    },
-    "max_floors": {
-     "value": "P+1",
-     "unit": null,
-     "printed": "P+1",
-     "page": 10,
-     "bbox": [
-      354.8,
-      368.0,
-      403.8,
-      395.3
-     ],
-     "cell": "r5c5",
-     "note": "UP 85(c) – Spratnost objekta"
-    }
-   }
-  },
-  {
-   "number": "UP 85(d)",
-   "key": "85(d)",
-   "page": 10,
-   "block_ref": "F",
-   "values": {
-    "planned_parcel_area_m2": {
-     "value": 16545.83,
-     "unit": "m²",
-     "printed": "16545.83",
-     "page": 10,
-     "bbox": [
-      176.7,
-      270.4,
-      227.3,
-      465.6
-     ],
-     "cell": "r2c2",
-     "note": "UP 85(d) – Površina UP"
-    },
-    "land_use": {
-     "value": "školstvo i soc.zaštita",
-     "unit": null,
-     "printed": "školstvo i soc.zaštita",
-     "page": 10,
-     "bbox": [
-      227.3,
-      270.4,
-      307.4,
-      465.6
-     ],
-     "cell": "r2c3",
-     "note": "UP 85(d) – Namjena objekta"
-    },
-    "max_site_coverage_pct": {
-     "value": 32.0,
-     "unit": "%",
-     "printed": "0.32",
-     "page": 10,
-     "bbox": [
-      665.3,
-      270.4,
-      716.1,
-      465.6
-     ],
-     "cell": "r2c11",
-     "note": "UP 85(d) – Indeks zauzetosti"
-    },
-    "max_far": {
-     "value": 0.5,
-     "unit": null,
-     "printed": "0.5",
-     "page": 10,
-     "bbox": [
-      716.1,
-      270.4,
-      775.6,
-      465.6
-     ],
-     "cell": "r2c12",
-     "note": "UP 85(d) – Indeks izgrađenosti"
-    },
-    "max_floors": {
-     "value": "P",
-     "unit": null,
-     "printed": "P",
-     "page": 10,
-     "bbox": [
-      354.8,
-      340.6,
-      403.8,
-      368.0
-     ],
-     "cell": "r6c5",
-     "note": "UP 85(d) – Spratnost objekta"
-    }
-   }
-  },
-  {
-   "number": "UP 85(e)",
-   "key": "85(e)",
-   "page": 10,
-   "block_ref": "F",
-   "values": {
-    "planned_parcel_area_m2": {
-     "value": 16545.83,
-     "unit": "m²",
-     "printed": "16545.83",
-     "page": 10,
-     "bbox": [
-      176.7,
-      270.4,
-      227.3,
-      465.6
-     ],
-     "cell": "r2c2",
-     "note": "UP 85(e) – Površina UP"
-    },
-    "land_use": {
-     "value": "školstvo i soc.zaštita",
-     "unit": null,
-     "printed": "školstvo i soc.zaštita",
-     "page": 10,
-     "bbox": [
-      227.3,
-      270.4,
-      307.4,
-      465.6
-     ],
-     "cell": "r2c3",
-     "note": "UP 85(e) – Namjena objekta"
-    },
-    "max_site_coverage_pct": {
-     "value": 32.0,
-     "unit": "%",
-     "printed": "0.32",
-     "page": 10,
-     "bbox": [
-      665.3,
-      270.4,
-      716.1,
-      465.6
-     ],
-     "cell": "r2c11",
-     "note": "UP 85(e) – Indeks zauzetosti"
-    },
-    "max_far": {
-     "value": 0.5,
-     "unit": null,
-     "printed": "0.5",
-     "page": 10,
-     "bbox": [
-      716.1,
-      270.4,
-      775.6,
-      465.6
-     ],
-     "cell": "r2c12",
-     "note": "UP 85(e) – Indeks izgrađenosti"
-    },
-    "max_floors": {
-     "value": "P+1",
-     "unit": null,
-     "printed": "P+1",
-     "page": 10,
-     "bbox": [
-      354.8,
-      297.8,
-      403.8,
-      325.1
-     ],
-     "cell": "r8c5",
-     "note": "UP 85(e) – Spratnost objekta"
-    }
-   }
-  },
-  {
-   "number": "UP 85(f)",
-   "key": "85(f)",
-   "page": 10,
-   "block_ref": "F",
-   "values": {
-    "planned_parcel_area_m2": {
-     "value": 16545.83,
-     "unit": "m²",
-     "printed": "16545.83",
-     "page": 10,
-     "bbox": [
-      176.7,
-      270.4,
-      227.3,
-      465.6
-     ],
-     "cell": "r2c2",
-     "note": "UP 85(f) – Površina UP"
-    },
-    "land_use": {
-     "value": "školstvo i soc.zaštita",
-     "unit": null,
-     "printed": "školstvo i soc.zaštita",
-     "page": 10,
-     "bbox": [
-      227.3,
-      270.4,
-      307.4,
-      465.6
-     ],
-     "cell": "r2c3",
-     "note": "UP 85(f) – Namjena objekta"
-    },
-    "max_site_coverage_pct": {
-     "value": 32.0,
-     "unit": "%",
-     "printed": "0.32",
-     "page": 10,
-     "bbox": [
-      665.3,
-      270.4,
-      716.1,
-      465.6
-     ],
-     "cell": "r2c11",
-     "note": "UP 85(f) – Indeks zauzetosti"
-    },
-    "max_far": {
-     "value": 0.5,
-     "unit": null,
-     "printed": "0.5",
-     "page": 10,
-     "bbox": [
-      716.1,
-      270.4,
-      775.6,
-      465.6
-     ],
-     "cell": "r2c12",
-     "note": "UP 85(f) – Indeks izgrađenosti"
-    },
-    "max_floors": {
-     "value": "P",
-     "unit": null,
-     "printed": "P",
+     "printed": "(a) P+1, (b) P, (c) P+1, (d) P, (e) P+1, (f) P",
      "page": 10,
      "bbox": [
       354.8,
       270.4,
       403.8,
-      297.8
+      465.6
      ],
-     "cell": "r9c5",
-     "note": "UP 85(f) – Spratnost objekta"
+     "cell": null,
+     "note": "UP 85(a), (b), (c), (d), (e), (f) – Spratnost objekta"
     }
    }
   },
