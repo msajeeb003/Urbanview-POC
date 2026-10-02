@@ -49,7 +49,12 @@ from api.services.audit import write_audit
 from api.services.source import signed_page_link
 from core.auth import Principal
 from core.errors import AppError, ConflictError, NotFoundError
-from core.extraction.corrections import CorrectionRefused, check_correction, conventions_for
+from core.extraction.corrections import (
+    CorrectionRefused,
+    check_correction,
+    conventions_for,
+    refuse_impossible,
+)
 from core.extraction.schema import UnsupportedSchemaVersion, read_payload
 from core.municipality import MunicipalityProfile
 
@@ -515,6 +520,10 @@ class ReviewService:
     async def approve(self, principal: Principal, item_id: int, note: str | None) -> ReviewItem:
         async with self.session_factory() as session:
             row = await self._item_row(session, item_id)
+            try:
+                refuse_impossible(row["field_key"], row["value_number"])
+            except CorrectionRefused as refused:
+                raise _validation_error([refused.problem()]) from None
             await self._decide(session, principal, row, "approved", note=note)
             await session.commit()
         return await self.get_item(item_id)

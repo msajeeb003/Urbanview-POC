@@ -448,3 +448,5 @@ async def test_magic_link_job_mints_a_single_use_token():
         settings,
     )
     assert outcome.status == "failed" and "inactive" in outcome.error and len(transport.sent) == 1
+    # the log row says so too (it used to stay "queued" for ever)
+    assert repo.logs[inactive]["status"] == "failed" and "inactive" in repo.logs[inactive]["error"]

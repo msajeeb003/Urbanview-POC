@@ -47,6 +47,11 @@ SQUARE = (
     "MULTIPOLYGON(((19.4400 42.5400, 19.4410 42.5400, 19.4410 42.5410, 19.4400 42.5410, "
     "19.4400 42.5400)))"
 )
+# inside the live coverage of DUP Centar (document 2); SQUARE lies outside every plan
+COVERED_SQUARE = (
+    "MULTIPOLYGON(((19.2590 42.4390, 19.2594 42.4390, 19.2594 42.4394, 19.2590 42.4394, "
+    "19.2590 42.4390)))"
+)
 SQUARE_MOVED = (
     "MULTIPOLYGON(((19.4400 42.5400, 19.4412 42.5400, 19.4412 42.5412, 19.4400 42.5412, "
     "19.4400 42.5400)))"
@@ -421,6 +426,67 @@ async def test_an_amended_value_reaches_the_panel_and_the_tile_layer(publish_env
     )
 
 
+async def test_a_value_read_before_its_parcel_existed_is_matched_at_publish(publish_env):
+    """An item staged as a text reference (the plan's parcels were not on the map when the
+    document was read) is linked by its key once the parcel exists, and served; one whose
+    parcel still does not exist stays skipped."""
+    app = publish_env()
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        await reject_seeded_pending_item(app)
+        late = await insert_item(
+            app,
+            urban_parcel_id=None,
+            field_key="max_far",
+            value_number=2.9,
+            source_page=13,
+            review_state="approved",
+        )
+        nowhere = await insert_item(
+            app,
+            urban_parcel_id=None,
+            field_key="max_far",
+            value_number=1.1,
+            source_page=13,
+            review_state="approved",
+        )
+        async with app.state.session_factory() as session:
+            for item_id, label, key in ((late, "UP 13", "13"), (nowhere, "UP 999", "999")):
+                await session.execute(
+                    text(
+                        "UPDATE planning_parameter_extractions SET target_label = :label, "
+                        "target_key = :key, flags = CAST(:flags AS jsonb) WHERE id = :id"
+                    ),
+                    {
+                        "id": item_id,
+                        "label": label,
+                        "key": key,
+                        "flags": json.dumps(["target_unmatched", "low_confidence"]),
+                    },
+                )
+            await session.commit()
+        before, _ = await fields_of(client, 2)
+        job = await publish(client, "test-linked")
+        after, _ = await fields_of(client, 2)
+        items = await rows(
+            app,
+            "SELECT id, urban_parcel_id, published_value_id IS NOT NULL AS published, flags "
+            "FROM planning_parameter_extractions WHERE id IN (:a, :b) ORDER BY id",
+            a=late,
+            b=nowhere,
+        )
+
+    counts = job["result"]["counts"]
+    assert counts["items_linked"] == 1 and counts["values_published"] == 1
+    assert counts["items_skipped"] == 1
+    assert before["max_far"]["value"] != 2.9 and after["max_far"]["value"] == 2.9
+    assert after["max_far"]["source"]["page"] == 13
+    linked, skipped = items
+    assert linked["urban_parcel_id"] == 2 and linked["published"]
+    assert linked["flags"] == ["low_confidence"]  # no longer an unmatched reference
+    assert skipped["urban_parcel_id"] is None and not skipped["published"]
+    assert "target_unmatched" in skipped["flags"]
+
+
 async def test_a_failed_publish_leaves_no_archive_behind(publish_env, storage, monkeypatch):
     """The flip fails after the upload: the version is rolled back with the transaction and the
     archive it uploaded is deleted again, so the bucket holds nothing the map could never serve."""
@@ -514,24 +580,26 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
         cadastral_batch = await stage(app, "cadastral_parcels", [("Test KO|77|", SQUARE, parcel)])
         # a land-use polygon of its own, and two the georeferencing staged for planned parcels
         # (keyed "<document id>|<urban parcel number>"): UP 12 has a published land use, UP 13
-        # has none
+        # has none; and one outside every plan's coverage
+        land_use = {"code": "S", "name": "Stanovanje", "category": "residential"}
         land_use_batch = await stage(
             app,
             "land_use",
             [
-                ("lu-1", SQUARE, {"code": "S", "name": "Stanovanje", "category": "residential"}),
+                ("lu-1", COVERED_SQUARE, land_use),
                 (
                     "2|UP 12",
-                    SQUARE,
+                    COVERED_SQUARE,
                     {"code": "SD", "name": "stanovanje sa djelatnostima", "document_id": 2}
                     | {"urban_parcel_number": "12"},
                 ),
                 (
                     "2|UP 13",
-                    SQUARE,
+                    COVERED_SQUARE,
                     {"code": "S", "name": "stanovanje", "document_id": 2}
                     | {"urban_parcel_number": "13"},
                 ),
+                ("lu-outside", SQUARE, land_use),
             ],
         )
         assert sorted(await approve_geometry(client)) == [cadastral_batch, land_use_batch]
@@ -564,7 +632,7 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
         )
 
     assert first["counts"]["batches_published"] == 2
-    assert first["counts"]["geometry"] == {"cadastral_parcels": 1, "land_use": 3}
+    assert first["counts"]["geometry"] == {"cadastral_parcels": 1, "land_use": 4}
     assert first["counts"]["cadastral_unmatched"] >= 1  # the corner parcel has no plan
     assert inserted["street_address"] == "Nova 1" and inserted["area_m2"] > 0
     first_run = tiles.runs[-2]
@@ -578,7 +646,7 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
     # that are not one of those parcels. UP 12's staged polygon is left out (the parcel is
     # drawn once, from its published value); UP 13 has no published land use, so its staged
     # polygon is drawn, classed by its name with the profile's rules; a polygon's own category
-    # stays.
+    # stays. The polygon outside every live coverage is not drawn (the base map alone there).
     staged = {
         f["properties"]["feature_key"]: f
         for f in first_run["land_use"]
@@ -595,7 +663,7 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
 
     assert updated["id"] == inserted["id"] and updated["street_address"] == "Nova 2"
     assert updated["area_m2"] > inserted["area_m2"]
-    assert second["counts"]["geometry"] == {"cadastral_parcels": 1, "land_use_carried": 3}
+    assert second["counts"]["geometry"] == {"cadastral_parcels": 1, "land_use_carried": 4}
     # carried forward without a new batch
     assert len([f for f in tiles.layers["land_use"] if "feature_key" in f["properties"]]) == 2
     assert [(b["status"], b["published_version_id"] is not None) for b in batches] == [
@@ -605,10 +673,10 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
     ]
     assert batches[0]["id"] == cadastral_batch and batches[1]["id"] == land_use_batch
     assert [(f["publish_version_id"] == first["version_id"], f["layer_id"]) for f in features] == [
-        *[(True, "land_use")] * 3,
-        *[(False, "land_use")] * 3,
+        *[(True, "land_use")] * 4,
+        *[(False, "land_use")] * 4,
     ]
-    assert features[3]["publish_version_id"] == second["version_id"]
+    assert features[4]["publish_version_id"] == second["version_id"]
 
 
 # --- idempotency and retention --------------------------------------------------------------------

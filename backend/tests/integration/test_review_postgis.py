@@ -452,6 +452,42 @@ async def test_corrections_follow_the_extraction_contract(review_app):
 # --- counters -------------------------------------------------------------------------------------
 
 
+async def test_an_impossible_extracted_value_cannot_be_approved(review_app):
+    """A value the formulas could never run on (a site coverage above 100 %, a negative index)
+    is not approvable as extracted: it is corrected or rejected, so it cannot reach the map."""
+    app = review_app
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        coverage = await insert_item(
+            app, field_key="max_site_coverage_pct", value_number=120, unit="%", source_page=13
+        )
+        far = await insert_item(app, field_key="max_far", value_number=-1, source_page=13)
+        full = await insert_item(
+            app, field_key="max_site_coverage_pct", value_number=100, unit="%", source_page=13
+        )
+
+        async def approve(item_id: int):
+            return await client.post(f"/v1/admin/review/{item_id}/approve", json={}, headers=auth())
+
+        refused, negative, accepted = (
+            await approve(coverage),
+            await approve(far),
+            await approve(full),
+        )
+        rejected = await client.post(
+            f"/v1/admin/review/{coverage}/reject",
+            json={"note": "the table prints an index above 1"},
+            headers=auth(),
+        )
+
+    assert refused.status_code == 422, refused.text
+    problem = refused.json()["error"]["details"][0]
+    assert problem["type"] == "above_maximum" and "Amend it or reject it" in problem["msg"]
+    assert negative.status_code == 422
+    assert negative.json()["error"]["details"][0]["type"] == "below_minimum"
+    assert accepted.status_code == 200, accepted.text
+    assert rejected.status_code == 200, rejected.text
+
+
 async def test_document_counters_and_the_publish_rule(review_app):
     app = review_app
     async with app.router.lifespan_context(app), make_client(app) as client:

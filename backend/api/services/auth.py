@@ -3,7 +3,9 @@
 ``request(email, language)`` queues the ``magic_link`` e-mail for an active staff user, written
 in the language the console was in, and answers the same way whether or not the address is known
 (no enumeration); the route runs it after its
-neutral 202 has been sent, so the time taken says nothing either. The worker mints the single-use
+neutral 202 has been sent, so the time taken says nothing either. While a link sent within
+``MAGIC_LINK_MIN_INTERVAL_SECONDS`` is still unused, asking again sends no second e-mail.
+The worker mints the single-use
 token (hash in ``staff_login_tokens``, ``MAGIC_LINK_EXPIRES_SECONDS``) and sends the link
 ``{ADMIN_BASE_URL}/login?token=…``. ``exchange(token)`` consumes the token once, opens a staff
 session (``staff_sessions``, ``STAFF_SESSION_DAYS``) and returns the bearer token the admin panel
@@ -30,6 +32,19 @@ ACCEPTED = MagicLinkAccepted(
 )
 FIND_USER_SQL = text(
     "SELECT id, email FROM staff_users WHERE municipality_id = :m AND email = :email AND is_active"
+)
+# A link e-mailed to the user within the window that nobody has used yet (or one still queued).
+PENDING_LINK_SQL = text(
+    """
+    SELECT 1 FROM email_log l
+    WHERE l.municipality_id = :m AND l.user_id = :user_id AND l.template = 'magic_link'
+      AND l.created_at > now() - make_interval(secs => :seconds)
+      AND (l.status = 'queued'
+           OR (l.status = 'sent' AND EXISTS (
+                 SELECT 1 FROM staff_login_tokens t
+                 WHERE t.email_log_id = l.id AND t.used_at IS NULL AND t.expires_at > now())))
+    LIMIT 1
+    """
 )
 TOKEN_SQL = text(
     """
@@ -67,12 +82,14 @@ class MagicLinkService:
         emails: EmailService,
         municipality_id: str,
         session_ttl_days: int = 1,
+        min_interval_seconds: int = 60,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.session_factory = session_factory
         self.emails = emails
         self.municipality_id = municipality_id
         self.session_ttl = timedelta(days=int(session_ttl_days))
+        self.min_interval_seconds = int(min_interval_seconds)
         self.clock = clock
 
     async def request(self, email: str, language: str | None = None) -> MagicLinkAccepted:
@@ -87,7 +104,21 @@ class MagicLinkService:
                 .mappings()
                 .first()
             )
+            pending = False
             if user is not None:
+                # Asking again while a link sent in the last minute is still unused sends nothing
+                # more: the sign-in form cannot flood a staff inbox or the mail account's quota.
+                if self.min_interval_seconds > 0:
+                    pending = (
+                        await session.execute(
+                            PENDING_LINK_SQL,
+                            {
+                                "m": self.municipality_id,
+                                "user_id": int(user["id"]),
+                                "seconds": self.min_interval_seconds,
+                            },
+                        )
+                    ).first() is not None
                 await write_audit(
                     session,
                     municipality_id=self.municipality_id,
@@ -95,9 +126,10 @@ class MagicLinkService:
                     actor=normalised,
                     entity_type="staff_user",
                     entity_id=int(user["id"]),
+                    details={"sent": False, "reason": "link_pending"} if pending else None,
                 )
                 await session.commit()
-        if user is not None:
+        if user is not None and not pending:
             await self.emails.queue(
                 template="magic_link",
                 to=user["email"],

@@ -16,6 +16,7 @@ half away from zero on the shortest decimal representation.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
@@ -87,6 +88,9 @@ class ReasonCode(StrEnum):
     area_unknown = "area_unknown"
     far_not_stated = "far_not_stated"
     coverage_not_stated = "coverage_not_stated"
+    # the adapter's own: the plan states the figure, but the formulas cannot run on it
+    far_not_usable = "far_not_usable"
+    coverage_not_usable = "coverage_not_usable"
     requires_gfa = "requires_gfa"
     no_market_data = "no_market_data"  # params: {zone_name}
     no_market_data_zone_unknown = "no_market_data_zone_unknown"
@@ -301,11 +305,17 @@ def _market_reason(
     return code.value, dict(market_reason_params or {})
 
 
-def _field(shared_field: Mapping[str, Any], key: str, market_reason: tuple | None) -> FieldRange:
+def _field(
+    shared_field: Mapping[str, Any],
+    key: str,
+    market_reason: tuple | None,
+    unusable: Mapping[str, str] | None = None,
+) -> FieldRange:
     reason = shared_field["reason"]
     params: dict[str, Any] | None = None
     if reason is not None:
         params = dict(market_reason[1]) if market_reason and reason == market_reason[0] else {}
+        reason = (unusable or {}).get(reason, reason)
     return FieldRange(
         key=key,
         status=shared_field["status"],
@@ -316,6 +326,17 @@ def _field(shared_field: Mapping[str, Any], key: str, market_reason: tuple | Non
         expected=shared_field["expected"],
         high=shared_field["high"],
     )
+
+
+def _usable(value: float | None, *, maximum: float | None = None) -> float | None:
+    """A published planning figure the formulas can run on, else ``None`` (not stated for the
+    calculation). The engine refuses a negative index or a site coverage above 100 % outright;
+    a plan can print one (UP F3360/1 of Stara Varoš states the index 1.2), and one such value
+    must not fail the parcel's whole panel: the value is still shown as published, with its
+    source, and the figures that need it say they cannot be calculated."""
+    if value is None or not math.isfinite(value) or value < 0:
+        return None
+    return None if maximum is not None and value > maximum else value
 
 
 def compute_feasibility(
@@ -337,10 +358,18 @@ def compute_feasibility(
     reason code other than the two market codes raises ``ValueError``.
     """
     market_reason = _market_reason(market, market_reason_code, market_reason_params)
+    far = _usable(max_far)
+    coverage = _usable(max_site_coverage_pct, maximum=100.0)
+    # the engine says "not stated" for a figure it was not given: say what is true of these
+    unusable: dict[str, str] = {}
+    if max_far is not None and far is None:
+        unusable[ReasonCode.far_not_stated.value] = ReasonCode.far_not_usable.value
+    if max_site_coverage_pct is not None and coverage is None:
+        unusable[ReasonCode.coverage_not_stated.value] = ReasonCode.coverage_not_usable.value
     inputs = shared_inputs(
         basis_area_m2,
-        max_far,
-        max_site_coverage_pct,
+        far,
+        coverage,
         market,
         calculation_basis=calculation_basis,
         saleable_share=assumptions.saleable_share,
@@ -372,9 +401,11 @@ def compute_feasibility(
         ),
     )
     return FeasibilityResult(
-        fields=tuple(_field(fields[SHARED_KEY[key]], key, market_reason) for key in FIELD_KEYS),
+        fields=tuple(
+            _field(fields[SHARED_KEY[key]], key, market_reason, unusable) for key in FIELD_KEYS
+        ),
         cost_rows=tuple(
-            _field(fields[SHARED_KEY[key]], key, market_reason) for key in COST_ROW_KEYS
+            _field(fields[SHARED_KEY[key]], key, market_reason, unusable) for key in COST_ROW_KEYS
         ),
         assumptions_used=assumptions_used,
         formula_version=result["formula_version"],

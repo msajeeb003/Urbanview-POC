@@ -10,6 +10,12 @@ If Redis is slow or unreachable the limiter *fails open*: each Redis call has a 
 (a small circuit breaker) so an outage costs one warning per cooldown, not seconds per request.
 Availability of the public map (under two seconds to a populated panel) matters more than strict
 throttling.
+
+Behind the proxy (``trust_proxy_headers``) every public request carries ``X-Forwarded-For``. One
+without it did not come through the proxy: it is the site's own server rendering a page or the
+staff console (signed-in staff), calling the API inside the deployment. Those calls are not
+counted: they have no client address of their own, so together they would share, and exhaust,
+one bucket (the console re-reads its pages every few seconds while a job runs).
 """
 
 from __future__ import annotations
@@ -60,11 +66,12 @@ class RateLimitMiddleware:
     def is_exempt(self, path: str) -> bool:
         return any(path == p or path.startswith(p + "/") for p in self.exempt_paths)
 
-    def client_ip(self, scope: Scope) -> str:
+    def client_ip(self, scope: Scope) -> str | None:
+        """The client to count the request against; ``None`` for a call from inside the
+        deployment (behind the proxy, no ``X-Forwarded-For``), which is not limited."""
         if self.trust_proxy_headers:
             forwarded = Headers(scope=scope).get("x-forwarded-for")
-            if forwarded:
-                return forwarded.split(",")[0].strip()
+            return forwarded.split(",")[0].strip() if forwarded else None
         client = scope.get("client")
         return client[0] if client else "unknown"
 
@@ -80,6 +87,11 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
+        ip = self.client_ip(scope)
+        if ip is None:
+            await self.app(scope, receive, send)
+            return
+
         now_exact = self.clock()
         if now_exact < self._fail_open_until:
             # Circuit open after a recent Redis failure: skip the limiter until the cooldown ends.
@@ -92,7 +104,6 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
-        ip = self.client_ip(scope)
         now = int(now_exact)
         window_start = now - (now % self.window_seconds)
         reset_at = window_start + self.window_seconds

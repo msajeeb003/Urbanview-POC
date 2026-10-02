@@ -54,6 +54,7 @@ from api.services.audit import write_audit
 from core.cadastre.dataset import apply_cadastral_datasets
 from core.choropleth import compute_choropleth
 from core.engine.shared import FORMULA_VERSION
+from core.extraction.normalise import Conventions, block_key, parcel_key
 from core.gis.georef.stage import apply_georef_datasets
 from core.parcel_links import LinkRules, recompute_parcel_links
 from core.zones.staging import apply_zone_datasets
@@ -325,6 +326,41 @@ GAPS_SQL = text(
           AND (l.document_scope IS NULL OR v.document_id = l.document_scope))
     """
 )
+# Review items staged as text references: their parcel or block was not on the map when the
+# document was read (``target_key`` holds the printed number, normalised).
+UNLINKED_ITEMS_SQL = text(
+    """
+    SELECT e.id, e.document_id, e.entity_type, e.target_key
+    FROM planning_parameter_extractions e
+    JOIN planning_documents d ON d.id = e.document_id AND d.is_current_version
+    WHERE e.municipality_id = :m AND e.superseded_at IS NULL AND e.published_value_id IS NULL
+      AND e.target_key IS NOT NULL
+      AND ((e.entity_type = 'urban_parcel' AND e.urban_parcel_id IS NULL)
+           OR (e.entity_type = 'block' AND e.block_id IS NULL))
+    ORDER BY e.document_id, e.id
+    """
+)
+DOCUMENT_PARCELS_SQL = text(
+    "SELECT id, urban_parcel_number FROM urban_parcels "
+    "WHERE municipality_id = :m AND document_id = :document_id ORDER BY id"
+)
+DOCUMENT_BLOCKS_SQL = text(
+    """
+    SELECT b.id, b.block_ref FROM urban_blocks b
+    WHERE b.municipality_id = :m
+      AND (b.id IN (SELECT u.block_id FROM urban_parcels u WHERE u.document_id = :document_id)
+           OR EXISTS (SELECT 1 FROM planning_documents d
+                      WHERE d.id = :document_id AND d.coverage_geom IS NOT NULL
+                        AND ST_Intersects(d.coverage_geom, b.geom)))
+    ORDER BY b.id
+    """
+)
+LINK_ITEM_SQL = """
+    UPDATE planning_parameter_extractions
+    SET {column} = :target,
+        flags = COALESCE(flags, '[]'::jsonb) - 'target_unmatched' - 'target_staged'
+    WHERE id = :id
+"""
 CLOSE_ITEM_SQL = text(
     "UPDATE planning_parameter_extractions "
     "SET published_value_id = :value_id, published_version_id = :version_id WHERE id = :id"
@@ -697,6 +733,7 @@ class PublishPipeline:
                         for k in (
                             "values_carried",
                             "values_published",
+                            "items_linked",
                             "items_skipped",
                             "values_rejected",
                         )
@@ -859,6 +896,45 @@ class PublishPipeline:
         )
         return next_label([r[0] for r in rows], today)
 
+    async def _link_items(self, session: AsyncSession) -> int:
+        """Match the items read before their parcel or block existed (staged as text references
+        by the extraction job) to the parcels and blocks the document has now, with the keys the
+        extraction job matches by. Without this an item read before the plan's geometry was
+        published could never be served: only a second, paid, extraction would bring it in."""
+        m = self.municipality_id
+        items = (await session.execute(UNLINKED_ITEMS_SQL, {"m": m})).mappings().all()
+        if not items:
+            return 0
+        conventions = Conventions.from_profile(m)
+        targets: dict[int, tuple[dict[str, int], dict[str, int]]] = {}
+        linked = 0
+        for item in items:
+            document_id = int(item["document_id"])
+            if document_id not in targets:
+                params = {"m": m, "document_id": document_id}
+                parcels: dict[str, int] = {}
+                for r in (await session.execute(DOCUMENT_PARCELS_SQL, params)).mappings():
+                    key = parcel_key(r["urban_parcel_number"], conventions.parcel_abbreviation)
+                    if key:
+                        parcels.setdefault(key, int(r["id"]))
+                blocks: dict[str, int] = {}
+                for r in (await session.execute(DOCUMENT_BLOCKS_SQL, params)).mappings():
+                    key = block_key(r["block_ref"], conventions.block_label_words)
+                    if key:
+                        blocks.setdefault(key, int(r["id"]))
+                targets[document_id] = (parcels, blocks)
+            parcels, blocks = targets[document_id]
+            is_parcel = item["entity_type"] == "urban_parcel"
+            target = (parcels if is_parcel else blocks).get(item["target_key"])
+            if target is None:
+                continue
+            column = "urban_parcel_id" if is_parcel else "block_id"
+            await session.execute(
+                text(LINK_ITEM_SQL.format(column=column)), {"target": target, "id": item["id"]}
+            )
+            linked += 1
+        return linked
+
     async def _publish_values(
         self,
         session: AsyncSession,
@@ -867,6 +943,7 @@ class PublishPipeline:
         outcome: PublishOutcome,
     ) -> dict[str, int]:
         m = self.municipality_id
+        linked = await self._link_items(session)
         carried = 0
         if previous_id is not None:
             result = await session.execute(
@@ -912,6 +989,7 @@ class PublishPipeline:
         return {
             "values_carried": carried,
             "values_published": published,
+            "items_linked": linked,
             "items_skipped": len(skipped),
             "values_rejected": gaps.rowcount or 0,
         }

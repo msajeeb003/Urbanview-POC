@@ -52,6 +52,15 @@ def _parcels_in(coverage: str) -> str:
           AND ST_Intersects(ST_PointOnSurface(c.geom), {coverage}))"""
 
 
+def _parcels_with_data(document: str) -> str:
+    """The parcels a visitor can open in a covered plan: the cadastral parcels in its coverage,
+    or, while no cadastral parcel is loaded there, the plan's own urban parcels (never "0
+    parcels" beside a plan whose urban parcels all open with their data)."""
+    return f"""COALESCE(NULLIF({_parcels_in(f"{document}.coverage_geom")}, 0),
+        (SELECT count(*) FROM urban_parcels u
+         WHERE u.municipality_id = :municipality_id AND u.document_id = {document}.id))"""
+
+
 _VERSION = """
 version AS (
     SELECT id, label, published_at
@@ -174,13 +183,13 @@ zone AS (
     FROM zones z
     WHERE z.id = CAST(:id AS bigint) AND z.municipality_id = :municipality_id
 ),
--- the zone's current document versions; a covered one says how many cadastral parcels it covers
+-- the zone's current document versions; a covered one says how many parcels open with data
 docs AS (
     SELECT COALESCE(jsonb_agg({_document_ref("d")} || jsonb_build_object(
                    'covered', {_covered("d")},
                    'file_available', d.file_key IS NOT NULL,
                    'parcel_count', CASE WHEN {_covered("d")}
-                                        THEN {_parcels_in("d.coverage_geom")} END)
+                                        THEN {_parcels_with_data("d")} END)
                ORDER BY CASE d.status::text WHEN 'adopted' THEN 0 WHEN 'in_progress' THEN 1
                         ELSE 2 END ASC, d.name ASC, d.id ASC), '[]'::jsonb) AS docs,
            count(*) AS documents,

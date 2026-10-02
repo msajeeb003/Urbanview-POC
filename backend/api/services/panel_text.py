@@ -115,6 +115,14 @@ REASON_TEXTS: dict[str, Bilingual] = {
     "coverage_not_stated": Bilingual(
         "site coverage not stated in plan", "indeks zauzetosti nije naveden u planu"
     ),
+    "far_not_usable": Bilingual(
+        "the FAR the plan states cannot be used in the calculation",
+        "indeks izgrađenosti iz plana ne može se koristiti u proračunu",
+    ),
+    "coverage_not_usable": Bilingual(
+        "a site coverage above 100 % cannot be used in the calculation",
+        "indeks zauzetosti iznad 100 % ne može se koristiti u proračunu",
+    ),
     "requires_gfa": Bilingual("requires max GFA", "zahtijeva maksimalnu BGP"),
     "no_market_data": Bilingual(
         "no market data for zone {zone_name}", "nema tržišnih podataka za zonu {zone_name}"

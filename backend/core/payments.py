@@ -53,7 +53,7 @@ class BankTransferProvider:
             currency="EUR",
             reference_to_quote=reference,
             note_en=(
-                f"Transfer {amount_eur:.2f} EUR to the account above and quote {reference} as the "
+                f"Transfer {amount_eur:.2f} EUR to the account shown and quote {reference} as the "
                 "payment reference. Work starts when the payment is received."
             ),
             note_me=(

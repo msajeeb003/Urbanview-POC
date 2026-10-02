@@ -6890,7 +6890,7 @@ export interface components {
             file_available: boolean;
             /**
              * Parcel Count
-             * @description Cadastral parcels (point on surface) in the coverage; null = not covered
+             * @description Parcels a visitor can open in the coverage: the cadastral parcels (point on surface) in it, or, while none is loaded there, the plan's urban parcels; null = not covered
              */
             parcel_count?: number | null;
         };

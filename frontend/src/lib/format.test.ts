@@ -35,6 +35,7 @@ describe("parseParcelNumber", () => {
     ["1042/3", { number: "1042", sub: "3" }],
     [" #1042 / 3 ", { number: "1042", sub: "3" }],
     ["parcel 77", { number: "77", sub: null }],
+    ["parcela 1042/3", { number: "1042", sub: "3" }],
   ])("%s", (input, expected) => {
     expect(parseParcelNumber(input)).toEqual(expected);
   });

@@ -121,7 +121,16 @@ function Corresponding({ data }: { data: CadastralPanelData }) {
       ))}
       {cad.cadastral_area_m2 != null && (
         <div style={{ marginTop: 11 }}>
-          <AreaCompare cadastralM2={cad.cadastral_area_m2} urbanM2={links.map((l) => l.area_m2)} label={t("cmp.miniUrban")}>
+          <AreaCompare
+            cadastralM2={cad.cadastral_area_m2}
+            // one planned parcel: its area is the basis (the area its plan states, else the drawn one)
+            urbanM2={
+              links.length === 1 && data.calculation_basis === "urban" && data.basis_area_m2 != null
+                ? [data.basis_area_m2]
+                : links.map((l) => l.area_m2)
+            }
+            label={t("cmp.miniUrban")}
+          >
             {basis}
           </AreaCompare>
         </div>

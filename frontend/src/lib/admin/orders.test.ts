@@ -127,8 +127,38 @@ describe("timeline and snapshot", () => {
       { label: "Max gross floor area", value: "3,000 m²", note: "computed" },
     ]);
     expect(snapshotFeasibility(snapshot)).toEqual([
-      { label: "ROI", value: "8% – 14.5% – 21%" },
       { label: "Saleable area", value: "2,100 m²" },
+      { label: "ROI", value: "8% – 14.5% – 21%" },
+    ]);
+    // the cost rows the figures do not repeat join them: all seven of Group 2 are listed
+    const money = (key: string, label_en: string, low: number, expected: number, high: number) => ({
+      key,
+      label_en,
+      unit: "EUR",
+      range_kind: "range",
+      status: "ok",
+      low,
+      expected,
+      high,
+    });
+    const full = {
+      feasibility: {
+        fields: [
+          money("construction_cost_eur", "Construction cost", 2271104.51, 2640819.2, 3036942.08),
+          money("profit_eur", "Potential profit", -38249.66, 1376066.4, 2804143.12),
+        ],
+        cost_rows: [
+          money("land_value_eur", "Land value", 1114095.6, 1295460, 1489779),
+          money("construction_cost_eur", "Construction cost", 2271104.51, 2640819.2, 3036942.08),
+          money("total_cost_eur", "Total cost", 3622874, 4212644, 4844541),
+        ],
+      },
+    };
+    expect(snapshotFeasibility(full)).toEqual([
+      { label: "Land value", value: "€1,114,096 – €1,295,460 – €1,489,779" },
+      { label: "Construction cost", value: "€2,271,105 – €2,640,819 – €3,036,942" },
+      { label: "Total cost", value: "€3,622,874 – €4,212,644 – €4,844,541" },
+      { label: "Potential profit", value: "−€38,250 – €1,376,066 – €2,804,143" },
     ]);
     const assumptions = snapshotAssumptions(snapshot, { saleable_share: 0.75 });
     expect(assumptions.find((r) => r.label === "Saleable share")).toEqual({ label: "Saleable share", value: "75%", note: "changed by the customer" });

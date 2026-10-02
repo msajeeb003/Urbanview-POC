@@ -249,6 +249,25 @@ demand: the analytics districts place them by their point.
   planner still confirms). The pin behind the legend (22): on a small
   window the open legend covers the map's middle, so a flown-to place now lands beside it
   (`lib/map/camera.ts` `legendOffset`).
+- **Run-time check and audit against the 42 funded rows (2026-10-02):** every row has code
+  behind it (prompt tuning is evidenced on two plans, Stara Varoš on pages 1–23 only, no
+  baseline). Fixed: the site's own calls no longer share one rate-limit bucket ("Rate
+  limiting"); a published figure the engine cannot use no longer answers 500 and cannot be
+  approved as extracted; UP F3360/1 of Stara Varoš is served as the plan prints it, IZ 120 %
+  (the index 1.2; it was 1.2 %: `prepared.served_number`); review items read before their
+  parcel existed are linked at publish; the zone panel counts a plan's urban parcels while no
+  cadastral parcel is loaded; the staff order search finds first names and the drawer lists
+  land value, design & documentation and total cost; an e-mail that cannot be built ends
+  `failed`, not `queued`; one unused sign-in link per staff address per minute
+  (`MAGIC_LINK_MIN_INTERVAL_SECONDS`); the land-use layer leaves out staged polygons outside
+  live coverage; "Open PDF" works after its link expired; `parcela 1042` is a parcel
+  reference. **Known, not changed:** a job whose worker restarts mid-run stays `running` and
+  blocks Publish until cleared by hand (do not deploy while a job runs); a published value can
+  be replaced, not withdrawn; market import and its review have routes and a CLI but no
+  console screen (figures are entered on Financial assumptions); retention after a manual
+  pointer flip can prune the version just left; explicit nulls on `PATCH /v1/admin/users/{id}`
+  and `PUT /v1/admin/assumptions/{id}` answer 500; job cost is recorded on success only;
+  `/v1/locate` states the drawn planned area; the orders list shows the newest 200.
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
   POC plans are prepared from their parameter tables by the table reader and loaded as approved
   items (see "Prepared planning values"), not AI-extracted and not reviewed item by item by an
@@ -364,7 +383,11 @@ demand: the analytics districts place them by their point.
   `range_high_factor`) and maps the result to the panel's 7 fields (`max_gfa_m2`,
   `max_coverage_area_m2`, `saleable_area_m2`, `construction_cost_eur`, `revenue_eur`,
   `profit_eur`, `roi_pct`) + 4 cost rows (`land_value_eur`, `design_documentation_eur`,
-  `construction_cost_eur`, `total_cost_eur`); it adds no formula. Ranges
+  `construction_cost_eur`, `total_cost_eur`); it adds no formula. A published figure the engine
+  refuses (a negative index, a site coverage above 100 %: UP F3360/1 of Stara Varoš prints the
+  index 1.2) is handed over as not stated (`_usable`): the panel shows the value with its
+  source, the figures that need it cannot be calculated (the adapter's own reason codes
+  `far_not_usable` / `coverage_not_usable`), and no request fails on it. Ranges
   (`pessimistic-pairing-v1`): every money input carries admin-supplied bounds (multiplier or
   absolute, nothing hardcoded); cost rows at their own bounds, revenue at the price bounds,
   profit low = revenue low − cost high, ROI low = profit low / cost high; the three areas are
@@ -409,7 +432,9 @@ demand: the analytics districts place them by their point.
 - **Zone and document panels** (what the public map's S3 variants show): the zone panel lists
   the zone's **current** document versions, each with `covered` (adopted, live, current, with
   coverage: the rule of locate and the tiles), `file_available` (PDF stored) and `parcel_count`
-  (cadastral parcels whose point on surface is in the coverage; null when not covered); `zone`
+  (the parcels a visitor can open there: the cadastral parcels whose point on surface is in the
+  coverage, or, while no cadastral parcel is loaded there, the plan's own urban parcels; null
+  when not covered); `zone`
   carries `zone_type`, `counts.covered` the covered documents. The document panel's `document`
   carries `file_available`; its `zones` carry `zone_type`. Every `DocumentRef`
   carries `adopted_on` (migration 0016, nullable, entered at registration: `DocumentIn.adopted_on`,
@@ -806,7 +831,9 @@ demand: the analytics districts place them by their point.
   value and unit, the `normalisation` rules, the counted `floors`, the `land_use_class`, the
   `table` cell (null for manual and seeded items). Tests:
   `tests/integration/test_review_queue_postgis.py`.
-- **Decisions never overwrite the AI value.** `POST .../approve` accepts it, `.../amend`
+- **Decisions never overwrite the AI value.** `POST .../approve` accepts it (422 for a number
+  that can never be the field's value: below its minimum, a percentage above 100,
+  `corrections.refuse_impossible`: it is amended or rejected, never published), `.../amend`
   (`{value, unit?, note, confirm_out_of_range?}`) stores the correction alongside and sets
   `amended`, `.../reject` (`{note}` required) keeps it out and clears any correction. **A
   correction is checked with the extraction contract's rules** (`core/extraction/corrections.py`,
@@ -1096,7 +1123,9 @@ demand: the analytics districts place them by their point.
   (deterministic table reader, column map of `corpus.toml`, checked against the page images; no
   model), each with canonical value and unit, the value as printed, page, the cell's box (PDF
   points, bottom-left) and a note (`UP 12 – <column header>`); blank and deferred cells are left
-  out. `python -m core.extraction prepared build [--doc ID]` writes them from the gold sets and
+  out. A number above 1 in a column the corpus declares as ratios is that ratio (`served_number`:
+  UP F3360/1 of Stara Varoš prints the site coverage index 1.2, served as 120 %, not 1.2 %; the
+  build reports it, the planner should confirm it). `python -m core.extraction prepared build [--doc ID]` writes them from the gold sets and
   the PDF stage's grids (needs the source PDFs); a test holds the committed files to the gold
   sets. Today: Novi Grad 93 parcels / 450 values, Stara Varoš 560 / 2 800.
 - **Building rows** (`[document.prepared] building_rows` of the corpus document,
@@ -1186,7 +1215,7 @@ demand: the analytics districts place them by their point.
   `order.status`, a refund's with `refund_amount_eur`, `refunded_on`, `bank_reference`),
   `report_versions` and `location.cadastral_parcel_id` (the Parcel ID the map opens with
   `/?parcel=`, also for urban orders). The queue (`GET /v1/admin/orders`, newest first, filters
-  status / assignee / search) gives per order the reference, customer, `ko_and_number` and
+  status / assignee / search: reference, e-mail, first or last name, company, parcel) gives per order the reference, customer, `ko_and_number` and
   `planned_parcel` (from the order's columns and snapshot), `urban_parcel_id`, the `data_version`
   seen, price, status, placed, `turnaround_business_days`, `expected_by`, `delivered_at` and the
   assignee. `GET /v1/admin/orders/experts` (admins; 403 for the others): the active `expert` users
@@ -1239,7 +1268,9 @@ demand: the analytics districts place them by their point.
   `Message-ID`) and `provider_response`, `suppressed` with `suppressed_reason`, `failed` with
   `error` after the retries (`attempts` counted). Transient SMTP trouble (connection, timeout,
   4xx) is `TransientError` → backoff retries (`JOB_MAX_ATTEMPTS`); authentication failures,
-  5xx and refused recipients are permanent. Bodies are never stored, the subject is.
+  5xx and refused recipients are permanent. A message that cannot be built (the recipient was
+  deactivated since, the report link cannot be signed) ends `failed` too, never left `queued`.
+  Bodies are never stored, the subject is.
 - **Templates** (`core/mail/templates/*.j2`, Jinja2, `StrictUndefined`, HTML auto-escaped):
   `payment_instructions` (reference, location, price, beneficiary / IBAN / bank / SWIFT /
   amount / payment reference, turnaround + expected date, status URL, support inbox),
@@ -1280,7 +1311,9 @@ demand: the analytics districts place them by their point.
   {token}` consumes it once and returns a staff session bearer token (`staff_sessions`,
   `STAFF_SESSION_DAYS`, default 1: as long as the console's sign-in, `AUTH_SESSION_MAX_AGE` 24 h;
   `core.staff token --days` for scripts, default 1) with the user; 401 for unknown / used /
-  expired. Audited
+  expired. While a link e-mailed within `MAGIC_LINK_MIN_INTERVAL_SECONDS` (60) is still unused,
+  asking again sends no second e-mail (same 202; audited with `details.reason = link_pending`).
+  Audited
   `auth.magic_link_requested`, `auth.login`. Without SMTP (a fresh server) `python -m core.staff
   login-link --email … [--create --role admin]` mints the same single-use token from the command
   line (no `email_log` row) and prints the link once; audited `auth.login_link_issued` (actor
@@ -1440,7 +1473,10 @@ demand: the analytics districts place them by their point.
   forward for current document versions, overridden by approved / amended items: amended value
   wins, unit `COALESCE(amended, extracted)`, every row cites the item's page; items closed with
   `published_value_id` and `published_version_id`; items without a page / value or with a
-  parcel–document mismatch are listed in `result.skipped_items` and stay open;
+  parcel–document mismatch are listed in `result.skipped_items` and stay open; first the step
+  links the items read before their parcel or block existed (text references with a
+  `target_key`) to the parcels and blocks the document has now, `items_linked`: without it
+  they could never be served;
   expert-rejected fields that nothing replaced become
   `planning_value_gaps` rows of the version, counted as `values_rejected`, so the parcel panel can
   say `rejected` without reading staging)
@@ -1863,6 +1899,10 @@ line and in `scope.state`; it sets `X-Request-ID`,
 **Rate limiting.** `RateLimitMiddleware`: per client IP, fixed window in Redis, 429 in the
 envelope with `Retry-After` + `X-RateLimit-*`, `/health*` exempt, fails **open, fast** (250 ms
 budget per Redis call + 5 s circuit breaker), `TRUST_PROXY_HEADERS` gates `X-Forwarded-For`.
+Behind the proxy a request without `X-Forwarded-For` did not come through it: it is the site's
+own server (page rendering, the staff console's server-side calls) and is not counted
+(2026-10-02: those calls shared one bucket, and the Documents page's 3 s auto-refresh while a job
+ran used all of it, so the console answered "The data service did not answer").
 Middleware order (outermost first): RequestContext → CORS → RateLimit → routes.
 
 **Jobs.** Queues `default`, `extraction`, `geo`, `publish`, `email`; every task is a

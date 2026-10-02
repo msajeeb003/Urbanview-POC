@@ -28,6 +28,7 @@ from core.extraction.prepared import (
     prepared_path,
     read_prepared,
     save_prepared,
+    served_number,
 )
 
 FIELDS = ["block_ref", *PLANNING_FIELDS]
@@ -272,14 +273,36 @@ def test_the_committed_data_files_state_what_the_gold_sets_state(document_id):
                     None,
                 ), (ours.number, name)
             else:
+                numeric = isinstance(value.value, int | float)
                 assert (mine.value, mine.unit, mine.page, mine.printed, mine.cell) == (
-                    value.value,
+                    served_number(doc, name, value) if numeric else value.value,
                     value.unit,
                     value.page,
                     value.printed,
                     value.cell,
                 ), (ours.number, name)
             assert mine.bbox is not None and mine.note and mine.note.startswith(ours.number)
+
+
+def test_an_index_above_one_in_a_ratio_column_is_served_as_that_ratio():
+    """UP F3360/1 of Stara Varoš: the table prints the site coverage index 1.2 (and II 2.4 for
+    P+1). It is 120 %, as printed, never 1.2 %."""
+    corpus = load_corpus()
+    prepared, _ = read_prepared(prepared_path(corpus.municipality, "stara-varos"))
+    parcel = next(p for p in prepared.parcels if p.number == "F3360/1")
+    coverage = parcel.values["max_site_coverage_pct"]
+    assert (coverage.value, coverage.unit, coverage.printed) == (120.0, "%", "1.2")
+    assert parcel.values["max_far"].value == 2.4
+    # every other coverage of both plans is a share of the parcel
+    for document_id in corpus.ids:
+        data, _ = read_prepared(prepared_path(corpus.municipality, document_id))
+        above = [
+            p.number
+            for p in data.parcels
+            if isinstance(p.values.get("max_site_coverage_pct"), PreparedValue)
+            and p.values["max_site_coverage_pct"].value > 100  # type: ignore[operator]
+        ]
+        assert above == (["F3360/1"] if document_id == "stara-varos" else [])
 
 
 def test_novi_grads_building_rows_are_three_parcels():

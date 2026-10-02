@@ -33,11 +33,12 @@ function trim(n: number): string {
 }
 
 /**
- * Parcel reference typed in the search box: `1042`, `1042/3`, `#1042`, `parcel 1042/3`.
+ * Parcel reference typed in the search box: `1042`, `1042/3`, `#1042`, `parcel 1042/3`,
+ * `parcela 1042/3`.
  * The cadastral municipality (KO) is chosen from the suggestions, never guessed.
  */
 export function parseParcelNumber(input: string): { number: string; sub: string | null } | null {
-  const m = /^\s*(?:parcel\s*)?#?\s*(\d{1,6})(?:\s*\/\s*(\d{1,4}))?\s*$/i.exec(input);
+  const m = /^\s*(?:parcela?\s*)?#?\s*(\d{1,6})(?:\s*\/\s*(\d{1,4}))?\s*$/i.exec(input);
   if (!m) return null;
   return { number: m[1], sub: m[2] ?? null };
 }

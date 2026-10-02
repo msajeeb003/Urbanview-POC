@@ -278,6 +278,7 @@ LAYERS: tuple[LayerSpec, ...] = (
         }
         FROM layer_features f CROSS JOIN classes k
         WHERE f.municipality_id = :m AND f.publish_version_id = :v AND f.layer_id = 'land_use'
+          AND {point_covered("f.geom")}
           AND NOT EXISTS (
               SELECT 1 FROM inputs i
               WHERE i.land_use IS NOT NULL
@@ -285,7 +286,8 @@ LAYERS: tuple[LayerSpec, ...] = (
         """,
         "Planned land use, classed for the map's five colour groups (:land_use_categories, "
         "wording -> group, core.land_use): every planned parcel with a published land use, plus "
-        "the staged land-use polygons that are not one of those parcels (a parcel's staged "
+        "the staged land-use polygons inside live coverage that are not one of those parcels "
+        "(outside coverage the map is the base map alone; a parcel's staged "
         "polygon is keyed '<document id>|<urban parcel number>', as the georeferencing stages "
         "it), with their own category, else the class of their name or code",
     ),

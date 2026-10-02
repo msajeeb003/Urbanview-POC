@@ -172,6 +172,33 @@ def _number(
     return Correction(None, amount, spec.unit, rules=number.rules, out_of_range=out_of_range)
 
 
+def refuse_impossible(field_key: str, number: float | None) -> None:
+    """Raise for a stored number that can never be the field's value: below its minimum, or a
+    percentage above 100 (the two refusals a correction gets without a way round). Approving a
+    value as extracted is held to the same rule, so it cannot be published: the formulas could
+    not run on it."""
+    spec = FIELD_SPECS.get(field_key)
+    if spec is None or spec.kind != "number" or number is None:
+        return
+    if spec.minimum is not None and (
+        number < spec.minimum or (spec.exclusive_minimum and number == spec.minimum)
+    ):
+        word = "above" if spec.exclusive_minimum else "at least"
+        raise CorrectionRefused(
+            "below_minimum",
+            f"{number:g} is impossible here: the value must be {word} {spec.minimum:g}. "
+            "Amend it or reject it.",
+            minimum=spec.minimum,
+            exclusive=spec.exclusive_minimum,
+        )
+    if spec.percent and spec.maximum is not None and number > spec.maximum:
+        raise CorrectionRefused(
+            "above_maximum",
+            f"{number:g} % cannot be approved: a percentage is at most 100. Amend it or reject it.",
+            maximum=spec.maximum,
+        )
+
+
 def _text(value: float | int | str) -> str:
     if not isinstance(value, str):
         raise CorrectionRefused("not_a_text", "This field takes a text.")

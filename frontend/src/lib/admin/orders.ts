@@ -251,10 +251,14 @@ export interface SnapshotRow {
 }
 
 function num(n: number, unit?: string | null): string {
+  if (unit === "EUR" || unit === "€") {
+    // whole euros, the sign before the symbol
+    const euros = Math.round(n);
+    return `${euros < 0 ? "−" : ""}€${Math.abs(euros).toLocaleString("en-GB")}`;
+  }
   const s = Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toLocaleString("en-GB", { maximumFractionDigits: 2 });
   if (!unit) return s;
   if (unit === "%") return `${s}%`;
-  if (unit === "EUR" || unit === "€") return `€${s}`;
   return `${s} ${unit}`;
 }
 
@@ -277,10 +281,34 @@ export function snapshotPlanning(snapshot: Loose): SnapshotRow[] {
     });
 }
 
-/** Group 2 as the customer saw it: the ranges (low – expected – high). */
+// the order the drawer lists Group 2 in: areas, the costs, then what they are set against
+const FIGURE_ORDER = [
+  "max_gfa_m2",
+  "max_coverage_area_m2",
+  "saleable_area_m2",
+  "land_value_eur",
+  "design_documentation_eur",
+  "construction_cost_eur",
+  "total_cost_eur",
+  "revenue_eur",
+  "profit_eur",
+  "roi_pct",
+];
+
+/**
+ * Group 2 as the customer saw it: the ranges (low – expected – high). The payload's `fields` plus
+ * the cost rows they do not repeat (land value, design & documentation, total cost).
+ */
 export function snapshotFeasibility(snapshot: Loose): SnapshotRow[] {
   const block = snapshot.feasibility as Loose | null | undefined;
-  const fields = (block?.fields as Loose[] | undefined) ?? [];
+  const own = (block?.fields as Loose[] | undefined) ?? [];
+  const keys = new Set(own.map((f) => f.key));
+  const costs = ((block?.cost_rows as Loose[] | undefined) ?? []).filter((r) => !keys.has(r.key));
+  const place = (f: Loose) => {
+    const at = FIGURE_ORDER.indexOf(String(f.key));
+    return at === -1 ? FIGURE_ORDER.length : at;
+  };
+  const fields = [...own, ...costs].sort((a, b) => place(a) - place(b));
   return fields.map((f) => {
     const unit = (f.unit as string | undefined) ?? "";
     if (f.status !== "ok") return { label: String(f.label_en ?? f.key), value: "cannot calculate", note: (f.reason_en as string) ?? undefined };

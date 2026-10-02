@@ -147,9 +147,9 @@ const en = {
     "Figures are indicative ranges, not investment advice.",
 
   // "Ask about this site" (an intent button: the assistant is not built in the POC)
-  "ai.noted": "Thanks, your interest is noted.",
+  "ai.noted": "Thanks, we noted your interest in asking about this site.",
   // "Unlock full market data" (an intent button: nothing is locked or unlocked)
-  "market.noted": "Thanks, your interest is noted.",
+  "market.noted": "Thanks, we noted your interest in more market data.",
 
   // panels: frame
   "panel.close": "Close the panel",
@@ -400,8 +400,8 @@ const me: Record<StringKey, string> = {
   "disclaimer.placeholder":
     "Brojke su okvirni rasponi, nisu investicioni savjet.",
 
-  "ai.noted": "Hvala, zabilježili smo vaše interesovanje.",
-  "market.noted": "Hvala, zabilježili smo vaše interesovanje.",
+  "ai.noted": "Hvala, zabilježili smo vaše interesovanje za pitanja o ovoj lokaciji.",
+  "market.noted": "Hvala, zabilježili smo vaše interesovanje za više tržišnih podataka.",
 
   "panel.close": "Zatvori panel",
   "panel.loading": "Učitavanje…",

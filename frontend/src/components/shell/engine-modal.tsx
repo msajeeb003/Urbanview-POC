@@ -30,7 +30,10 @@ export function EngineModal({ marketSource }: { marketSource?: string | null }) 
   const inputs: [string, string][] = [
     ["Adopted planning documents", "FAR, site coverage and height per urban parcel, each with its page"],
     ["Cadastre", "parcel area: the urban parcel's first, the cadastral as fallback"],
-    ["Market sources", `${marketSource ?? "no market data for this zone yet"}: land, build, design and sale rates per zone`],
+    [
+      "Market sources",
+      marketSource ? `${marketSource}: land, build, design and sale rates per zone` : "no market data for this zone yet",
+    ],
     ["Your assumptions", "construction cost, sale price and saleable share, when you change them"],
   ];
   return (

@@ -329,6 +329,30 @@ async def test_zone_panel_centar(pg_client):
     ]
 
 
+async def test_zone_panel_counts_the_plans_urban_parcels_without_a_cadastral_base(
+    pg_conn, pg_client
+):
+    """Before the cadastral base is loaded a covered plan must not say "0 parcels with data":
+    its own urban parcels are the ones a visitor opens."""
+    await _execute(
+        pg_conn,
+        "UPDATE cadastral_parcels SET retired_at = now() WHERE municipality_id = 'podgorica'",
+    )
+    try:
+        body = await _get(pg_client, type="zone", id=1)
+        docs = {d["id"]: d for d in body["planning_documents"]}
+        assert docs[2]["covered"] and docs[2]["parcel_count"] == 5  # DUP Centar: UP 12, 13, 31 ...
+        assert docs[1]["covered"] and docs[1]["parcel_count"] == 0  # the PUP defines no parcels
+        assert docs[3]["parcel_count"] is None  # not covered
+    finally:
+        await _execute(
+            pg_conn,
+            "UPDATE cadastral_parcels SET retired_at = NULL WHERE municipality_id = 'podgorica'",
+        )
+    restored = await _get(pg_client, type="zone", id=1)
+    assert [d["parcel_count"] for d in restored["planning_documents"]] == [4, 5, None]
+
+
 async def test_zone_panel_stari_aerodrom_lists_the_superseded_plan_last(pg_client):
     body = await _get(pg_client, type="zone", id=2)
     assert body["zone"]["name"] == "Stari Aerodrom" and body["header"]["title"] == "Stari Aerodrom"

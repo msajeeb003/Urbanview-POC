@@ -71,6 +71,24 @@ async def test_forwarded_for_is_used_when_trusted():
             assert r.status_code == 429
 
 
+async def test_calls_from_inside_the_deployment_are_not_counted():
+    """Behind the proxy a request without X-Forwarded-For is the site's own server (page
+    rendering, the staff console): it shares no bucket with anyone and is never limited."""
+    app = make_app(make_settings(trust_proxy_headers=True))
+    async with app.router.lifespan_context(app):
+        async with make_client(app) as c:
+            for _ in range(10):
+                r = await c.get(URL)
+                assert r.status_code == 200 and "X-RateLimit-Limit" not in r.headers
+            # a public client, through the proxy, is limited as before
+            for _ in range(3):
+                assert (
+                    await c.get(URL, headers={"X-Forwarded-For": "198.51.100.9"})
+                ).status_code == 200
+            r = await c.get(URL, headers={"X-Forwarded-For": "198.51.100.9"})
+            assert r.status_code == 429
+
+
 async def test_limiter_can_be_disabled():
     app = make_app(make_settings(rate_limit_enabled=False))
     async with app.router.lifespan_context(app):

@@ -41,7 +41,7 @@ class Storage(FakeStorage):
         return self.objects[key][0]
 
 
-async def _no_sleep(seconds: float) -> None:
+def _no_sleep(seconds: float) -> None:
     return None
 
 

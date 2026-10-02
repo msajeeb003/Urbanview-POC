@@ -261,6 +261,34 @@ async def test_magic_link_login_is_single_use_and_short_lived(mail_env, transpor
     assert {a["actor"] for a in audit} == {"vesna@example.com"}
 
 
+async def test_a_second_link_is_not_mailed_while_the_first_is_unused(mail_env, transport):
+    """The sign-in form cannot flood a staff inbox: asking again within the interval sends
+    nothing more, and answers exactly as before."""
+    app = mail_env()
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        user_id = await create_user(
+            app.state.session_factory,
+            municipality_id="podgorica",
+            email="ana@example.com",
+            role="reviewer",
+        )
+        first = await client.post("/v1/auth/magic-link", json={"email": "ana@example.com"})
+        again = await client.post("/v1/auth/magic-link", json={"email": "ana@example.com"})
+        third = await client.post("/v1/auth/magic-link", json={"email": "Ana@Example.com"})
+
+    assert first.status_code == again.status_code == third.status_code == 202
+    assert first.json() == again.json() == third.json()
+    assert len(transport.sent) == 1
+    audit = await rows(
+        app,
+        "SELECT details FROM audit_log WHERE entity_type = 'staff_user' AND entity_id = :u "
+        "AND action = 'auth.magic_link_requested' ORDER BY id",
+        u=user_id,
+    )
+    assert len(audit) == 3
+    assert [a["details"] for a in audit[1:]] == [{"sent": False, "reason": "link_pending"}] * 2
+
+
 async def test_staging_only_mails_the_allow_list(mail_env, transport):
     app = mail_env(
         app_env="staging",

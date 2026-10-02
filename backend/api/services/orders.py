@@ -721,7 +721,8 @@ class OrderService:
         params: dict[str, Any] = {"m": self.municipality_id, "limit": limit, "offset": offset}
         clauses: list[str] = []
         if principal.role == Role.expert:
-            assignee_user_id = principal.user_id  # experts see their own orders only
+            # experts see their own orders only; an expert token without a staff user has none
+            assignee_user_id = principal.user_id if principal.user_id is not None else -1
         if status is not None:
             clauses.append("AND o.status = :status")
             params["status"] = status
@@ -730,8 +731,9 @@ class OrderService:
             params["assignee"] = assignee_user_id
         if search:
             clauses.append(
-                "AND (o.reference ILIKE :search OR o.email ILIKE :search OR o.last_name ILIKE "
-                ":search OR o.company_name ILIKE :search OR o.parcel_label ILIKE :search)"
+                "AND (o.reference ILIKE :search OR o.email ILIKE :search OR o.first_name ILIKE "
+                ":search OR o.last_name ILIKE :search OR o.company_name ILIKE :search "
+                "OR o.parcel_label ILIKE :search)"
             )
             params["search"] = f"%{search.strip()}%"
         async with self.session_factory() as session:
@@ -791,7 +793,9 @@ class OrderService:
         return row
 
     def _scope(self, principal: Principal, row: Mapping[str, Any]) -> None:
-        if principal.role == Role.expert and row["assignee_user_id"] != principal.user_id:
+        if principal.role == Role.expert and (
+            principal.user_id is None or row["assignee_user_id"] != principal.user_id
+        ):
             raise ForbiddenError(
                 "This order is not assigned to you", details={"order_id": row["id"]}
             )

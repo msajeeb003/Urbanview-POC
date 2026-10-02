@@ -126,6 +126,27 @@ def test_invalid_inputs_raise_engine_input_error():
         compute_feasibility(*UP12, CENTAR, Assumptions(saleable_share=0))
 
 
+def test_a_published_value_the_formulas_cannot_use_counts_as_not_stated():
+    """A site coverage above 100 % (a plan can print the index 1.2) or a negative index must not
+    fail the parcel's panel: the figures that need it cannot be calculated, the others still are,
+    and the inputs handed to the browser's engine are ones it accepts."""
+    result = compute_feasibility(959.6, 3.2, 120, CENTAR, Assumptions())
+    assert result.get("max_gfa_m2").expected == 3070.72
+    coverage = result.get("max_coverage_area_m2")
+    assert (coverage.status, coverage.reason_code) == ("cannot_calculate", "coverage_not_usable")
+    assert coverage.expected is None
+    assert result.engine_inputs["planning"]["site_coverage_pct"] is None
+    assert shared.calculate(result.engine_inputs)["fields"]["max_gfa"]["expected"] == 3070.72
+
+    negative = compute_feasibility(959.6, -1, 55, CENTAR, Assumptions())
+    assert negative.get("max_gfa_m2").reason_code == "far_not_usable"
+    # a figure the plan does not state is still "not stated"
+    missing = compute_feasibility(959.6, None, None, CENTAR, Assumptions())
+    assert missing.get("max_gfa_m2").reason_code == "far_not_stated"
+    assert missing.get("max_coverage_area_m2").reason_code == "coverage_not_stated"
+    assert negative.get("max_coverage_area_m2").expected == 527.78
+
+
 def test_to_dict_is_json_friendly():
     payload = compute_feasibility(*UP12, CENTAR, Assumptions()).to_dict()
     assert set(payload) == {"formula_version", "fields", "cost_rows", "assumptions_used"}

@@ -213,8 +213,12 @@ export function SourceViewer({ target }: { target: SourceTarget }) {
     const tab = window.open("about:blank", "_blank");
     if (tab) tab.opener = null;
     try {
-      // a fresh link unless the current one has more than a minute left
-      const fresh = Date.parse(meta.expires_at) - Date.now() > 60_000 ? meta : await fetchSource(target, pageNo ?? undefined);
+      // a fresh link unless the current one has more than a minute left (a value is asked for
+      // again by its id: the link of the file it cites; the page on screen goes in the anchor)
+      const fresh =
+        Date.parse(meta.expires_at) - Date.now() > 60_000
+          ? meta
+          : await fetchSource(target, "valueId" in target ? undefined : (pageNo ?? undefined));
       const url = `${fresh.url.split("#")[0]}#page=${pageNo ?? fresh.page}`;
       // a blocked pop-up leaves nothing to point at; the viewer stays as it is
       if (tab) tab.location.href = url;

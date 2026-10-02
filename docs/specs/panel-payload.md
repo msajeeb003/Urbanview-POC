@@ -307,7 +307,9 @@ Each field is `FieldRange(key, status="ok"|"cannot_calculate", reason_code, reas
 range_kind, low, expected, high)`; `low/expected/high` are numbers when ok and all null
 otherwise. Reason codes (exact): `area_unknown`, `far_not_stated`, `coverage_not_stated`,
 `requires_gfa`, `no_market_data` (params `{zone_name}`), `no_market_data_zone_unknown`,
-`total_cost_zero`. Dependency rules: no area → all fields and cost rows cannot; no FAR → gfa cannot
+`total_cost_zero`; and the adapter's own `far_not_usable` / `coverage_not_usable` for a figure the
+plan states but the formulas cannot run on (a negative index, a site coverage above 100 %: it
+is handed to the engine as not stated, so nothing fails on it). Dependency rules: no area → all fields and cost rows cannot; no FAR → gfa cannot
 and saleable/construction/revenue/profit/roi + design/total cannot (`requires_gfa`); no coverage
 → only coverage area cannot; no market → construction/revenue/profit/roi and all cost rows cannot
 (gfa, coverage, saleable still ok); total_cost = 0 → roi cannot. Result exposes `fields` (7, fixed
@@ -480,6 +482,10 @@ The two computed PlanningFields and the first two FeasibilityFields carry the sa
 Reason texts (en / me): area_unknown "parcel area unknown" / "površina parcele nije poznata";
 far_not_stated "FAR not stated in plan" / "indeks izgrađenosti nije naveden u planu";
 coverage_not_stated "site coverage not stated in plan" / "indeks zauzetosti nije naveden u planu";
+far_not_usable "the FAR the plan states cannot be used in the calculation" / "indeks izgrađenosti
+iz plana ne može se koristiti u proračunu"; coverage_not_usable "a site coverage above 100 %
+cannot be used in the calculation" / "indeks zauzetosti iznad 100 % ne može se koristiti u
+proračunu";
 requires_gfa "requires max GFA" / "zahtijeva maksimalnu BGP"; no_market_data "no market data
 for zone {zone_name}" / "nema tržišnih podataka za zonu {zone_name}"; no_market_data_zone_unknown
 "no market data (zone unknown)" / "nema tržišnih podataka (zona nepoznata)"; total_cost_zero
@@ -794,8 +800,9 @@ panels show (migration `0016_document_adopted_on`):
 - `DocumentRef.adopted_on: date | null` everywhere (adoption date, entered at registration).
 - Zone panel: `zone.zone_type`; `planning_documents` = the zone's **current** versions only, each
   a `ZonePlanningDocument` = `DocumentRef + {covered, file_available, parcel_count}` (`covered` =
-  adopted AND live AND current AND a coverage geometry; `parcel_count` = cadastral parcels whose
-  point on surface lies in the coverage, null when not covered); `counts.covered`.
+  adopted AND live AND current AND a coverage geometry; `parcel_count` = the parcels a visitor
+  can open there: cadastral parcels whose point on surface lies in the coverage, or, while none
+  is loaded there, the plan's own urban parcels; null when not covered); `counts.covered`.
 - Document panel: `document.file_available`; `zones[]` = `{id, name, zone_type}`.
 - Profile: `terminology.document_types_en` (English names shown after the abbreviation).
 - Cadastral and urban panels: `engine = {engine_version, formula_version, range_derivation,

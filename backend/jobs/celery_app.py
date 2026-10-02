@@ -3,7 +3,8 @@
 Queues: ``extraction`` (LLM document extraction), ``geo`` (geometry processing), ``publish``,
 ``email`` and ``default`` (misc), so a big GIS job never blocks a small extraction. Every task is
 a :class:`jobs.base.JobTask` fed with ``(job_id, municipality_id)``; nothing in ``jobs`` knows
-Podgorica specifically. Tests run tasks inline by setting ``task_always_eager`` on ``celery_app.conf``.
+Podgorica specifically. Tests run tasks inline by setting ``task_always_eager`` on
+``celery_app.conf``.
 
 Run a worker:  celery -A jobs.celery_app worker --loglevel=info \\
                    -Q default,extraction,geo,publish,email

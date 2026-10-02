@@ -18,6 +18,7 @@ backoff; :class:`ModelRefused`, :class:`ModelOutputInvalid` (truncated or not th
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -108,9 +109,16 @@ class ClaudeModel:
         self.effort = effort
         self.adaptive_thinking = adaptive_thinking
         self.max_tokens = max_tokens
+        self._no_key = False
         if client is None:
             import anthropic
 
+            # without a key the SDK only fails at the first request, with its own wording
+            self._no_key = not (
+                api_key
+                or os.environ.get("ANTHROPIC_API_KEY")
+                or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+            )
             client = anthropic.Anthropic(
                 api_key=api_key, base_url=base_url, timeout=timeout_seconds, max_retries=2
             )
@@ -119,6 +127,10 @@ class ClaudeModel:
     def request(
         self, system: Sequence[SystemBlock], user: str, schema: dict[str, Any]
     ) -> dict[str, Any]:
+        if self._no_key:
+            raise ModelError(
+                "AI extraction is not configured on this server: ANTHROPIC_API_KEY is not set"
+            )
         output_config: dict[str, Any] = {"format": {"type": "json_schema", "schema": schema}}
         if self.effort:
             output_config["effort"] = self.effort

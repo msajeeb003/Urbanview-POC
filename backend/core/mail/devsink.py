@@ -4,8 +4,8 @@ e-mails can be read without a mail provider. No TLS, no authentication, developm
 
     python -m core.mail.devsink [--port 1025] [--dir <folder>]
 
-Point the API at it with ``SMTP_HOST=127.0.0.1``, ``SMTP_PORT=1025``, ``SMTP_USE_TLS=false`` and run a
-worker (only the ``send_email`` job sends).
+Point the API at it with ``SMTP_HOST=127.0.0.1``, ``SMTP_PORT=1025``, ``SMTP_USE_TLS=false`` and
+run a worker (only the ``send_email`` job sends).
 """
 
 from __future__ import annotations

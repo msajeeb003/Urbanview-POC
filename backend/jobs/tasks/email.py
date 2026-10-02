@@ -42,7 +42,7 @@ from core.mail import (
 )
 from core.mail.repository import EmailLogRow, EmailRepository, SqlEmailRepository
 from core.payments import BankTransferProvider
-from jobs.base import JobContext, JobResult, JobTask, TransientError
+from jobs.base import TRANSIENT_EXCEPTIONS, JobContext, JobResult, JobTask, TransientError
 from jobs.celery_app import celery_app
 
 log = logging.getLogger("urbanview.jobs.email")
@@ -167,13 +167,20 @@ async def deliver(
     if row.status in ("sent", "suppressed"):
         return JobResult(result={"email_log_id": log_id, "status": row.status, "skipped": True})
     template = row.template
-    recipient, context, order_language = await resolve_context(
-        template, row, repo, settings, storage, clock
-    )
-    language = mail_language(
-        job.payload.get("language"), order_language, default=settings.mail_default_language
-    )
-    rendered = render(template, context, app_name=settings.mail_app_name, language=language)
+    try:
+        recipient, context, order_language = await resolve_context(
+            template, row, repo, settings, storage, clock
+        )
+        language = mail_language(
+            job.payload.get("language"), order_language, default=settings.mail_default_language
+        )
+        rendered = render(template, context, app_name=settings.mail_app_name, language=language)
+    except Exception as exc:
+        # A message that will never go out (the recipient was deactivated since, the report link
+        # cannot be signed) must not stay "queued" on the log: the order's e-mail alert reads it.
+        if not isinstance(exc, TRANSIENT_EXCEPTIONS) or job.attempts >= job.max_attempts:
+            await repo.mark_failed(log_id, f"{type(exc).__name__}: {exc}", None)
+        raise
     decision = decide(
         app_env=settings.app_env.value,
         smtp_host=settings.smtp_host,

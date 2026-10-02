@@ -46,9 +46,9 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from core.extraction.corpus import BACKEND, CorpusDocument, Gold
+from core.extraction.corpus import BACKEND, CorpusDocument, Gold, GoldValue
 from core.extraction.fields import FIELD_SPECS, RULE_FIELDS
-from core.extraction.normalise import Conventions, parcel_key
+from core.extraction.normalise import Conventions, parcel_key, parse_number
 from core.extraction.preprocess import BBox, DocumentPages
 
 PREPARED_FORMAT = 1
@@ -132,6 +132,23 @@ def read_prepared(path: Path) -> tuple[PreparedDocument, str]:
 _CELL = re.compile(r"^r\d+c(\d+)$")
 
 
+def served_number(doc: CorpusDocument, name: str, stated: GoldValue) -> float:
+    """The number a stated gold value is served as. A percentage printed as a ratio is already a
+    percentage in the gold set (0.4 is 40 %), except a ratio above 1: the reader's rule keeps
+    such a number as it is and flags it for a reviewer ("a share above 1 cannot be a ratio"),
+    whom the prepared values do not have. In a column the document's map declares as ratios it
+    is that ratio: the index 1.2 is 120 %, as the plan prints it, and not 1.2 %."""
+    value = float(stated.value)  # type: ignore[arg-type]
+    if not FIELD_SPECS[name].percent:
+        return value
+    if not any(c.field == name and c.unit == "ratio" for c in doc.labelling.columns):
+        return value
+    printed = parse_number(stated.printed)
+    if printed is None or printed.unit_hint is not None:
+        return value
+    return value * 100 if float(printed.value) == value > 1 else value
+
+
 def build_prepared(
     doc: CorpusDocument,
     gold: Gold,
@@ -174,8 +191,14 @@ def build_prepared(
                 column = table.columns[index] if index < len(table.columns) else None
                 if " ".join(cell.text.split()) != " ".join(stated.text.split()):
                     problems.append(f"{where}: the cell reads {cell.text!r}, not {stated.text!r}")
+            number = served_number(doc, name, stated) if numeric else None
+            if number is not None and number != float(stated.value):  # type: ignore[arg-type]
+                problems.append(
+                    f"{where}: {stated.printed!r} in a ratio column is {number:g} %, above 100 "
+                    "(kept as the plan prints it; the planner should confirm it)"
+                )
             values[name] = PreparedValue(
-                value=float(stated.value) if numeric else str(stated.value),
+                value=number if number is not None else str(stated.value),
                 unit=stated.unit,
                 printed=stated.printed,
                 page=stated.page,

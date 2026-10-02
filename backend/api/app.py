@@ -199,6 +199,7 @@ def create_app(
                 emails=app.state.email_service,
                 municipality_id=municipality.id,
                 session_ttl_days=settings.staff_session_days,
+                min_interval_seconds=settings.magic_link_min_interval_seconds,
             )
             # a saved / retired market set that applies today rebuilds the sale-price heatmap
             publish_service = app.state.publish_service

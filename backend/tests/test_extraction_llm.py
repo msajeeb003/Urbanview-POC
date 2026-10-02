@@ -234,6 +234,15 @@ def test_the_wire_request_through_the_real_sdk():
     assert body["messages"] == [{"role": "user", "content": "the pages"}]
 
 
+def test_a_server_without_a_key_says_so_in_plain_words(monkeypatch):
+    pytest.importorskip("anthropic")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    model = ClaudeModel(api_key=None)
+    with pytest.raises(ModelError, match="ANTHROPIC_API_KEY is not set"):
+        model.request([], "page text", {"type": "object"})
+
+
 def test_the_scripted_model_replays_and_records():
     model = ScriptedModel([{"entries": []}])
     assert model.complete(system=SYSTEM, user="p", schema=SCHEMA).data == {"entries": []}

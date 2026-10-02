@@ -40,7 +40,8 @@ selectors.
   structure): explanatory paragraphs are one short sentence or gone, and the UI makes no
   statement about AI or language models. Shortened: the empty panel's body, the disclaimer
   placeholder ("Figures are indicative ranges, not investment advice."), both intent toasts
-  ("Thanks, your interest is noted."), the urban-parcel card and "Not defined" texts, the engine
+  (each still says what was noted: "…in more market data" / "…in asking about this site"), the
+  urban-parcel card and "Not defined" texts, the engine
   strip and modal, the methodology's lead, the order form's lead / context strip / guest note /
   pricing note ("Priced by parcel size: …"), the order failures and the order page's leads, and
   the admin cards' sub-lines. Removed: the zone panel's "In Montenegro a zone isn't…" paragraph.
@@ -282,7 +283,7 @@ coverage), title, mono sub-label.
   `Zone · outside coverage · no adopted plan`. Pick = frame the zone's bbox and select it
   (`{kind: "zone"}`, the S3 zone panel); a zone without an adopted plan shows the S6 pill first,
   then the panel's "No adopted plan" state.
-- **Parcel reference:** `1042`, `1042/3`, `#1042`, `parcel 1042/3`, optionally followed by KO text
+- **Parcel reference:** `1042`, `1042/3`, `#1042`, `parcel 1042/3`, `parcela 1042/3`, optionally followed by KO text
   (`1042/3 Podgorica II`, `1042, pod 2`, digits read as Roman numerals). Text after the number
   that names no KO makes it an address query. Row `Parcel #1042/3` with sub `Cadastral ref ·
   <KO>` when the KO is settled (a unique match, or a single-KO municipality), else `Cadastral ref ·
@@ -386,7 +387,8 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   value is framed at once even while a heavy page is still drawing (2026-10-02).
   Controls: ‹ page input "of N" ›, − zoom %
   + (50–400 %), ← → keys, "Open PDF ↗" (the whole document at `#page=N` in a new tab; a fresh
-  link when the current one expires within a minute); a typed page beyond the last snaps back
+  link when the current one expires within a minute: a value's by its value id, so the file it
+  cites); a typed page beyond the last snaps back
   with "This document has 24 pages." beside the input. An expired link (403) is re-fetched once,
   silently. Loading: a page-shaped shimmer. Failure says why, never in red (`sourceFailure` in
   `lib/source-text.ts`, from the 404's details): "The PDF of this document is not stored in
@@ -409,8 +411,9 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   planned parcel over it (the first with the mock's text, every card with how much of the parcel
   it covers, m² and %), a click opens that urban parcel's panel (`selectLinkedParcel`,
   `parcel_selected {via: panel}`), then the comparison card (`Cadastral 1,370.9 m² → urban 959.6
-  m². −30% taken for roads / public space.`; a split lists every planned area and takes the
-  delta on their total; a planned parcel as large or larger says so, never a silent zero) ending
+  m². −30% taken for roads / public space.`; one planned parcel is compared by its basis
+  area, `basis_area_m2`: the area its plan states, as the urban panel; a split lists every
+  planned area and takes the delta on their total; a planned parcel as large or larger says so, never a silent zero) ending
   with the area the calculations use (`BasisLine`: the urban parcel's, for a split the one
   covering the largest share), then the data version line. No planned parcel: "Not defined" card
   (mock text). No adopted plan: a "No adopted plan" card with the API's coverage note (the S6
@@ -818,7 +821,9 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   replacing a delivered report needs a note); E-mails (template, status chip, recipient, time,
   error / suppression reason); "What the customer saw" (the snapshot, read-only: data,
   market and formula versions, planning values with their pages, the assumptions with "changed
-  by the customer", the Group 2 ranges); Timeline (the order's audit entries in plain words,
+  by the customer", the Group 2 ranges: the payload's figures plus the cost rows they do not
+  repeat, land value, design & documentation and total cost, in whole euros,
+  `snapshotFeasibility`); Timeline (the order's audit entries in plain words,
   `eventLine`, with actor and note). Every button follows the API's status flow
   (`allowed(order, action, role)` → visible / enabled / reason, the tooltip of a disabled one);
   an expert gets the report upload only (payment and assignment are not rendered, and the API

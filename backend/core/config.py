@@ -133,6 +133,9 @@ class Settings(BaseSettings):
     mail_allowlist: Annotated[list[str], NoDecode] = []
     admin_base_url: str = "http://localhost:3000/admin"  # magic links point here (the console)
     magic_link_expires_seconds: int = Field(default=900, ge=60, le=3600)
+    # asking for a sign-in link again within this time, while the last one is unused, sends no
+    # second e-mail (0 = every request sends one)
+    magic_link_min_interval_seconds: int = Field(default=60, ge=0, le=3600)
     # the admin console's backend session (magic-link exchange): as long as its sign-in,
     # AUTH_SESSION_MAX_AGE (24 h)
     staff_session_days: int = Field(default=1, ge=1, le=365)
