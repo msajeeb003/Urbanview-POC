@@ -35,6 +35,17 @@ about 10 m. Two ways to do better:
 - **A better operation for GDAL.** Put it in `georef.transform` (an ogr2ogr `-ct` string, e.g. a
   Helmert fitted on common points), or pass it with `apply --ct`.
 
+**State the operation once a plan is published.** Without `georef.transform` PROJ picks the
+operation, and its versions pick differently: the server's PROJ converted the live Novi Grad data
+with EPSG:9486 ("MGI 1901 to WGS 84 (15)", coordinate frame, published for Serbia), PROJ 8.2
+takes EPSG:3964, 2.8 m to the east-north-east, and EPSG:3965 lies 12.9 m away. Measured on
+2026-10-02 against six live parcels whose shape did not change, EPSG:9486 as a pipeline
+reproduces the served coordinates to 3 mm. The Novi Grad rules now carry that pipeline, so a
+re-run puts the plan exactly where the published data is, on any machine. The pipeline ends in
+`+proj=axisswap +order=2,1`: ogr2ogr feeds it easting, northing and expects EPSG:4326's own axis
+order back. A wrong order cannot pass unnoticed (the staging refuses a dataset outside the
+municipality's extent).
+
 The staging measures what is left: the mean vector from the plan's vertices to the cadastral
 vertices they follow (see *Snapping*).
 
@@ -195,7 +206,10 @@ The tooling, tests and admin display are done.
   axes lie a median 2.0–2.7 m from OpenStreetMap's centre lines of Moskovska, Svetozara
   Markovića, Vasa Raičkovića and 13. jula (no systematic shift beyond 3 m: PROJ's EPSG:3908 datum
   shift is enough here until UZN's parameters arrive). The vertex table on sheet 10 is drawn in
-  outlines, not text, so it could not be used as a check.
+  outlines, not text, so it could not be used as a check. 2026-10-02: the parcels are extracted
+  anew (building outlines, numbered vertices: 93 parcels instead of 91, see the rules file) and
+  the rules state the datum operation the first run used (EPSG:9486): the 40 parcels whose shape
+  did not change land within 5 cm of where they are served.
 - **Stara Varoš: georeferenced.** Sheets displayed north-up (no /Rotate), parts 1 and 2 in one
   local frame by their offsets, the land-use sheet (no grid) placed by its offset against part 1.
   The obvious seed misled: the sheet's "stari most" label read as the Tabački most put the seed

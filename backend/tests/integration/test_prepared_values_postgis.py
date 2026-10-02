@@ -1,8 +1,9 @@
 """Prepared planning values on PostGIS (``core.extraction.prepared``): the values of a parameter
 table staged as approved items of one ``table-reader`` run; the model's pending reading of the
 same file superseded and compared; a parcel without geometry reported; the same data loaded
-twice changing nothing; a corrected data file retiring the unpublished decision it replaces;
-the items eligible for the publish job; the audit row; a dry run and the refusals."""
+twice changing nothing, and adding only a parcel drawn in between (decisions made since stand);
+a corrected data file retiring the unpublished decision it replaces; the items eligible for the
+publish job; the audit row; a dry run and the refusals."""
 
 from __future__ import annotations
 
@@ -190,6 +191,80 @@ async def test_prepared_values_replace_the_pending_reading(env):  # noqa: F811
     assert {e["source_file_id"] for e in eligible} == {document["files"][0]["file_id"]}
     floors = [e for e in eligible if e["field_key"] == "max_floors"]
     assert sorted(e["value_text"] for e in floors) == ["P+2", "P+3", "Po+P+7", "S+P+4+Pk"]
+
+
+async def test_the_same_data_again_adds_only_a_parcel_drawn_since(env):  # noqa: F811
+    """UP 5 is in the table and had no geometry at the first load. Once it is drawn, the same
+    data file gives it its values; the parcels the first load placed are not stated again, so
+    an expert's correction and rejection made in between stand."""
+    from tests.pdf_synthetic import planning_pdf
+
+    pdf = planning_pdf()
+    doc, gold, pages = synthetic_prepared(pdf)
+    prepared, _ = build_prepared(doc, gold, pages, municipality="podgorica")
+    app = env(Transcriber())
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        document_id = await register(client, pdf)
+        await draw_parcels(app, document_id)
+        factory = app.state.session_factory
+        load = dict(
+            municipality_id="podgorica",
+            document_id=document_id,
+            prepared=prepared,
+            data_sha256="a" * 64,
+            by="cli",
+        )
+        first = await load_prepared(factory, **load)
+        by_target = {(r["target_label"], r["field_key"]): r for r in await items(app, document_id)}
+        amended, rejected = by_target["UP 1", "max_far"], by_target["UP 2", "max_floors"]
+        r = await client.post(
+            f"/v1/admin/review/{amended['id']}/amend",
+            json={"value": "2,5", "note": "the plan's text states 2,5"},
+            headers=auth(),
+        )
+        assert r.status_code == 200, r.text
+        r = await client.post(
+            f"/v1/admin/review/{rejected['id']}/reject",
+            json={"note": "not the parcel's own row"},
+            headers=auth(),
+        )
+        assert r.status_code == 200, r.text
+        async with factory() as session:
+            await session.execute(
+                text(
+                    "INSERT INTO urban_parcels (municipality_id, urban_parcel_number, geom, "
+                    "area_m2, document_id) VALUES ('podgorica', 'UP 5', "
+                    "ST_Multi(ST_MakeEnvelope(19.262, 42.44, 19.263, 42.441, 4326)), 100, :d)"
+                ),
+                {"d": document_id},
+            )
+            await session.commit()
+        second = await load_prepared(factory, **load)
+        third = await load_prepared(factory, **load)
+        rows = await items(app, document_id)
+
+    assert first.unmatched_parcels == ["UP 5"] and first.items_written == 20
+    assert first.earlier_run_id is None and first.parcels_placed_before == 0
+    # the second load: UP 5's five values, nothing on the four parcels placed before
+    assert not second.already_loaded and second.run_id not in (None, first.run_id)
+    assert (second.earlier_run_id, second.parcels_placed_before) == (first.run_id, 4)
+    assert (second.parcels_matched, second.unmatched_parcels) == (5, [])
+    assert (second.items_written, second.items_kept) == (5, 0)
+    assert second.by_change == {"new": 5}
+    assert second.retired_decisions == 0 and second.superseded_items == 0
+    added = [r for r in rows if r["run_id"] == second.run_id]
+    assert len(added) == 5 and {r["target_label"] for r in added} == {"UP 5"}
+    assert {r["state"] for r in added} == {"approved"} and all(r["urban_parcel_id"] for r in added)
+    # the decisions made in between stand, and nothing of the first load was superseded
+    earlier = {r["id"]: r for r in rows if r["run_id"] == first.run_id}
+    assert len(earlier) == 20 and not any(r["superseded_at"] for r in earlier.values())
+    assert earlier[amended["id"]]["state"] == "amended"
+    assert earlier[rejected["id"]]["state"] == "rejected"
+    assert second.review_after == {"pending": 0, "approved": 23, "amended": 1, "rejected": 1}
+    # a third time: every parcel of the data is placed
+    assert third.already_loaded and third.run_id == second.run_id and third.items_written == 0
+    assert third.parcels_placed_before == 5
+    assert len(rows) == 25
 
 
 async def test_a_document_without_its_geometry_takes_nothing(env):  # noqa: F811

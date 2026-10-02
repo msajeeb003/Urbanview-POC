@@ -133,6 +133,77 @@ def plan_sheet(shift: tuple[float, float] = (0.0, 0.0)) -> bytes:
     return doc.tobytes()
 
 
+# A housing estate: parcels that are building outlines standing in open ground, as a plan of an
+# existing estate draws them (DUP Novi Grad 1 i 2).
+ESTATE_RULES_YAML = r"""
+document: {id: estate, name: Synthetic estate}
+sheets:
+  - id: a
+    file: estate.pdf
+    scale: 1000
+    layers: [plan_boundary, urban_parcels]
+layers:
+  plan_boundary:
+    method: polygonize
+    select: [{layer: GRANICA}]
+    min_area_m2: 1000
+  urban_parcels:
+    method: polygonize
+    select: [{layer: PARCELE}]
+    fallback: [{layer: OBJEKTI}, {layer: KATASTAR}]
+    absorb: false
+    absorb_along: [{layer: OBJEKTI}]
+    vertex_marks: [{layer: TACKE}]
+    closing: [plan_boundary]
+    keep: labelled
+    labels:
+      select: [{layer: OZNAKE}]
+      pattern: 'UP\s*(\d+[a-z]?)'
+      attribute: urban_parcel_number
+"""
+
+
+def estate_sheet() -> bytes:
+    """The estate (page coordinates, pt):
+
+    - ``GRANICA``: the plan boundary (50, 50)-(550, 370);
+    - ``PARCELE``: UP 1 (80-180, 80-180), the one parcel drawn with the parcel line;
+    - ``OBJEKTI``: an L-shaped building outline, a bar (220-400, 300-340) and a bar (400-440,
+      120-340) drawn as one outline with no line between them: UP 2 (the first bar) and UP 3
+      (the second) are divided only by their numbered vertices; a building (220-340, 100-140) of
+      three segments 40 pt long, UP 4, its label in the first;
+    - ``TACKE``: the parcel vertices, a small circle on every corner of the buildings' parcels
+      (the two where the L's bars meet, (400, 300) and (400, 340), among them);
+    - ``KATASTAR``: a cadastral line x = 200 across the open ground;
+    - ``OZNAKE``: the parcel numbers as text.
+    """
+    doc = pymupdf.open()
+    page = doc.new_page(width=W, height=H)
+    oc = _ocgs(doc, ["GRANICA", "PARCELE", "OBJEKTI", "TACKE", "KATASTAR", "OZNAKE"])
+    _line(page, [(50, 50), (550, 50), (550, 370), (50, 370), (50, 50)], oc["GRANICA"])
+    _line(page, [(80, 80), (180, 80), (180, 180), (80, 180), (80, 80)], oc["PARCELE"], 3.4)
+    outline = [(220, 300), (400, 300), (400, 120), (440, 120), (440, 340), (220, 340), (220, 300)]
+    _line(page, outline, oc["OBJEKTI"], 1.4)
+    _line(page, [(220, 100), (340, 100), (340, 140), (220, 140), (220, 100)], oc["OBJEKTI"], 1.4)
+    _line(page, [(260, 100), (260, 140)], oc["OBJEKTI"], 1.4)
+    _line(page, [(300, 100), (300, 140)], oc["OBJEKTI"], 1.4)
+    _line(page, [(200, 50), (200, 370)], oc["KATASTAR"], 0.3)
+    marks = [*outline[:-1], (400, 340), (220, 100), (340, 100), (340, 140), (220, 140)]
+    for x, y in marks:
+        shape = page.new_shape()
+        shape.draw_circle(pymupdf.Point(x, y), 1.5)
+        shape.finish(color=(0, 0, 0), width=0.3, oc=oc["TACKE"])
+        shape.commit()
+    for text, (x, y) in {
+        "UP 1": (110, 135),
+        "UP 2": (290, 324),
+        "UP 3": (410, 200),
+        "UP 4": (228, 124),
+    }.items():
+        page.insert_text(pymupdf.Point(x, y), text, fontsize=8, oc=oc["OZNAKE"])
+    return doc.tobytes()
+
+
 def glyph_runs(
     text: str, cap_height_pt: float
 ) -> tuple[list[list[tuple[float, float, float, float]]], float]:

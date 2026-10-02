@@ -44,15 +44,24 @@ layers:
   # vertices on its corners: the parameter table states these parcels with 100 % site coverage.
   # Where a planned parcel follows the cadastral base the plan leaves the edge to
   # PARCELE_GRANICE. All three are the fallback: they cut up only the open ground that holds
-  # several labels, never a parcel R-PARCELE closes. The thin R-PARCELE strokes are vertex
-  # numbers written in a stroke font, not linework.
+  # several labels, never a parcel R-PARCELE closes.
   #
   # `absorb: false`: the pieces between the buildings are streets, parking and yards, not parts
   # of a parcel (absorbed, they gave UP 18 59 000 m2 for the 1 387 m2 the table states).
+  # `absorb_along`: a building of several segments is one parcel (UP 26, 44, 56): the segments
+  # next to the labelled one, outlined by the building layers, join it.
+  # `vertex_marks`: the thin R-PARCELE layer holds a small circle on every numbered parcel
+  # vertex (433 of them; its other strokes are the numbers, written in a stroke font). Two
+  # parcels inside one building outline (UP 14 / 15, UP 90 / 91) are divided only by those
+  # vertices: the outline is cut along the shortest line between two of them that separates
+  # the labels (69-70 and 432-433).
   # `gap_mm: 1`: closes the 1 mm openings some outlines are plotted with (UP 1).
-  # Check, 2026-10-02: 79 of the 82 parcels with a stated area are within 10 % of it (39 before);
-  # still off: UP 26, 44, 56 (a building of several segments: only the labelled one), UP 14,
-  # 66, 91.
+  #
+  # Check against the parameter table, 2026-10-02 (a dry run through staging and publish): 93
+  # parcels, UP 14 and UP 90 among them for the first time; of the 90 with a stated area 85 are
+  # within 2 % of it and 89 within 10 % (36 and 42 of 88 before these rules); UP 66 measures
+  # 589 m2 for the 497 m2 stated (its shape is the building as drawn). UP 51, 81 and 85 have
+  # sub-rows (a), (b) ... in the table and one parcel on the sheet; UP 82 is drawn as 82a-c.
   urban_parcels:
     method: polygonize
     select: [{layer: R-PARCELE, width_min: 3}]
@@ -61,6 +70,8 @@ layers:
       - {layer: OBJEKTI-NOVI}
       - {layer: PARCELE_GRANICE, stroke: "#989898"}
     absorb: false
+    absorb_along: [{layer: OBJEKTI-POSTOJECI}, {layer: OBJEKTI-NOVI}]
+    vertex_marks: [{layer: R-PARCELE, width_max: 1}]
     gap_mm: 1.0
     closing: [plan_boundary]
     min_area_m2: 10
@@ -120,3 +131,24 @@ parcel_blocks:
     pdf: 02 Novi Grad 1 i 2/Novi Grad 1 i 2 - Urban parcels - Planning parameters.pdf
     sha256: cd368d64de9d0f36554209fdc5ed6eb0317b3d0b4cd136fce7c656c177c9c089
     pattern: '(?m)^\s*([A-F])\s*\n\s*UP\s*(\d+[a-z]?)\s*$'
+
+# The plan CRS (EPSG:3908, MGI 1901) to EPSG:4326. The live dataset was converted on the server
+# with PROJ's own choice there, EPSG:9486 "MGI 1901 to WGS 84 (15)": measured 2026-10-02 on six
+# parcels whose shape did not change, it reproduces the served coordinates to 3 mm, while an
+# older PROJ (8.2: EPSG:3964) lands 2.8 m to the east-north-east. Written out here so every run
+# puts the plan where the published data is, whatever PROJ decides. ogr2ogr feeds the pipeline
+# easting, northing and expects EPSG:4326's own order back (latitude, longitude): hence the
+# final axis swap. A wrong order cannot pass unnoticed: the staging refuses a dataset outside
+# the municipality's extent.
+georef:
+  transform: >-
+    +proj=pipeline
+    +step +inv +proj=tmerc +lat_0=0 +lon_0=18 +k=0.9999 +x_0=6500000 +y_0=0 +ellps=bessel
+    +step +proj=push +v_3
+    +step +proj=cart +ellps=bessel
+    +step +proj=helmert +x=577.84843 +y=165.45019 +z=390.43652
+    +rx=-4.93131 +ry=0.96052 +rz=13.05072 +s=7.86546 +convention=coordinate_frame
+    +step +inv +proj=cart +ellps=WGS84
+    +step +proj=pop +v_3
+    +step +proj=unitconvert +xy_in=rad +xy_out=deg
+    +step +proj=axisswap +order=2,1

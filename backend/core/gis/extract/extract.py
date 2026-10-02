@@ -22,7 +22,7 @@ from typing import Any
 import numpy as np
 import pymupdf
 import shapely
-from shapely.geometry import MultiPolygon, Point
+from shapely.geometry import LineString, MultiPolygon, Point
 from shapely.geometry.base import BaseGeometry
 
 from core.gis.extract import geometry as g
@@ -58,6 +58,7 @@ QA_FLAGS = (
     "fallback_face",
     "merged_faces",
     "duplicate_label",
+    "vertex_cut",
 )
 ATTRIBUTES = {  # the attribute each layer's labels fill, and its staged property name
     "urban_parcels": "urban_parcel_number",
@@ -481,7 +482,7 @@ def _labelled_candidates(
         cands[i].flags |= flags.get(i, set())
     if fallback is not None:
         cands, unassigned = _resolve_with_fallback(
-            cands, unassigned, fallback, sheet, absorb=rule.absorb
+            cands, unassigned, fallback, sheet, absorb=rule.absorb, qa=qa
         )
         if unassigned and nearest > 0:
             per_face, flags, unassigned = assign_labels(
@@ -499,24 +500,128 @@ def _labelled_candidates(
     return cands
 
 
+@dataclass
+class _Fallback:
+    """A sheet's primary and fallback linework together, as the fallback resolution uses it."""
+
+    faces: list[tuple[BaseGeometry, set[str]]]
+    paths: list[list[str]]
+    # where the `absorb_along` linework runs (buffered by ALONG_M); None = no such rule
+    along: BaseGeometry | None = None
+    # the plan's numbered parcel vertices (`vertex_marks`), local frame
+    marks: list[Point] = field(default_factory=list)
+
+
+ALONG_M = 0.15  # an outline this near the `absorb_along` linework runs along it
+ALONG_SHARE = 0.9  # of a piece's outline: it is a part of a building, not open ground
+SEGMENT_REACH_M = 0.25  # two segments of a building this near share the edge between them
+MARK_ROUND = 1.15  # a vertex mark's box is this square (the numbers beside it are not)
+MARK_REACH_M = 0.6  # a mark this near a face's outline is one of its vertices
+CUT_MIN_M = 1.0  # two marks closer than this are one corner, not a dividing line
+CUT_INSIDE_M = 0.2  # a dividing line's middle is this far inside the face (not one of its edges)
+CUT_SLIVER_M2 = 0.05  # a part smaller than this is the cut's own sliver
+
+
+def _vertex_marks(sheet: Sheet, selectors: list[Selector]) -> list[Point]:
+    """The centres of the plan's parcel vertex marks: the small closed, round pieces among the
+    selected paths (a circle on every numbered corner; the numbers beside them are not round)."""
+    centres = []
+    for p in sheet.select(selectors):
+        x0, y0, x1, y1 = p.rect
+        w, h = x1 - x0, y1 - y0
+        if min(w, h) <= 0 or max(w, h) > MARK_ROUND * min(w, h) or not _is_closed(p):
+            continue
+        centres.append(Point((x0 + x1) / 2, (y0 + y1) / 2))
+    return _local(sheet, centres)
+
+
+def _cut_at_marks(
+    geom: BaseGeometry, labels: list[Label], marks: list[Point]
+) -> list[tuple[BaseGeometry, list[Label]]] | None:
+    """A face holding the labels of several parcels, cut along the shortest straight line
+    between two vertex marks on its outline that puts labels of different parcels on different
+    sides (two parcels inside one building outline are divided only by their numbered
+    vertices). The parts with their labels, cut again while a part still holds several parcels;
+    None when no such line exists."""
+    if len(_values(labels)) < 2:
+        return None
+    outline = geom.boundary
+    corners: list[Point] = []
+    for m in marks:
+        if outline.distance(m) <= MARK_REACH_M:
+            on = shapely.shortest_line(m, outline)
+            corners.append(Point(on.coords[-1]))
+    pairs = sorted(
+        (
+            (a.distance(b), i, j)
+            for i, a in enumerate(corners)
+            for j, b in enumerate(corners)
+            if i < j and a.distance(b) >= CUT_MIN_M
+        ),
+    )
+    inside = geom.buffer(0.05)
+    for _, i, j in pairs:
+        a, b = corners[i], corners[j]
+        line = LineString([a, b])
+        if outline.distance(line.interpolate(0.5, normalized=True)) < CUT_INSIDE_M:
+            continue  # an edge of the face, not a line across it
+        if not inside.covers(line):
+            continue  # leaves the face on its way
+        parts = _split(geom, line)
+        if len(parts) < 2:
+            continue
+        held: list[list[Label]] = [[] for _ in parts]
+        for lab in labels:
+            k = min(range(len(parts)), key=lambda n: (parts[n].distance(lab.point), n))
+            held[k].append(lab)
+        values = [set(_values(h)) for h in held]
+        named = [v for v in values if v]
+        if len(named) < 2 or any(a_ & b_ for n, a_ in enumerate(named) for b_ in named[n + 1 :]):
+            continue  # the labels stay together, or one parcel's labels fall on both sides
+        out: list[tuple[BaseGeometry, list[Label]]] = []
+        for part, labs in zip(parts, held, strict=True):
+            again = _cut_at_marks(part, labs, marks)
+            out.extend(again if again is not None else [(part, labs)])
+        return out
+    return None
+
+
+def _split(geom: BaseGeometry, line: LineString) -> list[BaseGeometry]:
+    """The parts of a face on either side of a line between two points of its outline."""
+    (x0, y0), (x1, y1) = line.coords[0], line.coords[-1]
+    length = line.length
+    ux, uy = (x1 - x0) / length, (y1 - y0) / length
+    reach = 0.05  # the ends sit on the outline to within the snap: make the line cross it
+    longer = LineString([(x0 - ux * reach, y0 - uy * reach), (x1 + ux * reach, y1 + uy * reach)])
+    noded = shapely.union_all(np.asarray([geom.boundary, longer], dtype=object))
+    faces = g.polygon_parts(shapely.polygonize(g.line_parts(noded)))
+    # the reach past a mark can shave a hair off the outline: not a part
+    parts = [f for f in faces if f.area > CUT_SLIVER_M2 and geom.contains(f.representative_point())]
+    return sorted(parts, key=_order_key)
+
+
 def _resolve_with_fallback(
     cands: list[_Candidate],
     unassigned: list[Label],
-    fallback: Callable,
+    fallback: Callable[[], _Fallback],
     sheet: Sheet,
     *,
     absorb: bool = True,
+    qa: dict[str, Any] | None = None,
 ) -> tuple[list[_Candidate], list[Label]]:
     """Faces holding labels of several parcels (their separating edges are drawn only on the
     fallback linework, e.g. the cadastral base) are replaced by the fallback faces inside them;
-    fallback pieces without a label join the labelled neighbour they share the longest edge
-    with, unless the rule says ``absorb: false`` (then they are left out: the ground between
-    separately outlined parcels is not a parcel). Labels no primary face took look for a
-    fallback face too."""
+    a fallback face that still holds several parcels is cut between two of the plan's vertex
+    marks (``vertex_marks``); fallback pieces without a label join the labelled neighbour they
+    share the longest edge with, unless the rule says ``absorb: false`` (then they are left
+    out: the ground between separately outlined parcels is not a parcel), except the pieces
+    outlined by the ``absorb_along`` linework (the other segments of a labelled building).
+    Labels no primary face took look for a fallback face too."""
     multi = [i for i, c in enumerate(cands) if len(_values(c.labels)) > 1]
     if not multi and not unassigned:
         return cands, unassigned
-    fb_faces, fb_paths = fallback()
+    fb = fallback()
+    fb_faces, fb_paths = fb.faces, fb.paths
     if not fb_faces:
         return cands, unassigned
     fb_geoms = [f for f, _ in fb_faces]
@@ -533,10 +638,35 @@ def _resolve_with_fallback(
         if not inside:
             continue
         pieces = [fb_geoms[j] for j in inside]
+        piece_paths = [fb_paths[j] for j in inside]
         per_piece, flags, left = assign_labels(pieces, primary.labels, 0.0)
+        if fb.marks:
+            for k in sorted(per_piece):
+                parts = _cut_at_marks(pieces[k], per_piece[k], fb.marks)
+                if parts is None:
+                    continue
+                if qa is not None:
+                    qa["vertex_cuts"] += len(parts) - 1
+                (pieces[k], per_piece[k]), *more = parts
+                flags[k].add("vertex_cut")
+                if not per_piece[k]:
+                    del per_piece[k]
+                for geom, labs in more:
+                    pieces.append(geom)
+                    piece_paths.append(piece_paths[k])
+                    if labs:
+                        per_piece[len(pieces) - 1] = labs
+                        flags[len(pieces) - 1].add("vertex_cut")
         owner: dict[int, int] = {k: k for k in per_piece}  # piece -> piece that owns it
         if absorb:
             _absorb(pieces, owner)
+        elif fb.along is not None:
+            segments = {
+                k
+                for k, piece in enumerate(pieces)
+                if k not in owner and _runs_along(piece, fb.along)
+            }
+            _absorb(pieces, owner, segments.__contains__, reach_m=SEGMENT_REACH_M)
         groups: dict[int, list[int]] = defaultdict(list)
         for k, o in owner.items():
             groups[o].append(k)
@@ -545,7 +675,7 @@ def _resolve_with_fallback(
         replaced.add(i)
         for o, members in sorted(groups.items()):
             geom = shapely.union_all([pieces[k] for k in members])
-            paths = sorted({p for k in members for p in fb_paths[inside[k]]}, key=_path_order)
+            paths = sorted({p for k in members for p in piece_paths[k]}, key=_path_order)
             c = _Candidate(
                 geom,
                 sheet,
@@ -579,19 +709,46 @@ def _resolve_with_fallback(
     return kept + new, still
 
 
-def _absorb(pieces: list[BaseGeometry], owner: dict[int, int]) -> None:
+def _runs_along(piece: BaseGeometry, along: BaseGeometry) -> bool:
+    """Whether a piece's outline runs along the `absorb_along` linework (a part of a building)."""
+    outline = piece.boundary
+    return outline.length > 0 and outline.intersection(along).length >= ALONG_SHARE * outline.length
+
+
+def _absorb(
+    pieces: list[BaseGeometry],
+    owner: dict[int, int],
+    may_join: Callable[[int], bool] | None = None,
+    reach_m: float = 0.0,
+) -> None:
     """Give every unowned piece to the owned neighbour it shares the longest edge with,
-    repeatedly, so chains of unlabelled pieces follow their parcel (deterministic order)."""
+    repeatedly, so chains of unlabelled pieces follow their parcel (deterministic order).
+    ``may_join`` narrows the pieces that may join at all. ``reach_m``: the cleaned faces of two
+    building segments can overlap or miss each other by a hair instead of sharing an edge
+    exactly; with a reach, the edge they share is the neighbour's outline within that distance."""
     if not owner:
         return
+    joinable = {k for k in range(len(pieces)) if may_join is None or k in owner or may_join(k)}
     changed = True
     while changed:
         changed = False
         for k in range(len(pieces)):
-            if k in owner:
+            if k in owner or k not in joinable:
                 continue
             best: tuple[float, int] | None = None
             for n, o in sorted(owner.items()):
+                if reach_m > 0:
+                    if pieces[k].distance(pieces[n]) > reach_m:
+                        continue
+                    shared = (
+                        pieces[k].boundary.intersection(pieces[n].buffer(reach_m)).length
+                        - 2 * reach_m
+                    )
+                    if shared <= 0:
+                        continue  # they meet at a corner only
+                    if best is None or shared > best[0] or (shared == best[0] and o < best[1]):
+                        best = (shared, o)
+                    continue
                 if not pieces[k].touches(pieces[n]) and not pieces[k].intersects(pieces[n]):
                     continue
                 shared = pieces[k].boundary.intersection(pieces[n].boundary).length
@@ -606,13 +763,22 @@ def _absorb(pieces: list[BaseGeometry], owner: dict[int, int]) -> None:
 
 def _fallback_for(
     ctx: _Context, layer: str, rule: LayerRule, sheet: Sheet, tol: float
-) -> Callable[[], tuple[list, list[list[str]]]]:
+) -> Callable[[], _Fallback]:
     """Faces of the primary and the fallback linework together, built only when needed."""
 
-    def build() -> tuple[list, list[list[str]]]:
+    def build() -> _Fallback:
         faces, lines, ids = _faces(ctx, sheet, rule, [*rule.select, *rule.fallback])
         cleaned = _clean_faces(ctx, layer, rule, faces, count=False)
-        return cleaned, _provenance([c for c, _ in cleaned], lines, ids, tol)
+        along = None
+        if rule.absorb_along:
+            work, _ = _linework(sheet, sheet.select(rule.absorb_along), rule)
+            work = [x for x in work if not isinstance(x, Point)]
+            if work:
+                along = shapely.union_all(np.asarray(work, dtype=object)).buffer(ALONG_M)
+        marks = _vertex_marks(sheet, rule.vertex_marks) if rule.vertex_marks else []
+        return _Fallback(
+            cleaned, _provenance([c for c, _ in cleaned], lines, ids, tol), along, marks
+        )
 
     return build
 
@@ -1043,6 +1209,7 @@ def _layer_qa(
         "outside_dropped",
         "too_large_dropped",
         "unlabelled_dropped",
+        "vertex_cuts",
         "labels_read",
         "labels_outside",
         "unclassified",
@@ -1087,7 +1254,7 @@ def _selectors(rules: DocumentRules, sheet_rule: SheetRule) -> list[Selector]:
     for name, rule in rules.layers.items():
         if name not in names and not (rule.method == "classify" and name in names):
             continue
-        out += rule.select + rule.fallback
+        out += rule.select + rule.fallback + rule.absorb_along + rule.vertex_marks
         if rule.labels is not None:
             out += rule.labels.select
         for cat in rule.categories:

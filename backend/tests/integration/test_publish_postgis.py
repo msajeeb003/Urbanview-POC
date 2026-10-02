@@ -512,10 +512,27 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
     async with app.router.lifespan_context(app), make_client(app) as client:
         await reject_seeded_pending_item(app)
         cadastral_batch = await stage(app, "cadastral_parcels", [("Test KO|77|", SQUARE, parcel)])
+        # a land-use polygon of its own, and two the georeferencing staged for planned parcels
+        # (keyed "<document id>|<urban parcel number>"): UP 12 has a published land use, UP 13
+        # has none
         land_use_batch = await stage(
             app,
             "land_use",
-            [("lu-1", SQUARE, {"code": "S", "name": "Stanovanje", "category": "residential"})],
+            [
+                ("lu-1", SQUARE, {"code": "S", "name": "Stanovanje", "category": "residential"}),
+                (
+                    "2|UP 12",
+                    SQUARE,
+                    {"code": "SD", "name": "stanovanje sa djelatnostima", "document_id": 2}
+                    | {"urban_parcel_number": "12"},
+                ),
+                (
+                    "2|UP 13",
+                    SQUARE,
+                    {"code": "S", "name": "stanovanje", "document_id": 2}
+                    | {"urban_parcel_number": "13"},
+                ),
+            ],
         )
         assert sorted(await approve_geometry(client)) == [cadastral_batch, land_use_batch]
         first = (await publish(client, "test-geo-1"))["result"]
@@ -547,7 +564,7 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
         )
 
     assert first["counts"]["batches_published"] == 2
-    assert first["counts"]["geometry"] == {"cadastral_parcels": 1, "land_use": 1}
+    assert first["counts"]["geometry"] == {"cadastral_parcels": 1, "land_use": 3}
     assert first["counts"]["cadastral_unmatched"] >= 1  # the corner parcel has no plan
     assert inserted["street_address"] == "Nova 1" and inserted["area_m2"] > 0
     first_run = tiles.runs[-2]
@@ -557,18 +574,30 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
     # the flag is stored on the parcel, never drawn: no ownership layer in the POC
     assert inserted["public_ownership"] is True
     assert "public_ownership" not in cadastral[inserted["id"]]
-    # the staged land-use polygon is exported beside the planned parcels' own land use
-    land_use = [f for f in first_run["land_use"] if "feature_key" in f["properties"]]
-    assert len(land_use) == 1 and land_use[0]["properties"]["code"] == "S"
-    assert len(first_run["land_use"]) > 1
-    assert land_use[0]["properties"]["feature_key"] == "lu-1"
-    assert land_use[0]["geometry"]["type"] == "MultiPolygon"
+    # The land-use layer: the planned parcels' own published land use, plus the staged polygons
+    # that are not one of those parcels. UP 12's staged polygon is left out (the parcel is
+    # drawn once, from its published value); UP 13 has no published land use, so its staged
+    # polygon is drawn, classed by its name with the profile's rules; a polygon's own category
+    # stays.
+    staged = {
+        f["properties"]["feature_key"]: f
+        for f in first_run["land_use"]
+        if "feature_key" in f["properties"]
+    }
+    assert sorted(staged) == ["2|UP 13", "lu-1"]
+    assert staged["lu-1"]["properties"]["code"] == "S"
+    assert staged["lu-1"]["properties"]["category"] == "residential"
+    assert staged["2|UP 13"]["properties"]["category"] == "res"
+    assert staged["lu-1"]["geometry"]["type"] == "MultiPolygon"
+    from_parcels = [f["properties"] for f in first_run["land_use"] if f not in staged.values()]
+    assert [p["urban_parcel_number"] for p in from_parcels].count("UP 12") == 1
+    assert "UP 13" not in [p["urban_parcel_number"] for p in from_parcels]
 
     assert updated["id"] == inserted["id"] and updated["street_address"] == "Nova 2"
     assert updated["area_m2"] > inserted["area_m2"]
-    assert second["counts"]["geometry"] == {"cadastral_parcels": 1, "land_use_carried": 1}
+    assert second["counts"]["geometry"] == {"cadastral_parcels": 1, "land_use_carried": 3}
     # carried forward without a new batch
-    assert len([f for f in tiles.layers["land_use"] if "feature_key" in f["properties"]]) == 1
+    assert len([f for f in tiles.layers["land_use"] if "feature_key" in f["properties"]]) == 2
     assert [(b["status"], b["published_version_id"] is not None) for b in batches] == [
         ("published", True),
         ("published", True),
@@ -576,10 +605,10 @@ async def test_staged_geometry_lands_in_the_serving_tables_and_the_archive(publi
     ]
     assert batches[0]["id"] == cadastral_batch and batches[1]["id"] == land_use_batch
     assert [(f["publish_version_id"] == first["version_id"], f["layer_id"]) for f in features] == [
-        (True, "land_use"),
-        (False, "land_use"),
+        *[(True, "land_use")] * 3,
+        *[(False, "land_use")] * 3,
     ]
-    assert features[1]["publish_version_id"] == second["version_id"]
+    assert features[3]["publish_version_id"] == second["version_id"]
 
 
 # --- idempotency and retention --------------------------------------------------------------------

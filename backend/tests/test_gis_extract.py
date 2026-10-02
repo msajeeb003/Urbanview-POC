@@ -29,8 +29,10 @@ from core.gis.extract.__main__ import _vertices, main  # noqa: E402
 from core.gis.extract.extract import (  # noqa: E402
     Feature,
     Label,
+    _absorb,
     _build_derived,
     _Context,
+    _cut_at_marks,
     assign_labels,
     extract_document,
     read_labels,
@@ -275,6 +277,111 @@ def test_absorb_false_keeps_a_parcel_to_its_labelled_piece(sheet_a: bytes, extra
     assert absorbed["4"].geom.contains(parcels["4"].geom.buffer(-0.05))
     for key in ("1", "2", "3"):
         assert parcels[key].geom.area == pytest.approx(absorbed[key].geom.area, rel=1e-6)
+
+
+# --- a housing estate: parcels are building outlines in open ground --------------------------
+
+
+def _estate(**changes: object) -> DocumentRules:
+    data = yaml.safe_load(syn.ESTATE_RULES_YAML)
+    for key, value in changes.items():
+        if value is None:
+            data["layers"]["urban_parcels"].pop(key, None)
+        else:
+            data["layers"]["urban_parcels"][key] = value
+    return DocumentRules.model_validate(data)
+
+
+@pytest.fixture(scope="module")
+def estate() -> bytes:
+    return syn.estate_sheet()
+
+
+def test_estate_parcels_are_the_building_outlines(estate: bytes) -> None:
+    ex = extract_document(_estate(), lambda s: estate)
+    parcels = _by_key(ex, "urban_parcels")
+    assert sorted(parcels) == ["1", "2", "3", "4"]
+    # the parcel drawn with the parcel line is untouched by the fallback linework
+    assert parcels["1"].geom.area == pytest.approx(100 * 100 * M2, rel=3e-3)
+    assert "fallback_face" not in parcels["1"].qa_flags
+    # two parcels inside one building outline: cut between the two numbered vertices where the
+    # bars meet, the shortest line that puts the labels on different sides
+    assert parcels["2"].geom.area == pytest.approx(180 * 40 * M2, rel=3e-3)
+    assert parcels["3"].geom.area == pytest.approx(40 * 220 * M2, rel=3e-3)
+    for key in ("2", "3"):
+        assert {"vertex_cut", "fallback_face"} <= parcels[key].qa_flags
+        assert "multi_label" not in parcels[key].qa_flags
+    assert ex.qa["layers"]["urban_parcels"]["vertex_cuts"] == 1
+    # one parcel of three building segments: the two unlabelled ones join it
+    assert parcels["4"].geom.area == pytest.approx(120 * 40 * M2, rel=3e-3)
+    # the open ground between the buildings is in no parcel
+    total = sum(f.geom.area for f in parcels.values())
+    assert total == pytest.approx((100 * 100 + 180 * 40 + 40 * 220 + 120 * 40) * M2, rel=3e-3)
+
+
+def test_estate_without_vertex_marks_keeps_the_pair_as_one_face(estate: bytes) -> None:
+    ex = extract_document(_estate(vertex_marks=None), lambda s: estate)
+    parcels = _by_key(ex, "urban_parcels")
+    assert sorted(parcels) == ["1", "3", "4"]  # the deepest label names the pair
+    assert "multi_label" in parcels["3"].qa_flags
+    assert parcels["3"].geom.area == pytest.approx((180 * 40 + 40 * 220) * M2, rel=3e-3)
+    assert "vertex_cuts" not in ex.qa["layers"]["urban_parcels"]
+
+
+def test_estate_without_absorb_along_keeps_the_labelled_segment(estate: bytes) -> None:
+    ex = extract_document(_estate(absorb_along=None), lambda s: estate)
+    parcels = _by_key(ex, "urban_parcels")
+    assert parcels["4"].geom.area == pytest.approx(40 * 40 * M2, rel=3e-3)
+
+
+def test_estate_with_absorb_gives_the_open_ground_to_the_parcels(estate: bytes) -> None:
+    """The default (parcels cut up by cadastral lines) is wrong for an estate: the streets and
+    yards join the parcels, which is what the rule's `absorb: false` is for."""
+    ex = extract_document(_estate(absorb=True, absorb_along=None), lambda s: estate)
+    parcels = _by_key(ex, "urban_parcels")
+    total = sum(f.geom.area for f in parcels.values())
+    assert total == pytest.approx(500 * 320 * M2, rel=3e-3)  # the whole plan area
+
+
+def _label(value: str, x: float, y: float) -> Label:
+    return Label(value, f"UP {value}", Point(x, y), "a", (0, 0, 0, 0), None, ())
+
+
+def test_cut_at_marks_takes_the_shortest_line_that_separates_the_labels() -> None:
+    # an L: a bar (0-60, 0-10) and a bar (60-70, 0-50); marks on every corner, on both ends of
+    # the line between the bars and half-way up the long bar's two sides
+    face = Polygon([(0, 0), (70, 0), (70, 50), (60, 50), (60, 10), (0, 10)])
+    marks = [
+        Point(x, y) for x, y in ((0, 0), (0, 10), (60, 10), (60, 0), (70, 0), (70, 50), (60, 50))
+    ]
+    labels = [_label("1", 30, 5), _label("2", 65, 30)]
+    parts = _cut_at_marks(face, labels, marks)
+    assert parts is not None and len(parts) == 2
+    by_value = {labs[0].value: geom for geom, labs in parts}
+    assert by_value["1"].area == pytest.approx(60 * 10) and by_value["2"].area == pytest.approx(500)
+    # one parcel's label only, or marks that offer no line across the face: nothing to cut
+    assert _cut_at_marks(face, labels[:1], marks) is None
+    assert _cut_at_marks(face, labels, marks[:2]) is None
+    # both labels in the first bar: no line between two marks puts them on different sides
+    assert _cut_at_marks(face, [_label("1", 10, 5), _label("2", 20, 5)], marks) is None
+
+
+def test_absorb_reaches_segments_that_miss_each_other_by_a_hair() -> None:
+    labelled = Polygon([(0, 0), (10, 0), (10, 10), (0, 10)])
+    # narrower, 10 cm into the first: the outlines cross at two points, they share no edge
+    overlapping = Polygon([(2, 9.9), (8, 9.9), (8, 20), (2, 20)])
+    apart = Polygon([(2, 20.1), (8, 20.1), (8, 30), (2, 30)])  # 10 cm short of the second
+    corner = Polygon([(10.05, 10.05), (20, 10.05), (20, 20), (10.05, 20)])  # near a corner only
+    pieces = [labelled, overlapping, apart, corner]
+    exact = {0: 0}
+    _absorb(pieces, exact, lambda k: True)
+    assert exact == {0: 0}  # no edge is shared exactly
+    owner = {0: 0}
+    _absorb(pieces, owner, lambda k: True, reach_m=0.25)
+    assert owner == {0: 0, 1: 0, 2: 0}  # a chain of segments; a corner is not a shared edge
+    only_second = {0: 0}
+    _absorb(pieces, only_second, lambda k: k == 1, reach_m=0.25)
+    assert only_second == {0: 0, 1: 0}  # the third may not join at all
 
 
 def test_keep_all_flags_unlabelled_faces(sheet_a: bytes) -> None:

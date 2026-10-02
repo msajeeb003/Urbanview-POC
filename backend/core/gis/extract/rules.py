@@ -132,6 +132,14 @@ class LayerRule(_Model):
     # labelled piece alone: for plans whose parcels are separate outlines in open ground
     # (buildings in a housing estate), where the pieces between them are streets and yards
     absorb: bool = True
+    # with `absorb: false`: an unlabelled fallback piece whose outline runs along this linework
+    # (the building outlines: a segment of the labelled building) still joins its parcel
+    absorb_along: list[Selector] = Field(default_factory=list)
+    # the plan's numbered parcel vertices (a small round mark on every corner). A face that
+    # holds the labels of several parcels and that no linework divides (two parcels inside one
+    # building outline) is cut along the shortest straight line between two of the marks on its
+    # outline that puts the labels on different sides
+    vertex_marks: list[Selector] = Field(default_factory=list)
     gap_mm: float | None = None
     dot_max_mm: float = 3.0  # polygonize: closed pieces up to this size are dots / dashes
     extend_mm: float = 0.0  # polygonize: dangling ends reach other linework within this

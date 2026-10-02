@@ -12,8 +12,9 @@ job copies approved items as it copies a reviewer's.
 The load replaces what is open, like a newer run: the pending items of earlier runs over the same
 file are superseded (never deleted), an older unpublished decision on the same target and field
 is retired, a target that already holds the same approved value keeps its item, and a parcel the
-document's geometry does not have is reported (no item). Loading the same data again changes
-nothing.
+document's geometry does not have is reported (no item). Loading the same data again never
+touches a parcel it placed before (a decision made since stands); it adds the parcels whose
+geometry was published in between, and changes nothing when there is none.
 
 BRD 2.6 lets input data be prepared by hand where that is faster. The items say what they are
 (``extracted_by``, the reviewer and the note of the load) and the audit log holds one row per
@@ -235,6 +236,18 @@ LOADED_SQL = text(
     ORDER BY id DESC LIMIT 1
     """
 )
+# The parcels an earlier load of the same data wrote items for: the data is not stated twice on
+# them (an expert may have amended or rejected a value since).
+PLACED_SQL = text(
+    """
+    SELECT DISTINCT e.target_key
+    FROM planning_parameter_extractions e
+    JOIN extraction_runs r ON r.id = e.run_id
+    WHERE e.municipality_id = :m AND r.document_id = :document_id AND r.file_sha256 = :sha256
+      AND r.model = :model AND r.summary ->> 'data_sha256' = :data_sha256
+      AND e.target_key IS NOT NULL
+    """
+)
 INSERT_RUN_SQL = text(
     """
     INSERT INTO extraction_runs (municipality_id, document_id, lineage_id, file_id, file_sha256,
@@ -304,9 +317,11 @@ class LoadSummary:
     file_id: int | None = None
     run_id: int | None = None
     already_loaded: bool = False
+    earlier_run_id: int | None = None  # the latest earlier load of the same data
     dry_run: bool = False
     parcels_in_data: int = 0
     parcels_matched: int = 0
+    parcels_placed_before: int = 0  # placed by an earlier load of the same data: left as they are
     unmatched_parcels: list[str] = field(default_factory=list)
     values_in_data: int = 0
     items_written: int = 0
@@ -392,20 +407,18 @@ async def load_prepared(
                 "boxes would not match"
             )
         summary.file_id = int(document["file_id"])
-        loaded = (
-            await session.execute(
-                LOADED_SQL,
-                {
-                    **params,
-                    "sha256": prepared.source.sha256,
-                    "model": READER,
-                    "data_sha256": data_sha256,
-                },
-            )
-        ).scalar_one_or_none()
+        same_data = {
+            **params,
+            "sha256": prepared.source.sha256,
+            "model": READER,
+            "data_sha256": data_sha256,
+        }
+        loaded = (await session.execute(LOADED_SQL, same_data)).scalar_one_or_none()
+        # the same data again: only a parcel it could not place then (no geometry) is still open
+        placed: set[str] = set()
         if loaded is not None:
-            summary.run_id, summary.already_loaded = int(loaded), True
-            return summary
+            summary.earlier_run_id = int(loaded)
+            placed = set((await session.execute(PLACED_SQL, same_data)).scalars())
 
         summary.review_before = dict((await session.execute(COUNTERS_SQL, params)).mappings().one())
         run_id = int(
@@ -454,6 +467,9 @@ async def load_prepared(
                 summary.unmatched_parcels.append(parcel.number)
                 continue
             summary.parcels_matched += 1
+            if parcel.key in placed:
+                summary.parcels_placed_before += 1
+                continue
             for name, value in parcel.values.items():
                 numeric = not isinstance(value.value, str)
                 row = {
@@ -506,6 +522,10 @@ async def load_prepared(
                 summary.items_written += 1
         if summary.items_written == 0:
             await session.rollback()
+            if loaded is not None:
+                summary.run_id, summary.already_loaded = int(loaded), True
+                summary.review_after = summary.review_before
+                return summary
             if summary.parcels_matched == 0:
                 raise PreparedLoadError(
                     f"none of the {summary.parcels_in_data} parcels of the data matches a planned "
@@ -620,6 +640,11 @@ def report(summary: LoadSummary) -> str:
     lines = [f"document {summary.document_id} {summary.document_name!r} <- {summary.data}"]
     if summary.already_loaded:
         return "\n".join([*lines, f"  already loaded (run {summary.run_id}): nothing changed"])
+    if summary.earlier_run_id is not None:
+        lines.append(
+            f"  the same data was loaded before (run {summary.earlier_run_id}): the "
+            f"{summary.parcels_placed_before} parcels it placed then are left as they are"
+        )
     lines += [
         f"  parcels: {summary.parcels_matched} of {summary.parcels_in_data} match a planned parcel",
         f"  items written (approved): {summary.items_written} of {summary.values_in_data} values"

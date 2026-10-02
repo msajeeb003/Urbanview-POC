@@ -222,11 +222,20 @@ demand: the analytics districts place them by their point.
   2026-10-02:** the parcel of an existing building is the building's outline
   (`OBJEKTI-POSTOJECI` / `OBJEKTI-NOVI`, with the numbered vertices), which the rules never read,
   so its label fell into the open ground and took the streets around it; the rules now read
-  those layers as fallback linework with `absorb: false` (new `LayerRule` option: unlabelled
-  fallback pieces are left out instead of joining a parcel) and `gap_mm: 1`; 79 of the 82
-  parcels with a stated area are within 10 % of it (39 before; still off: UP 14 / 15 merged, 26,
-  44, 56, 66, 91). It reaches the map through the console: geometry job on the boundaries sheet,
-  geometry review, Publish. **Not code, still open:** SMTP on the server (3:
+  those layers as fallback linework with `absorb: false` (`LayerRule`: unlabelled fallback
+  pieces are left out instead of joining a parcel), `absorb_along` (the other segments of a
+  labelled building, outlined by the building layers, still join it: UP 26, 44, 56),
+  `vertex_marks` (two parcels inside one building outline are cut along the shortest line
+  between two of the plan's numbered vertices that puts their labels on different sides:
+  UP 14 / 15, UP 90 / 91) and `gap_mm: 1`. 93 parcels, UP 14 and UP 90 for the first time; of
+  the 90 with a stated area 85 are within 2 % of it and 89 within 10 % (36 and 42 of 88
+  before); UP 66 measures 589 m² for the 497 m² stated (the building as drawn). The rules also
+  state the datum operation (`georef.transform`, see "Georeferencing"), so a run lands where the
+  published data is. It reaches the map the way the plan did the first time: the extraction's
+  GeoPackage staged in the worker with `python -m core.gis.georef apply … --stage` (the
+  console's geometry job answers a vector PDF with that instruction), the geometry review,
+  Publish; then the prepared values once more for the parcels drawn since (UP 14, UP 90: see
+  "Prepared planning values") and Publish. **Not code, still open:** SMTP on the server (3:
   the confirmation now says honestly that no e-mail went out; the account is still needed), the
   client's bank name and SWIFT (8: `ORDER_BANK_*` in `deploy/.env`), the codes U, SR and TS of
   Stara Varoš are named as the legend's UK, SKR and a transformer station (product owner
@@ -1094,7 +1103,10 @@ demand: the analytics districts place them by their point.
   pending items of earlier runs over the same file (the runner's `SUPERSEDE_SQL`), retires an
   older unpublished decision it restates, keeps a target that already holds the same approved
   value, and reports parcels without geometry (no item) and what differed. The same data file
-  again changes nothing. Audit: one `review.approve_prepared` row per load (entity
+  again never restates a parcel it placed before (a correction or rejection made since stands):
+  it adds the parcels whose geometry was published in between (`PLACED_SQL`; Novi Grad's UP 14
+  and UP 90 on 2026-10-02) as a further run and changes nothing when there is none
+  (`already_loaded`). Audit: one `review.approve_prepared` row per load (entity
   `extraction_run`, review counters before / after, the summary). Nothing is served until the
   publish job runs.
 - **Not an expert review:** the items say so in their note; the client's expert can check any
@@ -1430,8 +1442,11 @@ demand: the analytics districts place them by their point.
   `category` = the map's colour group res | com | mix | pub | grn that `core.land_use` derives
   from it with the profile's `land_use_terms` and `land_use_codes`, passed to the layer's SQL as
   `:land_use_categories`; plus the staged generic `layer_features` polygons that are not one of
-  those parcels, with their own `category`, else the class of their name or code; an unclassed
-  wording has no `category` and takes the layer's neutral colour; 2026-10-02: before, every
+  those parcels (a parcel's staged polygon is keyed `<document id>|<urban parcel number>`, as
+  georeferencing stages it, and matched by that key, so a parcel is drawn once: from its
+  published land use, else from its staged polygon), with their own `category`, else the class
+  of their name or code; an unclassed wording has no `category` and takes the layer's neutral
+  colour; 2026-10-02: before, every
   feature was the neutral colour because nothing wrote a category), `heat_coverage`,
   `heat_far`, `heat_height`,
   `heat_gfa` (every covered urban block), `heat_sale_price` (every covered zone): the heatmaps;
@@ -1652,7 +1667,11 @@ demand: the analytics districts place them by their point.
   cadastral checks catch it). `apply.py`: the transform on every layer, then ogr2ogr (`-s_srs` plan
   CRS, `-t_srs EPSG:4326`, `-ct` from `georef.transform` / `--ct` for a better datum operation than
   PROJ's ±10 m EPSG:3965) into one GeoPackage; `digest` (dataset label excluded) is reproduced by
-  a re-run. Redrawn sheets: the same layers and columns, `--frame local | sheet:<id>`, `--redrawn`.
+  a re-run. Without a stated operation PROJ chooses one, and versions choose differently: Novi
+  Grad's rules state the one its live data was converted with (EPSG:9486 as a PROJ pipeline,
+  ending in the axis swap ogr2ogr needs; it reproduces the served coordinates to 3 mm, while
+  PROJ 8.2's choice, EPSG:3964, lands 2.8 m away). Redrawn sheets: the same layers and columns,
+  `--frame local | sheet:<id>`, `--redrawn`.
 - **Stage** (`stage.py`, PostGIS, one transaction, the CLI commits): planned parcels and blocks
   snapped to the served cadastral parcels in the cadastre's `area_crs_epsg` (`ST_Snap`, vertices
   within `georef.snap_tolerance_m` 0.5 m; farther ones stay: re-parcelling is intended); per
