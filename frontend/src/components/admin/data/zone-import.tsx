@@ -69,7 +69,7 @@ export function ZoneImportCard({ imports }: { imports: AdminJob[] }) {
   return (
     <AdminCard
       title="Zones from QGIS"
-      sub="The zone GeoPackage drawn in QGIS: checked, then staged; the next publish applies it. Zones are not drawn here."
+      sub="The zone GeoPackage from QGIS: checked, staged, applied by the next publish."
     >
       <div className="zoneimport">
         <DropZone

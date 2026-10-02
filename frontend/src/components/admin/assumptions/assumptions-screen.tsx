@@ -139,7 +139,7 @@ export function AssumptionsScreen({
   return (
     <AdminCard
       title="Financial assumptions"
-      sub="Benchmarks by district — feed the deterministic engine. Sources: Realitica, Estitor, Monstat"
+      sub="Market rates per zone"
       action={
         <button
           type="button"
@@ -239,8 +239,8 @@ export function AssumptionsScreen({
         </table>
       </div>
       <div className="finfoot">
-        Each saved change is a new version: the public panel, the parcel figures and the order snapshots use the version that applies on the
-        day ({timezone.replace("_", " ")} time); nothing is deleted. Figures without their own low / high bounds are widened by the range ±.
+        Each saved change is a new version, applied by date ({timezone.replace("_", " ")} time). Figures without low / high bounds use the
+        range ±.
       </div>
     </AdminCard>
   );

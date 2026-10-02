@@ -2,7 +2,7 @@
  * The shell's string table: every text of the frame the visitor always sees (topbar and search,
  * layer rail and cards, legend, map chrome and coverage pill, the empty panel, the "Ask about
  * this site" acknowledgement, the shell's toasts, the disclaimer footer), in English (the
- * wireframe's copy, verbatim) and Montenegrin (Latin script). **The Montenegrin strings are
+ * wireframe's copy, shortened 2026-10-02) and Montenegrin (Latin script). **The Montenegrin strings are
  * drafts** until the client approves the copy (spec §10, item 2); change them here, never in
  * components.
  *
@@ -69,7 +69,7 @@ const en = {
   "rail.zoomIn": "zoom in to see",
   "rail.titleToggle": "Toggle {name}",
   "rail.titleNoData": "{name} — nothing published for this layer yet",
-  "rail.titleZoom": "{name} — drawn closer in: zoom in to see it",
+  "rail.titleZoom": "{name} — zoom in to see it",
   "rail.field": "{name} field",
   "rail.level": "{name} level",
   "toast.zoomIn": "{name} shows when you zoom in closer",
@@ -137,19 +137,19 @@ const en = {
   "empty.noPlan": "— no adopted plan published here yet.",
   "empty.outside": "— outside {name}.",
   "empty.body":
-    "Click a cadastral parcel, an urban parcel, or a plan coverage area. UrbanView reads the adopted plan and tells you what can be built — and whether it's worth building.",
+    "Click a parcel or a plan area to see what can be built.",
   "empty.hint.parcel": "◆ click a parcel",
   "empty.hint.plan": "▨ click a plan area",
   "empty.hint.zoom": "⇕ scroll to zoom",
   "empty.hint.pan": "✥ drag to pan",
   "empty.hint.search": "⌕ search address",
   "disclaimer.placeholder":
-    "Figures are indicative ranges from Realitica, Estitor & Monstat — not investment advice. Deterministic calculation; AI does not generate financial values.",
+    "Figures are indicative ranges, not investment advice.",
 
   // "Ask about this site" (an intent button: the assistant is not built in the POC)
-  "ai.noted": "Thanks — we have noted your interest in asking about this site.",
+  "ai.noted": "Thanks, your interest is noted.",
   // "Unlock full market data" (an intent button: nothing is locked or unlocked)
-  "market.noted": "Thanks — we have noted your interest in more market data.",
+  "market.noted": "Thanks, your interest is noted.",
 
   // panels: frame
   "panel.close": "Close the panel",
@@ -201,16 +201,16 @@ const en = {
   "up.open": "Open urban parcel",
   "up.openAria": "Open urban parcel {up}",
   "up.single":
-    "This cadastral parcel corresponds to an urban parcel in the adopted plan. Building rights — land use, height, coverage, FAR — are defined on the {urban}, not on the cadastral one. It covers {area} of this parcel ({pct}%).",
+    "Building rights are set on the {urban}, not on the cadastral one. It covers {area} of this parcel ({pct}%).",
   "up.singleUrban": "urban parcel",
   "up.split":
-    "This cadastral parcel is split between {count} urban parcels in the adopted plan. Building rights — land use, height, coverage, FAR — are defined on the {urban}, not on the cadastral one. This one covers {area} of it ({pct}%).",
+    "The plan splits this parcel between {count} {urban}. This one covers {area} of it ({pct}%).",
   "up.splitUrban": "urban parcels",
   "up.other": "Another urban parcel also lies on this cadastral parcel: {area} of it ({pct}%).",
   "cad.noPlanBody": "No adopted planning document covers this parcel yet.",
   "cad.notDefined": "Not defined",
   "cad.notDefinedBody":
-    "The adopted plan defines no urban parcel over this cadastral parcel, so building rights cannot be read directly. An expert analysis is needed to establish what is possible here.",
+    "The adopted plan defines no urban parcel here. An expert analysis can establish what is possible.",
 
   // parcel panels: planning parameters
   "sect.planning": "Planning parameters",
@@ -242,7 +242,7 @@ const en = {
   "mkt.marketValue": "Estimated market value",
   "mkt.saleable": "Estimated saleable area",
   "mkt.profit": "Potential profit",
-  "mkt.engine": "Deterministic engine — how every figure is calculated",
+  "mkt.engine": "How the figures are calculated",
   "mkt.formulas": "Formulas →",
   "mkt.needsPlan": "Market figures need an adopted plan for this parcel.",
   "asm.title": "◐ Test your own assumptions",
@@ -326,7 +326,7 @@ const me: Record<StringKey, string> = {
   "rail.zoomIn": "uvećajte prikaz",
   "rail.titleToggle": "Uključi / isključi: {name}",
   "rail.titleNoData": "{name} — za ovaj sloj još ništa nije objavljeno",
-  "rail.titleZoom": "{name} — crta se pri većem uvećanju: uvećajte prikaz",
+  "rail.titleZoom": "{name} — uvećajte prikaz",
   "rail.field": "{name}: pokazatelj",
   "rail.level": "{name}: nivo",
   "toast.zoomIn": "{name} se vidi kad uvećate prikaz",
@@ -391,17 +391,17 @@ const me: Record<StringKey, string> = {
   "empty.noPlan": "— ovdje još nije objavljen usvojeni plan.",
   "empty.outside": "— izvan obuhvata: {name}.",
   "empty.body":
-    "Kliknite na katastarsku parcelu, urbanističku parcelu ili obuhvat plana. UrbanView čita usvojeni plan i kaže vam šta se može graditi — i da li se isplati graditi.",
+    "Kliknite na parcelu ili obuhvat plana da vidite šta se može graditi.",
   "empty.hint.parcel": "◆ kliknite parcelu",
   "empty.hint.plan": "▨ kliknite obuhvat plana",
   "empty.hint.zoom": "⇕ skrolujte za zum",
   "empty.hint.pan": "✥ prevucite za pomjeranje",
   "empty.hint.search": "⌕ pretražite adresu",
   "disclaimer.placeholder":
-    "Brojke su okvirni rasponi na osnovu podataka Realitice, Estitora i Monstata — nisu investicioni savjet. Deterministički proračun; AI ne generiše finansijske vrijednosti.",
+    "Brojke su okvirni rasponi, nisu investicioni savjet.",
 
-  "ai.noted": "Hvala — zabilježili smo vaše interesovanje za pitanja o ovoj lokaciji.",
-  "market.noted": "Hvala — zabilježili smo vaše interesovanje za više tržišnih podataka.",
+  "ai.noted": "Hvala, zabilježili smo vaše interesovanje.",
+  "market.noted": "Hvala, zabilježili smo vaše interesovanje.",
 
   "panel.close": "Zatvori panel",
   "panel.loading": "Učitavanje…",
@@ -450,16 +450,16 @@ const me: Record<StringKey, string> = {
   "up.open": "Otvori urbanističku parcelu",
   "up.openAria": "Otvori urbanističku parcelu {up}",
   "up.single":
-    "Ova katastarska parcela odgovara urbanističkoj parceli u usvojenom planu. Uslovi gradnje — namjena, visina, zauzetost, izgrađenost — definisani su za {urban}, a ne za katastarsku. Ona pokriva {area} ove parcele ({pct}%).",
+    "Uslovi gradnje su definisani za {urban}, a ne za katastarsku. Ona pokriva {area} ove parcele ({pct}%).",
   "up.singleUrban": "urbanističku parcelu",
   "up.split":
-    "Ova katastarska parcela je u usvojenom planu podijeljena na više urbanističkih parcela (ukupno {count}). Uslovi gradnje — namjena, visina, zauzetost, izgrađenost — definisani su za {urban}, a ne za katastarsku. Ova pokriva {area} parcele ({pct}%).",
+    "Plan dijeli ovu parcelu na {urban} (ukupno {count}). Ova pokriva {area} parcele ({pct}%).",
   "up.splitUrban": "urbanističke parcele",
   "up.other": "Još jedna urbanistička parcela zahvata ovu katastarsku parcelu: {area} ({pct}%).",
   "cad.noPlanBody": "Nijedan usvojeni planski dokument još ne obuhvata ovu parcelu.",
   "cad.notDefined": "Nije definisana",
   "cad.notDefinedBody":
-    "Usvojeni plan ne definiše urbanističku parcelu na ovoj katastarskoj parceli, pa se uslovi gradnje ne mogu direktno očitati. Potrebna je stručna analiza da bi se utvrdilo šta je ovdje moguće.",
+    "Usvojeni plan ovdje ne definiše urbanističku parcelu. Stručna analiza može utvrditi šta je moguće.",
 
   "sect.planning": "Planski parametri",
   "row.landUse": "Namjena površina",
@@ -489,7 +489,7 @@ const me: Record<StringKey, string> = {
   "mkt.marketValue": "Procijenjena tržišna vrijednost",
   "mkt.saleable": "Procijenjena prodajna površina",
   "mkt.profit": "Potencijalna dobit",
-  "mkt.engine": "Deterministički proračun — kako se računa svaka brojka",
+  "mkt.engine": "Kako se računaju brojke",
   "mkt.formulas": "Formule →",
   "mkt.needsPlan": "Za tržišne brojke potreban je usvojeni plan za ovu parcelu.",
   "asm.title": "◐ Isprobajte sopstvene pretpostavke",

@@ -315,7 +315,7 @@ export function RegisterDialog({
           <DropZone
             accept={ACCEPT_DRAWING}
             title={files.length ? "Add more files" : "Drop the document's PDFs (and GIS drawings) here or click to choose"}
-            hint="PDF text is read by the AI extraction; drawings (plan-sheet PDFs, a QGIS redraw or the plan's GIS) by the geometry job. Files can also be added later."
+            hint="Text PDFs go to extraction, drawings to the geometry job. Files can be added later."
             onFiles={(list) => {
               uploads.add(list);
               void uploads.start();

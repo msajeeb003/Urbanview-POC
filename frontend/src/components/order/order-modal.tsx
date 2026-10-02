@@ -236,7 +236,7 @@ function OrderModal({ target }: { target: OrderTarget }) {
         eyebrow="Pay per service · one-off"
         eyebrowColor="var(--paid)"
         title="Order expert analysis"
-        lead="A qualified expert produces a site analysis & feasibility study for this parcel — interpretation, hidden risks, development scenarios and benchmarking beyond the automated figures. Delivered by email."
+        lead="An expert's site analysis and feasibility study for this parcel, delivered by email."
       />
       <div className="mbody">
         <form id={formId} noValidate onSubmit={submit}>
@@ -253,8 +253,7 @@ function OrderModal({ target }: { target: OrderTarget }) {
                   {" "}
                   (urban parcel <b>{target.plannedParcel}</b>)
                 </>
-              )}{" "}
-              — carried through automatically, no need to re-enter.
+              )}
               {versionName && <span className="ctxver">Planning data version {versionName}</span>}
             </div>
           </div>
@@ -285,7 +284,7 @@ function OrderModal({ target }: { target: OrderTarget }) {
               </button>
             </p>
           ) : noArea ? (
-            <p className="pricenote">This parcel has no area to price from yet, so it cannot be ordered online — please contact us.</p>
+            <p className="pricenote">This parcel has no area to price from yet, so it cannot be ordered online. Please contact us.</p>
           ) : (
             note && <p className="pricenote">{note}</p>
           )}
@@ -344,13 +343,13 @@ function OrderModal({ target }: { target: OrderTarget }) {
             </span>
             <span className="mlt">
               <b>How we analyze this parcel</b>
-              <span>The six steps this report follows, from locating the parcel to the final package.</span>
+              <span>The six steps of the report.</span>
             </span>
             <span className="mla">→</span>
           </div>
 
           <p style={{ fontSize: 11, color: "var(--ink-2)", lineHeight: 1.5, marginTop: 12 }}>
-            No account needed — order as a guest. You&apos;ll get the report and an order reference by email.
+            No account needed. The report and the order reference come by email.
           </p>
           {failure && (
             <p className="orderfail" role="alert" ref={failureRef}>

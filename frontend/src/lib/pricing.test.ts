@@ -48,7 +48,7 @@ describe("the order summary's words (from the configured tiers)", () => {
     expect(bandLabel(null, PRICING)).toBeNull();
   });
   it("writes the pricing note for any tiers", () => {
-    expect(priceNote(PRICING)).toBe("Prototype pricing is set by parcel size alone — €100 up to 500 m², €200 above.");
+    expect(priceNote(PRICING)).toBe("Priced by parcel size: €100 up to 500 m², €200 above.");
     expect(priceNote(three)).toContain("€100 up to 500 m², €150 up to 1,000 m², €200 above.");
     expect(priceNote(undefined)).toBeNull();
   });

@@ -36,6 +36,16 @@ selectors.
   the panel has **no shadow** (the `-8px 0 24px` declaration is overridden), status labels are a
   dot + word, not chips.
 
+- **Copy is minimal** (product owner, 2026-10-02; overrides the mock's wording, not its
+  structure): explanatory paragraphs are one short sentence or gone, and the UI makes no
+  statement about AI or language models. Shortened: the empty panel's body, the disclaimer
+  placeholder ("Figures are indicative ranges, not investment advice."), both intent toasts
+  ("Thanks, your interest is noted."), the urban-parcel card and "Not defined" texts, the engine
+  strip and modal, the methodology's lead, the order form's lead / context strip / guest note /
+  pricing note ("Priced by parcel size: …"), the order failures and the order page's leads, and
+  the admin cards' sub-lines. Removed: the zone panel's "In Montenegro a zone isn't…" paragraph.
+  Where a section below quotes a longer sentence, the short one in the code is right.
+
 Check a change visually against the reference: `npm run build && npm run start`, screenshot at
 1440×900 (headless Chrome `--window-size=1440,900 --force-device-scale-factor=1`) and diff the
 chrome regions against `docs/wireframe/screens/<state>.png` (topbar, rail, panel, legend,

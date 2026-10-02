@@ -160,7 +160,7 @@ export interface OrderFailure {
 export function explainFailure(error: unknown): OrderFailure {
   if (!(error instanceof ApiError) || error.status === 0 || error.status >= 500) {
     return {
-      message: "The order could not be sent — check your connection and try again; nothing has been charged.",
+      message: "The order could not be sent. Check your connection and try again.",
       fields: {},
     };
   }
@@ -168,13 +168,13 @@ export function explainFailure(error: unknown): OrderFailure {
     return {
       message:
         error.code === "rate_limited" && /e-?mail/i.test(error.message)
-          ? "This email address has placed the most orders allowed today — please contact support to order more."
-          : "Too many requests just now — please wait a minute and try again.",
+          ? "This email address has reached today's order limit. Contact support to order more."
+          : "Too many requests. Please wait a minute and try again.",
       fields: {},
     };
   }
   if (error.status === 404) {
-    return { message: "This parcel is no longer available — close the form and pick it again on the map.", fields: {} };
+    return { message: "This parcel is no longer available. Pick it again on the map.", fields: {} };
   }
   if (error.status === 422) {
     const fields: FieldErrors = {};
@@ -186,10 +186,10 @@ export function explainFailure(error: unknown): OrderFailure {
     const location = details.some((d) => (d as { loc?: unknown[] }).loc?.includes("location"));
     return {
       message: location
-        ? "This parcel cannot be ordered yet (it has no area to price from) — please contact support."
-        : "Some details were not accepted — check the highlighted fields and try again.",
+        ? "This parcel cannot be ordered yet. Please contact support."
+        : "Check the highlighted fields and try again.",
       fields,
     };
   }
-  return { message: "The order could not be placed — please check the form and try again.", fields: {} };
+  return { message: "The order could not be placed. Check the form and try again.", fields: {} };
 }

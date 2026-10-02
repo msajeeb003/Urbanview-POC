@@ -126,7 +126,7 @@ export function DocumentPanel({ documentId }: { documentId: number }) {
               {data.general_planning_summary}
             </p>
           ) : (
-            <p className="panelnote">A general planning summary for this zone has not been written yet.</p>
+            <p className="panelnote">No summary yet.</p>
           )}
         </div>
 

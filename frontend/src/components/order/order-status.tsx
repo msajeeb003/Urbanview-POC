@@ -31,12 +31,12 @@ const STEPS: { status: Status; label: string }[] = [
 
 // provisional copy (not in the wireframe)
 const LEAD: Record<Status, string> = {
-  pending_payment: "We are waiting for your bank transfer. Work starts once it arrives; the payment instructions are below.",
+  pending_payment: "We are waiting for your bank transfer. Work starts once it arrives.",
   payment_failed:
-    "Your bank transfer has not reached us yet. Please check the payment with your bank, or make it with the instructions below; work starts once it arrives.",
-  paid: "Your payment has arrived. An expert will start on your site & feasibility analysis shortly.",
-  in_progress: "An expert is preparing your site & feasibility analysis.",
-  delivered: "Your analysis has been delivered — check your email for the download link.",
+    "Your bank transfer has not reached us yet. Work starts once it arrives.",
+  paid: "Payment received. An expert will start on your analysis shortly.",
+  in_progress: "An expert is preparing your analysis.",
+  delivered: "Your analysis has been delivered. Check your email for the download link.",
   refunded: "This order was refunded.",
 };
 

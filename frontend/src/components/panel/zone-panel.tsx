@@ -136,19 +136,13 @@ export function ZonePanel({ zoneId, name }: { zoneId: number; name?: string }) {
             Planning documents
           </span>
         </div>
-        <p style={{ fontSize: "11.5px", color: "var(--ink-2)", margin: "-4px 0 11px", lineHeight: 1.5 }}>
-          In Montenegro a zone isn&apos;t an official bounded area — it&apos;s UrbanView&apos;s own grouping of related
-          planning documents, roughly a city quarter. This zone groups {docs.length > 0 ? docs.length : "none yet"}.
-        </p>
         <div className="doclist">
           {data.counts.adopted === 0 && (
             <div className="docitem static docnote" role="note">
               <span className="di">⚠</span>
               <span className="dn">
                 No adopted plan
-                <span className="dm">
-                  No adopted planning document covers this zone yet, so there are no building rights to show here.
-                </span>
+                <span className="dm">No adopted planning document covers this zone yet.</span>
               </span>
             </div>
           )}
@@ -166,13 +160,12 @@ export function ZonePanel({ zoneId, name }: { zoneId: number; name?: string }) {
             {data.zone.general_planning_summary}
           </p>
         ) : (
-          <p className="panelnote">A general planning summary for this zone has not been written yet.</p>
+          <p className="panelnote">No summary yet.</p>
         )}
       </div>
       <div className="sect">
         <p style={{ fontSize: 12, color: "var(--ink-2)", lineHeight: 1.55 }}>
-          Click a specific parcel inside this zone to see its full planning parameters, the existing-vs-planned comparison,
-          and the market feasibility.
+          Click a parcel in this zone to see its planning parameters.
         </p>
       </div>
       <DataVersionLine version={data.data_version} date={data.data_version_date} />

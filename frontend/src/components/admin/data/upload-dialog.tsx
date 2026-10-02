@@ -54,7 +54,7 @@ export function UploadDialog({
       <ModalHead
         eyebrow="Data sources"
         title="Upload documents"
-        lead="Planning document PDFs, GIS files and cadastral extracts. A file uploaded before is recognised and not stored twice."
+        lead="Planning document PDFs, GIS files and cadastral extracts."
       />
       <div className="mbody">
         <DropZone

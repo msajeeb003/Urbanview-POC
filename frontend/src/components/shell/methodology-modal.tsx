@@ -173,8 +173,7 @@ export function MethodologyModal({
         title="Our analysis methodology"
         lead={
           <>
-            The step-by-step process our experts follow every time they analyze a parcel, for an expert analysis or
-            under a contract to design the building. Context: <b>{context}</b>.
+            The steps our experts follow when they analyze a parcel. Context: <b>{context}</b>.
           </>
         }
       />

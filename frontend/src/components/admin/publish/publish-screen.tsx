@@ -79,7 +79,7 @@ export function PublishScreen({ initial }: { initial: PublishStatus }) {
     <>
       <AdminCard
         title="Publish"
-        sub="Approved values become a new data version: heatmaps and parcel links computed, map tiles built, the live map switched"
+        sub="Approved values become a new data version on the live map"
       >
         <div className="pubnow">
           {current ? (

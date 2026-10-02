@@ -90,9 +90,9 @@ describe("a failed order keeps the form and says why in one sentence", () => {
   const err = (status: number, code: string, message = "", details?: unknown) =>
     new ApiError({ status, code, message, details });
 
-  it("network trouble and server errors: try again, nothing charged", () => {
+  it("network trouble and server errors: try again", () => {
     expect(explainFailure(err(0, "network_error")).message).toMatch(/try again/);
-    expect(explainFailure(err(503, "service_unavailable")).message).toMatch(/nothing has been charged/);
+    expect(explainFailure(err(503, "service_unavailable")).message).toMatch(/try again/);
     expect(explainFailure(new Error("boom")).fields).toEqual({});
   });
 
@@ -111,8 +111,8 @@ describe("a failed order keeps the form and says why in one sentence", () => {
     expect(
       explainFailure(err(429, "rate_limited", "Too many orders for this e-mail address today; please contact support"))
         .message,
-    ).toMatch(/contact support/);
+    ).toMatch(/Contact support/);
     expect(explainFailure(err(429, "rate_limited", "Too many requests")).message).toMatch(/wait a minute/);
-    expect(explainFailure(err(404, "not_found")).message).toMatch(/pick it again/);
+    expect(explainFailure(err(404, "not_found")).message).toMatch(/Pick it again/);
   });
 });

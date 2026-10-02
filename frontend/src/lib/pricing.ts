@@ -39,8 +39,8 @@ export function bandLabel(area: number | null | undefined, pricing: OrderPricing
 }
 
 /**
- * The order form's pricing note, from the configured tiers: `Prototype pricing is set by parcel
- * size alone — €100 up to 500 m², €200 above. …` (the mock's sentence for its two tiers).
+ * The order form's pricing note, from the configured tiers: `Priced by parcel size: €100 up
+ * to 500 m², €200 above.`
  */
 export function priceNote(pricing: OrderPricing | undefined): string | null {
   if (!pricing || pricing.tiers.length === 0) return null;
@@ -49,7 +49,7 @@ export function priceNote(pricing: OrderPricing | undefined): string | null {
     if (t.up_to_m2 != null) return `${price} up to ${m2(t.up_to_m2)}`;
     return i === 0 ? `${price} for any size` : `${price} above`;
   });
-  return `Prototype pricing is set by parcel size alone — ${parts.join(", ")}.`;
+  return `Priced by parcel size: ${parts.join(", ")}.`;
 }
 
 /** `5 working days` (the configured turnaround, counted from the payment). */
