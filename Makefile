@@ -24,8 +24,8 @@ help: ## list targets
 venv: ## create backend/.venv
 	cd backend && $(PY) -m venv $(VENV)
 
-install: venv ## install the backend with the dev and gis extras
-	cd backend && $(BIN)/pip install --upgrade pip && $(BIN)/pip install -e ".[dev,gis]"
+install: venv ## install the backend (dev, gis and ai extras) at the versions of backend/constraints.txt
+	cd backend && $(BIN)/pip install --upgrade pip && $(BIN)/pip install -c constraints.txt -e ".[dev,gis,ai]"
 
 run: ## run the API with auto-reload on :8000
 	cd backend && $(BIN)/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000

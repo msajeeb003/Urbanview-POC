@@ -1,0 +1,89 @@
+# The exact library versions the backend runs on, everywhere: the API and worker images install
+# with `pip install -c constraints.txt` (backend/Dockerfile, backend/Dockerfile.worker), and so
+# does a developer's environment (`make install`), where the tests run. pyproject.toml keeps the
+# ranges the code accepts; this file says which versions inside them are in use, so a deploy never
+# picks up a library release nobody tested.
+#
+# One line per installed distribution, the libraries' own dependencies included (the worker
+# image's list: the API image installs a subset). `python -m core.pins` checks an environment
+# against it; the image builds run it with --strict, so a library that is installed and not
+# listed here stops the build. Changing a version: deploy/README.md, "Library versions".
+#
+# First written 2026-10-03 from `pip freeze` in the live containers (Python 3.11).
+alembic==1.20.0
+amqp==5.4.0
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anthropic==1.11.0
+anyio==4.15.1
+asyncpg==0.31.0
+billiard==4.3.0
+boto3==1.43.107
+botocore==1.43.107
+celery==5.6.3
+certifi==2026.7.22
+click==8.5.0
+click-didyoumean==0.3.1
+click-plugins==1.1.1.2
+click-repl==0.4.0
+docstring_parser==0.18.0
+et_xmlfile==2.0.0
+fakeredis==2.39.0
+fastapi==0.142.2
+GeoAlchemy2==0.20.0
+greenlet==3.5.6
+h11==0.16.0
+httpcore==1.0.9
+httpcore2==2.13.1
+httptools==0.8.0
+httpx==0.28.1
+httpx2==2.13.1
+idna==3.20
+iniconfig==2.3.0
+Jinja2==3.1.6
+jiter==0.17.0
+jmespath==1.1.0
+kombu==5.6.2
+Mako==1.4.3
+MarkupSafe==3.0.3
+numpy==2.4.6
+openpyxl==3.1.5
+opentelemetry-api==1.45.0
+packaging==26.3
+pastel==0.2.1
+pluggy==1.6.0
+poethepoet==0.48.0
+prompt_toolkit==3.0.53
+pydantic==2.13.5
+pydantic_core==2.46.5
+pydantic-settings==2.15.0
+Pygments==2.21.0
+pymupdf==1.28.2
+pypdf==6.19.0
+pytest==9.1.1
+pytest-asyncio==1.4.0
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.4
+python-multipart==0.0.32
+PyYAML==6.0.3
+redis==6.4.0
+ruff==0.16.10
+s3transfer==0.19.2
+shapely==2.1.2
+six==1.17.0
+sniffio==1.3.1
+sortedcontainers==2.4.0
+SQLAlchemy==2.1.2
+starlette==1.7.0
+truststore==0.10.4
+typing_extensions==4.16.0
+typing-inspection==0.4.4
+tzdata==2026.4
+tzlocal==5.4.4
+urllib3==2.8.0
+uvicorn==0.54.0
+uvloop==0.23.0
+vine==5.1.0
+watchfiles==1.3.0
+wcwidth==0.9.1
+websockets==17.1

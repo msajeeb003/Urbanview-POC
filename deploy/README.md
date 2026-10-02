@@ -126,6 +126,32 @@ Pulls, rebuilds what changed, applies new migrations, restarts the changed servi
 images. A change to a `NEXT_PUBLIC_*` value in `deploy/.env` also needs this (they are baked into
 the map at build time).
 
+## Library versions
+
+The server runs the library versions the tests ran on, never "the newest today".
+`backend/constraints.txt` names one version of every Python library the API and the worker hold
+(the libraries' own dependencies included); both images install with it, and `make install` gives
+a developer's environment the same versions. The map's libraries are fixed the same way by
+`package-lock.json` (`npm ci`).
+
+To move to a newer version of a library:
+
+1. Change its line in `backend/constraints.txt` (`pip list --outdated` in `backend/.venv` shows
+   what is newer).
+2. Install it, in `backend/`: `.venv/Scripts/pip install -c constraints.txt -e ".[dev,gis,ai]"`
+   (`.venv/bin/pip` on Unix). When the new version needs a newer dependency, pip names it: change
+   that line too.
+3. Run the tests (`make test`, `make test-integration`). `tests/test_pins.py` fails while the
+   environment and the file disagree, so a test run always says which versions it ran on.
+4. Commit and deploy. Each image build ends with `python -m core.pins --strict`: a library that
+   came in and is not in the file (a new dependency of the one you raised) stops the build and
+   prints the line to add. Add it, install, test, deploy again. A stopped build changes nothing on
+   the server: the running containers stay as they are.
+
+`$dc exec api python -m core.pins --strict` (and `worker`) repeats the check on the running server.
+Not fixed by this file: the base images (`python:3.11-slim`, `node:22-bookworm-slim`) and the
+Debian packages installed in them (`gdal-bin`, `curl`), which follow their tags.
+
 ## Everyday commands
 
 ```bash

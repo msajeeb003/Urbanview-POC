@@ -1918,6 +1918,21 @@ secrets in code. `S3_PUBLIC_ENDPOINT_URL` (optional) is the address signed links
 `NEXT_OUTPUT=standalone`; `NEXT_PUBLIC_*` are build args. Caddy terminates HTTPS and sets
 `X-Forwarded-For` (`TRUST_PROXY_HEADERS=true`).
 
+**Library versions.** The server runs the versions the tests ran on. `backend/constraints.txt`
+names the one version of every Python library in use, the libraries' own dependencies included
+(77 lines, the worker image's list; first written 2026-10-03 from `pip freeze` in the live
+containers: until then every image build installed the newest release, and the server ran
+SQLAlchemy 2.1, FastAPI 0.142 and Starlette 1.7 while the tests ran on 2.0, 0.141 and 1.6).
+`pyproject.toml` keeps the ranges the code accepts. Both images install with `pip install -c
+constraints.txt` and end with `python -m core.pins --strict` (`core/pins.py`: a library installed
+and not listed stops the build and names the line to add; a stopped build leaves the running
+containers alone). `make install` installs the same versions (dev, gis and ai extras) and
+`tests/test_pins.py` fails when the test environment and the file disagree, so a test run always
+says which versions it ran on. Raising a version: `deploy/README.md`, "Library versions" (change
+the line, install, test, deploy). The map's libraries are fixed by `package-lock.json` (`npm
+ci`). Not fixed: the base images (`python:3.11-slim`, `node:22-bookworm-slim`) and their Debian
+packages (`gdal-bin`), which follow their tags.
+
 **Errors.** One envelope `{"error": {"code", "message", "request_id", "details"?}}`. Raise
 `core.errors.AppError` subclasses for expected client errors; unhandled exceptions become
 `internal_error` (500) logged with request id. Validation errors are `validation_error` (422).
@@ -1950,4 +1965,5 @@ job payloads carry ids, never addresses or bodies; `email_log` is the record.
 
 **Commands.** `make install | run | worker | migrate | migration | seed | test | test-integration
 | lint | fmt | gis-assess | cadastre | up | down | db-dev-install | db-dev-start | db-dev-stop` (Windows without make:
-`cd backend && poe <task>`).
+`cd backend && poe <task>`). `python -m core.pins` (from `backend/`): the installed libraries
+against `constraints.txt`.

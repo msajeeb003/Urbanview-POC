@@ -19,7 +19,7 @@ Source documents (BRD v1.6, BRQ, wireframe, brand assets): `docs/`.
 
 ```bash
 cp backend/.env.example backend/.env
-make install                 # backend/.venv with dev extras
+make install                 # backend/.venv with the library versions the server runs (backend/constraints.txt)
 make up                      # postgres/postgis, redis, minio, migrations, api (:8000), worker  (Docker)
 make seed                    # load the Podgorica sample dataset + placeholder PDFs into MinIO
 make test                    # unit tests, no services needed

@@ -18,7 +18,10 @@ COPY database /app/database
 COPY packages /app/packages
 
 WORKDIR /app/backend
-RUN pip install -e ".[dev]"
+# The library versions are the ones constraints.txt names (the versions the tests ran on), never
+# "the newest today"; the check stops the build when a library came in that the file does not list.
+RUN pip install -c constraints.txt -e ".[dev]" \
+ && python -m core.pins --strict
 
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s CMD curl -fsS http://localhost:8000/health || exit 1

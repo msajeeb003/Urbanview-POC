@@ -34,7 +34,9 @@ COPY database /app/database
 COPY packages /app/packages
 
 WORKDIR /app/backend
-RUN pip install -e ".[dev,gis,ai]"
+# pinned versions and the build-time check: see backend/Dockerfile
+RUN pip install -c constraints.txt -e ".[dev,gis,ai]" \
+ && python -m core.pins --strict
 
 # `celery inspect ping` answers only when the worker is connected to the broker and idle enough
 # to reply; the start period covers the broker connection retry.
