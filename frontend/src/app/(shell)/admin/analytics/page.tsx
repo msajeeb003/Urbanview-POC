@@ -4,6 +4,7 @@ import {
   count,
   districtChip,
   districtName,
+  districtNote,
   parseRange,
   pctText,
   positionText,
@@ -105,7 +106,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           rowKey={(d) => d.zone_id ?? "none"}
           empty="No searches in this range."
           columns={[
-            { key: "district", label: "District", render: (d) => districtName(d) },
+            {
+              key: "district",
+              label: "District",
+              render: (d) => {
+                const note = districtNote(d);
+                return note ? <span title={note}>{districtName(d)}</span> : districtName(d);
+              },
+            },
             {
               key: "coverage",
               label: "Coverage",

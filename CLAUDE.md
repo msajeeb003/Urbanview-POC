@@ -307,6 +307,42 @@ demand: the analytics districts place them by their point.
   show that set only; the order's own unique reference is the payment reference, as before. The
   details are the server's `ORDER_BANK_*` (set 2026-10-05; the repository holds no account
   number). See "Orders".
+- **Tester's report on the admin console and feasibility (2026-10-05, 22 items), each checked
+  against the live data and the code.** Fixed in code (2026-10-06): a refund above the amount
+  received is refused (3: EUR 150 had gone back on EUR 100; `OrderService.record_payment`, the
+  drawer says so before sending); publishing no longer waits for pending items that have no
+  place on the map (6: a test document without geometry, 498 items, blocked every publish;
+  `PENDING_SQL`); the analytics districts table calls the row of events without a recorded
+  position "No district recorded" (15: it read "Outside every district" beside 0 searches
+  outside coverage) and the events of a zone that no longer exists "Removed district #1" (14:
+  the first sample's two zones, 25-27 September); a file's row follows its items once its run
+  is done, "Reviewed" then "Published" (18: it read "Ready for review" beside a published
+  document); the disabled Remove of a file says how to free it (7: set its approved items to
+  rejected, then remove; documents themselves are never deleted, a wrong one is set to
+  superseded). **As decided or specified, explained to the client:** the two plans' values were
+  loaded as approved without the model or an expert (1: the product owner's decision of
+  1 October, below; the client's expert has not signed them off); the geometry review (2: Novi
+  Grad's shapes were approved there on 2 October under the open-access login, Stara Varoš's and
+  the zones went live on 27 September, before that screen existed, so they carry no decision;
+  the queue hides published batches unless "include published" is ticked, and a drawing's "Not
+  run" is the console's geometry job, which these PDF drawings never used: they were
+  georeferenced by command line); a report link stays valid for its seven days after a refund
+  (4: a signed link cannot be withdrawn); one decision per item, no bulk approval (5: the
+  plan); the publishers "ops" (the developer's service token, still in `ADMIN_API_TOKENS`) and
+  "open-access" (the console of 1-2 October, off since) in the version history (8); one admin
+  address shared by the tester and the developer (9: process; three accounts exist now); the
+  design & documentation row without a bar, the sliders in steps of 1 and the price bands'
+  four strengths of one gold (11, 12, 13: the approved mock); the session count against the
+  funnel's first step (16: every session against those that recorded a map load; a tab left
+  open past 30 minutes starts a session without one); the commands named on the zone import
+  and georeferencing cards (17: command-line steps in the POC); 3 251 approved items against
+  3 250 served values (19: UP F3360/1's site coverage was corrected on 3 October, the queue
+  counts both readings); no audit line for a sign-in request from a deactivated address (20:
+  only active staff accounts are looked up); stored field names in the audit log (21: the
+  plan's thin table); the expert sees the customer's contact details (22: nothing in the plan
+  hides them; the client's decision). **Not reproduced:** the price fields showing only their
+  first digit while editing (10: on the same build 500, 1000 and 2000 typed key by key into
+  empty and filled rows showed in full at two window widths; the tester's steps are needed).
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
   POC plans are prepared from their parameter tables by the table reader and loaded as approved
   items (see "Prepared planning values"), not AI-extracted and not reviewed item by item by an
@@ -1255,7 +1291,8 @@ demand: the analytics districts place them by their point.
   in_progress / delivered (a delivered order never goes back to work; the refund's amount, date
   and bank reference are on its audit row); anything else 409. `POST /v1/admin/orders/{id}/payment` (`received` → paid with
   amount / date / bank reference, also from payment_failed; `not_received` → payment_failed with
-  the note, again on a failed order only records the check, 409 once paid; `refunded`),
+  the note, again on a failed order only records the check, 409 once paid; `refunded`: an
+  amount above the one received is a 422, money back never exceeds the money that came in),
   `.../assign` (an
   active `expert` user; only a paid order, which moves to in_progress, or one in progress:
   reassignment; 409 while the payment is due), `PATCH .../status` (delivered needs
@@ -1528,7 +1565,10 @@ demand: the analytics districts place them by their point.
 - **One button.** `POST /v1/admin/publish` (roles admin, reviewer; body `{label?, notes?}`)
   refuses with 409 `reason = pending_review` and `details.documents` (id, name, pending count)
   and `details.geometry` (staged batches waiting for the geometry review) while any document has
-  items pending review or any staged geometry waits for a decision; otherwise it queues one
+  items pending review that have a place on the map (`PENDING_SQL`: a parcel, block or zone, or
+  document scope; an item still waiting for its parcel, a text reference of a document without
+  geometry there, can publish nothing whatever is decided and holds nobody up: 2026-10-06) or
+  any staged geometry waits for a decision; otherwise it queues one
   `publish_approved` job
   (202; 200 with the active job while one is queued / running: key
   `publish_approved:publish_run:-`, `max_attempts = 1`). `GET /v1/admin/publish` is the status
@@ -1540,8 +1580,8 @@ demand: the analytics districts place them by their point.
 - **The job** (`PublishPipeline.run`, one database transaction from preflight to flip, so
   visitors see the previous version until the commit and a failure leaves nothing behind: an
   archive already uploaded is deleted again):
-  `preflight` (pending items or geometry pending review = hard failure; superseded items never
-  count or publish) →
+  `preflight` (pending items with a place on the map or geometry pending review = hard
+  failure; superseded items never count or publish) →
   `version` (new `publish_versions` row, not current, numbered `version_no` 1, 2, 3 … per
   municipality, 0034) → `values` (the previous version's `planning_parameter_values` carried
   forward for current document versions, overridden by approved / amended items: amended value

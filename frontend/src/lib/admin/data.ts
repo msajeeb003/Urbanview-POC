@@ -311,13 +311,25 @@ export function extractionPill(file: AdminDocumentFile, now: Date = new Date(), 
         reason: reasonText(job?.error),
         times: times.full,
       };
-    case "ready_for_review":
+    case "ready_for_review": {
+      // The run ends "ready for review" and stays so; what the file says afterwards follows its
+      // items, as the document's own state does: some still to decide, all decided, or every
+      // accepted one served on the map (it read "Ready for review" beside "Published" forever).
+      const items = file.items;
+      const accepted = (items?.approved ?? 0) + (items?.amended ?? 0);
+      const label =
+        !items || items.pending > 0
+          ? "Ready for review"
+          : accepted > 0 && items.published >= accepted
+            ? "Published"
+            : "Reviewed";
       return {
         tone: "ok",
-        label: "Ready for review",
-        detail: join(`${file.items?.total ?? run?.items_written ?? 0} items`, cost, times.short),
+        label,
+        detail: join(`${items?.total ?? run?.items_written ?? 0} items`, cost, times.short),
         times: times.full,
       };
+    }
     case "failed":
       return {
         tone: "pend",
@@ -369,7 +381,9 @@ export function jobPill(job: AdminJob | null | undefined, role?: FileRole, now: 
 export function removeBlockerText(reason: string | null | undefined): string | null {
   switch (reason) {
     case "items_accepted":
-      return "Items read from this file were approved; it stays with the document.";
+      // not a dead end while nothing is published: an open decision can be changed, then the
+      // file can go (its other items leave the queue with it)
+      return "Items read from this file were approved. It can be removed once they are set to rejected in the review queue; a file with published values stays.";
     case "values_published":
       return "Published values cite this file; it stays with the document.";
     case "extraction_active":

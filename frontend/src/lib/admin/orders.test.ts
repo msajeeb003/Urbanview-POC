@@ -14,6 +14,7 @@ import {
   parseOrderFilters,
   paymentOriginText,
   refundOf,
+  refundProblem,
   snapshotAssumptions,
   snapshotFeasibility,
   snapshotPlanning,
@@ -95,6 +96,15 @@ describe("the queue", () => {
     expect(versionText({ data_version: "first-publish", data_version_no: 1 })).toBe("v1");
     expect(versionText({ data_version: "first-publish", data_version_no: null })).toBe("first-publish");
     expect(versionText({ data_version: null, data_version_no: null })).toBeNull();
+  });
+
+  it("refuses a refund above the amount received", () => {
+    expect(refundProblem({ payment_amount_eur: 100 }, 150)).toBe("A refund cannot be more than the €100 received.");
+    expect(refundProblem({ payment_amount_eur: 100 }, 100)).toBeNull();
+    expect(refundProblem({ payment_amount_eur: 100 }, 40.5)).toBeNull();
+    // nothing recorded as received (an order paid before amounts were kept): the API decides
+    expect(refundProblem({ payment_amount_eur: null }, 150)).toBeNull();
+    expect(refundProblem({ payment_amount_eur: 100 }, null)).toBeNull();
   });
 
   it("says where the customer pays from and which account they were shown", () => {

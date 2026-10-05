@@ -251,6 +251,46 @@ async def test_publish_is_refused_while_items_are_pending(publish_env):
     assert forbidden.status_code == 403 and anonymous.status_code == 401
 
 
+async def test_pending_items_without_a_place_on_the_map_hold_nobody_up(publish_env):
+    """A document read before it has any geometry leaves pending items that can publish nothing
+    (text references: no parcel to put the value on). Publishing does not wait for them (the
+    tester's report of 2026-10-05: a test document's 498 such items blocked every publish); they
+    stay pending and unpublished. A pending item with a parcel still blocks."""
+    app = publish_env()
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        await reject_seeded_pending_item(app)
+        waiting = await insert_item(
+            app, urban_parcel_id=None, field_key="max_far", value_number=2.2, source_page=13
+        )
+        async with app.state.session_factory() as session:
+            await session.execute(
+                text(
+                    "UPDATE planning_parameter_extractions SET target_label = 'UP 999', "
+                    "target_key = '999', flags = CAST(:flags AS jsonb) WHERE id = :id"
+                ),
+                {"id": waiting, "flags": json.dumps(["target_unmatched"])},
+            )
+            await session.commit()
+        free = await client.get("/v1/admin/publish", headers=auth())
+        await publish(client, "test-not-blocked")
+        after = await rows(
+            app,
+            "SELECT review_state, published_value_id FROM planning_parameter_extractions "
+            "WHERE id = :id",
+            id=waiting,
+        )
+        # the same reading on a parcel that exists waits for its review, as before
+        placed = await insert_item(app, field_key="max_far", value_number=2.2, source_page=13)
+        blocked = await client.get("/v1/admin/publish", headers=auth())
+        refused = await client.post("/v1/admin/publish", json={}, headers=auth())
+
+    assert free.json()["can_publish"] is True and free.json()["blockers"] == []
+    assert after == [{"review_state": "pending_review", "published_value_id": None}]
+    assert blocked.json()["can_publish"] is False
+    assert [b["pending"] for b in blocked.json()["blockers"]] == [1]
+    assert refused.status_code == 409 and placed > waiting
+
+
 # --- the amended value ---------------------------------------------------------------------------
 
 

@@ -145,6 +145,18 @@ async def test_assignment_waits_for_the_payment_and_a_delivered_order_can_be_ref
             files={"file": ("report.pdf", PDF, "application/pdf")},
             headers=auth(expert),
         )
+        # more than the EUR 200 that came in: refused, the order stays delivered
+        too_much = await client.post(
+            f"/v1/admin/orders/{oid}/payment",
+            json={
+                "status": "refunded",
+                "amount_eur": 250,
+                "received_on": "2026-09-30",
+                "reference": "REFUND-9",
+            },
+            headers=auth(),
+        )
+        still_delivered = await client.get(f"/v1/admin/orders/{oid}", headers=auth())
         refunded = await client.post(
             f"/v1/admin/orders/{oid}/payment",
             json={
@@ -166,6 +178,15 @@ async def test_assignment_waits_for_the_payment_and_a_delivered_order_can_be_ref
     assert too_early.json()["error"]["details"]["status"] == "pending_payment"
     assert assigned.status_code == 200 and assigned.json()["status"] == "in_progress"
     assert delivered.status_code == 200 and delivered.json()["status"] == "delivered"
+    # a refund never exceeds what was received
+    assert too_much.status_code == 422, too_much.text
+    assert too_much.json()["error"]["details"] == [
+        {
+            "loc": ["body", "amount_eur"],
+            "msg": "a refund cannot be more than the 200.00 EUR received",
+        }
+    ]
+    assert still_delivered.json()["status"] == "delivered"
     # a delivered order can still be refunded (amount, date, reference on the audit row)
     assert refunded.status_code == 200, refunded.text
     body = refunded.json()

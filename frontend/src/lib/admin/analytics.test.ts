@@ -4,6 +4,7 @@ import {
   count,
   districtChip,
   districtName,
+  districtNote,
   parseRange,
   pctText,
   positionText,
@@ -54,7 +55,15 @@ describe("analytics page rules", () => {
     const konik = district({ zone_id: 5, zone_name: "Konik", covered: false, searches: 3, uncovered_searches: 3 });
     const nowhere = district({ zone_id: null, zone_name: null, covered: null, uncovered_searches: 1 });
     expect(districtName(konik)).toBe("Konik");
-    expect(districtName(nowhere)).toBe("Outside every district");
+    expect(districtNote(konik)).toBeNull();
+    // no district could be recorded (no position on the event): never called "outside"
+    expect(districtName(nowhere)).toBe("No district recorded");
+    expect(districtNote(nowhere)).toMatch(/without a recorded position/);
+    // events of a district that was removed since keep its number, named as such
+    const removed = district({ zone_id: 1, zone_name: null, covered: null });
+    expect(districtName(removed)).toBe("Removed district #1");
+    expect(districtNote(removed)).toMatch(/no longer exists/);
+    expect(districtChip(removed)).toBeNull();
     expect(districtChip(district({}))).toEqual({ tone: "ok", label: "Covered" });
     expect(districtChip(konik)).toEqual({ tone: "rev", label: "No adopted plan" });
     expect(districtChip(nowhere)).toBeNull();

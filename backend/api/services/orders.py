@@ -944,6 +944,23 @@ class OrderService:
                 )
             elif payload.status == "refunded":
                 self._guard(row, "refunded")
+                # money back never exceeds the money that came in (the tester's report of
+                # 2026-10-05: EUR 150 refunded on EUR 100 received)
+                received = row["payment_amount_eur"]
+                if (
+                    payload.amount_eur is not None
+                    and received is not None
+                    and payload.amount_eur > float(received)
+                ):
+                    raise _validation_error(
+                        [
+                            {
+                                "loc": ["body", "amount_eur"],
+                                "msg": "a refund cannot be more than the "
+                                f"{float(received):.2f} EUR received",
+                            }
+                        ]
+                    )
                 await session.execute(
                     SET_STATUS_SQL,
                     {"id": order_id, "m": self.municipality_id, "status": "refunded", "at": now},

@@ -89,10 +89,23 @@ export function rangeLabel(range: AnalyticsDashboard["range"]): string {
   return `${formatDate(range.from) ?? "—"} – ${formatDate(lastDay) ?? "—"}`;
 }
 
-/** The zone's name, or what a row without a zone stands for. */
+/**
+ * The zone's name, or what a row without one stands for. The row without a zone holds the
+ * searches and picks no district could be recorded for: the event carried no position (a search
+ * that found nothing, events from before positions were sent) or its point lies in no district.
+ * It is not "outside coverage" (those searches are counted in the district of their point). A
+ * zone id that names no zone any more is a district removed since (the first sample's two).
+ */
 export function districtName(d: Pick<ZoneHits, "zone_id" | "zone_name">): string {
-  if (d.zone_id == null) return "Outside every district";
-  return d.zone_name ?? `Zone #${d.zone_id}`;
+  if (d.zone_id == null) return "No district recorded";
+  return d.zone_name ?? `Removed district #${d.zone_id}`;
+}
+
+/** What such a row means, in a sentence (its tooltip); null for an ordinary district. */
+export function districtNote(d: Pick<ZoneHits, "zone_id" | "zone_name">): string | null {
+  if (d.zone_id == null)
+    return "Searches and picks without a recorded position (for example a search that found nothing), or outside every district.";
+  return d.zone_name == null ? "This district no longer exists; the events were recorded while it did." : null;
 }
 
 /** Coverage of a zone: an adopted, live plan, or none yet (the S6 demand the pilot measures). */

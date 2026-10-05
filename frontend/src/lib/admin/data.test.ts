@@ -124,6 +124,26 @@ describe("extraction and job pills", () => {
     expect(ready).toMatchObject({ tone: "ok", label: "Ready for review", detail: "4 items · €0.42" });
   });
 
+  it("follows the file's items once the run is done: reviewed, then published", () => {
+    const withItems = (items: Partial<NonNullable<AdminDocumentFile["items"]>>) =>
+      extractionPill(
+        file({
+          extraction_state: "ready_for_review",
+          items: { pending: 0, approved: 0, amended: 0, rejected: 0, published: 0, total: 450, ...items },
+        }),
+      ).label;
+    // some still to decide
+    expect(withItems({ pending: 3, approved: 447 })).toBe("Ready for review");
+    // every item decided, the accepted ones not on the map yet
+    expect(withItems({ approved: 440, amended: 5, rejected: 5 })).toBe("Reviewed");
+    expect(withItems({ approved: 440, amended: 5, rejected: 5, published: 400 })).toBe("Reviewed");
+    // every accepted item served: what the document says too
+    expect(withItems({ approved: 450, published: 450 })).toBe("Published");
+    expect(withItems({ approved: 440, amended: 5, rejected: 5, published: 445 })).toBe("Published");
+    // everything rejected: reviewed, nothing to publish
+    expect(withItems({ rejected: 450 })).toBe("Reviewed");
+  });
+
   it("says why an extraction failed and how many attempts it took", () => {
     const failed = extractionPill(
       file({

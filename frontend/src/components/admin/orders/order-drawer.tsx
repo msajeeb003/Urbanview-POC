@@ -35,6 +35,7 @@ import {
   parcelCells,
   paymentOriginText,
   refundOf,
+  refundProblem,
   snapshotAssumptions,
   snapshotFeasibility,
   snapshotPlanning,
@@ -129,7 +130,7 @@ function Payment({ order }: { order: OrderDetail }) {
     if (!(input.amount && input.amount > 0)) return "Enter the amount.";
     if (!input.date) return "Enter the date.";
     if (!input.reference.trim()) return "Enter the bank reference.";
-    return null;
+    return input.kind === "refunded" ? refundProblem(order, input.amount) : null;
   };
   const summary =
     input?.kind === "received"

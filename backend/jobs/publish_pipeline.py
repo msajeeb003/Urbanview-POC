@@ -154,6 +154,11 @@ def next_label(existing: Iterable[str], today: datetime) -> str:
 
 # --- SQL -----------------------------------------------------------------------------------------
 
+# What publishing waits for: pending items that have a target on the map. An item still waiting
+# for its parcel or block (a text reference: the document has no geometry there yet) can publish
+# nothing whatever is decided, so it holds nobody up (the tester's report of 2026-10-05: a test
+# document without geometry, 498 pending items, blocked every publish). It stays pending and is
+# reviewed like any other; once its parcel exists it is linked and counts here.
 PENDING_SQL = text(
     """
     SELECT d.id AS document_id, d.name AS document_name, count(*) AS pending
@@ -161,6 +166,10 @@ PENDING_SQL = text(
     JOIN planning_documents d ON d.id = e.document_id
     WHERE e.municipality_id = :m AND e.review_state = 'pending_review'
       AND e.superseded_at IS NULL
+      AND ((e.entity_type = 'urban_parcel' AND e.urban_parcel_id IS NOT NULL)
+           OR (e.entity_type = 'block' AND e.block_id IS NOT NULL)
+           OR (e.entity_type = 'zone' AND e.zone_id IS NOT NULL)
+           OR e.entity_type = 'document')
     GROUP BY d.id, d.name ORDER BY d.name, d.id
     """
 )

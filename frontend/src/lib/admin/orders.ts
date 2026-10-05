@@ -225,6 +225,14 @@ export function refundOf(order: Pick<OrderDetail, "timeline">): RefundFacts | nu
   };
 }
 
+/** A refund never exceeds what was received (the API refuses it too); null = fine. */
+export function refundProblem(order: Pick<OrderDetail, "payment_amount_eur">, amount: number | null): string | null {
+  const received = order.payment_amount_eur;
+  return amount != null && received != null && amount > received
+    ? `A refund cannot be more than the ${money(received)} received.`
+    : null;
+}
+
 /**
  * Where the customer said they pay from, with the account the order showed them: staff look for
  * the transfer on that account (the domestic one, or the one behind the IBAN). An order placed

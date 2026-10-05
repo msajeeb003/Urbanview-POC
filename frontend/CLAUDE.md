@@ -712,7 +712,10 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   step, counted from, sessions, from previous, from start), orders by status (status, orders,
   amount), most-searched districts (district, Covered / No adopted plan chip, searches, outside
   coverage, parcel picks, sessions, share; searches outside coverage count for the district of
-  their point, a point in no zone is "Outside every district"), searches outside coverage by
+  their point; the row without a zone is "No district recorded": searches and picks whose event
+  carried no position, such as a search that found nothing, or whose point lies in no district,
+  never called "outside" (`districtName`, `districtNote` as its tooltip); a zone id that names
+  no zone any more is "Removed district #1"), searches outside coverage by
   position (≈ 110 m), and repeat visitors (3+ sessions) / the two intent counts; Users
   `GET /v1/admin/users`; Financial
   assumptions (below). Action buttons are hidden for
@@ -768,7 +771,8 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   `components/admin/publish/publish-screen.tsx`, rules in `lib/admin/publish.ts`, calls
   `publishAction` / `publishStatusAction` in `lib/admin/review-actions.ts`):
   what the map serves (`v7 · label`, when, who), "Publish" with an optional label and notes
-  (disabled while any document has pending items or any geometry waits for review, `blockersText`,
+  (disabled while any document has pending items with a place on the map or any geometry waits
+  for review: the API's blockers; items still waiting for their parcel hold nobody up, `blockersText`,
   named with
   a link into the review queue or the geometry review), the
   running job's steps (preflight … prune, `stepLabel`, read every 2 s until it ends; a failed
@@ -795,7 +799,10 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   version…) with one indented row per file (extraction and geometry: queued / running / succeeded
   / failed with attempts, cost, when it ran — "finished 3 min ago", the exact UTC times on hover,
   `jobTimes` — and the reason; a PDF with raster sheets "needs QGIS redraw · p. 3", `redrawText`;
-  Retry, Extract, Rerun, "Review n →" = `/admin/review?document=&file=`). Filters zone / status /
+  Retry, Extract, Rerun, "Review n →" = `/admin/review?document=&file=`; once a file's run is
+  done its extraction label follows its items, as the document's state does: "Ready for review"
+  while any is pending, then "Reviewed", then "Published" when every accepted item is served,
+  `extractionPill`). Filters zone / status /
   state / job state / name in the URL (`next/form`). "Zones from QGIS" (admins,
   `zone-import.tsx`): drop the zone GeoPackage (uploaded like any file), "Check only" or "Import
   zones" (`POST /v1/admin/zones/import`), the latest imports with their outcome (staged dataset
@@ -806,7 +813,8 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   + drop zone (PDFs, several at once, and as a drawing GIS files too: `kindsForRole`; each file
   uploads, joins the version and, unless a drawing, is queued for extraction), the
   files table (role select, pages, the pages to redraw in QGIS, extraction, cost, geometry, Remove disabled
-  with the API's reason once an item was approved), the Georeferencing card (the latest
+  with the API's reason once an item was approved, and with the way out: set those items to
+  rejected in the review queue, then remove; a file with published values stays), the Georeferencing card (the latest
   `georeference` run: status, RMSE against the limit, max residual, snapping, cadastral overlap
   and mean offset, warning codes, one row per sheet with its RMSE; "Not georeferenced yet" with
   the CLI to run otherwise; a GIS drawing staged by the geometry job says "GIS drawing in its own
@@ -842,7 +850,8 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   (amount, date, bank reference, all required; also on a failed payment), "Payment not
   received" (a note: the order becomes `Payment not received`, chip `rev`, which the customer's
   order page shows with the instructions; again on a failed order it only records the check),
-  "Refund" (amount, date, reference; also after delivery), each confirmed in a
+  "Refund" (amount, date, reference; also after delivery; never more than the amount
+  received: `refundProblem`, and the API refuses it too), each confirmed in a
   line before `POST …/payment` is sent; the section states where the customer pays from and
   which account they were shown (`paymentOriginText`: "Montenegro · shown the domestic account
   number", "Another country · shown the IBAN and SWIFT / BIC", "Not asked · …" for an order
