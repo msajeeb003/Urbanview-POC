@@ -12,6 +12,11 @@
  * form, not the mock's: name, telephone and e-mail for everyone; a legal entity adds its company
  * name and PIB, both optional.
  *
+ * "Paying from" (the client, 2026-10-05; not in the mock): the country of the municipality or
+ * another country, two buttons like "Ordering as" with nothing preselected. The beneficiary has a
+ * domestic account number and, for transfers from abroad, an IBAN with a SWIFT / BIC; the order
+ * keeps the answer and its confirmation, order page and e-mail show that set only.
+ *
  * No account, no password, no card: "Place order →" validates inline (the API's rules,
  * `lib/order-form.ts`), then `POST /v1/orders` with the location and the visitor's edited
  * assumptions, and opens the S5 confirmation. A rejected or failed request keeps the form and its
@@ -22,7 +27,7 @@ import { useId, useRef, useState, type FormEvent, type KeyboardEvent } from "rea
 
 import { getTracker } from "@/lib/analytics/react";
 import { formatArea } from "@/lib/format";
-import { useCreateOrder, useOrderPricing } from "@/lib/api/hooks";
+import { useCreateOrder, useMunicipality, useOrderPricing } from "@/lib/api/hooks";
 import { useLang } from "@/lib/i18n";
 import {
   FIELDS,
@@ -34,6 +39,7 @@ import {
   type DraftField,
   type FieldErrors,
   type OrderTarget,
+  type PaymentOrigin,
   type PurchaserType,
 } from "@/lib/order-form";
 import { bandLabel, formatPrice, priceFor, priceNote, turnaroundText } from "@/lib/pricing";
@@ -96,6 +102,13 @@ const ROWS: Record<PurchaserType, DraftField[][]> = {
   ],
 };
 
+// what the choice of "Paying from" gets the customer (the line under the two buttons)
+const ORIGIN_NOTE: Record<PaymentOrigin, string> = {
+  domestic: "You will get the domestic account number.",
+  international: "You will get the IBAN and SWIFT / BIC.",
+};
+const ORIGIN_NOTE_NONE = "Bank transfer in EUR. The account details depend on where your bank is.";
+
 const IconCard = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
     <path d="M3 4h14v12H3z" stroke="currentColor" strokeWidth="1.4" />
@@ -114,12 +127,19 @@ function OrderModal({ target }: { target: OrderTarget }) {
   const closeModal = useShell((s) => s.closeModal);
   const pricing = useOrderPricing();
   const create = useCreateOrder();
+  const { data: profile } = useMunicipality();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const sending = useRef(false);
   const failureRef = useRef<HTMLParagraphElement>(null);
   const formId = useId();
   const idOf = (field: DraftField) => `${formId}-${field}`;
+  const originId = (origin: PaymentOrigin) => `${formId}-from-${origin}`;
+  // the profile names the country a domestic payment is made in
+  const origins: [PaymentOrigin, string][] = [
+    ["domestic", profile?.country_name ?? "This country"],
+    ["international", "Another country"],
+  ];
 
   const tiers = pricing.data;
   const price = priceFor(target.basisAreaM2, tiers);
@@ -143,6 +163,10 @@ function OrderModal({ target }: { target: OrderTarget }) {
     setErrors({});
     setFailure(null);
   };
+  const payFrom = (paymentOrigin: PaymentOrigin) => {
+    setDraft({ paymentOrigin });
+    setErrors((e) => ({ ...e, paymentOrigin: undefined }));
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -153,6 +177,10 @@ function OrderModal({ target }: { target: OrderTarget }) {
     const first = FIELDS[draft.purchaserType].find((f) => found[f]);
     if (first) {
       document.getElementById(idOf(first))?.focus();
+      return;
+    }
+    if (found.paymentOrigin) {
+      document.getElementById(originId("domestic"))?.focus();
       return;
     }
     if (price == null || noArea) return;
@@ -321,6 +349,34 @@ function OrderModal({ target }: { target: OrderTarget }) {
               field(row[0])
             ),
           )}
+
+          <div className="fieldlab" id={`${formId}-from`}>
+            Paying from
+          </div>
+          <div
+            className={cn("seg payfrom", errors.paymentOrigin && "err")}
+            role="radiogroup"
+            aria-labelledby={`${formId}-from`}
+            aria-describedby={`${formId}-from-note`}
+            aria-invalid={errors.paymentOrigin ? true : undefined}
+          >
+            {origins.map(([value, text]) => (
+              <button
+                key={value}
+                id={originId(value)}
+                type="button"
+                role="radio"
+                aria-checked={draft.paymentOrigin === value}
+                className={cn("segb", draft.paymentOrigin === value && "on")}
+                onClick={() => payFrom(value)}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+          <p className={cn("payfromnote", errors.paymentOrigin && "ferr")} id={`${formId}-from-note`}>
+            {errors.paymentOrigin ?? (draft.paymentOrigin ? ORIGIN_NOTE[draft.paymentOrigin] : ORIGIN_NOTE_NONE)}
+          </p>
 
           <div
             className="methlink"

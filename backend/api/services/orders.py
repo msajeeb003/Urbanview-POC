@@ -17,8 +17,10 @@ a guarded status flow, expert assignment and report delivery.
   every change is an ``audit_log`` row with before / after.
 - Staff: admins see and manage everything (reviewers have no order access); an expert sees and
   delivers only the orders assigned to them. The public order page never returns personal data.
-- Payments: bank transfer only (``core.payments.BankTransferProvider``: the instructions). Every
-  e-mail attempt is an ``email_log`` row; a failed send never fails the order.
+- Payments: bank transfer only (``core.payments.BankTransferProvider``: the instructions). The
+  order keeps where the customer pays from (``payment_origin``, the form's "Paying from") and is
+  shown that set of bank details: the domestic account number, or the IBAN and SWIFT / BIC from
+  abroad. Every e-mail attempt is an ``email_log`` row; a failed send never fails the order.
 """
 
 from __future__ import annotations
@@ -249,7 +251,8 @@ INSERT_ORDER_SQL = text(
         cadastral_parcel_id, urban_parcel_id, parcel_label, document_name, zone_id, zone_name,
         basis_area_m2, calculation_basis, price_eur, currency, pricing_tier,
         turnaround_business_days, expected_by, assumption_edits, snapshot, data_version,
-        publish_version_id, market_version_id, market_version, formula_version, language)
+        publish_version_id, market_version_id, market_version, formula_version, language,
+        payment_origin)
     VALUES (
         :m, :reference, 'pending_payment', :customer_id, :purchaser_type, :first_name,
         :last_name, :email, :telephone, :company_name, :tax_number, :message, :parcel_type,
@@ -260,7 +263,7 @@ INSERT_ORDER_SQL = text(
         (SELECT v.id FROM publish_versions v
          WHERE v.municipality_id = :m AND v.label = CAST(:data_version AS text)
          ORDER BY v.is_current DESC, v.id DESC LIMIT 1),
-        :market_version_id, :market_version, :formula_version, :language)
+        :market_version_id, :market_version, :formula_version, :language, :payment_origin)
     RETURNING id, placed_at, status_changed_at
     """
 )
@@ -280,7 +283,7 @@ PUBLIC_ORDER_SQL = text(
     SELECT o.reference, o.status, o.placed_at, o.status_changed_at, o.parcel_type, o.parcel_id,
            o.cadastral_parcel_id, o.parcel_label, o.document_name, o.zone_name,
            o.turnaround_business_days, o.expected_by, o.basis_area_m2, o.calculation_basis,
-           o.price_eur, o.currency, o.pricing_tier, o.data_version,
+           o.price_eur, o.currency, o.pricing_tier, o.data_version, o.payment_origin,
            {_VERSION_NO} AS data_version_no
     FROM orders o WHERE o.municipality_id = :m AND o.reference = :reference
     """
@@ -296,7 +299,8 @@ _ORDER_COLUMNS = """
            o.calculation_basis, o.price_eur, o.currency, o.pricing_tier,
            o.turnaround_business_days, o.expected_by, o.assumption_edits, o.data_version,
            {version_no} AS data_version_no,
-           o.publish_version_id, o.customer_id, o.market_version_id, o.market_version,
+           o.publish_version_id, o.customer_id, o.payment_origin, o.market_version_id,
+           o.market_version,
            o.formula_version, o.assignee_user_id,
            u.email AS assignee_email, u.display_name AS assignee_name, o.paid_at,
            o.payment_amount_eur, o.payment_reference, o.payment_received_on, o.delivered_at,
@@ -567,6 +571,8 @@ class OrderService:
             "formula_version": panel.formula_version,
             # the order's e-mails (now and when the report is delivered) are written in it
             "language": payload.language,
+            # where the customer pays from: the bank details the order is shown
+            "payment_origin": payload.payment_origin,
         }
 
         async with self.session_factory() as session:
@@ -620,6 +626,7 @@ class OrderService:
                         "purchaser_type": payload.purchaser_type,
                         "customer_id": customer_id,
                         "data_version": panel.data_version,
+                        "payment_origin": payload.payment_origin,
                     },
                     after={"status": "pending_payment"},
                 )
@@ -628,7 +635,9 @@ class OrderService:
         if order_id is None:
             raise ConflictError("Could not allocate a unique order reference; please retry")
 
-        instructions = self.provider.instructions(reference=reference, amount_eur=tier.price_eur)
+        instructions = self.provider.instructions(
+            reference=reference, amount_eur=tier.price_eur, origin=payload.payment_origin
+        )
         # The payment e-mail is a send_email job over an email_log row; the worker renders it
         # from the order at send time. A queue outage marks the row failed, the order stands.
         email_status = (
@@ -693,7 +702,9 @@ class OrderService:
         instructions = (
             _instructions_out(
                 self.provider.instructions(
-                    reference=row["reference"], amount_eur=float(row["price_eur"])
+                    reference=row["reference"],
+                    amount_eur=float(row["price_eur"]),
+                    origin=row["payment_origin"],
                 )
             )
             if due
@@ -830,6 +841,7 @@ class OrderService:
             telephone=row["telephone"],
             tax_number=row["tax_number"],
             customer_id=row["customer_id"],
+            payment_origin=row["payment_origin"],
             message=row["message"],
             assumption_edits=row["assumption_edits"] or {},
             pricing=_pricing_out(row),
@@ -1209,9 +1221,14 @@ class OrderService:
 def _instructions_out(instructions: PaymentInstructions) -> PaymentInstructionsOut:
     return PaymentInstructionsOut(
         method=instructions.method,  # type: ignore[arg-type]
+        origin=instructions.origin,  # type: ignore[arg-type]
+        title_en=instructions.title_en,
+        title_me=instructions.title_me,
         beneficiary=instructions.beneficiary,
-        iban=instructions.iban,
+        beneficiary_address=instructions.beneficiary_address,
         bank_name=instructions.bank_name,
+        account_number=instructions.account_number,
+        iban=instructions.iban,
         swift=instructions.swift,
         amount_eur=instructions.amount_eur,
         currency=instructions.currency,

@@ -41,6 +41,7 @@ from core.mail import (
     render,
 )
 from core.mail.repository import EmailLogRow, EmailRepository, SqlEmailRepository
+from core.municipality import load_profile
 from core.payments import BankTransferProvider
 from jobs.base import TRANSIENT_EXCEPTIONS, JobContext, JobResult, JobTask, TransientError
 from jobs.celery_app import celery_app
@@ -110,14 +111,14 @@ async def resolve_context(
             currency=order.currency,
         )
         if template == "payment_instructions":
-            provider = BankTransferProvider(
-                beneficiary=settings.order_bank_beneficiary,
-                iban=settings.order_bank_iban,
-                bank_name=settings.order_bank_name,
-                swift=settings.order_bank_swift,
+            # the bank details of where the order is paid from, as its confirmation showed
+            provider = BankTransferProvider.from_settings(
+                settings, load_profile(row.municipality_id)
             )
             instructions = provider.instructions(
-                reference=order.reference, amount_eur=order.price_eur
+                reference=order.reference,
+                amount_eur=order.price_eur,
+                origin=order.payment_origin,
             )
             context = payment_instructions_context(facts, instructions)
             return order.email, context, order.language

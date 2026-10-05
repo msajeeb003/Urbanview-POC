@@ -11,11 +11,15 @@
   <p>Broj narudžbe: <strong>{{ reference }}</strong><br>
      Cijena: <strong>{{ price_eur | money }} {{ currency }}</strong> (jednokratno)</p>
   <p>{{ note_me }}</p>
-  <table style="border-collapse:collapse;margin:12px 0;" cellpadding="6">
+  <p style="margin:16px 0 0;font-weight:bold;">{{ payment_title_me }}</p>
+  <table style="border-collapse:collapse;margin:6px 0 12px;" cellpadding="6">
     <tr><td style="color:#52606d;">Primalac</td><td>{{ beneficiary }}</td></tr>
-    <tr><td style="color:#52606d;">IBAN</td><td>{{ iban }}</td></tr>
+    {% if account_number %}<tr><td style="color:#52606d;">Broj računa</td><td><strong>{{ account_number }}</strong></td></tr>{% endif %}
+    {% if iban %}<tr><td style="color:#52606d;">IBAN</td><td><strong>{{ iban }}</strong></td></tr>{% endif %}
     {% if bank_name %}<tr><td style="color:#52606d;">Banka</td><td>{{ bank_name }}</td></tr>{% endif %}
-    {% if swift %}<tr><td style="color:#52606d;">SWIFT</td><td>{{ swift }}</td></tr>{% endif %}
+    {% if swift %}<tr><td style="color:#52606d;">SWIFT/BIC</td><td>{{ swift }}</td></tr>{% endif %}
+    <tr><td style="color:#52606d;">Valuta</td><td>{{ currency }}</td></tr>
+    {% if beneficiary_address %}<tr><td style="color:#52606d;">Adresa primaoca</td><td>{{ beneficiary_address }}</td></tr>{% endif %}
     <tr><td style="color:#52606d;">Iznos</td><td>{{ amount_eur | money }} {{ currency }}</td></tr>
     <tr><td style="color:#52606d;">Poziv na broj</td><td><strong>{{ reference_to_quote }}</strong></td></tr>
   </table>
@@ -28,11 +32,15 @@
   <p>Order reference: <strong>{{ reference }}</strong><br>
      Price: <strong>{{ price_eur | money }} {{ currency }}</strong> (one-off)</p>
   <p>{{ note_en }}</p>
-  <table style="border-collapse:collapse;margin:12px 0;" cellpadding="6">
+  <p style="margin:16px 0 0;font-weight:bold;">{{ payment_title_en }}</p>
+  <table style="border-collapse:collapse;margin:6px 0 12px;" cellpadding="6">
     <tr><td style="color:#52606d;">Beneficiary</td><td>{{ beneficiary }}</td></tr>
-    <tr><td style="color:#52606d;">IBAN</td><td>{{ iban }}</td></tr>
+    {% if account_number %}<tr><td style="color:#52606d;">Account number</td><td><strong>{{ account_number }}</strong></td></tr>{% endif %}
+    {% if iban %}<tr><td style="color:#52606d;">IBAN</td><td><strong>{{ iban }}</strong></td></tr>{% endif %}
     {% if bank_name %}<tr><td style="color:#52606d;">Bank</td><td>{{ bank_name }}</td></tr>{% endif %}
-    {% if swift %}<tr><td style="color:#52606d;">SWIFT</td><td>{{ swift }}</td></tr>{% endif %}
+    {% if swift %}<tr><td style="color:#52606d;">SWIFT/BIC</td><td>{{ swift }}</td></tr>{% endif %}
+    <tr><td style="color:#52606d;">Currency</td><td>{{ currency }}</td></tr>
+    {% if beneficiary_address %}<tr><td style="color:#52606d;">Beneficiary address</td><td>{{ beneficiary_address }}</td></tr>{% endif %}
     <tr><td style="color:#52606d;">Amount</td><td>{{ amount_eur | money }} {{ currency }}</td></tr>
     <tr><td style="color:#52606d;">Payment reference</td><td><strong>{{ reference_to_quote }}</strong></td></tr>
   </table>

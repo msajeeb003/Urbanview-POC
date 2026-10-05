@@ -295,12 +295,7 @@ def create_app(
     app.state.order_service = None
     # Orders are paid by bank transfer (the instructions below); transactional mail is a job
     # (jobs.tasks.email) queued by EmailService below.
-    app.state.payment_provider = BankTransferProvider(
-        beneficiary=settings.order_bank_beneficiary,
-        iban=settings.order_bank_iban,
-        bank_name=settings.order_bank_name,
-        swift=settings.order_bank_swift,
-    )
+    app.state.payment_provider = BankTransferProvider.from_settings(settings, municipality)
     app.state.staff_authenticator = staff_authenticator  # tests inject one; else PostGIS
     # Staff routes: bearer tokens from configuration (core.auth); none configured = 401 everywhere.
     app.state.authenticator = TokenAuthenticator(

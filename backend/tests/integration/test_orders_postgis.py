@@ -325,6 +325,100 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
     assert by_email["x@gradnja.me"]["company_name"] is None
 
 
+async def test_an_order_is_shown_the_bank_details_of_where_it_is_paid_from(postgis_url, mailer):
+    """The form's "Paying from" (the client, 2026-10-05): an order paid from a bank in the
+    country gets the domestic account number, one paid from abroad the IBAN and SWIFT / BIC: on
+    the confirmation, read back from the reference, in the e-mail and on the staff's detail. An
+    order that does not say is domestic; no order is shown both sets."""
+    app = build(
+        postgis_url,
+        mailer,
+        order_bank_beneficiary="Primjer d.o.o.",
+        order_bank_beneficiary_address="Ulica 1, 81000 Podgorica, Montenegro",
+        order_bank_name="Primjer Banka AD",
+        order_bank_account="550-12345-67",
+        order_bank_iban="ME25505000012345678951",
+        order_bank_swift="PRIMMEPG",
+    )
+    async with app.router.lifespan_context(app), make_client(app) as client:
+        home = await client.post("/v1/orders", json={**FORM, "payment_origin": "domestic"})
+        abroad = await client.post(
+            "/v1/orders",
+            json={
+                **FORM,
+                "email": "b@example.com",
+                "payment_origin": "international",
+                "language": "me",
+            },
+        )
+        unstated = await client.post("/v1/orders", json={**FORM, "email": "c@example.com"})
+        unknown = await client.post(
+            "/v1/orders", json={**FORM, "email": "d@example.com", "payment_origin": "abroad"}
+        )
+        assert abroad.status_code == 201, abroad.text
+        reference = abroad.json()["reference"]
+        again = await client.get(f"/v1/orders/{reference}")
+        oid = await order_id_of(app, reference)
+        detail = await client.get(f"/v1/admin/orders/{oid}", headers=auth())
+        stored = await rows(app, "SELECT email, payment_origin FROM orders ORDER BY id")
+        created = (await audit_trail(app, "order", oid))[-1]
+
+    assert home.status_code == 201 and unstated.status_code == 201
+    assert unknown.status_code == 422
+    assert [(o["email"], o["payment_origin"]) for o in stored] == [
+        ("ana.novak@example.com", "domestic"),
+        ("b@example.com", "international"),
+        ("c@example.com", None),
+    ]
+    same = {
+        "method": "bank_transfer",
+        "beneficiary": "Primjer d.o.o.",
+        "beneficiary_address": "Ulica 1, 81000 Podgorica, Montenegro",
+        "bank_name": "Primjer Banka AD",
+        "amount_eur": 200.0,
+        "currency": "EUR",
+    }
+    domestic = {
+        **same,
+        "origin": "domestic",
+        "title_en": "Domestic payment (Montenegro)",
+        "title_me": "Plaćanje u zemlji (Crna Gora)",
+        "account_number": "550-12345-67",
+        "iban": None,
+        "swift": None,
+    }
+    international = {
+        **same,
+        "origin": "international",
+        "title_en": "International payment",
+        "title_me": "Plaćanje iz inostranstva",
+        "account_number": None,
+        "iban": "ME25505000012345678951",
+        "swift": "PRIMMEPG",
+    }
+    for response, expected in ((home, domestic), (unstated, domestic), (abroad, international)):
+        shown = response.json()["payment_instructions"]
+        assert {key: shown[key] for key in expected} == expected
+        # each order quotes its own unique reference
+        assert shown["reference_to_quote"] == response.json()["reference"]
+    assert len({r.json()["reference"] for r in (home, abroad, unstated)}) == 3
+    # the reference alone gives the same set again; the staff see which one it is
+    assert again.json()["payment_instructions"] == abroad.json()["payment_instructions"]
+    assert detail.json()["payment_origin"] == "international"
+    assert created["action"] == "order.create"
+    assert created["details"]["payment_origin"] == "international"
+
+    home_mail, abroad_mail, unstated_mail = (m.text for m in mailer.sent)
+    for text_ in (home_mail, unstated_mail):
+        assert "Domestic payment (Montenegro)" in text_
+        assert "Account number: 550-12345-67" in text_
+        assert "IBAN" not in text_ and "PRIMMEPG" not in text_
+    assert "Plaćanje iz inostranstva" in abroad_mail
+    assert "IBAN: ME25505000012345678951" in abroad_mail and "SWIFT/BIC: PRIMMEPG" in abroad_mail
+    assert "Adresa primaoca: Ulica 1, 81000 Podgorica, Montenegro" in abroad_mail
+    assert "550-12345-67" not in abroad_mail and "Plaćanje u zemlji" not in abroad_mail
+
+
 async def test_price_comes_from_configuration(postgis_url):
     app = build(postgis_url, order_price_tiers="2000:100,inf:200", order_turnaround_business_days=3)
     async with app.router.lifespan_context(app), make_client(app) as client:

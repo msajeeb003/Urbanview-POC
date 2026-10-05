@@ -5,6 +5,7 @@ import { EMPTY_DRAFT, explainFailure, isEmail, isPhone, toOrderIn, validateDraft
 
 const individual: OrderDraft = {
   ...EMPTY_DRAFT,
+  paymentOrigin: "domestic",
   firstName: " Marko ",
   telephone: "+382 67 123 456",
   email: " marko@email.me ",
@@ -12,6 +13,7 @@ const individual: OrderDraft = {
 const company: OrderDraft = {
   ...EMPTY_DRAFT,
   purchaserType: "legal_entity",
+  paymentOrigin: "international",
   companyName: " Gradnja d.o.o. ",
   taxNumber: "02345678",
   firstName: "Marko",
@@ -24,13 +26,20 @@ const location = { parcelType: "urban" as const, parcelId: 12 };
 describe("order form validation (the API's rules)", () => {
   it("needs first name, telephone and email from an individual; the last name is optional", () => {
     expect(validateDraft(individual)).toEqual({});
-    expect(Object.keys(validateDraft(EMPTY_DRAFT)).sort()).toEqual(["email", "firstName", "telephone"]);
+    expect(Object.keys(validateDraft(EMPTY_DRAFT)).sort()).toEqual(["email", "firstName", "paymentOrigin", "telephone"]);
+  });
+
+  it("asks where the customer pays from: nothing is preselected, either answer is fine", () => {
+    expect(EMPTY_DRAFT.paymentOrigin).toBeNull();
+    expect(validateDraft({ ...individual, paymentOrigin: null })).toEqual({ paymentOrigin: "Choose where you will pay from." });
+    expect(validateDraft({ ...individual, paymentOrigin: "international" })).toEqual({});
+    expect(validateDraft({ ...company, paymentOrigin: "domestic" })).toEqual({});
   });
 
   it("needs the same three fields from a legal entity; company name and PIB are optional", () => {
     expect(validateDraft(company)).toEqual({});
     const missing = validateDraft({ ...EMPTY_DRAFT, purchaserType: "legal_entity" });
-    expect(Object.keys(missing).sort()).toEqual(["email", "firstName", "telephone"]);
+    expect(Object.keys(missing).sort()).toEqual(["email", "firstName", "paymentOrigin", "telephone"]);
     expect(validateDraft({ ...company, companyName: "", taxNumber: "" })).toEqual({});
     expect(validateDraft({ ...company, taxNumber: "x".repeat(41) }).taxNumber).toMatch(/at most 40/);
   });
@@ -58,7 +67,13 @@ describe("the order request", () => {
       first_name: "Marko",
       last_name: null,
       language: "en",
+      payment_origin: "domestic",
     });
+  });
+
+  it("sends where the customer pays from, so the order shows that set of bank details", () => {
+    expect(toOrderIn(individual, location, {}, "en").payment_origin).toBe("domestic");
+    expect(toOrderIn(company, location, {}, "en").payment_origin).toBe("international");
   });
 
   it("sends the language the map is in, so the order's e-mails are written in it", () => {
@@ -105,6 +120,10 @@ describe("a failed order keeps the form and says why in one sentence", () => {
     );
     expect(Object.keys(f.fields).sort()).toEqual(["email", "telephone"]);
     expect(f.message).toMatch(/highlighted fields/);
+    const origin = explainFailure(
+      err(422, "validation_error", "Request validation failed", [{ loc: ["body", "payment_origin"], msg: "Input should be 'domestic' or 'international'" }]),
+    );
+    expect(origin.fields).toEqual({ paymentOrigin: "Choose where you will pay from." });
   });
 
   it("the daily cap per e-mail address, the rate limiter and a parcel that is gone", () => {

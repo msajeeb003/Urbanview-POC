@@ -1,4 +1,5 @@
-"""Expert-analysis orders, their guest customers and the e-mail log (migrations 0009, 0031).
+"""Expert-analysis orders, their guest customers and the e-mail log (migrations 0009, 0031;
+0041: where an order is paid from).
 
 ``customers`` and ``orders`` are the tables holding personal data (the purchaser's form): one
 customer per e-mail address (the pilot scope's ``public.customer``), and on each order the details
@@ -31,6 +32,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.db import Base
+from core.payments import PAYMENT_ORIGINS
 
 ORDER_STATUSES: tuple[str, ...] = (
     "pending_payment",
@@ -149,6 +151,13 @@ class Order(Base):
         Text,
         comment="en | me: the language the map was in at the order; its e-mails are written in it",
     )
+    payment_origin: Mapped[str | None] = mapped_column(
+        Text,
+        comment=(
+            "domestic | international: where the customer pays from; decides which bank details "
+            "the order shows"
+        ),
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -161,6 +170,10 @@ class Order(Base):
         CheckConstraint("parcel_type IN ('cadastral', 'urban')", name="ck_orders_parcel_type"),
         CheckConstraint("price_eur >= 0", name="ck_orders_price"),
         CheckConstraint("language IN ('en', 'me')", name="ck_orders_language"),
+        CheckConstraint(
+            "payment_origin IN (" + ", ".join(f"'{origin}'" for origin in PAYMENT_ORIGINS) + ")",
+            name="ck_orders_payment_origin",
+        ),
         Index("uq_orders_reference", "reference", unique=True),
         Index("ix_orders_status", "municipality_id", "status", "placed_at"),
         Index("ix_orders_assignee", "municipality_id", "assignee_user_id"),

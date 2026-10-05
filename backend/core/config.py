@@ -208,8 +208,12 @@ class Settings(BaseSettings):
     order_max_per_email_per_day: int = Field(default=5, ge=1, le=100)
     order_report_link_expires_seconds: int = Field(default=7 * 24 * 3600, ge=300, le=30 * 86400)
     order_bank_beneficiary: str = "UrbanView d.o.o. (placeholder)"
-    order_bank_iban: str = "ME00 0000 0000 0000 0000 00 (placeholder)"
+    order_bank_beneficiary_address: str | None = None
     order_bank_name: str | None = None
+    # a customer paying from a bank in the municipality's country is shown the domestic account
+    # number (the IBAN while none is set), one paying from abroad the IBAN and the SWIFT / BIC
+    order_bank_account: str | None = None
+    order_bank_iban: str = "ME00 0000 0000 0000 0000 00 (placeholder)"
     order_bank_swift: str | None = None
     order_support_email: str = "support@urbanview.io"
     order_public_base_url: str = "http://localhost:3000"  # links in e-mails point here
@@ -222,6 +226,10 @@ class Settings(BaseSettings):
         "geocoder_min_interval_ms",
         "publish_tmp_dir",
         "mail_reply_to",
+        "order_bank_beneficiary_address",
+        "order_bank_name",
+        "order_bank_account",
+        "order_bank_swift",
         mode="before",
     )
     @classmethod

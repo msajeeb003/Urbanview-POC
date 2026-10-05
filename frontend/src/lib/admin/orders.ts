@@ -226,6 +226,17 @@ export function refundOf(order: Pick<OrderDetail, "timeline">): RefundFacts | nu
 }
 
 /**
+ * Where the customer said they pay from, with the account the order showed them: staff look for
+ * the transfer on that account (the domestic one, or the one behind the IBAN). An order placed
+ * before the form asked was shown the domestic details.
+ */
+export function paymentOriginText(origin: OrderDetail["payment_origin"], country: string | null | undefined): string {
+  if (origin === "international") return "Another country · shown the IBAN and SWIFT / BIC";
+  const shown = "shown the domestic account number";
+  return origin === "domestic" ? `${country ?? "This country"} · ${shown}` : `Not asked · ${shown}`;
+}
+
+/**
  * The published data version an order was placed on, as every screen names a version: its number
  * (`v12`). The label is free text typed at each publish ("first-publish", "stara-varos-live"), so
  * it only stands in for an order whose version is no longer known.

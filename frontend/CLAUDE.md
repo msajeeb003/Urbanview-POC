@@ -532,12 +532,23 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
     server's rule), the pricing note written from the tiers, "Ordering as" Individual | Legal
     entity (the pilot scope's guest form, not the mock's: first / last name, telephone, email;
     "Legal entity" adds company name and `PIB` above them, both `optional`; switching keeps what
-    was typed), the methodology card (opens the wizard; its last step returns to the form), the
+    was typed), "Paying from" (below), the methodology card (opens the wizard; its last step
+    returns to the form), the
     guest note ("order as a guest"); footer `€200 · 5 working days`, Cancel, gold "Place
     order →" (the mock's "Continue to payment →": there is no payment step).
+  - *Paying from* (the client, 2026-10-05; not in the mock or the pilot scope's form): the
+    mock's `.seg` with two buttons, the municipality's country by name (the profile's
+    `country_name`: "Montenegro") and "Another country", nothing preselected (the form never
+    guesses where a customer's bank is). The beneficiary has a domestic account number and, for
+    transfers from abroad, an IBAN with a SWIFT / BIC; the choice goes to the API as
+    `payment_origin` (domestic | international), is kept on the order, and the confirmation, the
+    order page and the payment e-mail show that set only. The line under the buttons says what
+    the choice gets ("You will get the domestic account number." / "You will get the IBAN and
+    SWIFT / BIC."), or the inline message when the form is sent without one ("Choose where you
+    will pay from.").
   - *Validation* (`validateDraft`, the API's rules): first name, telephone and email for both
     types (last name, company name and PIB optional); the server's email and telephone patterns
-    and lengths. Inline messages under the fields, focus on the first. One request at a time
+    and lengths; a "Paying from" choice. Inline messages under the fields, focus on the first. One request at a time
     (disabled button + guard).
   - *Failure:* the form stays with everything typed and one sentence under it
     (`explainFailure`: connection / server trouble, the per-email daily cap, the rate limiter, a
@@ -546,13 +557,17 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   - *Language:* the request carries the language the map is in (`language`, `useLang()`):
     the order's e-mails are written in that one language, now and when the report is delivered.
   - *Request:* `POST /v1/orders` with the location, the name, telephone and email, a legal
-    entity's company name and PIB when given (else null), and the visitor's edited assumptions
+    entity's company name and PIB when given (else null), where the customer pays from
+    (`payment_origin`), and the visitor's edited assumptions
     (the server snapshots the panel with them). 30 s timeout.
   - *S5:* the mock's `.success` block (check, "Order confirmed", "…email it within **5 working
     days**. A confirmation is on its way now.", the mono chip `UV-PODI-UP-12-260924-01 · Parcel
-    #1042`), then "Pay by bank transfer": the API's instructions as `.paysummary` lines (payee,
-    IBAN, bank and SWIFT when configured, payment reference, "Amount due" as the total line;
-    "Copy" on IBAN and reference), the API's note (work starts when the payment is received),
+    #1042`), then "Pay by bank transfer · Domestic payment (Montenegro)" (or "· International
+    payment": the API's title of the set): the API's instructions as `.paysummary` lines
+    (beneficiary, the account number of a domestic order or the IBAN and SWIFT / BIC of one paid
+    from abroad, never both; bank, currency, beneficiary address, payment reference, "Amount due"
+    as the total line; "Copy" on the account number, IBAN, SWIFT and reference), the API's note
+    (work starts when the payment is received),
     "The same instructions were emailed to <address>" and "Track your order ↗" (the order page).
     An email the API did not queue or send (`email_status` suppressed | failed: no SMTP on the
     server) is said instead ("The confirmation email could not be sent, so please keep the
@@ -828,7 +843,11 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
   received" (a note: the order becomes `Payment not received`, chip `rev`, which the customer's
   order page shows with the instructions; again on a failed order it only records the check),
   "Refund" (amount, date, reference; also after delivery), each confirmed in a
-  line before `POST …/payment` is sent; the section states what was received (amount, date,
+  line before `POST …/payment` is sent; the section states where the customer pays from and
+  which account they were shown (`paymentOriginText`: "Montenegro · shown the domestic account
+  number", "Another country · shown the IBAN and SWIFT / BIC", "Not asked · …" for an order
+  placed before the form asked: the account to look for the transfer on), what was received
+  (amount, date,
   bank reference) and, for a refunded order, what went back (`refundOf`: amount, date and
   reference from the status change in the timeline; they were only readable there);
   **Fulfilment**: the expert picker (active experts with

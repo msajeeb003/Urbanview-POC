@@ -8,6 +8,8 @@ from core.municipality import UnknownMunicipalityError, load_profile
 def test_podgorica_profile_loads():
     p = load_profile("podgorica")
     assert p.id == "podgorica" and p.country == "ME" and p.currency == "EUR"
+    # the country by name: what a domestic payment is called on an order
+    assert (p.country_name, p.country_name_local) == ("Montenegro", "Crna Gora")
     assert p.contains(19.2636, 42.4411)
     assert not p.contains(0.0, 0.0)
     assert p.terminology.site_coverage.abbreviation == "IZ"

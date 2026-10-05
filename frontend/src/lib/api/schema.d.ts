@@ -4353,6 +4353,16 @@ export interface components {
             /** Country */
             country: string;
             /**
+             * Country Name
+             * @description The country's English name: the order form's payment choice and the domestic payment instructions name it
+             */
+            country_name?: string | null;
+            /**
+             * Country Name Local
+             * @description The country's name in the local language
+             */
+            country_name_local?: string | null;
+            /**
              * Locale
              * @default en
              */
@@ -4529,6 +4539,11 @@ export interface components {
              * @description The language the map is in: the order's e-mails are written in it (default: MAIL_DEFAULT_LANGUAGE)
              */
             language?: ("en" | "me") | null;
+            /**
+             * Payment Origin
+             * @description Where the customer pays from (the order form asks): a bank in the municipality's country (domestic) or abroad (international). The order is shown that set of bank details (default: domestic)
+             */
+            payment_origin?: ("domestic" | "international") | null;
         };
         /** OrderList */
         OrderList: {
@@ -4669,6 +4684,11 @@ export interface components {
              * @description customers.id (the guest purchaser)
              */
             customer_id?: number | null;
+            /**
+             * Payment Origin
+             * @description Where the customer pays from (null: placed before the form asked; the order is shown the domestic details)
+             */
+            payment_origin?: ("domestic" | "international") | null;
             /** Message */
             message?: string | null;
             /** Assumption Edits */
@@ -5141,20 +5161,50 @@ export interface components {
             /** Note */
             note?: string | null;
         };
-        /** PaymentInstructionsOut */
+        /**
+         * PaymentInstructionsOut
+         * @description The bank details of the order's payment origin: the domestic account number for a customer
+         *     paying from a bank in the country, the IBAN and SWIFT / BIC for one paying from abroad.
+         */
         PaymentInstructionsOut: {
             /**
              * Method
              * @constant
              */
             method: "bank_transfer";
+            /**
+             * Origin
+             * @description The set these details are
+             * @enum {string}
+             */
+            origin: "domestic" | "international";
+            /**
+             * Title En
+             * @description The set by name: "Domestic payment (Montenegro)"
+             */
+            title_en: string;
+            /** Title Me */
+            title_me: string;
             /** Beneficiary */
             beneficiary: string;
-            /** Iban */
-            iban: string;
+            /** Beneficiary Address */
+            beneficiary_address?: string | null;
             /** Bank Name */
             bank_name?: string | null;
-            /** Swift */
+            /**
+             * Account Number
+             * @description Domestic: the account as the country's banks write it
+             */
+            account_number?: string | null;
+            /**
+             * Iban
+             * @description International; domestic too while no account number is configured
+             */
+            iban?: string | null;
+            /**
+             * Swift
+             * @description International
+             */
             swift?: string | null;
             /** Amount Eur */
             amount_eur: number;

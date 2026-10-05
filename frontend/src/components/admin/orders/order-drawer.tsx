@@ -33,6 +33,7 @@ import {
   isManager,
   mapHref,
   parcelCells,
+  paymentOriginText,
   refundOf,
   snapshotAssumptions,
   snapshotFeasibility,
@@ -43,6 +44,7 @@ import {
 } from "@/lib/admin/orders";
 import type { StaffRole } from "@/lib/admin/sections";
 import { useStaffZone } from "@/lib/admin/use-staff-zone";
+import { useMunicipality } from "@/lib/api/hooks";
 import type { OrderDetail, OrderExpert } from "@/lib/api/types";
 import { useShell } from "@/lib/store";
 
@@ -107,6 +109,7 @@ function Payment({ order }: { order: OrderDetail }) {
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const { stamp } = useStaffZone();
+  const { data: profile } = useMunicipality();
   const receive = allowed(order, "receive", "admin");
   const refund = allowed(order, "refund", "admin");
   const refunded = refundOf(order);
@@ -155,6 +158,8 @@ function Payment({ order }: { order: OrderDetail }) {
     <Section title="Payment" aside={order.paid_at ? <span className="osub">paid {stamp(order.paid_at)}</span> : undefined}>
       <Rows
         rows={[
+          // the account to look for the transfer on: the set of bank details the order showed
+          ["Paying from", paymentOriginText(order.payment_origin, profile?.country_name)],
           ["Received", order.payment_amount_eur != null ? `€${order.payment_amount_eur} on ${order.payment_received_on ?? "—"}` : ""],
           ["Bank reference", order.payment_reference ?? ""],
           // what went back, as it was recorded; an order refunded without these facts keeps the time

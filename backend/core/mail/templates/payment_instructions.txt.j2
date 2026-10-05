@@ -8,13 +8,23 @@ Cijena: {{ price_eur | money }} {{ currency }} (jednokratno)
 
 {{ note_me }}
 
+{{ payment_title_me }}
 Primalac: {{ beneficiary }}
+{% if account_number %}
+Broj računa: {{ account_number }}
+{% endif %}
+{% if iban %}
 IBAN: {{ iban }}
+{% endif %}
 {% if bank_name %}
 Banka: {{ bank_name }}
 {% endif %}
 {% if swift %}
-SWIFT: {{ swift }}
+SWIFT/BIC: {{ swift }}
+{% endif %}
+Valuta: {{ currency }}
+{% if beneficiary_address %}
+Adresa primaoca: {{ beneficiary_address }}
 {% endif %}
 Iznos: {{ amount_eur | money }} {{ currency }}
 Poziv na broj: {{ reference_to_quote }}
@@ -34,13 +44,23 @@ Price: {{ price_eur | money }} {{ currency }} (one-off)
 
 {{ note_en }}
 
+{{ payment_title_en }}
 Beneficiary: {{ beneficiary }}
+{% if account_number %}
+Account number: {{ account_number }}
+{% endif %}
+{% if iban %}
 IBAN: {{ iban }}
+{% endif %}
 {% if bank_name %}
 Bank: {{ bank_name }}
 {% endif %}
 {% if swift %}
-SWIFT: {{ swift }}
+SWIFT/BIC: {{ swift }}
+{% endif %}
+Currency: {{ currency }}
+{% if beneficiary_address %}
+Beneficiary address: {{ beneficiary_address }}
 {% endif %}
 Amount: {{ amount_eur | money }} {{ currency }}
 Payment reference: {{ reference_to_quote }}

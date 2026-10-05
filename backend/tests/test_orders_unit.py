@@ -4,6 +4,7 @@ days, references, the transition table, form validation, the payment seam and th
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -172,6 +173,12 @@ def test_order_form_validation():
     assert order.language is None and OrderIn(**{**FORM, "language": "me"}).language == "me"
     with pytest.raises(ValidationError):
         OrderIn(**{**FORM, "language": "de"})
+    # where the customer pays from: one of the two origins, or none (domestic applies)
+    assert order.payment_origin is None
+    for origin in ("domestic", "international"):
+        assert OrderIn(**{**FORM, "payment_origin": origin}).payment_origin == origin
+    with pytest.raises(ValidationError):
+        OrderIn(**{**FORM, "payment_origin": "abroad"})
 
 
 def test_payment_payload():
@@ -190,6 +197,15 @@ def test_bank_transfer_provider_and_emails():
     assert instructions.method == "bank_transfer"
     assert instructions.amount_eur == 200.0 and instructions.currency == "EUR"
     assert "UV-PODI-1042-260924-01" in instructions.note_en
+    # only an IBAN configured: a domestic transfer goes to it; the SWIFT code is for abroad
+    assert instructions.origin == "domestic" and instructions.title_en == "Domestic payment"
+    assert (instructions.account_number, instructions.iban, instructions.swift) == (
+        None,
+        "ME12 3456",
+        None,
+    )
+    abroad = provider.instructions(reference="R", amount_eur=1, origin="international")
+    assert (abroad.account_number, abroad.iban, abroad.swift) == (None, "ME12 3456", "CKBCMEPG")
 
     facts = OrderFacts(
         reference="UV-PODI-1042-260924-01",
@@ -207,7 +223,6 @@ def test_bank_transfer_provider_and_emails():
     for needle in (
         "200.00 EUR",
         "ME12 3456",
-        "CKBCMEPG",
         "01.10.2026",
         facts.status_url,
         "Dear Ana",
@@ -215,6 +230,7 @@ def test_bank_transfer_provider_and_emails():
     ):
         assert needle in mail.text, needle
         assert needle in mail.html, needle
+    assert "CKBCMEPG" not in mail.text  # a domestic transfer needs no SWIFT code
     context = payment_instructions_context(facts, instructions)
     in_montenegrin = render("payment_instructions", context, language="me")
     assert "Poštovani/a Ana" in in_montenegrin.text and "Dear Ana" not in in_montenegrin.text
@@ -230,3 +246,109 @@ def test_bank_transfer_provider_and_emails():
     assert "ready" in delivered.subject
     assert "https://minio.test/report.pdf?sig" in delivered.text
     assert "08.10.2026 09:00 UTC" in delivered.text and "support@urbanview.io" in delivered.html
+
+
+def test_domestic_and_international_bank_details():
+    """Two sets of details for one beneficiary (the client, 2026-10-05): the domestic account
+    number for a customer paying from a bank in the country, the IBAN and SWIFT / BIC for one
+    paying from abroad; an order shows the set of its payment origin, never both."""
+    settings = make_settings(
+        order_bank_beneficiary="Primjer d.o.o.",
+        order_bank_beneficiary_address="Ulica 1, 81000 Podgorica, Montenegro",
+        order_bank_name="Primjer Banka AD",
+        order_bank_account="550-12345-67",
+        order_bank_iban="ME25505000012345678951",
+        order_bank_swift="PRIMMEPG",
+    )
+    profile = SimpleNamespace(country_name="Montenegro", country_name_local="Crna Gora")
+    provider = BankTransferProvider.from_settings(settings, profile)
+
+    domestic = provider.instructions(reference="UV-UP-40-261005-01", amount_eur=200)
+    assert domestic.origin == "domestic"
+    assert domestic.title_en == "Domestic payment (Montenegro)"
+    assert domestic.title_me == "Plaćanje u zemlji (Crna Gora)"
+    assert (domestic.account_number, domestic.iban, domestic.swift) == ("550-12345-67", None, None)
+    # an order that never said (placed before the form asked) or says nonsense is domestic
+    for unstated in (None, "", "abroad"):
+        assert (
+            provider.instructions(reference="R", amount_eur=1, origin=unstated).origin == "domestic"
+        )
+
+    abroad = provider.instructions(
+        reference="UV-UP-40-261005-01", amount_eur=200, origin="international"
+    )
+    assert abroad.origin == "international"
+    assert (abroad.title_en, abroad.title_me) == (
+        "International payment",
+        "Plaćanje iz inostranstva",
+    )
+    assert (abroad.account_number, abroad.iban, abroad.swift) == (
+        None,
+        "ME25505000012345678951",
+        "PRIMMEPG",
+    )
+    # both name the same beneficiary, bank and address, and the order's reference to quote
+    for one in (domestic, abroad):
+        assert (one.beneficiary, one.bank_name) == ("Primjer d.o.o.", "Primjer Banka AD")
+        assert one.beneficiary_address == "Ulica 1, 81000 Podgorica, Montenegro"
+        assert one.reference_to_quote == "UV-UP-40-261005-01" and one.currency == "EUR"
+
+    # no country named in the profile: the titles stand alone
+    bare = BankTransferProvider.from_settings(settings)
+    assert bare.instructions(reference="R", amount_eur=1).title_en == "Domestic payment"
+    # a blank setting in an env file is no setting
+    blank = make_settings(order_bank_account=" ", order_bank_swift="", order_bank_name="")
+    assert (blank.order_bank_account, blank.order_bank_swift, blank.order_bank_name) == (
+        None,
+        None,
+        None,
+    )
+
+    facts = OrderFacts(
+        reference="UV-UP-40-261005-01",
+        first_name="Ana",
+        parcel_label="UP 40",
+        document_name="DUP Novi Grad 1 i 2",
+        price_eur=200.0,
+        turnaround_business_days=5,
+        expected_by=date(2026, 10, 12),
+        status_url="http://localhost:3000/orders/UV-UP-40-261005-01",
+        support_email="support@urbanview.io",
+    )
+    shown = {
+        "domestic": ("550-12345-67",),
+        "international": ("ME25505000012345678951", "PRIMMEPG"),
+    }
+    labels = {
+        "en": {
+            "domestic": ("Domestic payment (Montenegro)", "Account number:"),
+            "international": ("International payment", "IBAN:", "SWIFT/BIC:"),
+        },
+        "me": {
+            "domestic": ("Plaćanje u zemlji (Crna Gora)", "Broj računa:"),
+            "international": ("Plaćanje iz inostranstva", "IBAN:", "SWIFT/BIC:"),
+        },
+    }
+    for origin, instructions in (("domestic", domestic), ("international", abroad)):
+        other = "international" if origin == "domestic" else "domestic"
+        context = payment_instructions_context(facts, instructions)
+        for language in ("en", "me"):
+            mail = render("payment_instructions", context, language=language)
+            for needle in (
+                *shown[origin],
+                "Primjer d.o.o.",
+                "Primjer Banka AD",
+                "Ulica 1, 81000 Podgorica, Montenegro",
+                "200.00 EUR",
+                "UV-UP-40-261005-01",
+            ):
+                assert needle in mail.text and needle in mail.html, (origin, language, needle)
+            for label in labels[language][origin]:
+                assert label in mail.text, (origin, language, label)
+            # the other set's account never appears: one set per order
+            for needle in (*shown[other], labels[language][other][0]):
+                assert needle not in mail.text and needle not in mail.html, (
+                    origin,
+                    language,
+                    needle,
+                )

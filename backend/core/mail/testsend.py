@@ -1,7 +1,8 @@
 """Send one template with fixture data straight over the configured SMTP provider, for the
 deliverability check (DKIM / SPF / spam placement in Gmail and Outlook)::
 
-    python -m core.mail.testsend --template payment_instructions --to you@example.com [--lang me]
+    python -m core.mail.testsend --to you@example.com [--template payment_instructions]
+        [--lang me] [--origin international]
 
 Bypasses the queue and the log on purpose; prints the provider's reply and the message id.
 """
@@ -29,10 +30,11 @@ from core.mail import (
     new_message_id,
     render,
 )
-from core.payments import BankTransferProvider
+from core.municipality import load_profile
+from core.payments import PAYMENT_ORIGINS, BankTransferProvider
 
 
-def fixture_context(template: str, settings, to: str) -> dict:
+def fixture_context(template: str, settings, to: str, origin: str | None = None) -> dict:
     facts = OrderFacts(
         reference="UV-PODI-1042-260925-01",
         first_name="Ana",
@@ -45,14 +47,12 @@ def fixture_context(template: str, settings, to: str) -> dict:
         support_email=settings.order_support_email,
     )
     if template == "payment_instructions":
-        provider = BankTransferProvider(
-            beneficiary=settings.order_bank_beneficiary,
-            iban=settings.order_bank_iban,
-            bank_name=settings.order_bank_name,
-            swift=settings.order_bank_swift,
+        provider = BankTransferProvider.from_settings(
+            settings, load_profile(settings.municipality_id)
         )
         return payment_instructions_context(
-            facts, provider.instructions(reference=facts.reference, amount_eur=200.0)
+            facts,
+            provider.instructions(reference=facts.reference, amount_eur=200.0, origin=origin),
         )
     if template == "order_delivered":
         return order_delivered_context(
@@ -79,6 +79,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--lang", choices=LANGUAGES, help="the message's language (default: MAIL_DEFAULT_LANGUAGE)"
     )
+    parser.add_argument(
+        "--origin",
+        choices=PAYMENT_ORIGINS,
+        help="payment_instructions: the bank details of an order paid from there "
+        "(default: domestic)",
+    )
     args = parser.parse_args(argv)
     settings = get_settings()
     decision = decide(
@@ -92,7 +98,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     language = args.lang or settings.mail_default_language
     rendered = render(
-        args.template, fixture_context(args.template, settings, args.to), language=language
+        args.template,
+        fixture_context(args.template, settings, args.to, args.origin),
+        language=language,
     )
     mime = build_mime(
         EmailMessage(

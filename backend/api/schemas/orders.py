@@ -13,9 +13,12 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from api.schemas.email import EmailLogOut, MailLanguage
 from api.schemas.feasibility import EditedAssumptions
 from core.models.orders import ORDER_STATUSES
+from core.payments import PAYMENT_ORIGINS
 
 # the six statuses: one list (core.models.orders.ORDER_STATUSES, ck_orders_status)
 OrderStatus = Literal[ORDER_STATUSES]
+# where the customer pays from: one list (core.payments.PAYMENT_ORIGINS, ck_orders_payment_origin)
+PaymentOrigin = Literal[PAYMENT_ORIGINS]
 PurchaserType = Literal["individual", "legal_entity"]
 ParcelType = Literal["cadastral", "urban"]
 
@@ -60,6 +63,12 @@ class OrderIn(BaseModel):
         description="The language the map is in: the order's e-mails are written in it "
         "(default: MAIL_DEFAULT_LANGUAGE)",
     )
+    payment_origin: PaymentOrigin | None = Field(
+        default=None,
+        description="Where the customer pays from (the order form asks): a bank in the "
+        "municipality's country (domestic) or abroad (international). The order is shown that "
+        "set of bank details (default: domestic)",
+    )
 
     @field_validator("first_name")
     @classmethod
@@ -101,11 +110,24 @@ class OrderIn(BaseModel):
 
 
 class PaymentInstructionsOut(BaseModel):
+    """The bank details of the order's payment origin: the domestic account number for a customer
+    paying from a bank in the country, the IBAN and SWIFT / BIC for one paying from abroad."""
+
     method: Literal["bank_transfer"]
+    origin: PaymentOrigin = Field(description="The set these details are")
+    title_en: str = Field(description='The set by name: "Domestic payment (Montenegro)"')
+    title_me: str
     beneficiary: str
-    iban: str
+    beneficiary_address: str | None = None
     bank_name: str | None = None
-    swift: str | None = None
+    account_number: str | None = Field(
+        default=None, description="Domestic: the account as the country's banks write it"
+    )
+    iban: str | None = Field(
+        default=None,
+        description="International; domestic too while no account number is configured",
+    )
+    swift: str | None = Field(default=None, description="International")
     amount_eur: float
     currency: str
     reference_to_quote: str
@@ -284,6 +306,11 @@ class OrderOut(OrderSummary):
     telephone: str
     tax_number: str | None = None
     customer_id: int | None = Field(default=None, description="customers.id (the guest purchaser)")
+    payment_origin: PaymentOrigin | None = Field(
+        default=None,
+        description="Where the customer pays from (null: placed before the form asked; the "
+        "order is shown the domestic details)",
+    )
     message: str | None = None
     assumption_edits: dict[str, Any]
     pricing: PricingOut

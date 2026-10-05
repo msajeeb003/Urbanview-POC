@@ -176,6 +176,16 @@ class MunicipalityProfile(BaseModel):
     id: str
     name: str
     country: str
+    country_name: str | None = Field(
+        default=None,
+        description=(
+            "The country's English name: the order form's payment choice and the domestic "
+            "payment instructions name it"
+        ),
+    )
+    country_name_local: str | None = Field(
+        default=None, description="The country's name in the local language"
+    )
     locale: str = "en"
     currency: str = "EUR"
     timezone: str = Field(

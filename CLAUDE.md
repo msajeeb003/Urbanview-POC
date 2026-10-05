@@ -204,8 +204,8 @@ demand: the analytics districts place them by their point.
   third intent button ("Ask about this document"), the review item's audit widget, dead exports
   and copy that promised later phases, subscriptions or a learning engine. The urban panel shows
   the plan's Group 1 only (building line and setbacks are extracted, not shown). Server note:
-  production's `deploy/.env` still carries the placeholder bank beneficiary / IBAN (the client's
-  account is needed; `deploy/.env.example` now says `change-me`).
+  production's `deploy/.env` carried the placeholder bank beneficiary / IBAN until the client's
+  account was set on 2026-10-05 (`deploy/.env.example` says `change-me`).
 - **Open (S3 check):** a separate `land_use_code` in Group 1 and a `sample_size` per market
   input: neither is in the data yet (`docs/specs/frontend-design.md` §10 item 22).
 - **Tester's report on the public map (2026-10-02, 23 items):** fixed in code: the panel's one
@@ -242,9 +242,10 @@ demand: the analytics districts place them by their point.
   (until then the confirmation said honestly that no e-mail went out). The console's open
   access was switched off the same day (`ADMIN_OPEN_ACCESS_TOKEN` emptied and its entry taken
   out of `ADMIN_API_TOKENS`): every `/admin` page asks for the e-mailed sign-in link again and
-  the admin API answers 401 without a staff token. **Still open:** the support address the
-  e-mails name (`ORDER_SUPPORT_EMAIL` is the example placeholder), the client's bank name and
-  SWIFT (8: `ORDER_BANK_*` in `deploy/.env`), the codes U, SR and TS of Stara Varoš are named
+  the admin API answers 401 without a staff token. The client's bank details (8) came on
+  2026-10-05 and are the server's `ORDER_BANK_*` (two sets, see "Bank details" below). **Still
+  open:** the support address the
+  e-mails name (`ORDER_SUPPORT_EMAIL` is the example placeholder), the codes U, SR and TS of Stara Varoš are named
   as the legend's UK, SKR and a transformer station (product owner 2026-10-02; the client's
   planner still confirms). The pin behind the legend (22): on a small
   window the open legend covers the map's middle, so a flown-to place now lands beside it
@@ -285,13 +286,27 @@ demand: the analytics districts place them by their point.
   UV-UP-40-261002-01 was accepted by the mail provider (4: `email_log` holds its 250 reply) and
   `urbanview.io` has no DKIM record for the provider and no DMARC record (11: its DNS holds the
   provider's verification code and Google's mail records only), which is why Outlook distrusts
-  the messages; the domain's owner adds the provider's DKIM records and a DMARC record. The bank
-  name and SWIFT (6) and the support address (10) are the client's to give (`ORDER_BANK_*`,
-  `ORDER_SUPPORT_EMAIL` in `deploy/.env`). **Open, the client's decision:** e-mails on payment
+  the messages; the domain's owner adds the provider's DKIM records and a DMARC record. The
+  support address (10) is the client's to give (`ORDER_SUPPORT_EMAIL` in `deploy/.env`); the
+  bank details (6) came on 2026-10-05 and are set (`ORDER_BANK_*`, see "Bank details" below).
+  **Open, the client's decision:** e-mails on payment
   received / not received / refunded (5: the plan funds two order e-mails), company name and PIB
   required for a legal entity (7: optional by the pilot scope's form), the expected date counted
   from the payment instead of the order (9: `expected_by` is set when the order is placed; the
   e-mail says "if paid today").
+- **Bank details: domestic and international (the client, 2026-10-05):** the beneficiary
+  (Monmaks d.o.o., NLB Banka AD Podgorica) has two accounts: the domestic account number for a
+  customer paying from a bank in Montenegro, an IBAN with a SWIFT / BIC for one paying from
+  abroad (the IBAN is another account, not the domestic one written differently). The client
+  asked that a customer in Montenegro sees the domestic details and a customer outside the
+  international ones; nothing on an order said where a customer pays from, so the order form
+  asks ("Paying from": the country | Another country, nothing preselected; the product owner
+  chose this over showing both sets or guessing from the telephone number). It is one field more
+  than the pilot scope's guest form, added on the client's request. The order keeps the answer
+  (`orders.payment_origin`, migration 0041) and its confirmation, order page and payment e-mail
+  show that set only; the order's own unique reference is the payment reference, as before. The
+  details are the server's `ORDER_BANK_*` (set 2026-10-05; the repository holds no account
+  number). See "Orders".
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
   POC plans are prepared from their parameter tables by the table reader and loaded as approved
   items (see "Prepared planning values"), not AI-extracted and not reviewed item by item by an
@@ -1191,12 +1206,33 @@ demand: the analytics districts place them by their point.
   purchaser type `individual` | `legal_entity`, whose company name and PIB `tax_number` are both
   optional and dropped for an individual; the first form's `contact_person` /
   `registered_address` are refused since 0031 and their columns dropped in 0037), the
-  assumptions the visitor edited, an optional message and the `language` the map is in (en | me,
-  optional: kept on the order, its e-mails are written in it). It
+  assumptions the visitor edited, an optional message, the `language` the map is in (en | me,
+  optional: kept on the order, its e-mails are written in it) and `payment_origin` (domestic |
+  international, optional: where the customer pays from, see "Bank details"). It
   answers 201 with the reference, the price, the turnaround, the bank-transfer instructions,
   `data_version`, `location.cadastral_parcel_id` and the public status URL
   (`ORDER_PUBLIC_BASE_URL` + `/orders/{reference}`, the public map's order page). Capped per e-mail
   address and day (`ORDER_MAX_PER_EMAIL_PER_DAY`, 429) on top of the per-IP limiter.
+- **Bank details: two sets, one per payment origin** (the client, 2026-10-05; migration 0041).
+  The beneficiary has a domestic account number and, for transfers from abroad, an IBAN with a
+  SWIFT / BIC (two different accounts). `orders.payment_origin` (`domestic` | `international`,
+  CHECK `ck_orders_payment_origin`, one list: `core.payments.PAYMENT_ORIGINS`) is the order
+  form's "Paying from" answer; `BankTransferProvider.instructions(reference=, amount_eur=,
+  origin=)` resolves the set and every place shows that set only (the reply of `POST
+  /v1/orders`, `GET /v1/orders/{reference}`, the payment e-mail): `payment_instructions` =
+  `origin`, `title_en` / `title_me` ("Domestic payment (Montenegro)" / "Plaćanje u zemlji (Crna
+  Gora)", "International payment" / "Plaćanje iz inostranstva"), `beneficiary`,
+  `beneficiary_address`, `bank_name`, `account_number` (domestic), `iban` and `swift`
+  (international), `amount_eur`, `currency`, `reference_to_quote` (the order's unique
+  reference), the notes. Null origin (orders placed before 0041, a caller that sends none) is
+  domestic. Settings: `ORDER_BANK_BENEFICIARY`, `ORDER_BANK_BENEFICIARY_ADDRESS`,
+  `ORDER_BANK_NAME`, `ORDER_BANK_ACCOUNT` (the domestic account number; while it is empty a
+  domestic order is shown the IBAN, without the SWIFT), `ORDER_BANK_IBAN`, `ORDER_BANK_SWIFT`
+  (a blank value is no value); one provider for the API, the e-mail job and the test-send CLI
+  (`BankTransferProvider.from_settings(settings, profile)`). The country a domestic payment is
+  named after is the profile's `country_name` / `country_name_local`. The staff detail carries
+  `payment_origin` (the drawer's Payment section: which account to look for the transfer on) and
+  the `order.create` audit row records it.
 - **Customers** (migration 0031, the pilot's `public.customer`): `customers` holds one guest
   purchaser per e-mail address and municipality (`email`, `first_name`, `last_name`, `phone`,
   `company_name`, `company_id` = PIB), upserted by `POST /v1/orders` in the order's transaction
@@ -1255,9 +1291,10 @@ demand: the analytics districts place them by their point.
   confirmation and every order e-mail link to the page. There is no compact status variant.
 - **The public map's flow** (`frontend/src/components/order/`): S4 order modal from the parcel
   panel (location carried through with the planned parcel and the data version, fee and
-  turnaround from `GET /v1/orders/pricing`, inline validation with the API's rules),
+  turnaround from `GET /v1/orders/pricing`, inline validation with the API's rules, the
+  "Paying from" choice the form requires),
   `POST /v1/orders`, S5 confirmation with the
-  bank-transfer instructions on screen and `?order=<reference>` in the address bar (a reload
+  bank-transfer instructions of that choice on screen and `?order=<reference>` in the address bar (a reload
   shows it again from `GET /v1/orders/{reference}` with the order's status as it is now: a
   delivered or refunded order says so, `lib/order-status.ts`); `order_started` / `checkout_completed
   {order_id: <reference>, amount_eur}`. Legal pages are not in the POC plan: none is built (the
@@ -1276,11 +1313,14 @@ demand: the analytics districts place them by their point.
   stands. The staff order
   detail lists `emails` and the queue shows `email_alerts` (failed sends).
 - **Payments**: `core/payments.py` holds `BankTransferProvider` (instructions from `ORDER_BANK_*`,
+  the set of the order's payment origin, see "Bank details";
   no online step; hosted checkout, card providers and webhooks are not in the POC plan, so there
   is no provider seam). No card data anywhere. `customers` and `orders` are the only tables with personal data.
 - Tests: `tests/test_orders_unit.py` (tiers, turnaround, references, transitions, form
-  validation, e-mail templates) and `tests/integration/test_orders_postgis.py` (creation with
-  snapshot and e-mail, pricing from config, the status flow with guards, expert scope, report
+  validation, e-mail templates, the two sets of bank details in both languages) and
+  `tests/integration/test_orders_postgis.py` (creation with
+  snapshot and e-mail, the bank details of each payment origin on the confirmation, read back,
+  in the e-mail and on the staff detail, pricing from config, the status flow with guards, expert scope, report
   delivery, snapshot immutability after a republish, public status without personal data) and
   `tests/integration/test_orders_console_postgis.py` (experts list and its 403, a replaced report
   with its note, version and second e-mail, payment and refund details in the timeline).
@@ -1300,8 +1340,10 @@ demand: the analytics districts place them by their point.
   deactivated since, the report link cannot be signed) ends `failed` too, never left `queued`.
   Bodies are never stored, the subject is.
 - **Templates** (`core/mail/templates/*.j2`, Jinja2, `StrictUndefined`, HTML auto-escaped):
-  `payment_instructions` (reference, location, price, beneficiary / IBAN / bank / SWIFT /
-  amount / payment reference, turnaround + expected date, status URL, support inbox),
+  `payment_instructions` (reference, location, price, the bank details of the order's payment
+  origin under their title: beneficiary, the domestic account number or the IBAN and SWIFT /
+  BIC, bank, currency, beneficiary address; amount / payment reference, turnaround + expected
+  date, status URL, support inbox),
   `order_delivered` (reference, location, signed download link + expiry, support inbox),
   `magic_link` (login URL, expiry minutes, single-use note). Wording provisional until the
   client approves it. Contexts come from `api/services/order_mail.py`; `core.mail.render` checks
@@ -1324,7 +1366,8 @@ demand: the analytics districts place them by their point.
   Dev: compose's Mailpit (SMTP 1025, inbox http://localhost:8025); without Docker
   `python -m core.mail.devsink` (SMTP 1025, each message an `.eml` file in the temp folder's
   `urbanview-mail`) with `SMTP_USE_TLS=false`. Deliverability check:
-  `python -m core.mail.testsend --template payment_instructions --to you@… [--lang me]` sends
+  `python -m core.mail.testsend --template payment_instructions --to you@… [--lang me]
+  [--origin international]` sends
   fixture data through the real provider (DKIM / SPF / DMARC are the provider account's job).
 - **Log**: the `email_log` rows (queued | sent | suppressed | failed). Orders show
   `email_alerts` in the queue and `emails` in the detail; there is no separate log route and no
@@ -1885,7 +1928,8 @@ demand: the analytics districts place them by their point.
 
 **Municipality isolation (BRD §8).** Everything place-specific is data or configuration:
 bounds, centre, CRS, KO list, time zone (`timezone`: the local date effective-dated assumptions
-switch on), planning terminology (IZ/II/KO/UP, DUP/PUP/PGR) and data-source
+switch on), the country by name (`country_name` / `country_name_local`: what a domestic payment
+is called on an order), planning terminology (IZ/II/KO/UP, DUP/PUP/PGR) and data-source
 URLs come from `backend/municipalities/<id>.toml` via `core.municipality.load_profile`; never
 hard-code them. Every domain table and every Celery task carries `municipality_id`; object keys
 are `{municipality_id}/{kind}/{name}`; the formula engine knows no municipality.

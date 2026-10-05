@@ -433,8 +433,12 @@
 /* 14. Orders (S4 order form, S5 confirmation, the public order page `/orders/<reference>`):
       - inline field messages and the one-sentence failure note of the form (the mock has no
         validation state); the disabled gold button while the order is being placed;
+      - the form's "Paying from" choice (not in the mock; the client's two sets of bank details,
+        2026-10-05): the mock's `.seg` with a line under it saying what the choice gets, or the
+        inline message when nothing is chosen;
       - the confirmation's bank-transfer block (the mock's `.paysummary` lines under a
-        `.fieldlab`): long IBANs wrap, "Copy" buttons, the note under it;
+        `.fieldlab` that names the set: domestic or international): long IBANs wrap, "Copy"
+        buttons, the note under it;
       - the order page (no mock screen): the topbar alone, then a card in the modal's style that
         scrolls with the page (the body itself never scrolls);
       - the form's context strip names the data version on a line of its own. */
@@ -472,8 +476,31 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+.seg.payfrom {
+  margin-bottom: 6px;
+}
+.seg.payfrom.err {
+  border-color: var(--danger);
+}
+.payfromnote {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+.payfromnote.ferr {
+  margin-top: 0;
+  font-size: 12px;
+  color: var(--danger);
+}
 .paylab {
   margin-top: 18px;
+}
+.paylab .payorigin::before {
+  content: " · ";
+}
+.paylab .payorigin {
+  color: var(--ink);
 }
 .payinstr .payline > span:last-child {
   min-width: 0;

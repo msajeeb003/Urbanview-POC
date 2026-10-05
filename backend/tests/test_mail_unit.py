@@ -58,7 +58,10 @@ FACTS = OrderFacts(
 PROVIDER = BankTransferProvider(
     beneficiary="UrbanView d.o.o.", iban="ME12 3456 7890", bank_name="CKB", swift="CKBCMEPG"
 )
-INSTRUCTIONS = PROVIDER.instructions(reference=FACTS.reference, amount_eur=200.0)
+# the details for a payment from abroad: the IBAN with the SWIFT code
+INSTRUCTIONS = PROVIDER.instructions(
+    reference=FACTS.reference, amount_eur=200.0, origin="international"
+)
 
 
 def test_status_url_helper():
@@ -331,6 +334,38 @@ async def test_payment_instructions_are_sent_and_logged_with_the_provider_id():
         settings,
     )
     assert again.result["skipped"] is True and len(transport.sent) == 1
+
+
+async def test_the_payment_email_carries_the_bank_details_of_the_orders_origin():
+    """The job reads where the order is paid from: the domestic account number (an order that
+    never said counts as domestic), or the IBAN and SWIFT / BIC for one paid from abroad."""
+    repo, transport = repository(), FakeTransport()
+    repo.orders[8] = replace(repo.orders[7], id=8, payment_origin="international")
+    repo.orders[9] = replace(repo.orders[7], id=9, payment_origin="domestic")
+    settings = settings_with(
+        order_bank_account="550-12345-67",
+        order_bank_iban="ME25505000012345678951",
+        order_bank_swift="PRIMMEPG",
+    )
+    store = MemoryJobStore()
+
+    async def text_of(order_id: int) -> str:
+        log_id = repo.add_log("payment_instructions", "ana@example.com", order_id=order_id)
+        job_id = store.add(type="send_email", payload={"email_log_id": log_id})
+        outcome = await run(store, job_id, repo, transport, settings)
+        assert outcome.status == "succeeded", outcome.error
+        return plain_text_of(transport.sent[-1])
+
+    for order_id in (7, 9):
+        domestic = await text_of(order_id)
+        # the profile names the country of a domestic payment
+        assert "Domestic payment (Montenegro)" in domestic
+        assert "Account number: 550-12345-67" in domestic
+        assert "IBAN" not in domestic and "PRIMMEPG" not in domestic
+    abroad = await text_of(8)
+    assert "International payment" in abroad
+    assert "IBAN: ME25505000012345678951" in abroad and "SWIFT/BIC: PRIMMEPG" in abroad
+    assert "550-12345-67" not in abroad and "Domestic payment" not in abroad
 
 
 async def test_a_message_is_written_in_the_orders_or_the_requests_language():

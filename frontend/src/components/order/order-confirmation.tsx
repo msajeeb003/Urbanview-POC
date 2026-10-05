@@ -4,9 +4,11 @@
  * S5 "Order confirmed" (wireframe `orderSuccess`, `screens/success.png`): the check, the title, the
  * delivery sentence with the turnaround, the reference and parcel in the mono chip, "Done" (toast
  * "Order placed — check your email"). No online checkout in this build, so the bank-transfer
- * instructions follow in the mock's `.paysummary` lines (payee, IBAN, bank, SWIFT, the reference to
- * quote, the amount due as the total line), with the API's note (work starts when the payment is
- * received), where they were e-mailed, and the public order page.
+ * instructions follow in the mock's `.paysummary` lines (the beneficiary, the account of the
+ * order's payment origin: the domestic account number, or the IBAN and SWIFT / BIC for a payment
+ * from abroad, as chosen on the form; the bank, the currency, the beneficiary's address, the
+ * reference to quote, the amount due as the total line), with the API's note (work starts when
+ * the payment is received), where they were e-mailed, and the public order page.
  *
  * Reload-safe: while it is on screen the address bar carries `?order=<reference>`; opening the map
  * with it reads `GET /v1/orders/{reference}` (no personal data: the e-mail address is only known
@@ -125,23 +127,39 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-/** The bank-transfer lines (the confirmation and the order page). */
+/**
+ * The bank-transfer lines (the confirmation and the order page): the set of the order's payment
+ * origin, as the API resolved it: the domestic account number for a customer paying from a bank
+ * in the country, the IBAN and SWIFT / BIC for one paying from abroad. Never both.
+ */
 export function PayInstructions({ pay }: { pay: Instructions }) {
   const amount = `${pay.currency === "EUR" ? "€" : `${pay.currency} `}${pay.amount_eur.toFixed(2)}`;
   return (
     <>
-      <div className="fieldlab paylab">Pay by bank transfer</div>
+      <div className="fieldlab paylab">
+        Pay by bank transfer<span className="payorigin">{pay.title_en}</span>
+      </div>
       <div className="paysummary payinstr">
         <div className="payline">
-          <span>Payee</span>
+          <span>Beneficiary</span>
           <span>{pay.beneficiary}</span>
         </div>
-        <div className="payline">
-          <span>IBAN</span>
-          <span className="mono">
-            {pay.iban} <CopyButton text={pay.iban} label="IBAN" />
-          </span>
-        </div>
+        {pay.account_number && (
+          <div className="payline">
+            <span>Account number</span>
+            <span className="mono">
+              {pay.account_number} <CopyButton text={pay.account_number} label="account number" />
+            </span>
+          </div>
+        )}
+        {pay.iban && (
+          <div className="payline">
+            <span>IBAN</span>
+            <span className="mono">
+              {pay.iban} <CopyButton text={pay.iban} label="IBAN" />
+            </span>
+          </div>
+        )}
         {pay.bank_name && (
           <div className="payline">
             <span>Bank</span>
@@ -151,7 +169,19 @@ export function PayInstructions({ pay }: { pay: Instructions }) {
         {pay.swift && (
           <div className="payline">
             <span>SWIFT / BIC</span>
-            <span className="mono">{pay.swift}</span>
+            <span className="mono">
+              {pay.swift} <CopyButton text={pay.swift} label="SWIFT / BIC" />
+            </span>
+          </div>
+        )}
+        <div className="payline">
+          <span>Currency</span>
+          <span className="mono">{pay.currency}</span>
+        </div>
+        {pay.beneficiary_address && (
+          <div className="payline">
+            <span>Beneficiary address</span>
+            <span>{pay.beneficiary_address}</span>
           </div>
         )}
         <div className="payline">

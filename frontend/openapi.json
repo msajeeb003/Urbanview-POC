@@ -14604,6 +14604,30 @@
             "type": "string",
             "title": "Country"
           },
+          "country_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Name",
+            "description": "The country's English name: the order form's payment choice and the domestic payment instructions name it"
+          },
+          "country_name_local": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Name Local",
+            "description": "The country's name in the local language"
+          },
           "locale": {
             "type": "string",
             "title": "Locale",
@@ -14992,6 +15016,22 @@
             ],
             "title": "Language",
             "description": "The language the map is in: the order's e-mails are written in it (default: MAIL_DEFAULT_LANGUAGE)"
+          },
+          "payment_origin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "domestic",
+                  "international"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Origin",
+            "description": "Where the customer pays from (the order form asks): a bank in the municipality's country (domestic) or abroad (international). The order is shown that set of bank details (default: domestic)"
           }
         },
         "additionalProperties": false,
@@ -15325,6 +15365,22 @@
             ],
             "title": "Customer Id",
             "description": "customers.id (the guest purchaser)"
+          },
+          "payment_origin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "domestic",
+                  "international"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Origin",
+            "description": "Where the customer pays from (null: placed before the form asked; the order is shown the domestic details)"
           },
           "message": {
             "anyOf": [
@@ -16493,13 +16549,38 @@
             "const": "bank_transfer",
             "title": "Method"
           },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "domestic",
+              "international"
+            ],
+            "title": "Origin",
+            "description": "The set these details are"
+          },
+          "title_en": {
+            "type": "string",
+            "title": "Title En",
+            "description": "The set by name: \"Domestic payment (Montenegro)\""
+          },
+          "title_me": {
+            "type": "string",
+            "title": "Title Me"
+          },
           "beneficiary": {
             "type": "string",
             "title": "Beneficiary"
           },
-          "iban": {
-            "type": "string",
-            "title": "Iban"
+          "beneficiary_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beneficiary Address"
           },
           "bank_name": {
             "anyOf": [
@@ -16512,6 +16593,30 @@
             ],
             "title": "Bank Name"
           },
+          "account_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Number",
+            "description": "Domestic: the account as the country's banks write it"
+          },
+          "iban": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban",
+            "description": "International; domestic too while no account number is configured"
+          },
           "swift": {
             "anyOf": [
               {
@@ -16521,7 +16626,8 @@
                 "type": "null"
               }
             ],
-            "title": "Swift"
+            "title": "Swift",
+            "description": "International"
           },
           "amount_eur": {
             "type": "number",
@@ -16547,15 +16653,18 @@
         "type": "object",
         "required": [
           "method",
+          "origin",
+          "title_en",
+          "title_me",
           "beneficiary",
-          "iban",
           "amount_eur",
           "currency",
           "reference_to_quote",
           "note_en",
           "note_me"
         ],
-        "title": "PaymentInstructionsOut"
+        "title": "PaymentInstructionsOut",
+        "description": "The bank details of the order's payment origin: the domestic account number for a customer\npaying from a bank in the country, the IBAN and SWIFT / BIC for one paying from abroad."
       },
       "PlanningBlock": {
         "properties": {

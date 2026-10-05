@@ -2,7 +2,9 @@
  * The S4 order form's rules, kept pure (unit-tested): the draft the visitor types, client-side
  * validation mirroring `POST /v1/orders` (`api/schemas/orders.py`: the pilot scope's guest form,
  * name, telephone and e-mail for everyone, a legal entity's company name and PIB optional; the
- * same e-mail and telephone patterns, the same lengths), the request body, and what a rejected
+ * same e-mail and telephone patterns, the same lengths), where the customer pays from (the
+ * client, 2026-10-05: a bank in the country gets the domestic account number, one abroad the IBAN
+ * and SWIFT / BIC; the form asks, nothing is preselected), the request body, and what a rejected
  * request means for the form (one sentence, plus the fields the server pointed at).
  *
  * Personal data stays here and in the order request: never in analytics, never in storage.
@@ -17,9 +19,13 @@ import type { Lang } from "./i18n/strings";
 export const ORDER_PRODUCT = "expert_report";
 
 export type PurchaserType = "individual" | "legal_entity";
+/** Where the customer pays from: decides which bank details the order shows. */
+export type PaymentOrigin = NonNullable<OrderIn["payment_origin"]>;
 
 export interface OrderDraft {
   purchaserType: PurchaserType;
+  /** Null until the visitor picks one: the form never guesses where a customer's bank is. */
+  paymentOrigin: PaymentOrigin | null;
   firstName: string;
   lastName: string;
   telephone: string;
@@ -28,11 +34,13 @@ export interface OrderDraft {
   taxNumber: string;
 }
 
-export type DraftField = Exclude<keyof OrderDraft, "purchaserType">;
-export type FieldErrors = Partial<Record<DraftField, string>>;
+/** The typed fields (the two choices, purchaser type and payment origin, are buttons). */
+export type DraftField = Exclude<keyof OrderDraft, "purchaserType" | "paymentOrigin">;
+export type FieldErrors = Partial<Record<DraftField | "paymentOrigin", string>>;
 
 export const EMPTY_DRAFT: OrderDraft = {
   purchaserType: "individual",
+  paymentOrigin: null,
   firstName: "",
   lastName: "",
   telephone: "",
@@ -68,6 +76,7 @@ const MISSING: Record<DraftField, string> = {
   companyName: "Enter the company name.",
   taxNumber: "Enter the PIB (company ID).",
 };
+export const ORIGIN_MISSING = "Choose where you will pay from.";
 
 // the server's patterns (`EMAIL_RE`, `PHONE_RE` + at least six digits)
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
@@ -93,6 +102,7 @@ export function validateDraft(draft: OrderDraft): FieldErrors {
     else if (field === "telephone" && !isPhone(value))
       errors.telephone = "Enter a valid telephone number, e.g. +382 67 123 456.";
   }
+  if (!draft.paymentOrigin) errors.paymentOrigin = ORIGIN_MISSING;
   return errors;
 }
 
@@ -119,8 +129,9 @@ export interface OrderTarget extends OrderLocation {
 
 /**
  * The request body: the location the panel showed, the name, telephone and e-mail, a legal
- * entity's company name and PIB when given, the visitor's edited assumptions, if any, and the
- * language the map is in (the order's e-mails are written in it, one language per e-mail).
+ * entity's company name and PIB when given, where the customer pays from, the visitor's edited
+ * assumptions, if any, and the language the map is in (the order's e-mails are written in it,
+ * one language per e-mail).
  */
 export function toOrderIn(draft: OrderDraft, location: OrderLocation, edits: AssumptionEdits, language: Lang): OrderIn {
   const t = (v: string) => v.trim();
@@ -133,6 +144,7 @@ export function toOrderIn(draft: OrderDraft, location: OrderLocation, edits: Ass
     telephone: t(draft.telephone),
     assumptions: hasEdits(edits) ? toRequestAssumptions(edits) : null,
     language,
+    payment_origin: draft.paymentOrigin,
   };
   if (draft.purchaserType === "legal_entity") {
     body.company_name = t(draft.companyName) || null;
@@ -141,13 +153,14 @@ export function toOrderIn(draft: OrderDraft, location: OrderLocation, edits: Ass
   return body;
 }
 
-const SERVER_FIELDS: Record<string, DraftField> = {
+const SERVER_FIELDS: Record<string, keyof FieldErrors> = {
   first_name: "firstName",
   last_name: "lastName",
   telephone: "telephone",
   email: "email",
   company_name: "companyName",
   tax_number: "taxNumber",
+  payment_origin: "paymentOrigin",
 };
 
 export interface OrderFailure {
@@ -181,7 +194,13 @@ export function explainFailure(error: unknown): OrderFailure {
     const details = Array.isArray(error.details) ? error.details : [];
     for (const d of details as { loc?: unknown[]; msg?: string }[]) {
       const key = SERVER_FIELDS[String(d.loc?.[d.loc.length - 1] ?? "")];
-      if (key) fields[key] = key === "email" ? "Enter a valid email address, e.g. you@email.me." : "Check this field.";
+      if (key)
+        fields[key] =
+          key === "email"
+            ? "Enter a valid email address, e.g. you@email.me."
+            : key === "paymentOrigin"
+              ? ORIGIN_MISSING
+              : "Check this field.";
     }
     const location = details.some((d) => (d as { loc?: unknown[] }).loc?.includes("location"));
     return {

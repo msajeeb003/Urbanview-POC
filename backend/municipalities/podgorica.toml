@@ -4,6 +4,10 @@
 id = "podgorica"
 name = "Podgorica"
 country = "ME"
+# The country by name: an order is paid from a bank here (the domestic account) or from abroad
+# (IBAN and SWIFT); the order form's "Paying from" choice and the payment instructions name it.
+country_name = "Montenegro"
+country_name_local = "Crna Gora"
 locale = "sr-Latn-ME"
 currency = "EUR"
 # Local date for effective-dated financial assumptions (a set dated 15 October applies from

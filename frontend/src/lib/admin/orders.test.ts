@@ -12,6 +12,7 @@ import {
   parcelCells,
   parcelLine,
   parseOrderFilters,
+  paymentOriginText,
   refundOf,
   snapshotAssumptions,
   snapshotFeasibility,
@@ -94,6 +95,14 @@ describe("the queue", () => {
     expect(versionText({ data_version: "first-publish", data_version_no: 1 })).toBe("v1");
     expect(versionText({ data_version: "first-publish", data_version_no: null })).toBe("first-publish");
     expect(versionText({ data_version: null, data_version_no: null })).toBeNull();
+  });
+
+  it("says where the customer pays from and which account they were shown", () => {
+    expect(paymentOriginText("domestic", "Montenegro")).toBe("Montenegro · shown the domestic account number");
+    expect(paymentOriginText("international", "Montenegro")).toBe("Another country · shown the IBAN and SWIFT / BIC");
+    // placed before the form asked: the domestic details were shown
+    expect(paymentOriginText(null, "Montenegro")).toBe("Not asked · shown the domestic account number");
+    expect(paymentOriginText("domestic", null)).toBe("This country · shown the domestic account number");
   });
 });
 
