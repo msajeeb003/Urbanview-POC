@@ -1,4 +1,4 @@
-# UrbanView (POC working name: Arvin View)
+# UrbanView (POC working name: UrbanView)
 
 A public web map of Podgorica where anyone finds a parcel (address, map click or cadastral number)
 and sees what the adopted planning documents allow on it, plus an admin pipeline that turns
