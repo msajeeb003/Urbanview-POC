@@ -181,7 +181,8 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
         confirmation = await client.get(f"/v1/orders/{reference.lower()}")
         unknown_confirmation = await client.get("/v1/orders/UV-NOPE-0-000000-00")
         legal = await client.post("/v1/orders", json=LEGAL)
-        # the pilot's form: the company details are optional, the old legal-entity fields gone
+        # a legal entity names its company and PIB (the tester's retest of 2026-10-08); the old
+        # legal-entity fields are gone
         no_company = await client.post(
             "/v1/orders",
             json={**LEGAL, "company_name": None, "tax_number": None, "email": "x@gradnja.me"},
@@ -282,7 +283,11 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
     assert unknown_confirmation.status_code == 404
 
     assert legal.status_code == 201, legal.text
-    assert no_company.status_code == 201, no_company.text
+    assert no_company.status_code == 422, no_company.text
+    assert [p["loc"] for p in no_company.json()["error"]["details"]] == [
+        ["body", "company_name"],
+        ["body", "tax_number"],
+    ]
     assert old_fields.status_code == 422 and nameless.status_code == 422
     assert bad_phone.status_code == 422
     assert no_parcel.status_code == 404
@@ -322,7 +327,7 @@ async def test_guest_order_gets_a_reference_a_snapshot_and_the_payment_email(ord
     assert ana["refs"] == [reference]
     office = by_email["office@gradnja.me"]
     assert (office["company_name"], office["company_id"]) == ("Gradnja d.o.o.", "02123456")
-    assert by_email["x@gradnja.me"]["company_name"] is None
+    assert "x@gradnja.me" not in by_email  # the refused order left no customer behind
 
 
 async def test_an_order_is_shown_the_bank_details_of_where_it_is_paid_from(postgis_url, mailer):
@@ -602,12 +607,19 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
     assert not_a_language.status_code == 422
     assert mailer.sent[0].subject.endswith("uputstvo za plaćanje")
     assert mailer.sent[1].subject.endswith("payment instructions")
+    report_mail = next(m for m in mailer.sent if m.subject.endswith("izvještaj je spreman"))
     assert (
-        mailer.sent[-1].subject.endswith("izvještaj je spreman")
-        and "Poštovani/a Ana" in mailer.sent[-1].text
-        and "Dear Ana" not in mailer.sent[-1].text
-        and body["report"]["download_url"] in mailer.sent[-1].text
+        "Poštovani/a Ana" in report_mail.text
+        and "Dear Ana" not in report_mail.text
+        and body["report"]["download_url"] in report_mail.text
     )
+    # the customer hears about the money too (the tester's report of 2026-10-08): the transfer
+    # as recorded, in the order's language, and a refund with what went back
+    paid_mail = mailer.sent[2]
+    assert paid_mail.subject.endswith("uplata primljena")
+    assert "200.00 EUR" in paid_mail.text and "BANK-1" not in paid_mail.text
+    refund_mail = mailer.sent[-1]
+    assert refund_mail.subject.endswith("refund issued") and "200.00 EUR" in refund_mail.text
     assert back_to_work.status_code == 409  # delivered never goes back
     assert back_to_work.json()["error"]["details"]["allowed"] == ["refunded"]
     assert report_pending.status_code == 409
@@ -622,7 +634,19 @@ async def test_status_flow_guards_expert_scope_and_delivery(order_app, mailer):
     log = await rows(
         app, "SELECT template, status FROM email_log WHERE order_id = :o ORDER BY id", o=oid
     )
-    assert [entry["template"] for entry in log] == ["payment_instructions", "order_delivered"]
+    assert [entry["template"] for entry in log] == [
+        "payment_instructions",
+        "payment_received",
+        "order_delivered",
+    ]
+    other_log = await rows(
+        app, "SELECT template, status FROM email_log WHERE order_id = :o ORDER BY id", o=other
+    )
+    assert [entry["template"] for entry in other_log] == [
+        "payment_instructions",
+        "payment_received",
+        "order_refunded",
+    ]
     actions = [e["action"] for e in entries]
     assert actions == [
         "order.status",

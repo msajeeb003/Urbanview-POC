@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="{{ html_lang }}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2933;line-height:1.5;">
+<div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;padding:28px;">
+  <p style="margin:0 0 20px;font-size:18px;font-weight:bold;color:#0b3d5c;">{{ app_name }}</p>
+
+{% if lang == "me" %}
+  <p>Poštovani/a {{ first_name }},</p>
+  <p>Primili smo Vašu uplatu za stručnu analizu za <strong>{{ location }}</strong>.</p>
+  <table style="border-collapse:collapse;margin:6px 0 12px;" cellpadding="6">
+    <tr><td style="color:#52606d;">Broj narudžbe</td><td><strong>{{ reference }}</strong></td></tr>
+    <tr><td style="color:#52606d;">Primljeni iznos</td><td>{{ amount_eur | money }} {{ currency }}</td></tr>
+    <tr><td style="color:#52606d;">Datum uplate</td><td>{{ received_on | date_short }}</td></tr>
+  </table>
+  <p>Naš stručnjak sada počinje sa radom. Izvještaj stiže e-poštom u roku od
+     {{ turnaround_business_days }} radnih dana.</p>
+  <p><a href="{{ status_url }}" style="color:#0b6e8f;">Status narudžbe</a> · Pitanja: <a href="mailto:{{ support_email }}" style="color:#0b6e8f;">{{ support_email }}</a></p>
+{% else %}
+  <p>Dear {{ first_name }},</p>
+  <p>We have received your payment for the expert analysis of <strong>{{ location }}</strong>.</p>
+  <table style="border-collapse:collapse;margin:6px 0 12px;" cellpadding="6">
+    <tr><td style="color:#52606d;">Order reference</td><td><strong>{{ reference }}</strong></td></tr>
+    <tr><td style="color:#52606d;">Amount received</td><td>{{ amount_eur | money }} {{ currency }}</td></tr>
+    <tr><td style="color:#52606d;">Payment date</td><td>{{ received_on | date_short }}</td></tr>
+  </table>
+  <p>Our expert now starts on the report. It arrives by e-mail within
+     {{ turnaround_business_days }} business days.</p>
+  <p><a href="{{ status_url }}" style="color:#0b6e8f;">Track your order</a> · Questions: <a href="mailto:{{ support_email }}" style="color:#0b6e8f;">{{ support_email }}</a></p>
+{% endif %}
+</div>
+</body>
+</html>

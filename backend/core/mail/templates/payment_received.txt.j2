@@ -1,0 +1,31 @@
+{% if lang == "me" %}
+Poštovani/a {{ first_name }},
+
+Primili smo Vašu uplatu za stručnu analizu za {{ location }}.
+
+Broj narudžbe: {{ reference }}
+Primljeni iznos: {{ amount_eur | money }} {{ currency }}
+Datum uplate: {{ received_on | date_short }}
+
+Naš stručnjak sada počinje sa radom. Izvještaj stiže e-poštom u roku od
+{{ turnaround_business_days }} radnih dana.
+Status narudžbe: {{ status_url }}
+
+Pitanja: {{ support_email }}
+{% else %}
+Dear {{ first_name }},
+
+We have received your payment for the expert analysis of {{ location }}.
+
+Order reference: {{ reference }}
+Amount received: {{ amount_eur | money }} {{ currency }}
+Payment date: {{ received_on | date_short }}
+
+Our expert now starts on the report. It arrives by e-mail within
+{{ turnaround_business_days }} business days.
+Track your order: {{ status_url }}
+
+Questions: {{ support_email }}
+{% endif %}
+
+{{ app_name }}

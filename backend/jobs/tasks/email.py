@@ -26,8 +26,10 @@ from api.services.order_mail import (
     OrderFacts,
     magic_link_context,
     order_delivered_context,
+    order_refunded_context,
     order_status_url,
     payment_instructions_context,
+    payment_received_context,
 )
 from core.auth import generate_token, hash_token
 from core.mail import (
@@ -92,7 +94,12 @@ async def resolve_context(
     """The recipient address, the template context and the order's language (None for a staff
     e-mail, or an order that kept none), from the order / staff user."""
     support = settings.order_support_email
-    if template in ("payment_instructions", "order_delivered"):
+    if template in (
+        "payment_instructions",
+        "payment_received",
+        "order_delivered",
+        "order_refunded",
+    ):
         if row.order_id is None:
             raise MailPermanentError(f"{template} needs an order")
         order = await repo.load_order(row.order_id)
@@ -121,6 +128,29 @@ async def resolve_context(
                 origin=order.payment_origin,
             )
             context = payment_instructions_context(facts, instructions)
+            return order.email, context, order.language
+        if template == "payment_received":
+            # the transfer staff recorded; no amount entered = the order's price
+            if order.payment_received_on is None:
+                raise MailPermanentError(f"order {order.reference} has no payment recorded")
+            amount = (
+                order.payment_amount_eur
+                if order.payment_amount_eur is not None
+                else order.price_eur
+            )
+            context = payment_received_context(
+                facts, amount_eur=amount, received_on=order.payment_received_on
+            )
+            return order.email, context, order.language
+        if template == "order_refunded":
+            # the refund staff recorded; no amount entered = the whole payment
+            if order.refunded_on is None:
+                raise MailPermanentError(f"order {order.reference} has no refund recorded")
+            amounts = (order.refund_amount_eur, order.payment_amount_eur, order.price_eur)
+            amount = next(value for value in amounts if value is not None)
+            context = order_refunded_context(
+                facts, amount_eur=amount, refunded_on=order.refunded_on
+            )
             return order.email, context, order.language
         if not order.report_key:
             raise MailPermanentError(f"order {order.reference} has no report to deliver")

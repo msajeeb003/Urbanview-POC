@@ -174,7 +174,9 @@ export function emptyOrdersText(filters: OrderFilters, expert: boolean): string 
 
 const TEMPLATE_NAMES: Record<string, string> = {
   payment_instructions: "Payment instructions",
+  payment_received: "Payment received",
   order_delivered: "Report delivered",
+  order_refunded: "Refund issued",
   magic_link: "Sign-in link",
 };
 

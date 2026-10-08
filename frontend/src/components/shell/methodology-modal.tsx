@@ -3,7 +3,8 @@
 /**
  * "Our analysis methodology" (wireframe `renderMethodology`, the wide `.method` modal): a rail of
  * six steps and a pane with the step's tag, title, phase, diagram and text; Back / Next step, and
- * on the last step the gold "Order this analysis →". The diagrams and the six steps are the
+ * on the last step "Order this analysis →" (terracotta like every other button, the tester's
+ * report of 2026-10-08; the mock drew it gold). The diagrams and the six steps are the
  * wireframe's; the sentences are the wireframe's with their English tidied (tester's report
  * 2026-10-02: same steps, same meaning, nothing added).
  * Opened from "How we read a planning document" (step 2) and, later, "How we analyze this parcel"
@@ -235,7 +236,7 @@ export function MethodologyModal({
             )}
             {last ? (
               <Cta
-                variant="gold"
+                variant="primary"
                 style={{ width: "auto", padding: "0 18px", height: 38 }}
                 onClick={() => {
                   closeModal();

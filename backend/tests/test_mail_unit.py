@@ -17,8 +17,10 @@ from api.services.order_mail import (
     OrderFacts,
     magic_link_context,
     order_delivered_context,
+    order_refunded_context,
     order_status_url,
     payment_instructions_context,
+    payment_received_context,
 )
 from core.auth import hash_token
 from core.mail import (
@@ -75,9 +77,17 @@ ONLY = {
         "en": ("Dear Ana", "5 business days", "Beneficiary", "Payment reference", "Questions"),
         "me": ("Poštovani/a Ana", "5 radnih dana", "Primalac", "Poziv na broj", "Pitanja"),
     },
+    "payment_received": {
+        "en": ("Dear Ana", "Amount received", "business days", "Track your order"),
+        "me": ("Poštovani/a Ana", "Primljeni iznos", "radnih dana", "Status narudžbe"),
+    },
     "order_delivered": {
         "en": ("Dear Ana", "is ready", "Track your order"),
         "me": ("Poštovani/a Ana", "je gotova", "Status narudžbe"),
+    },
+    "order_refunded": {
+        "en": ("Dear Ana", "Amount refunded", "is closed", "Track your order"),
+        "me": ("Poštovani/a Ana", "Vraćeni iznos", "je zatvorena", "Status narudžbe"),
     },
     "magic_link": {
         "en": ("Sign in", "works once", "Questions"),
@@ -149,6 +159,51 @@ def test_order_delivered_template_has_the_link_and_the_support_inbox():
         one_language(mail, "order_delivered", language)
 
 
+def test_payment_received_template_states_the_amount_the_date_and_the_turnaround():
+    context = payment_received_context(FACTS, amount_eur=200.0, received_on=date(2026, 10, 8))
+    subjects = {
+        "en": "UrbanView order UV-PODI-1042-260925-01: payment received",
+        "me": "UrbanView narudžba UV-PODI-1042-260925-01: uplata primljena",
+    }
+    for language, subject in subjects.items():
+        mail = render("payment_received", context, language=language)
+        assert mail.subject == subject
+        for needle in (
+            "UV-PODI-1042-260925-01",
+            "KO Podgorica I, parcela 1042",
+            "200.00 EUR",
+            "08.10.2026",
+            "5 ",
+            FACTS.status_url,
+            "support@urbanview.io",
+        ):
+            assert needle in mail.text, (language, needle)
+            assert needle in mail.html, (language, needle)
+        one_language(mail, "payment_received", language)
+
+
+def test_order_refunded_template_states_the_amount_sent_back_and_the_date():
+    context = order_refunded_context(FACTS, amount_eur=150.0, refunded_on=date(2026, 10, 9))
+    subjects = {
+        "en": "UrbanView order UV-PODI-1042-260925-01: refund issued",
+        "me": "UrbanView narudžba UV-PODI-1042-260925-01: povraćaj uplate",
+    }
+    for language, subject in subjects.items():
+        mail = render("order_refunded", context, language=language)
+        assert mail.subject == subject
+        for needle in (
+            "UV-PODI-1042-260925-01",
+            "KO Podgorica I, parcela 1042",
+            "150.00 EUR",
+            "09.10.2026",
+            FACTS.status_url,
+            "support@urbanview.io",
+        ):
+            assert needle in mail.text, (language, needle)
+            assert needle in mail.html, (language, needle)
+        one_language(mail, "order_refunded", language)
+
+
 def test_magic_link_template_says_single_use_and_expiry():
     context = magic_link_context(
         email="vesna@example.com",
@@ -185,7 +240,13 @@ def test_html_is_escaped_and_contexts_are_checked():
         render("newsletter", {})
     with pytest.raises(ValueError, match="unknown e-mail language 'de'"):
         render("magic_link", {"login_url": "x"}, language="de")
-    assert set(TEMPLATES) == {"payment_instructions", "order_delivered", "magic_link"}
+    assert set(TEMPLATES) == {
+        "payment_instructions",
+        "payment_received",
+        "order_delivered",
+        "order_refunded",
+        "magic_link",
+    }
     assert LANGUAGES == ("en", "me")
 
 

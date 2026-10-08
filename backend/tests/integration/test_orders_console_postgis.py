@@ -96,7 +96,15 @@ async def test_experts_timeline_refund_and_a_replaced_report(order_app, mailer):
     body = replaced.json()
     assert body["status"] == "delivered" and body["report_versions"] == 2
     assert body["report"]["original_filename"] == "report-v2.pdf"
-    assert len(mailer.sent) == sent_before + 1  # the new link went out
+    # the new link went out, then the other order's payment and refund e-mails (the tester's
+    # retest of 2026-10-08): the refund names the amount sent back and the day it was recorded
+    assert len(mailer.sent) == sent_before + 3
+    assert [m.subject.rsplit(": ", 1)[1] for m in mailer.sent[sent_before:]] == [
+        "your report is ready",
+        "payment received",
+        "refund issued",
+    ]
+    assert "200.00 EUR" in mailer.sent[-1].text and "26.09.2026" in mailer.sent[-1].text
     actions = [e["action"] for e in body["timeline"]]
     assert actions.count("order.report") == 2
     payment = next(e for e in body["timeline"] if e["action"] == "order.payment")

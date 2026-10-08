@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="{{ html_lang }}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:24px;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2933;line-height:1.5;">
+<div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;padding:28px;">
+  <p style="margin:0 0 20px;font-size:18px;font-weight:bold;color:#0b3d5c;">{{ app_name }}</p>
+
+{% if lang == "me" %}
+  <p>Poštovani/a {{ first_name }},</p>
+  <p>Vratili smo Vam uplatu za narudžbu stručne analize za <strong>{{ location }}</strong>.</p>
+  <table style="border-collapse:collapse;margin:6px 0 12px;" cellpadding="6">
+    <tr><td style="color:#52606d;">Broj narudžbe</td><td><strong>{{ reference }}</strong></td></tr>
+    <tr><td style="color:#52606d;">Vraćeni iznos</td><td>{{ amount_eur | money }} {{ currency }}</td></tr>
+    <tr><td style="color:#52606d;">Datum povraćaja</td><td>{{ refunded_on | date_short }}</td></tr>
+  </table>
+  <p>Povraćaj ide na račun sa kojeg je uplata stigla; u zavisnosti od banke može proći
+     nekoliko radnih dana dok ne bude vidljiv. Narudžba je zatvorena.</p>
+  <p><a href="{{ status_url }}" style="color:#0b6e8f;">Status narudžbe</a> · Pitanja: <a href="mailto:{{ support_email }}" style="color:#0b6e8f;">{{ support_email }}</a></p>
+{% else %}
+  <p>Dear {{ first_name }},</p>
+  <p>We have refunded your payment for the expert analysis of <strong>{{ location }}</strong>.</p>
+  <table style="border-collapse:collapse;margin:6px 0 12px;" cellpadding="6">
+    <tr><td style="color:#52606d;">Order reference</td><td><strong>{{ reference }}</strong></td></tr>
+    <tr><td style="color:#52606d;">Amount refunded</td><td>{{ amount_eur | money }} {{ currency }}</td></tr>
+    <tr><td style="color:#52606d;">Refund date</td><td>{{ refunded_on | date_short }}</td></tr>
+  </table>
+  <p>The refund goes back to the account the payment came from; depending on the bank it can
+     take a few business days to show. The order is closed.</p>
+  <p><a href="{{ status_url }}" style="color:#0b6e8f;">Track your order</a> · Questions: <a href="mailto:{{ support_email }}" style="color:#0b6e8f;">{{ support_email }}</a></p>
+{% endif %}
+</div>
+</body>
+</html>

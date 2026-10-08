@@ -8,7 +8,14 @@ import re
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from api.schemas.email import EmailLogOut, MailLanguage
 from api.schemas.feasibility import EditedAssumptions
@@ -37,8 +44,10 @@ class OrderLocation(BaseModel):
 
 
 class OrderIn(BaseModel):
-    """The pilot scope's guest form: name, e-mail and telephone for everyone; a legal entity may
-    add its company name and PIB (company id). No account, no verification."""
+    """The pilot scope's guest form: name, e-mail and telephone for everyone; a legal entity
+    gives its company name and PIB (company id) as well (required since the tester's report of
+    2026-10-08: an order of a company without them cannot be invoiced). No account, no
+    verification."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -49,10 +58,16 @@ class OrderIn(BaseModel):
     email: str = Field(max_length=254)
     telephone: str = Field(max_length=30)
     company_name: str | None = Field(
-        default=None, max_length=200, description="Legal entity only, optional"
+        default=None,
+        max_length=200,
+        validate_default=True,
+        description="Required for a legal entity, dropped for an individual",
     )
     tax_number: str | None = Field(
-        default=None, max_length=40, description="PIB (company id); legal entity only, optional"
+        default=None,
+        max_length=40,
+        validate_default=True,
+        description="PIB (company id): required for a legal entity, dropped for an individual",
     )
     assumptions: EditedAssumptions | None = Field(
         default=None, description="The assumptions the visitor edited on the panel, if any"
@@ -78,10 +93,23 @@ class OrderIn(BaseModel):
             raise ValueError("enter a name")
         return value
 
-    @field_validator("last_name", "company_name", "tax_number")
+    @field_validator("last_name")
     @classmethod
     def _trimmed(cls, value: str | None) -> str | None:
         return (value.strip() or None) if isinstance(value, str) else value
+
+    @field_validator("company_name", "tax_number")
+    @classmethod
+    def _company_fields(cls, value: str | None, info: ValidationInfo) -> str | None:
+        """A legal entity names its company and PIB (an individual's are dropped below); the
+        problem names the field, so the form can point at it."""
+        value = (value.strip() or None) if isinstance(value, str) else value
+        if value is None and info.data.get("purchaser_type") == "legal_entity":
+            what = (
+                "the company name" if info.field_name == "company_name" else "the PIB (company ID)"
+            )
+            raise ValueError(f"enter {what}")
+        return value
 
     @field_validator("email")
     @classmethod

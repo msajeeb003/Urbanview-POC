@@ -1011,6 +1011,17 @@ class OrderService:
                     note=payload.note,
                 )
             await session.commit()
+        # the customer hears about the money (the tester's report of 2026-10-08: nothing told
+        # them the transfer had arrived or been sent back): one e-mail per recorded payment
+        # or refund, built by the worker from the order at send time like the other two
+        if payload.status in ("received", "refunded"):
+            await self.emails.queue(
+                template="payment_received" if payload.status == "received" else "order_refunded",
+                to=row["email"],
+                order_id=order_id,
+                requested_by=principal.subject,
+                requested_by_user_id=principal.user_id,
+            )
         return await self.get(principal, order_id)
 
     async def assign(self, principal: Principal, order_id: int, payload: AssignIn) -> OrderOut:

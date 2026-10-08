@@ -88,6 +88,36 @@ TEMPLATES: dict[str, TemplateSpec] = {
             "Sent when the expert report is uploaded: signed download link and the support inbox",
         ),
         TemplateSpec(
+            "payment_received",
+            (
+                "reference",
+                "first_name",
+                "location",
+                "amount_eur",
+                "currency",
+                "received_on",
+                "turnaround_business_days",
+                "status_url",
+                "support_email",
+            ),
+            "Sent when staff record the bank transfer as received: the amount, the date, and that "
+            "the expert starts on the report",
+        ),
+        TemplateSpec(
+            "order_refunded",
+            (
+                "reference",
+                "first_name",
+                "location",
+                "amount_eur",
+                "currency",
+                "refunded_on",
+                "status_url",
+                "support_email",
+            ),
+            "Sent when staff record a refund: the amount sent back and the date",
+        ),
+        TemplateSpec(
             "magic_link",
             ("login_url", "expires_minutes", "email", "support_email"),
             "Staff login link for the admin panel: single use, short expiry",

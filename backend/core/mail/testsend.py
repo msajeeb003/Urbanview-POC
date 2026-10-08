@@ -17,8 +17,10 @@ from api.services.order_mail import (
     OrderFacts,
     magic_link_context,
     order_delivered_context,
+    order_refunded_context,
     order_status_url,
     payment_instructions_context,
+    payment_received_context,
 )
 from core.config import get_settings
 from core.mail import (
@@ -54,6 +56,10 @@ def fixture_context(template: str, settings, to: str, origin: str | None = None)
             facts,
             provider.instructions(reference=facts.reference, amount_eur=200.0, origin=origin),
         )
+    if template == "payment_received":
+        return payment_received_context(facts, amount_eur=200.0, received_on=date.today())
+    if template == "order_refunded":
+        return order_refunded_context(facts, amount_eur=200.0, refunded_on=date.today())
     if template == "order_delivered":
         return order_delivered_context(
             facts,
@@ -72,7 +78,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("::")[0].strip())
     parser.add_argument(
         "--template",
-        choices=("payment_instructions", "order_delivered", "magic_link"),
+        choices=(
+            "payment_instructions",
+            "payment_received",
+            "order_delivered",
+            "order_refunded",
+            "magic_link",
+        ),
         default="payment_instructions",
     )
     parser.add_argument("--to", required=True, help="recipient address")

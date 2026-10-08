@@ -36,11 +36,14 @@ describe("order form validation (the API's rules)", () => {
     expect(validateDraft({ ...company, paymentOrigin: "domestic" })).toEqual({});
   });
 
-  it("needs the same three fields from a legal entity; company name and PIB are optional", () => {
+  it("needs the same three fields from a legal entity, and its company name and PIB", () => {
     expect(validateDraft(company)).toEqual({});
     const missing = validateDraft({ ...EMPTY_DRAFT, purchaserType: "legal_entity" });
-    expect(Object.keys(missing).sort()).toEqual(["email", "firstName", "paymentOrigin", "telephone"]);
-    expect(validateDraft({ ...company, companyName: "", taxNumber: "" })).toEqual({});
+    expect(Object.keys(missing).sort()).toEqual(["companyName", "email", "firstName", "paymentOrigin", "taxNumber", "telephone"]);
+    expect(validateDraft({ ...company, companyName: " ", taxNumber: "" })).toEqual({
+      companyName: "Enter the company name.",
+      taxNumber: "Enter the PIB (company ID).",
+    });
     expect(validateDraft({ ...company, taxNumber: "x".repeat(41) }).taxNumber).toMatch(/at most 40/);
   });
 
@@ -93,11 +96,8 @@ describe("the order request", () => {
     });
     expect(body).not.toHaveProperty("contact_person");
     expect(body).not.toHaveProperty("registered_address");
-    // left empty, the optional company fields go as null
-    expect(toOrderIn({ ...company, companyName: " ", taxNumber: "" }, location, {}, "en")).toMatchObject({
-      company_name: null,
-      tax_number: null,
-    });
+    // an individual's order carries no company fields at all
+    expect(toOrderIn({ ...company, purchaserType: "individual" }, location, {}, "en")).not.toHaveProperty("company_name");
   });
 });
 

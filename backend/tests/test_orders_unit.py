@@ -138,8 +138,9 @@ def test_order_form_validation():
     ):
         with pytest.raises(ValidationError):
             OrderIn(**{**FORM, **bad})
-    # the pilot scope's form: name, e-mail and telephone for everyone; the company name and PIB
-    # of a legal entity are optional; contact person and invoice address are not asked any more
+    # the pilot scope's form: name, e-mail and telephone for everyone; a legal entity gives its
+    # company name and PIB too (required since the tester's report of 2026-10-08); contact person
+    # and invoice address are not asked any more
     legal = OrderIn(
         **{
             **FORM,
@@ -149,8 +150,32 @@ def test_order_form_validation():
         }
     )
     assert legal.company_name == "Gradnja d.o.o." and legal.tax_number == "02123456"
-    bare = OrderIn(**{**FORM, "purchaser_type": "legal_entity", "company_name": "  "})
-    assert bare.company_name is None and bare.tax_number is None
+    for missing in ("company_name", "tax_number"):
+        with pytest.raises(ValidationError) as caught:  # a company without its name or PIB
+            OrderIn(
+                **{
+                    **FORM,
+                    "purchaser_type": "legal_entity",
+                    "company_name": "Gradnja d.o.o.",
+                    "tax_number": "02123456",
+                    missing: "  ",
+                }
+            )
+        assert [e["loc"] for e in caught.value.errors()] == [(missing,)]
+        with pytest.raises(ValidationError) as caught:
+            OrderIn(
+                **{
+                    k: v
+                    for k, v in {
+                        **FORM,
+                        "purchaser_type": "legal_entity",
+                        "company_name": "Gradnja d.o.o.",
+                        "tax_number": "02123456",
+                    }.items()
+                    if k != missing
+                }
+            )
+        assert [e["loc"] for e in caught.value.errors()] == [(missing,)]
     with pytest.raises(ValidationError):  # a legal entity is still named
         OrderIn(
             **{

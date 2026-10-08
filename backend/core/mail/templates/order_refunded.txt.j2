@@ -1,0 +1,31 @@
+{% if lang == "me" %}
+Poštovani/a {{ first_name }},
+
+Vratili smo Vam uplatu za narudžbu stručne analize za {{ location }}.
+
+Broj narudžbe: {{ reference }}
+Vraćeni iznos: {{ amount_eur | money }} {{ currency }}
+Datum povraćaja: {{ refunded_on | date_short }}
+
+Povraćaj ide na račun sa kojeg je uplata stigla; u zavisnosti od banke može proći
+nekoliko radnih dana dok ne bude vidljiv. Narudžba je zatvorena.
+Status narudžbe: {{ status_url }}
+
+Pitanja: {{ support_email }}
+{% else %}
+Dear {{ first_name }},
+
+We have refunded your payment for the expert analysis of {{ location }}.
+
+Order reference: {{ reference }}
+Amount refunded: {{ amount_eur | money }} {{ currency }}
+Refund date: {{ refunded_on | date_short }}
+
+The refund goes back to the account the payment came from; depending on the bank it can
+take a few business days to show. The order is closed.
+Track your order: {{ status_url }}
+
+Questions: {{ support_email }}
+{% endif %}
+
+{{ app_name }}

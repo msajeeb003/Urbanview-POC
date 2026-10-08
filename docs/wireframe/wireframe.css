@@ -291,7 +291,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .cta.primary{background:var(--brand);color:var(--white)}
 .cta.primary:hover{background:var(--brand-dark)}
 .cta.gold{background:var(--paid);color:var(--white)}
-.cta.gold:hover{background:#6D28D9}
+.cta.gold:hover{background:var(--paid-dark)}
 .cta.ghost{background:var(--white);border:1px solid var(--line);color:var(--ink)}
 .cta.ghost:hover{border-color:var(--ink);background:var(--white)}
 .cta small{font-weight:400;opacity:.8;font-family:var(--mono);font-size:12.5px;margin-left:auto}

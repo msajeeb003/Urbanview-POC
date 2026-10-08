@@ -8,9 +8,10 @@
  * fee and its band, the turnaround: all from `GET /v1/orders/pricing`, the server's rule), the
  * pricing note, "Ordering as" Individual | Legal entity, the methodology card, the guest-checkout
  * note; footer
- * `€100 · 5 working days`, Cancel, gold "Place order →". The fields are the pilot scope's guest
+ * `€100 · 5 working days`, Cancel, "Place order →" (terracotta like every other button: the
+ * tester's report of 2026-10-08; the mock's gold stays on the panel's order button). The fields are the pilot scope's guest
  * form, not the mock's: name, telephone and e-mail for everyone; a legal entity adds its company
- * name and PIB, both optional.
+ * name and PIB, both required (the tester's report of 2026-10-08).
  *
  * "Paying from" (the client, 2026-10-05; not in the mock): the country of the municipality or
  * another country, two buttons like "Ordering as" with nothing preselected. The beneficiary has a
@@ -82,8 +83,8 @@ const SPECS: Record<PurchaserType, Partial<Record<DraftField, FieldSpec>>> = {
     email: { label: "Email address", placeholder: "you@email.me", type: "email", autoComplete: "email" },
   },
   legal_entity: {
-    companyName: { label: "Company name", note: "optional", placeholder: "Company d.o.o.", autoComplete: "organization" },
-    taxNumber: { label: "PIB", note: "company ID, optional", placeholder: "02345678", autoComplete: "off", mono: true },
+    companyName: { label: "Company name", placeholder: "Company d.o.o.", autoComplete: "organization" },
+    taxNumber: { label: "PIB", note: "company ID", placeholder: "02345678", autoComplete: "off", mono: true },
     ...PERSON,
     email: { label: "Email address", placeholder: "office@company.me", type: "email", autoComplete: "email" },
   },
@@ -422,7 +423,7 @@ function OrderModal({ target }: { target: OrderTarget }) {
           Cancel
         </Cta>
         <Cta
-          variant="gold"
+          variant="primary"
           type="submit"
           form={formId}
           style={{ width: "auto", padding: "0 22px" }}

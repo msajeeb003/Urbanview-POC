@@ -1,4 +1,5 @@
-"""Template contexts of the order flow's e-mails (``payment_instructions``, ``order_delivered``).
+"""Template contexts of the order flow's e-mails (``payment_instructions``, ``payment_received``,
+``order_delivered``, ``order_refunded``).
 
 The ``send_email`` job builds these from the order row at send time (``core.mail.repository``),
 so nothing personal travels through the job queue; the same builders feed the unit tests that
@@ -79,6 +80,39 @@ def order_delivered_context(
         "location": order_location(facts),
         "download_url": download_url,
         "expires_at": expires_at,
+        "status_url": facts.status_url,
+        "support_email": facts.support_email,
+    }
+
+
+def payment_received_context(
+    facts: OrderFacts, *, amount_eur: float, received_on: date
+) -> dict[str, Any]:
+    """Staff recorded the transfer: what arrived, when, and that the expert's work starts."""
+    return {
+        "reference": facts.reference,
+        "first_name": facts.first_name,
+        "location": order_location(facts),
+        "amount_eur": amount_eur,
+        "currency": facts.currency,
+        "received_on": received_on,
+        "turnaround_business_days": facts.turnaround_business_days,
+        "status_url": facts.status_url,
+        "support_email": facts.support_email,
+    }
+
+
+def order_refunded_context(
+    facts: OrderFacts, *, amount_eur: float, refunded_on: date
+) -> dict[str, Any]:
+    """Staff recorded a refund: the amount sent back and the day; the order is closed."""
+    return {
+        "reference": facts.reference,
+        "first_name": facts.first_name,
+        "location": order_location(facts),
+        "amount_eur": amount_eur,
+        "currency": facts.currency,
+        "refunded_on": refunded_on,
         "status_url": facts.status_url,
         "support_email": facts.support_email,
     }

@@ -4,6 +4,7 @@ behind it (resolved at send time, so the job payload carries ids only) and the m
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any, Protocol
@@ -40,6 +41,13 @@ class OrderMailFacts:
     language: str | None = None  # the language the map was in at the order (en | me)
     # where the customer pays from (domestic | international): the bank details it gets
     payment_origin: str | None = None
+    # the transfer staff recorded (the payment_received e-mail): amount and the day it arrived
+    payment_amount_eur: float | None = None
+    payment_received_on: date | None = None
+    # the refund staff recorded (the order_refunded e-mail): the amount sent back, from its audit
+    # row (None = no amount was entered: the whole payment), and the day it was recorded
+    refund_amount_eur: float | None = None
+    refunded_on: date | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +91,13 @@ ORDER_SQL = text(
     """
     SELECT o.id, o.reference, o.email, o.first_name, o.parcel_label, o.document_name,
            o.price_eur, o.currency, o.turnaround_business_days, o.expected_by,
-           f.object_key AS report_key, o.language, o.payment_origin
+           f.object_key AS report_key, o.language, o.payment_origin,
+           o.payment_amount_eur, o.payment_received_on, o.refunded_at,
+           (SELECT a.details FROM audit_log a
+            WHERE a.municipality_id = o.municipality_id AND a.entity_type = 'order'
+              AND a.entity_id = o.id AND a.action = 'order.status'
+              AND a.after->>'status' = 'refunded'
+            ORDER BY a.created_at DESC, a.id DESC LIMIT 1) AS refund_details
     FROM orders o LEFT JOIN stored_files f ON f.id = o.report_file_id
     WHERE o.id = :id AND o.municipality_id = :m
     """
@@ -155,6 +169,16 @@ class SqlEmailRepository:
         row = await self._one(ORDER_SQL, {"id": order_id, "m": self.municipality_id})
         if row is None:
             return None
+        refund = row["refund_details"]
+        if isinstance(refund, str):
+            refund = json.loads(refund)
+        refund = refund or {}
+        refund_amount = refund.get("refund_amount_eur")
+        refunded_on = refund.get("refunded_on")
+        if isinstance(refunded_on, str):
+            refunded_on = date.fromisoformat(refunded_on)
+        elif row["refunded_at"] is not None:
+            refunded_on = row["refunded_at"].date()
         return OrderMailFacts(
             id=int(row["id"]),
             reference=row["reference"],
@@ -169,6 +193,12 @@ class SqlEmailRepository:
             report_key=row["report_key"],
             language=row["language"],
             payment_origin=row["payment_origin"],
+            payment_amount_eur=(
+                float(row["payment_amount_eur"]) if row["payment_amount_eur"] is not None else None
+            ),
+            payment_received_on=row["payment_received_on"],
+            refund_amount_eur=float(refund_amount) if refund_amount is not None else None,
+            refunded_on=refunded_on,
         )
 
     async def load_staff_user(self, user_id: int) -> StaffUserFacts | None:

@@ -2546,7 +2546,7 @@ export interface components {
              * Template
              * @enum {string}
              */
-            template: "payment_instructions" | "order_delivered" | "magic_link";
+            template: "payment_instructions" | "payment_received" | "order_delivered" | "order_refunded" | "magic_link";
             /** To Email */
             to_email: string;
             /** Order Id */
@@ -4496,8 +4496,10 @@ export interface components {
         };
         /**
          * OrderIn
-         * @description The pilot scope's guest form: name, e-mail and telephone for everyone; a legal entity may
-         *     add its company name and PIB (company id). No account, no verification.
+         * @description The pilot scope's guest form: name, e-mail and telephone for everyone; a legal entity
+         *     gives its company name and PIB (company id) as well (required since the tester's report of
+         *     2026-10-08: an order of a company without them cannot be invoiced). No account, no
+         *     verification.
          */
         OrderIn: {
             location: components["schemas"]["OrderLocation"];
@@ -4522,12 +4524,12 @@ export interface components {
             telephone: string;
             /**
              * Company Name
-             * @description Legal entity only, optional
+             * @description Required for a legal entity, dropped for an individual
              */
             company_name?: string | null;
             /**
              * Tax Number
-             * @description PIB (company id); legal entity only, optional
+             * @description PIB (company id): required for a legal entity, dropped for an individual
              */
             tax_number?: string | null;
             /** @description The assumptions the visitor edited on the panel, if any */

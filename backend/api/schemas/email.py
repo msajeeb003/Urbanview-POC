@@ -9,7 +9,9 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 EmailStatus = Literal["queued", "sent", "suppressed", "failed"]
-EmailTemplate = Literal["payment_instructions", "order_delivered", "magic_link"]
+EmailTemplate = Literal[
+    "payment_instructions", "payment_received", "order_delivered", "order_refunded", "magic_link"
+]
 # the app's languages (core.mail.templates.LANGUAGES): an e-mail is written in one of them
 MailLanguage = Literal["en", "me"]
 

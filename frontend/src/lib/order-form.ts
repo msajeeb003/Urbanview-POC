@@ -1,8 +1,9 @@
 /**
  * The S4 order form's rules, kept pure (unit-tested): the draft the visitor types, client-side
  * validation mirroring `POST /v1/orders` (`api/schemas/orders.py`: the pilot scope's guest form,
- * name, telephone and e-mail for everyone, a legal entity's company name and PIB optional; the
- * same e-mail and telephone patterns, the same lengths), where the customer pays from (the
+ * name, telephone and e-mail for everyone, a legal entity's company name and PIB as well, required
+ * since the tester's report of 2026-10-08; the same e-mail and telephone patterns, the same
+ * lengths), where the customer pays from (the
  * client, 2026-10-05: a bank in the country gets the domestic account number, one abroad the IBAN
  * and SWIFT / BIC; the form asks, nothing is preselected), the request body, and what a rejected
  * request means for the form (one sentence, plus the fields the server pointed at).
@@ -65,8 +66,15 @@ export const FIELDS: Record<PurchaserType, DraftField[]> = {
   legal_entity: ["companyName", "taxNumber", "firstName", "lastName", "telephone", "email"],
 };
 
-/** The pilot's three required fields, the same for both purchaser types. */
-export const REQUIRED: readonly DraftField[] = ["firstName", "telephone", "email"];
+/**
+ * The required fields per purchaser type: the pilot's three for everyone; a legal entity's
+ * company name and PIB too (the tester's report of 2026-10-08: an order placed as a company
+ * with both empty could not be invoiced).
+ */
+export const REQUIRED: Record<PurchaserType, readonly DraftField[]> = {
+  individual: ["firstName", "telephone", "email"],
+  legal_entity: ["companyName", "taxNumber", "firstName", "telephone", "email"],
+};
 
 const MISSING: Record<DraftField, string> = {
   firstName: "Enter your first name.",
@@ -94,7 +102,7 @@ export function validateDraft(draft: OrderDraft): FieldErrors {
   for (const field of FIELDS[draft.purchaserType]) {
     const value = draft[field].trim();
     if (!value) {
-      if (REQUIRED.includes(field)) errors[field] = MISSING[field];
+      if (REQUIRED[draft.purchaserType].includes(field)) errors[field] = MISSING[field];
       continue;
     }
     if (value.length > MAX_LENGTH[field]) errors[field] = `Use at most ${MAX_LENGTH[field]} characters.`;
@@ -129,7 +137,7 @@ export interface OrderTarget extends OrderLocation {
 
 /**
  * The request body: the location the panel showed, the name, telephone and e-mail, a legal
- * entity's company name and PIB when given, where the customer pays from, the visitor's edited
+ * entity's company name and PIB, where the customer pays from, the visitor's edited
  * assumptions, if any, and the language the map is in (the order's e-mails are written in it,
  * one language per e-mail).
  */

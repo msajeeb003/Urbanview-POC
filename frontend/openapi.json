@@ -9843,7 +9843,9 @@
             "type": "string",
             "enum": [
               "payment_instructions",
+              "payment_received",
               "order_delivered",
+              "order_refunded",
               "magic_link"
             ],
             "title": "Template"
@@ -14963,7 +14965,7 @@
               }
             ],
             "title": "Company Name",
-            "description": "Legal entity only, optional"
+            "description": "Required for a legal entity, dropped for an individual"
           },
           "tax_number": {
             "anyOf": [
@@ -14976,7 +14978,7 @@
               }
             ],
             "title": "Tax Number",
-            "description": "PIB (company id); legal entity only, optional"
+            "description": "PIB (company id): required for a legal entity, dropped for an individual"
           },
           "assumptions": {
             "anyOf": [
@@ -15044,7 +15046,7 @@
           "telephone"
         ],
         "title": "OrderIn",
-        "description": "The pilot scope's guest form: name, e-mail and telephone for everyone; a legal entity may\nadd its company name and PIB (company id). No account, no verification."
+        "description": "The pilot scope's guest form: name, e-mail and telephone for everyone; a legal entity\ngives its company name and PIB (company id) as well (required since the tester's report of\n2026-10-08: an order of a company without them cannot be invoiced). No account, no\nverification."
       },
       "OrderList": {
         "properties": {

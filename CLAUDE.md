@@ -289,9 +289,10 @@ demand: the analytics districts place them by their point.
   the messages; the domain's owner adds the provider's DKIM records and a DMARC record. The
   support address (10) is the client's to give (`ORDER_SUPPORT_EMAIL` in `deploy/.env`); the
   bank details (6) came on 2026-10-05 and are set (`ORDER_BANK_*`, see "Bank details" below).
-  **Open, the client's decision:** e-mails on payment
-  received / not received / refunded (5: the plan funds two order e-mails), company name and PIB
-  required for a legal entity (7: optional by the pilot scope's form), the expected date counted
+  **Decided on the tester's retest of 2026-10-08 (below):** e-mails on payment received and
+  refunded (5) are sent, company name and PIB are required for a legal entity (7).
+  **Open, the client's decision:** an e-mail when a payment is checked and found missing (5:
+  not asked for), the expected date counted
   from the payment instead of the order (9: `expected_by` is set when the order is placed; the
   e-mail says "if paid today").
 - **Bank details: domestic and international (the client, 2026-10-05):** the beneficiary
@@ -343,6 +344,22 @@ demand: the analytics districts place them by their point.
   hides them; the client's decision). **Not reproduced:** the price fields showing only their
   first digit while editing (10: on the same build 500, 1000 and 2000 typed key by key into
   empty and filled rows showed in full at two window widths; the tester's steps are needed).
+- **Tester's retest of 2026-10-08 (4 items, map.2-28-35-224.sslip.io):** fixed in code
+  (2026-10-09): the customer is e-mailed when staff record the payment as received
+  (`payment_received`: amount, date, that the expert starts, turnaround) and when they record a
+  refund (`order_refunded`: the amount sent back, the date; 2, the earlier O5), both built by
+  the worker from the order at send time like the other two and listed on the order's E-mails;
+  company name and PIB are required on a legal-entity order (3, the earlier O7: the API answers
+  422 naming the field, the form says "Enter the company name." / "Enter the PIB (company
+  ID)." and the labels no longer say optional); "Place order" and "Order this analysis" are
+  terracotta like every other button (4: they were the mock's gold `cta.gold`, whose hover was a
+  leftover purple `#6D28D9`; the hover is now `--paid-dark` in both copies of the stylesheet,
+  the panel's own order button keeps the mock's gold). **Not code:** the bank account the
+  tester saw (1: Monmaks d.o.o., NLB Banka AD Podgorica, the domestic account number) is the
+  client's real account, given by the client on 2026-10-05 for exactly this purpose and set on
+  the server as `ORDER_BANK_*`; the public site is the client's live POC, so a visitor's order
+  is a real order and a transfer to it is a real payment (the client decides whether to keep a
+  test site open with real bank details; the repository holds no account number).
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
   POC plans are prepared from their parameter tables by the table reader and loaded as approved
   items (see "Prepared planning values"), not AI-extracted and not reviewed item by item by an
@@ -1240,7 +1257,8 @@ demand: the analytics districts place them by their point.
   takes the location the panel showed (`{parcel_type, parcel_id}`), the pilot scope's guest form
   (first name, e-mail and telephone required for everyone, validated; last name optional; the
   purchaser type `individual` | `legal_entity`, whose company name and PIB `tax_number` are both
-  optional and dropped for an individual; the first form's `contact_person` /
+  required for a legal entity (422 naming the field; the tester's retest of 2026-10-08) and
+  dropped for an individual; the first form's `contact_person` /
   `registered_address` are refused since 0031 and their columns dropped in 0037), the
   assumptions the visitor edited, an optional message, the `language` the map is in (en | me,
   optional: kept on the order, its e-mails are written in it) and `payment_origin` (domestic |
@@ -1340,7 +1358,9 @@ demand: the analytics districts place them by their point.
   public, max-age=300`): `{currency, tiers: [{up_to_m2, price_eur}], turnaround_business_days}`;
   the public map shows a parcel's price by applying `core.pricing.price_for`'s rule to the panel's
   `basis_area_m2`, which is the area `POST /v1/orders` prices from.
-- **E-mail**: `payment_instructions` on creation and `order_delivered` on report upload are
+- **E-mail**: `payment_instructions` on creation, `payment_received` when staff record the
+  transfer (`POST .../payment {status: received}`), `order_delivered` on report upload and
+  `order_refunded` when staff record a refund are
   `send_email` jobs queued through `api.services.email.EmailService` (see "Transactional
   e-mail"); the reply's `email_status` is `queued` (or the final state when the job already
   ran), and `suppressed` at once when the sending policy will not mail the address (no
@@ -1381,8 +1401,13 @@ demand: the analytics districts place them by their point.
   origin under their title: beneficiary, the domestic account number or the IBAN and SWIFT /
   BIC, bank, currency, beneficiary address; amount / payment reference, turnaround + expected
   date, status URL, support inbox),
-  `order_delivered` (reference, location, signed download link + expiry, support inbox),
-  `magic_link` (login URL, expiry minutes, single-use note). Wording provisional until the
+  `payment_received` (reference, location, the amount staff recorded, else the price, the day
+  it arrived, turnaround, status URL), `order_delivered` (reference, location, signed download
+  link + expiry, support inbox), `order_refunded` (reference, location, the refund amount of
+  its audit row, else the payment received, else the price; the day the refund was recorded;
+  status URL), `magic_link` (login URL, expiry minutes, single-use note). The worker reads the
+  payment and refund facts from the order and its latest refund audit row
+  (`core.mail.repository.ORDER_SQL`). Wording provisional until the
   client approves it. Contexts come from `api/services/order_mail.py`; `core.mail.render` checks
   the required keys.
 - **One language per message** (product owner, 2026-10-02; before, every message carried
