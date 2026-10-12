@@ -353,6 +353,19 @@ def test_compose_hit_builds_the_label_and_a_non_repeating_address_line():
         country_code=None,
     )
     assert (street.label, street.address, street.country_code) == ("Ulica X", "Podgorica", None)
+    # a nameless point of interest at a house number is that address (one suggestion, not two)
+    unnamed_restaurant = compose_hit(
+        name=None,
+        street="Njegoševa",
+        housenumber="12",
+        locality="Stara Varoš",
+        city="Podgorica",
+        lat=1.0,
+        lng=2.0,
+        kind="poi",
+        country_code="ME",
+    )
+    assert (unnamed_restaurant.label, unnamed_restaurant.kind) == ("Njegoševa 12", "address")
     nameless = compose_hit(
         name=None,
         street=None,

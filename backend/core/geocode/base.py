@@ -143,6 +143,10 @@ def compose_hit(
     label = name or street_line
     if not label:
         return None
+    # a nameless object at a house number (an unnamed restaurant, a building) is that address:
+    # the same label as the address point, so the two collapse into one suggestion
+    if name is None and housenumber and kind in ("poi", "other"):
+        kind = "address"
     parts: list[str] = []
     for part in (street_line, locality, city):
         if part and part != label and part not in parts:
