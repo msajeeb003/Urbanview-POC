@@ -92,12 +92,13 @@ figures 44 / 700, body 14, secondary 13, mono data 13 / 700, uppercase mono micr
 | Topbar | 62 px, `#241B12`, padding 0 20, gap 20; logo 36 px high (white via filter); search max 560 × 40, placeholder "Search an address, click the map, or enter a parcel number…", magnifier left, shortcut hint right (`⌘K` on macOS, `Ctrl K` elsewhere; none in the server render); nav "Map" (active: brand) / "Admin"; pill "PODGORICA · PILOT" (profile name, re-centres the map) |
 | Layer rail | 206 px (`--white`, hairline right), collapses to 46 px with a 34 px opener; cards 182 × ≥ 32, 24 px swatch, 16 px check |
 | Map | fills the middle, `#EDE6D6`; legend top-left 16/16 (max 264 wide); coverage pill top-centre; scale bar left 16 / bottom 52; coordinates chip left 16 / bottom 16; tools right 16 / bottom 88 (zoom label, 42 px `+` `−` reset) |
-| Panel | 392 px (`--white`, hairline left, no shadow); sticky header, scrolling body, CTA stack; hidden (never replaced by anything) when the location is uncovered |
+| Panel | 392 px (`--white`, hairline left, no shadow); sticky header, scrolling body, CTA stack; stays open for an uncovered location and says "Not covered yet" (the client's review of 2026-10-12); the visitor folds it with the chevron tab on its left edge to a 34 px strip with an opener (`panelCollapsed`; a new selection unfolds it) |
 | AI | not built (pilot scope: "intent button only"): no fab, no chat panel, no quota; "Ask about this site" in the parcel panel's button stack records `ai_interest` |
 | Admin | overlay `inset: 0` over the main row, `--paper`; admin bar 60 px; tabs in the pipeline's order: "Documents" (A1), "AI review queue" (A2), "Publish" (A4), "Financial assumptions" (A5), "Orders" (A6), "Analytics", "Audit log" (A7, thin tables; the wireframe's Overview, Planning rules and Calculation engine tabs are not in the POC plan; the bar scrolls sideways when narrow); "← Back to map" |
 | Modal | overlay `rgba(20,17,14,.55)`, padding 24; modal max 520 (`wide` 860), max-height 90vh, radius 8 (effective), pop-in .2s |
 | Toast | bottom-centre, ink, `✦` + text, 2.6 s |
-| ≤ 1100 px | panel 360, rail 182 (wireframe) |
+| ≤ 1100 px | panel 360, rail 182 (the mock's rule, block 25 of `overrides.css`) |
+| ≤ 860 px | the rail and the panel lie over the map (the rail's opener strip and the panel's 34 px strip stay in the row), the legend and the nav labels are hidden: a usable tablet / small-laptop layout (the client's review of 2026-10-12); a phone layout stays outside the POC plan |
 
 Desktop-first; no login wall, splash or onboarding tour. The intro toast ("Click any parcel to see
 what can be built", 0.9 s after load) is part of the wireframe, not a tour.
@@ -113,11 +114,11 @@ each entry. Rail order, groups and names are the wireframe's.
 | Group | Layer | Default | Rule | Published tile layer(s) |
 |---|---|---|---|---|
 | Base | Urban zones | on | covered zones only (type fill, outline, label); a click opens the zone panel | `zones`, `zone_labels` |
-| Base | Urban blocks | on | block boundaries (dotted) with block refs (z15+) | `urban_blocks` |
+| Base | Urban blocks | on | block boundaries (dotted) with block refs (z15+); a click opens the block panel (2026-10-13) | `urban_blocks` |
 | Parcels | Cadastral parcels | on | never merged with planned parcels | `cadastral_parcels` |
 | Parcels | Urban parcels | on | planned parcels, dashed brand outline | `urban_parcels` |
 | Context | Land use | off | zone-type tint by `category` | `land_use` |
-| Context | FAR heatmap | off | parameter choropleth; field chips FAR / Coverage / Floors / GFA | `heat_far`, `heat_coverage`, `heat_height`, `heat_gfa` |
+| Context | Planning parameters heatmap (`heatFAR`; "FAR heatmap" until the client's review of 2026-10-12) | off | parameter choropleth; field chips FAR / Coverage / Floors / GFA | `heat_far`, `heat_coverage`, `heat_height`, `heat_gfa` |
 | Feasibility | Price heatmap | off | sale-price choropleth, free like every card; field chips Low / Expected / High | `heat_sale_price` |
 
 Two core layers are drawn but have no card (the POC plan's rail is exactly the seven toggleable
@@ -159,7 +160,10 @@ Planned traffic (an MVP layer; not published).
   fallback (a continuous gradient, "Low → high"; the fixed bands). Field changes restyle with
   `setPaintProperty` / `setFilter`; toggles with `setLayoutProperty`: no source reload.
 - **Legend** (`legendGroups`): one group per layer that is on, in rail order, the wireframe's rows
-  (zone types, "Urban block boundary", "Parcel outline", "Parcel — click to open", "Coverage area
+  (zone types: since 2026-10-13 only the types the drawn (covered) zones have, read from the zone
+  index `useZones`, plus "Not classified yet" in the neutral colour while a drawn zone has no
+  type, because the legend listed five coloured types over zones all drawn neutral; the land-use
+  group adds "Other land use" in the layer's fallback colour; "Urban block boundary", "Parcel outline", "Parcel — click to open", "Coverage area
   — click to open", FAR "Low →
   high" with unit "floor area ratio", price bands with unit "€/m² of floor area": the layer is the sale price per m² of floor area, not a land price), class rows for served
   classes and "No data" when some cells have none; a `note` by the title for a layer that is on
@@ -221,27 +225,38 @@ Planned traffic (an MVP layer; not published).
   the pointer's range, else the catalogue's); a source-layer the pointer lists with 0 features
   gets no style layer. Text uses the base style's glyphs (`DIN Pro`), not the web fonts.
 - **Base map** (`lib/map/basemap.ts`): with Mapbox's light style (the default) the style's own
-  layers take the wireframe's colours on `load` (land `#EEF1F5`, white major and cream `#F2EBDC`
-  minor roads, river `#BCCEC8` at .85 with a `#A4B9B2` line) and buildings, land cover, points
-  of interest, airports and footpaths are hidden; place, street and water labels stay. A custom
-  `NEXT_PUBLIC_MAPBOX_STYLE` is left as designed.
+  layers are restyled on `load`: land `#EEF1F5`, white major and cream `#F9F6EF` minor roads with
+  a `#D8D3C8` casing, a clear blue water `#B7D2E4` with a `#99BBD2` line, buildings `#DDD9D1`,
+  parks / grass / woods `#D7E5CC` and land cover `#E2ECDA` (the client's review of 2026-10-12
+  asked for buildings and a clearer difference between streets, green areas and water; the
+  wireframe's palette hid buildings and land cover); points of interest, airports, piers and
+  footpaths stay hidden, place, street and water labels stay. A custom `NEXT_PUBLIC_MAPBOX_STYLE`
+  is left as designed.
 - **Click** (`lib/map/pick.ts`): features under the pointer on the hit layers; priority
-  cadastral parcel > planned parcel > coverage area > zone. A zone (covered, so drawn, with no
-  parcel or plan area under the click) becomes the selection with its outline and the zone
-  panel, no pin. Cadastral: highlight + pin at the rendered
-  centroid at once, then `/v1/locate` at the click confirms zone, planned link and coverage (the
-  pin moves to the API centroid; uncovered = S6). Planned parcel: always covered (tiles hold
-  adopted plans only). Coverage area: highlight, no pin. Nothing hit: pin + `/v1/locate`; the
+  cadastral parcel > planned parcel > urban block > coverage area > zone. A zone (covered, so
+  drawn, with no parcel, block or plan area under the click) becomes the selection with its
+  outline and the zone panel, no pin. Cadastral: highlight + **the pin exactly where the visitor
+  clicked** (the client's review of 2026-10-12: a pin moved to a computed centre landed outside
+  concave parcels), then `/v1/locate` at the click confirms zone, planned link and coverage (the
+  pin does not move; uncovered = S6). Planned parcel: always covered (tiles hold adopted plans
+  only), pin at the click. Urban block (`uv-blocks-fill`, an invisible fill): the block panel,
+  brand outline, no pin. Coverage area: highlight, no pin. Nothing hit: pin + `/v1/locate`; the
   cadastral parcel there becomes the selection, else the planned parcel containing the point
   (`pointSelection`: plans served before the cadastral base still answer a click or an address
-  with their urban parcel panel; the pin stays on the point), uncovered = S6, covered without a parcel = the empty
-  panel's pin note.
+  with their urban parcel panel; the pin stays on the point), uncovered = S6, covered without a
+  parcel = the empty panel's pin note. Searches by parcel number, urban parcel number or
+  `?parcel=` link pin the API's point inside the parcel (`ST_PointOnSurface`). Wheel and trackpad
+  zoom at 1/200 and 1/60 of a level per unit (Mapbox's defaults 1/450, 1/100 felt slow); hover hit
+  tests pause while the camera moves and the store hears about the camera only when the zoom
+  label, the scale bar or the zoom's second decimal changed.
 - **S6** (`flashUncovered`): "Outside current coverage" pill (sub-text `no adopted plan`, or
-  `outside <municipality>` for points outside the profile bounds) for 2.6 s with the panel closed,
-  then the panel returns with the empty state and the pin's note "Pin dropped at 42.4180° N ·
-  19.2851° E — no adopted plan published here yet." (`— outside Podgorica.` beyond the profile
-  bounds; `empty.noPlan` / `empty.outside`, bilingual), so the pin never stands unexplained. Never
-  an error, never a red state.
+  `outside <municipality>` for points outside the profile bounds) for 2.6 s; **the panel stays
+  open** (the client's review of 2026-10-12; before, it closed for the 2.6 s) and shows the empty
+  state as "Not covered yet" with the pin's note "Pin dropped at 42.4180° N · 19.2851° E — no
+  adopted plan published here yet." (`— outside Podgorica.` beyond the profile bounds;
+  `empty.uncoveredTitle`, `empty.uncoveredBody` / `empty.outsideBody`, `empty.noPlan` /
+  `empty.outside`, bilingual), so the pin never stands unexplained. Never an error, never a red
+  state.
 - **`?parcel=<Parcel ID>`** (`lib/url-state.ts`, `app-shell.tsx`): follows the selected cadastral
   parcel (`history.replaceState`); opening a link reads `/v1/parcels/{id}/panel` (centroid +
   bbox), selects and centres the parcel (the camera focus waits for the map). An unknown id drops
@@ -328,9 +343,12 @@ coverage), title, mono sub-label.
 
 The panel follows the selection (`info-panel.tsx` → `PanelContent`): a zone (search) → `ZonePanel`,
 a planning-document coverage area (map click, or a document in a zone's list) →
-`DocumentPanel`, a cadastral parcel → `CadastralPanel`, a planned (urban) parcel → `UrbanPanel`,
-nothing / a pending parcel search / a point without a parcel → the empty state ("Pick a parcel to
-begin", hint chips, pin note). Each variant renders the wireframe's markup (`.pscroll > .phead`
+`DocumentPanel`, an urban block (map click) → `BlockPanel`, a cadastral parcel → `CadastralPanel`,
+a planned (urban) parcel → `UrbanPanel`, nothing / a pending parcel search / a point without a
+parcel → the empty state ("Pick a parcel to begin", hint chips, pin note; "Not covered yet" for a
+place no adopted plan covers). The chevron tab on the panel's left edge folds it away
+(`panelCollapsed`, `.paneltog`; the 34 px strip's `.panelopen` brings it back, as does a new
+selection). Each variant renders the wireframe's markup (`.pscroll > .phead`
 sticky + `.sect`s, `.ctastack`), data from `GET /v1/panel?type=zone|document|cadastral|urban&id=`
 (`usePanel`), and emits `panel_viewed { panel_type, …ids }` once its data is in (again on every
 new open). ✕ clears the selection
@@ -356,6 +374,16 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   number, which the tile pointer carries for the current label, and the label itself for an
   earlier version; the order page shows the order's own `data_version_no`, so an order placed
   on an earlier version is numbered too).
+- **Urban block** (`block-panel.tsx`, `GET /v1/panel?type=block`; the client's review of
+  2026-10-12: a block answered a click with nothing): eyebrow `URBAN BLOCK`, title the plan's
+  block label, sub "Urban block of the plan · <zone>"; "Planning document": the documents whose
+  coverage holds the block (a row opens the document panel), or the API's coverage note; "In
+  this block": zone, drawn area, urban and cadastral parcel counts; "Block parameters": the
+  four figures the parameters heatmap colours the block by (site coverage, FAR, floors with the
+  plan's notation, GFA; the rule as the label's tooltip, "n of the block's parcels state it" as
+  the value's; "no data" where no parcel states it, never a made-up number); a hint to click a
+  parcel for its own figures; the data version line. `panel_viewed {panel_type: block,
+  block_id, zone_id}`; no CTA stack (orders are per parcel).
 - **Planning document** (`renderPanelDoc`): eyebrow `PLANNING DOCUMENT` + `adopted plan` / `plan
   in progress` / `superseded plan`, title, sub `DUP — Detailed urban plan` (profile
   `terminology.document_types_en`, else `document_types`); "Document details" + source
@@ -506,7 +534,9 @@ trouble: a neutral note and "Try again"; a 404 (entity gone) returns to the map 
   defaults) and an order carries them; a reload returns to the defaults, and nothing is saved
   on the server. An edit that returns to the default value stops being an edit. Edits send no
   analytics event (the plan's 13 events have none; `assumption_edited` was removed 2026-10-01).
-  No market data for the zone: the sliders are disabled.
+  No market data for the zone: the sliders are disabled and a note above them says why
+  (`asm.disabled`, `.asmnote`; the client's review of 2026-10-12 read silent disabled sliders as
+  broken: Stara Varoš has no market figures, only Novi Grad's test set exists).
 - **"How the figures are calculated"** (`shell/engine-modal.tsx`, wireframe `openEngine`, from
   the engine strip): the poc-1 formulas table (name, expression, source), input
   data (planning documents, cadastre, the zone's market source or "no market data for this zone
@@ -986,7 +1016,7 @@ pricing), ghost "Unlock full market data" (urban parcel panel), ghost "Ask about
 | `src/app/layout.tsx` | fonts, CSS order (wireframe → overrides), providers |
 | `src/app/page.tsx` | server-reads `/v1/municipality` (1.5 s timeout, never blocks) → `AppShell` |
 | `src/components/shell/*` | `app-shell` (frame, ⌘K, intro toast, `?parcel=` sync), `topbar`, `search-box`, `layer-rail`, `legend`, `map-view` (Mapbox + PMTiles, click / hover / highlight, `map_loaded`), `map-chrome`, `info-panel` (selection → panel variant, empty state), `methodology-modal`, `engine-modal` ("How the figures are calculated"), `admin-overlay` (the `/admin` routes' container), `hosts` (modal + toast) |
-| `src/components/panel/*` | S3 panel variants: `zone-panel`, `document-panel`, `cadastral-panel`, `urban-panel`, `panel-parts` (header, loading / unavailable, status chip, `panel_viewed`, meta and height text), `parcel-parts` (comparison card, row source icon, parcel CTA stack, zone type), `market-section` (Group 2 figures), `assumption-sandbox` ("◐ Test your own assumptions") |
+| `src/components/panel/*` | S3 panel variants: `zone-panel`, `document-panel`, `block-panel`, `cadastral-panel`, `urban-panel`, `panel-parts` (header, loading / unavailable, status chip, `panel_viewed`, meta and height text), `parcel-parts` (comparison card, row source icon, parcel CTA stack, zone type), `market-section` (Group 2 figures), `assumption-sandbox` ("◐ Test your own assumptions") |
 | `src/lib/assumptions.ts` | the sandbox's sliders, bounds and validation, and the live recalculation through the shared engine package (`recalculateFeasibility`) |
 | `src/lib/order.ts` | `requestOrder`: every order button → the S4 modal for the parcel on screen, `order_started` |
 | `src/lib/order-form.ts` | the order form's rules: draft, validation (the API's), request body, failure sentences |

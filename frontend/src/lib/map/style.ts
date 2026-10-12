@@ -11,7 +11,14 @@
  * block there. Inside coverage a heatmap cell without a value gets the "no data yet" hatch.
  */
 import type { TilesCurrent } from "@/lib/api/types";
-import { ZONE_TYPES, layerById, servedMinZoom, type ChoroplethState, type LayerId } from "@/lib/layers";
+import {
+  LAND_USE_OTHER_COLOUR,
+  ZONE_TYPES,
+  layerById,
+  servedMinZoom,
+  type ChoroplethState,
+  type LayerId,
+} from "@/lib/layers";
 
 import {
   PARAM_METRICS,
@@ -81,7 +88,7 @@ const BASE_LAYERS: readonly LayerSpec[] = [
   // context overlays (off by default)
   layer("uv-landuse-fill", "fill", "land_use", {
     paint: {
-      "fill-color": ["match", ["get", "category"], ...ZONE_TYPES.flatMap((z) => [z.key, z.hex]), "#b98a5a"],
+      "fill-color": ["match", ["get", "category"], ...ZONE_TYPES.flatMap((z) => [z.key, z.hex]), LAND_USE_OTHER_COLOUR],
       "fill-opacity": 0.32,
     },
   }),
@@ -125,7 +132,9 @@ const BASE_LAYERS: readonly LayerSpec[] = [
   layer("uv-urban-line", "line", "urban_parcels", {
     paint: { "line-color": BRAND_DARK, "line-width": 1.6, "line-dasharray": [2.5, 1.875] },
   }),
-  // urban blocks (their own card)
+  // urban blocks (their own card): invisible fill as the click target (the block panel), the
+  // dotted boundary
+  layer("uv-blocks-fill", "fill", "urban_blocks", { paint: { "fill-color": NEUTRAL, "fill-opacity": 0 } }),
   layer("uv-blocks-line", "line", "urban_blocks", {
     paint: { "line-color": NEUTRAL, "line-width": 1, "line-dasharray": [3, 2.5], "line-opacity": 0.45 },
   }),
@@ -133,10 +142,15 @@ const BASE_LAYERS: readonly LayerSpec[] = [
   layer("uv-doc-hover-fill", "fill", "document_coverage", { filter: NONE, paint: { "fill-color": BRAND, "fill-opacity": 0.06 } }),
   layer("uv-doc-hover-line", "line", "document_coverage", { filter: NONE, paint: { "line-color": BRAND_DARK, "line-width": 2.8 } }),
   layer("uv-cad-hover-line", "line", "cadastral_parcels", { filter: NONE, paint: { "line-color": INK, "line-width": 1.2 } }),
+  layer("uv-blocks-hover-line", "line", "urban_blocks", {
+    filter: NONE,
+    paint: { "line-color": INK, "line-width": 1.4, "line-dasharray": [3, 2.5], "line-opacity": 0.7 },
+  }),
   layer("uv-urban-hover-fill", "fill", "urban_parcels", { filter: NONE, paint: { "fill-color": BRAND, "fill-opacity": 0.14 } }),
   layer("uv-urban-hover-line", "line", "urban_parcels", { filter: NONE, paint: { "line-color": BRAND_DARK, "line-width": 2.6 } }),
   // selection
   layer("uv-zones-sel-line", "line", "zones", { filter: NONE, paint: { "line-color": BRAND, "line-width": 2.8 } }),
+  layer("uv-blocks-sel-line", "line", "urban_blocks", { filter: NONE, paint: { "line-color": BRAND, "line-width": 2.6 } }),
   layer("uv-doc-sel-fill", "fill", "document_coverage", { filter: NONE, paint: { "fill-color": BRAND, "fill-opacity": 0.07 } }),
   layer("uv-doc-sel-line", "line", "document_coverage", { filter: NONE, paint: { "line-color": BRAND, "line-width": 3.4 } }),
   layer("uv-cad-sel-glow", "line", "cadastral_parcels", {
@@ -168,10 +182,11 @@ const BASE_LAYERS: readonly LayerSpec[] = [
   }),
 ];
 
-/** Layers the click handler queries, in selection priority: cadastral, planned, document, zone. */
+/** Layers the click handler queries, in selection priority: cadastral, planned, block, document, zone. */
 export const HIT_LAYERS = {
   cadastral: "uv-cad-fill",
   urban: "uv-urban-fill",
+  block: "uv-blocks-fill",
   document: "uv-doc-fill",
   zone: "uv-zones-fill",
 } as const;
@@ -181,7 +196,7 @@ export const LAYER_GROUPS: Record<LayerId, readonly string[]> = {
   docareas: ["uv-doc-fill", "uv-doc-line", "uv-doc-hover-fill", "uv-doc-hover-line", "uv-doc-sel-fill", "uv-doc-sel-line"],
   base: [],
   zones: ["uv-zones-fill", "uv-zones-line", "uv-zones-sel-line", "uv-zones-label"],
-  blocks: ["uv-blocks-line", "uv-blocks-label"],
+  blocks: ["uv-blocks-fill", "uv-blocks-line", "uv-blocks-hover-line", "uv-blocks-sel-line", "uv-blocks-label"],
   cadastre: ["uv-cad-fill", "uv-cad-line", "uv-cad-hover-line", "uv-cad-sel-glow", "uv-cad-sel-line"],
   planned: ["uv-urban-fill", "uv-urban-line", "uv-urban-hover-fill", "uv-urban-hover-line", "uv-urban-sel-fill", "uv-urban-sel-glow", "uv-urban-sel-line"],
   landuse: ["uv-landuse-fill"],
@@ -250,6 +265,7 @@ export interface Highlight {
   cadastral: number | null;
   urban: number | null;
   document: number | null;
+  block: number | null;
   /** A selected zone gets an outline; zones have no hover outline (they cover whole quarters). */
   zone: number | null;
 }
@@ -258,6 +274,8 @@ export interface Highlight {
 export function highlightFilters(selected: Highlight, hover: Highlight): Record<string, Expr> {
   return {
     "uv-zones-sel-line": byId(selected.zone),
+    "uv-blocks-sel-line": byId(selected.block),
+    "uv-blocks-hover-line": byId(hover.block === selected.block ? null : hover.block),
     "uv-doc-sel-fill": byId(selected.document),
     "uv-doc-sel-line": byId(selected.document),
     "uv-cad-sel-glow": coveredById(selected.cadastral),

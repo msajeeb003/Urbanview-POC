@@ -192,6 +192,22 @@ describe("legend", () => {
     ...over,
   });
 
+  it("lists the zone types the drawn zones have, and says when a drawn zone has none", () => {
+    const zones = [
+      { zone_type: "res", covered: true },
+      { zone_type: null, covered: true },
+      { zone_type: "grn", covered: false }, // not drawn: outside coverage
+    ];
+    const rows = legendGroups(ctx({ zones }))[0].rows;
+    expect(rows.map((r) => r.label)).toEqual(["Residential", "Not classified yet"]);
+    expect(rows[1].mark).toEqual({ kind: "color", color: "#B3A894" });
+    // no covered zone at all, or no index yet: every type
+    expect(legendGroups(ctx({ zones: [{ zone_type: "res", covered: false }] }))[0].rows).toHaveLength(5);
+    expect(legendGroups(ctx({ zones: null }))[0].rows).toHaveLength(5);
+    const landUse = legendGroups(ctx({ layers: { ...DEFAULT_LAYER_STATE, landuse: true } })).find((g) => g.title === "Land use")!;
+    expect(landUse.rows.map((r) => r.label)).toEqual(["Residential", "Commercial", "Mixed use", "Public / institutional", "Green / recreation", "Other land use"]);
+  });
+
   it("lists the default layers with the wireframe's rows", () => {
     const groups = legendGroups(ctx());
     expect(groups.map((g) => g.title)).toEqual(["Urban zones", "Urban blocks", "Cadastral parcels", "Urban parcels"]);

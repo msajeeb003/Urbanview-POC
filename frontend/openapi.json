@@ -325,7 +325,7 @@
         "tags": [
           "panel"
         ],
-        "summary": "Information panel for a zone, planning document, cadastral parcel or planned parcel",
+        "summary": "Information panel for a zone, planning document, cadastral parcel, planned parcel or urban block",
         "operationId": "get_panel_v1_panel_get",
         "parameters": [
           {
@@ -337,7 +337,8 @@
                 "zone",
                 "document",
                 "cadastral",
-                "urban"
+                "urban",
+                "block"
               ],
               "type": "string",
               "description": "Panel type",
@@ -351,10 +352,10 @@
             "required": true,
             "schema": {
               "type": "integer",
-              "description": "zones.id / planning_documents.id / cadastral_parcels.id (Parcel ID) / urban_parcels.id",
+              "description": "zones.id / planning_documents.id / cadastral_parcels.id (Parcel ID) / urban_parcels.id / urban_blocks.id",
               "title": "Id"
             },
-            "description": "zones.id / planning_documents.id / cadastral_parcels.id (Parcel ID) / urban_parcels.id"
+            "description": "zones.id / planning_documents.id / cadastral_parcels.id (Parcel ID) / urban_parcels.id / urban_blocks.id"
           },
           {
             "name": "saleable_share",
@@ -435,6 +436,9 @@
                     },
                     {
                       "$ref": "#/components/schemas/UrbanPanel"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BlockPanel"
                     }
                   ],
                   "discriminator": {
@@ -443,7 +447,8 @@
                       "zone": "#/components/schemas/ZonePanel",
                       "document": "#/components/schemas/DocumentPanel",
                       "cadastral": "#/components/schemas/CadastralPanel",
-                      "urban": "#/components/schemas/UrbanPanel"
+                      "urban": "#/components/schemas/UrbanPanel",
+                      "block": "#/components/schemas/BlockPanel"
                     }
                   },
                   "title": "Response Get Panel V1 Panel Get"
@@ -7516,6 +7521,384 @@
         ],
         "title": "AuditPage"
       },
+      "BlockCounts": {
+        "properties": {
+          "urban_parcels": {
+            "type": "integer",
+            "title": "Urban Parcels",
+            "description": "Planned parcels the plan puts in the block"
+          },
+          "cadastral_parcels": {
+            "type": "integer",
+            "title": "Cadastral Parcels",
+            "description": "Cadastral parcels whose point on surface lies in the block (0 while none is loaded)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "urban_parcels",
+          "cadastral_parcels"
+        ],
+        "title": "BlockCounts"
+      },
+      "BlockDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "block_ref": {
+            "type": "string",
+            "title": "Block Ref",
+            "description": "The plan's own label of the block (Blok C, 12 …)"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ZoneRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "area_m2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area M2",
+            "description": "Area of the drawn block, m²"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "block_ref"
+        ],
+        "title": "BlockDetail"
+      },
+      "BlockDocument": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type",
+            "description": "Abbreviation (DUP / PUP / PGR), as-is"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "adopted",
+              "in_progress",
+              "superseded"
+            ],
+            "title": "Status"
+          },
+          "status_label_en": {
+            "type": "string",
+            "title": "Status Label En"
+          },
+          "status_label_me": {
+            "type": "string",
+            "title": "Status Label Me"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "registry_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry Url",
+            "description": "planning_documents.source_url"
+          },
+          "amends_document_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amends Document Id"
+          },
+          "adopted_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adopted On",
+            "description": "Adoption date, when known"
+          },
+          "covered": {
+            "type": "boolean",
+            "title": "Covered",
+            "description": "Adopted, live, current, with coverage",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "status_label_en",
+          "status_label_me"
+        ],
+        "title": "BlockDocument",
+        "description": "An adopted, live planning document whose coverage holds the block, most specific first."
+      },
+      "BlockPanel": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "block",
+            "title": "Type",
+            "default": "block"
+          },
+          "municipality_id": {
+            "type": "string",
+            "title": "Municipality Id"
+          },
+          "data_version": {
+            "type": "string",
+            "title": "Data Version",
+            "description": "Label of the current publish version, or \"unpublished\""
+          },
+          "data_version_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Version Date",
+            "description": "ISO date of the current publish version (UTC)"
+          },
+          "formula_version": {
+            "type": "string",
+            "title": "Formula Version",
+            "description": "Formula version the figures were computed with (poc-1)"
+          },
+          "client_validated": {
+            "type": "boolean",
+            "const": false,
+            "title": "Client Validated",
+            "default": false
+          },
+          "block": {
+            "$ref": "#/components/schemas/BlockDetail"
+          },
+          "header": {
+            "$ref": "#/components/schemas/ZoneHeader"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/BlockDocument"
+            },
+            "type": "array",
+            "title": "Documents",
+            "description": "Adopted, live documents whose coverage holds the block's point on surface, most specific first (the first is the governing one)"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/BlockCounts"
+          },
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/BlockParameter"
+            },
+            "type": "array",
+            "title": "Parameters",
+            "description": "coverage, far, height, gfa: the block's figures of the current publish version, in that order; every row present, value null without a cell"
+          },
+          "covered": {
+            "type": "boolean",
+            "title": "Covered",
+            "description": "False when no adopted, live plan covers the block"
+          },
+          "coverage_note_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage Note En"
+          },
+          "coverage_note_me": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage Note Me"
+          },
+          "centroid": {
+            "$ref": "#/components/schemas/LatLng",
+            "description": "A point inside the block (its point on surface)"
+          },
+          "bbox": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Bbox",
+            "description": "[min_lng, min_lat, max_lng, max_lat]"
+          }
+        },
+        "type": "object",
+        "required": [
+          "municipality_id",
+          "data_version",
+          "formula_version",
+          "block",
+          "header",
+          "documents",
+          "counts",
+          "parameters",
+          "covered",
+          "centroid",
+          "bbox"
+        ],
+        "title": "BlockPanel"
+      },
+      "BlockParameter": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "max_site_coverage_pct",
+              "max_far",
+              "max_floors",
+              "max_gfa_m2"
+            ],
+            "title": "Key"
+          },
+          "layer": {
+            "type": "string",
+            "enum": [
+              "coverage",
+              "far",
+              "height",
+              "gfa"
+            ],
+            "title": "Layer",
+            "description": "The heatmap layer (tile source-layer heat_<layer>) the figure colours"
+          },
+          "label_en": {
+            "type": "string",
+            "title": "Label En"
+          },
+          "label_me": {
+            "type": "string",
+            "title": "Label Me"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "rule_en": {
+            "type": "string",
+            "title": "Rule En"
+          },
+          "rule_me": {
+            "type": "string",
+            "title": "Rule Me"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "height: the plan's floor notation of the tallest parcel"
+          },
+          "parcel_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parcel Count",
+            "description": "Planned parcels of the block that state the field"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "layer",
+          "label_en",
+          "label_me",
+          "unit",
+          "rule_en",
+          "rule_me"
+        ],
+        "title": "BlockParameter",
+        "description": "One of the four block-level figures the parameter heatmap draws (``choropleth_cells`` of\nthe current version): the rule that made it is stated, the value is null when the block's\nparcels state nothing for it (the map's \"no data\" hatch)."
+      },
       "BlockRef": {
         "properties": {
           "id": {
@@ -13377,7 +13760,7 @@
                 "type": "null"
               }
             ],
-            "description": "Cadastral parcel centroid: where the map should pan"
+            "description": "A point inside the cadastral parcel (its point on surface): where the map pans and the pin lands"
           }
         },
         "type": "object",

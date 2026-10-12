@@ -1,7 +1,8 @@
 /**
  * What a click on the map selects. `queryRenderedFeatures` on the hit layers returns the features
  * under the pointer; the selection priority is cadastral parcel, then planned (urban) parcel, then
- * planning-document coverage area, then (covered) zone. Pure functions, tested without a map.
+ * urban block, then planning-document coverage area, then (covered) zone. Pure functions, tested
+ * without a map.
  */
 import type { LngLat } from "@/lib/store";
 
@@ -26,7 +27,7 @@ export interface Pick {
   properties: Record<string, unknown>;
 }
 
-const PRIORITY: PickType[] = ["cadastral", "urban", "document", "zone"];
+const PRIORITY: PickType[] = ["cadastral", "urban", "block", "document", "zone"];
 const LAYER_TO_TYPE = new Map<string, PickType>(Object.entries(HIT_LAYERS).map(([t, l]) => [l, t as PickType]));
 
 const asInt = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v > 0 ? v : null);

@@ -5,13 +5,16 @@
  * map highlights and the panel reads:
  *
  * - **map click on a feature** (`selectFeature`): top-priority feature under the pointer
- *   (cadastral parcel, planned parcel, planning-document coverage); the parcel is highlighted at
- *   once (with its primary planned parcel), pinned at its centre, then `/v1/locate` at the click
- *   confirms zone, planned-parcel link and coverage;
- * - **map click on nothing** or an **address suggestion** (`selectPoint`): pin, `/v1/locate`; the
- *   cadastral parcel found there becomes the selection, else the planned parcel containing the
- *   point (`pointSelection`);
- * - **KO + parcel number** (`selectParcel`): `/v1/locate/parcel`, fly to the parcel;
+ *   (cadastral parcel, planned parcel, urban block, planning-document coverage); the parcel is
+ *   highlighted at once (with its primary planned parcel) and the pin stays exactly where the
+ *   visitor clicked (the client's review of 2026-10-12: a pin moved to a computed centre landed
+ *   outside concave parcels), then `/v1/locate` at the click confirms zone, planned-parcel link
+ *   and coverage;
+ * - **map click on nothing** or an **address suggestion** (`selectPoint`): pin on the point,
+ *   `/v1/locate`; the cadastral parcel found there becomes the selection, else the planned parcel
+ *   containing the point (`pointSelection`); the pin does not move;
+ * - **KO + parcel number** (`selectParcel`): `/v1/locate/parcel`, fly to the parcel; the pin is
+ *   the API's point inside the parcel (`ST_PointOnSurface`, never a centroid outside it);
  * - **urban parcel number** (`selectUrbanParcel`): the planned parcel the search found is
  *   selected by its id (never by a point: drawn shapes can overlap), pinned and flown to;
  * - **zone suggestion** (`selectZone`): frame the zone and select it (its panel; a zone without
@@ -19,8 +22,8 @@
  * - **`?parcel=` link** (`selectParcelById`): `/v1/parcels/{id}/panel`, land on the parcel.
  *
  * Uncovered locations are not errors: the "Outside current coverage" pill shows for 2.6 s and the
- * panel stays closed. The search calls answer an outcome so the search box can say inline that a
- * parcel reference matched nothing (the previous selection stays).
+ * panel stays open, saying the place is not covered yet. The search calls answer an outcome so the
+ * search box can say inline that a parcel reference matched nothing (the previous selection stays).
  * Analytics: `search_performed { search_kind, matched }` per search or map click (plus `result`
  * address | zone | parcel for typed searches, `recent: true` for a recent search re-run, and where
  * it landed: `lat` / `lng` rounded to 4 decimals and `parcel_id` / `urban_parcel_id` / `zone_id` /
@@ -132,9 +135,9 @@ function placeOf(
   };
 }
 
-/** `parcel_selected` for a parcel selection; documents are not parcels and emit nothing. */
+/** `parcel_selected` for a parcel selection; documents and blocks are not parcels and emit nothing. */
 function emitParcelSelected(sel: FeatureSelection): void {
-  if (sel.type === "document") return;
+  if (sel.type === "document" || sel.type === "block") return;
   getTracker().track("parcel_selected", {
     ...(sel.type === "cadastral" ? { parcel_id: sel.id } : { urban_parcel_id: sel.id }),
     parcel_type: sel.type,
@@ -225,8 +228,7 @@ export function useSelection() {
       if (useShell.getState().selection !== sel) return "superseded"; // a newer selection won
       if (parcel && res.covered) {
         s.setSelection(parcel);
-        // a planned parcel has no centroid in the payload: the pin stays on the point, inside it
-        if (res.cadastral_parcel) s.dropPin(res.cadastral_parcel.centroid);
+        // the pin stays on the point the visitor picked (inside the parcel found there)
         emitParcelSelected(parcel);
       }
       // covered but no parcel here: the selection stays a point and the panel says so
@@ -237,9 +239,9 @@ export function useSelection() {
   );
 
   /**
-   * Map click on a feature (see `pickFeature`). Zones, plan areas and planned parcels are drawn for
-   * adopted, live plans only, so their click is `covered`; a cadastral parcel is drawn everywhere,
-   * so its `search_performed` waits for `/v1/locate` to say whether a plan covers it.
+   * Map click on a feature (see `pickFeature`). Zones, plan areas, blocks and planned parcels are
+   * drawn for adopted, live plans only, so their click is `covered`; a cadastral parcel is drawn
+   * everywhere, so its `search_performed` waits for `/v1/locate` to say whether a plan covers it.
    */
   const selectFeature = useCallback(
     async (pick: Pick, clickPoint: LngLat) => {
@@ -274,13 +276,13 @@ export function useSelection() {
       };
       s.setSelection(sel);
       s.setCoverWarn(false);
-      if (pick.type === "document") {
-        s.dropPin(null); // the wireframe clears the pin for a plan area
+      if (pick.type === "document" || pick.type === "block") {
+        s.dropPin(null); // the wireframe clears the pin for a plan area; a block is one too
         s.setCoords(clickPoint);
         s.setPanelHidden(false);
         return;
       }
-      s.dropPin(pick.centre ?? clickPoint);
+      s.dropPin(clickPoint); // exactly where the visitor clicked, never a computed centre
       if (pick.type === "urban") {
         // planned parcels exist in the tiles only for adopted, live plans: always covered
         emitParcelSelected(sel);
@@ -312,7 +314,6 @@ export function useSelection() {
           linkedUrbanId: res.urban_parcel?.id ?? sel.linkedUrbanId,
         };
         s.setSelection(confirmed);
-        s.dropPin(res.cadastral_parcel.centroid);
       }
       emitParcelSelected(confirmed);
       if (res) showCoverage(res.covered, res);

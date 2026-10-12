@@ -8,7 +8,9 @@
  * date it applies from, and "Reset to defaults". Edits go to the store (`assumptionEdits`, in
  * memory: a reload returns to the defaults); the market section recalculates from them. An edit
  * back on the default value stops being an edit, so Reset and "slide back" agree. Edits send no
- * event: the plan's 13 events have none for them.
+ * event: the plan's 13 events have none for them. Without market figures for the parcel's
+ * district the sliders are disabled and a note above them says why (the client's review of
+ * 2026-10-12: disabled sliders with no explanation read as broken).
  */
 import { useId } from "react";
 
@@ -72,6 +74,11 @@ export function AssumptionSandbox({
   return (
     <div className="assum">
       <div className="ah">{t("asm.title")}</div>
+      {!marketAvailable && (
+        <p className="asmnote" role="note">
+          {t("asm.disabled")}
+        </p>
+      )}
       {SLIDERS.map((slider) => {
         const def = defaults[slider.key];
         const isEdited = edits[slider.key] !== undefined;

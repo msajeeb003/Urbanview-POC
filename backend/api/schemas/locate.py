@@ -165,7 +165,9 @@ class LocationResolution(BaseModel):
         "mismatch (or its absence) is always surfaced",
     )
     centroid: LatLng | None = Field(
-        default=None, description="Cadastral parcel centroid: where the map should pan"
+        default=None,
+        description="A point inside the cadastral parcel (its point on surface): where the map "
+        "pans and the pin lands",
     )
 
 

@@ -589,3 +589,23 @@ paid layers, tablet and phone layouts) are not build targets. The exclusions doc
     "no data yet" when the published version has nothing for the layer; the session id header is
     the analytics session (new after 30 minutes idle), a UUID v4.
 22. S3 check (2026-09-28): the POC plan's Group 1 list has a `land_use_code` next to the land-use label and its market inputs a `sample_size` per row. Neither exists yet: the plan's wording is the land-use value (the extraction derives a land-use class, not served), and no market import records how many listings a rate comes from. Left open by the product owner; the payload adds them when the data exists.
+
+## 11. Changes after the client's review of the live POC (2026-10-12)
+
+The client tested the public map on 2026-10-12 and asked for behaviour the wireframe did not
+have. These are product-owner-approved deviations from the mock, built 2026-10-13 (details in
+`frontend/CLAUDE.md`):
+
+- the information panel stays open for an uncovered location ("Not covered yet") instead of
+  closing for the 2.6 s of the coverage pill, and the visitor hides and shows it with a chevron
+  tab on its left edge (the rail's pattern);
+- the selection pin stays exactly where the visitor clicked; a searched parcel is pinned at the
+  API's point inside it (`ST_PointOnSurface`), never at a centroid a concave shape leaves outside;
+- the base map shows buildings, parks and land cover in quiet tones, a clear blue water and road
+  casings (the mock hid buildings and land cover);
+- "FAR heatmap" reads "Planning parameters heatmap"; the zones legend lists the types the drawn
+  zones have (with "Not classified yet"), the land-use legend names its neutral "Other" colour;
+- urban blocks answer a click with a block panel (`GET /v1/panel?type=block`);
+- the assumption sliders explain why they are disabled while a district has no market figures;
+- the mock's layout rules under 1100 px and 860 px are back (narrower rail and panel, then both
+  over the map with the legend hidden): a usable tablet / small-laptop layout, no phone layout.

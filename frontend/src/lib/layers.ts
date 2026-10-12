@@ -76,6 +76,11 @@ export interface LegendContext {
   classes: CellClasses | null | undefined;
   /** Each card's `layerState` (the map's zoom and the published version); absent = all shown. */
   states?: Partial<Record<LayerId, LayerState>>;
+  /**
+   * The zone index (`GET /v1/zones`): the zones legend lists the types the drawn zones actually
+   * have. Absent (not loaded yet) = every type.
+   */
+  zones?: readonly { zone_type?: string | null; covered?: boolean | null }[] | null;
   /** The shell's translator (English when absent). */
   t?: Translate;
 }
@@ -110,12 +115,40 @@ export const ZONE_TYPES = [
   { key: "grn", name: "Green / recreation", token: "--z-grn", hex: "#7C8A4F" },
 ] as const;
 
+/** The map's neutral colour for a zone without a type (`style.ts` NEUTRAL). */
+export const UNCLASSIFIED_ZONE_COLOUR = "#B3A894";
+/** The land-use layer's colour for a wording no rule classes (`style.ts`). */
+export const LAND_USE_OTHER_COLOUR = "#b98a5a";
+
 const english: Translate = (key, vars) => translate("en", key, vars);
 const tx = (ctx: LegendContext): Translate => ctx.t ?? english;
 const title = (ctx: LegendContext, id: LayerId) => tx(ctx)(`layer.${id}`);
 const zoneRows = (ctx: LegendContext) =>
   ZONE_TYPES.map((z) => ({ mark: { kind: "color" as const, color: z.hex }, label: tx(ctx)(`zoneType.${z.key}`) }));
 const noDataRow = (ctx: LegendContext) => ({ mark: { kind: "hatch" as const }, label: tx(ctx)("legend.noData") });
+
+/**
+ * Rows of the zones legend: the types of the zones the map draws (covered zones only), in the
+ * wireframe's order, plus "Not classified yet" in the neutral colour when a drawn zone has no
+ * type (the client's review of 2026-10-12: the legend listed five coloured types while every
+ * zone was drawn neutral). Without the zone index, or with no covered zone, every type.
+ */
+export function zoneLegendRows(ctx: LegendContext): LegendGroup["rows"] {
+  const drawn = (ctx.zones ?? []).filter((z) => z.covered !== false);
+  if (!ctx.zones || drawn.length === 0) return zoneRows(ctx);
+  const present = new Set(drawn.map((z) => z.zone_type ?? null));
+  const rows: LegendGroup["rows"] = ZONE_TYPES.filter((z) => present.has(z.key)).map((z) => ({
+    mark: { kind: "color" as const, color: z.hex },
+    label: tx(ctx)(`zoneType.${z.key}`),
+  }));
+  if (present.has(null)) rows.push({ mark: { kind: "color", color: UNCLASSIFIED_ZONE_COLOUR }, label: tx(ctx)("legend.notClassified") });
+  return rows;
+}
+
+/** Rows of the land-use legend: the five colour groups and the neutral "other" the layer also draws. */
+export function landUseLegendRows(ctx: LegendContext): LegendGroup["rows"] {
+  return [...zoneRows(ctx), { mark: { kind: "color" as const, color: LAND_USE_OTHER_COLOUR }, label: tx(ctx)("legend.landUseOther") }];
+}
 
 export const LAYERS: readonly LayerDef[] = [
   {
@@ -146,7 +179,7 @@ export const LAYERS: readonly LayerDef[] = [
     swatch: { kind: "zones" },
     published: ["zones", "zone_labels"],
     minZoom: 8,
-    legend: (ctx) => ({ title: title(ctx, "zones"), rows: zoneRows(ctx) }),
+    legend: (ctx) => ({ title: title(ctx, "zones"), rows: zoneLegendRows(ctx) }),
   },
   {
     id: "blocks",
@@ -186,11 +219,11 @@ export const LAYERS: readonly LayerDef[] = [
     swatch: { kind: "color", color: "#b98a5a" },
     published: ["land_use"],
     minZoom: 10,
-    legend: (ctx) => ({ title: title(ctx, "landuse"), rows: zoneRows(ctx) }),
+    legend: (ctx) => ({ title: title(ctx, "landuse"), rows: landUseLegendRows(ctx) }),
   },
   {
     id: "heatFAR",
-    name: "FAR heatmap",
+    name: "Planning parameters heatmap",
     group: "context",
     defaultOn: false,
     choropleth: "param",

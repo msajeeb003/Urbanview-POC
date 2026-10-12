@@ -130,7 +130,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Information panel for a zone, planning document, cadastral parcel or planned parcel */
+        /** Information panel for a zone, planning document, cadastral parcel, planned parcel or urban block */
         get: operations["get_panel_v1_panel_get"];
         put?: never;
         post?: never;
@@ -1668,6 +1668,180 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /** BlockCounts */
+        BlockCounts: {
+            /**
+             * Urban Parcels
+             * @description Planned parcels the plan puts in the block
+             */
+            urban_parcels: number;
+            /**
+             * Cadastral Parcels
+             * @description Cadastral parcels whose point on surface lies in the block (0 while none is loaded)
+             */
+            cadastral_parcels: number;
+        };
+        /** BlockDetail */
+        BlockDetail: {
+            /** Id */
+            id: number;
+            /**
+             * Block Ref
+             * @description The plan's own label of the block (Blok C, 12 …)
+             */
+            block_ref: string;
+            zone?: components["schemas"]["ZoneRef"] | null;
+            /**
+             * Area M2
+             * @description Area of the drawn block, m²
+             */
+            area_m2?: number | null;
+        };
+        /**
+         * BlockDocument
+         * @description An adopted, live planning document whose coverage holds the block, most specific first.
+         */
+        BlockDocument: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @description Abbreviation (DUP / PUP / PGR), as-is
+             */
+            type?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "adopted" | "in_progress" | "superseded";
+            /** Status Label En */
+            status_label_en: string;
+            /** Status Label Me */
+            status_label_me: string;
+            /** Source */
+            source?: string | null;
+            /**
+             * Registry Url
+             * @description planning_documents.source_url
+             */
+            registry_url?: string | null;
+            /** Amends Document Id */
+            amends_document_id?: number | null;
+            /**
+             * Adopted On
+             * @description Adoption date, when known
+             */
+            adopted_on?: string | null;
+            /**
+             * Covered
+             * @description Adopted, live, current, with coverage
+             * @default true
+             */
+            covered: boolean;
+        };
+        /** BlockPanel */
+        BlockPanel: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "block";
+            /** Municipality Id */
+            municipality_id: string;
+            /**
+             * Data Version
+             * @description Label of the current publish version, or "unpublished"
+             */
+            data_version: string;
+            /**
+             * Data Version Date
+             * @description ISO date of the current publish version (UTC)
+             */
+            data_version_date?: string | null;
+            /**
+             * Formula Version
+             * @description Formula version the figures were computed with (poc-1)
+             */
+            formula_version: string;
+            /**
+             * Client Validated
+             * @default false
+             * @constant
+             */
+            client_validated: false;
+            block: components["schemas"]["BlockDetail"];
+            header: components["schemas"]["ZoneHeader"];
+            /**
+             * Documents
+             * @description Adopted, live documents whose coverage holds the block's point on surface, most specific first (the first is the governing one)
+             */
+            documents: components["schemas"]["BlockDocument"][];
+            counts: components["schemas"]["BlockCounts"];
+            /**
+             * Parameters
+             * @description coverage, far, height, gfa: the block's figures of the current publish version, in that order; every row present, value null without a cell
+             */
+            parameters: components["schemas"]["BlockParameter"][];
+            /**
+             * Covered
+             * @description False when no adopted, live plan covers the block
+             */
+            covered: boolean;
+            /** Coverage Note En */
+            coverage_note_en?: string | null;
+            /** Coverage Note Me */
+            coverage_note_me?: string | null;
+            /** @description A point inside the block (its point on surface) */
+            centroid: components["schemas"]["LatLng"];
+            /**
+             * Bbox
+             * @description [min_lng, min_lat, max_lng, max_lat]
+             */
+            bbox: number[];
+        };
+        /**
+         * BlockParameter
+         * @description One of the four block-level figures the parameter heatmap draws (``choropleth_cells`` of
+         *     the current version): the rule that made it is stated, the value is null when the block's
+         *     parcels state nothing for it (the map's "no data" hatch).
+         */
+        BlockParameter: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "max_site_coverage_pct" | "max_far" | "max_floors" | "max_gfa_m2";
+            /**
+             * Layer
+             * @description The heatmap layer (tile source-layer heat_<layer>) the figure colours
+             * @enum {string}
+             */
+            layer: "coverage" | "far" | "height" | "gfa";
+            /** Label En */
+            label_en: string;
+            /** Label Me */
+            label_me: string;
+            /** Unit */
+            unit: string;
+            /** Rule En */
+            rule_en: string;
+            /** Rule Me */
+            rule_me: string;
+            /** Value */
+            value?: number | null;
+            /**
+             * Label
+             * @description height: the plan's floor notation of the tallest parcel
+             */
+            label?: string | null;
+            /**
+             * Parcel Count
+             * @description Planned parcels of the block that state the field
+             */
+            parcel_count?: number | null;
         };
         /** BlockRef */
         BlockRef: {
@@ -3926,7 +4100,7 @@ export interface components {
             calculation_basis?: ("urban" | "cadastral") | null;
             /** @description Cadastral vs planned urban parcel area; present whenever both exist so the mismatch (or its absence) is always surfaced */
             area_comparison?: components["schemas"]["AreaComparison"] | null;
-            /** @description Cadastral parcel centroid: where the map should pan */
+            /** @description A point inside the cadastral parcel (its point on surface): where the map pans and the pin lands */
             centroid?: components["schemas"]["LatLng"] | null;
         };
         /** MagicLinkAccepted */
@@ -7377,8 +7551,8 @@ export interface operations {
         parameters: {
             query: {
                 /** @description Panel type */
-                type: "zone" | "document" | "cadastral" | "urban";
-                /** @description zones.id / planning_documents.id / cadastral_parcels.id (Parcel ID) / urban_parcels.id */
+                type: "zone" | "document" | "cadastral" | "urban" | "block";
+                /** @description zones.id / planning_documents.id / cadastral_parcels.id (Parcel ID) / urban_parcels.id / urban_blocks.id */
                 id: number;
                 /** @description Saleable share of the GFA, 0 < share ≤ 1 (default 0.70) */
                 saleable_share?: number | null;
@@ -7399,7 +7573,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ZonePanel"] | components["schemas"]["DocumentPanel"] | components["schemas"]["CadastralPanel"] | components["schemas"]["UrbanPanel"];
+                    "application/json": components["schemas"]["ZonePanel"] | components["schemas"]["DocumentPanel"] | components["schemas"]["CadastralPanel"] | components["schemas"]["UrbanPanel"] | components["schemas"]["BlockPanel"];
                 };
             };
             /** @description No entity with that id for the type (`not_found`) */

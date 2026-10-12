@@ -23,6 +23,12 @@ x-app-env: &app-env
   TRUST_PROXY_HEADERS: "true"
   ORDER_PUBLIC_BASE_URL: https://${SITE_DOMAIN}
   ADMIN_BASE_URL: https://${SITE_DOMAIN}/admin   # magic links open /admin/login?token=…
+  # the search box's geocoder: the photon service below (the country's OpenStreetMap addresses,
+  # answers in milliseconds); GEOCODER_BASE_URL=https://photon.komoot.io in .env uses the public
+  # instance instead (1-3 s per answer, fair use)
+  GEOCODER_PROVIDER: ${GEOCODER_PROVIDER:-photon}
+  GEOCODER_BASE_URL: ${GEOCODER_BASE_URL:-http://photon:2322}
+  GEOCODER_TIMEOUT_MS: ${GEOCODER_TIMEOUT_MS:-1500}
 
 x-app-build: &app-build
   context: ..
@@ -44,6 +50,9 @@ services:
       SERVER_IP: ${SERVER_IP:-127.0.0.1}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # extra site blocks (redirects from the names the site had before a domain move):
+      # deploy/caddy.d/*.caddy, see legacy.caddy.example
+      - ./caddy.d:/etc/caddy/conf.d:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -170,6 +179,22 @@ services:
       timeout: 5s
       retries: 20
 
+  # Geocoder for the search box (deploy/photon): Photon over the country's OpenStreetMap dump,
+  # imported on the first start (about a minute) and refreshed every PHOTON_REIMPORT_DAYS.
+  # Internal only; the API reads it at GEOCODER_BASE_URL. A down geocoder never breaks the map:
+  # search answers an empty list until it is back.
+  photon:
+    build:
+      context: ./photon
+    image: urbanview-photon
+    restart: unless-stopped
+    environment:
+      PHOTON_DUMP_URL: ${PHOTON_DUMP_URL:-https://download1.graphhopper.com/public/europe/montenegro/photon-dump-montenegro-1.0-latest.jsonl.zst}
+      PHOTON_REIMPORT_DAYS: ${PHOTON_REIMPORT_DAYS:-30}
+      JAVA_OPTS: ${PHOTON_JAVA_OPTS:--Xms256m -Xmx768m}
+    volumes:
+      - photondata:/photon/data
+
   # One-shot: creates the bucket (private) with the app's own storage code (every `up`).
   storage-init:
     build: *app-build
@@ -189,3 +214,4 @@ volumes:
   pgdata:
   redisdata:
   miniodata:
+  photondata:

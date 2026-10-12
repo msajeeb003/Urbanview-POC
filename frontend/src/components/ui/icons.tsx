@@ -44,6 +44,13 @@ export const IconChevronLeft = (p: P) => (
   </svg>
 );
 
+/** The panel's hide / show chevron (the rail's, mirrored). */
+export const IconChevronRight = (p: P) => (
+  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden {...p}>
+    <path d="M5.5 3L10 7.5 5.5 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 /** Rail opener (three bars, 16×16). */
 export const IconMenu = (p: P) => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden {...p}>

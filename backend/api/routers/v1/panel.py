@@ -1,6 +1,6 @@
 """Information panel: what a visitor sees after selecting an object on the map.
 
-``GET /v1/panel?type=zone|document|cadastral|urban&id=<int>`` plus three optional assumption
+``GET /v1/panel?type=zone|document|cadastral|urban|block&id=<int>`` plus three optional assumption
 overrides (``saleable_share``, ``construction_cost_eur_m2``, ``sale_price_eur_m2``) that apply
 to every panel carrying a feasibility block (contract ``docs/specs/panel-payload.md`` section 1).
 
@@ -24,7 +24,10 @@ router = APIRouter(prefix="/panel", tags=["panel"])
 @router.get(
     "",
     response_model=PanelResponse,
-    summary="Information panel for a zone, planning document, cadastral parcel or planned parcel",
+    summary=(
+        "Information panel for a zone, planning document, cadastral parcel, planned parcel "
+        "or urban block"
+    ),
     response_description=(
         "One payload per type, discriminated by ``type``. Cadastral and urban panels carry the "
         "planning block and the market / assumptions / feasibility blocks (shown to everyone), "
@@ -39,7 +42,7 @@ async def get_panel(
         Query(
             alias="id",
             description="zones.id / planning_documents.id / cadastral_parcels.id (Parcel ID) / "
-            "urban_parcels.id",
+            "urban_parcels.id / urban_blocks.id",
         ),
     ],
     service: PanelServiceDep,

@@ -362,8 +362,8 @@ SELECT
         'ko_name', ko_name, 'street_address', street_address, 'area_m2', area_m2,
         'public_ownership', public_ownership,
         'restitution_or_legal_burden', restitution_or_legal_burden,
-        'centroid', jsonb_build_object('lat', ST_Y(ST_Centroid(geom)),
-                                       'lng', ST_X(ST_Centroid(geom))),
+        'centroid', jsonb_build_object('lat', ST_Y(ST_PointOnSurface(geom)),
+                                       'lng', ST_X(ST_PointOnSurface(geom))),
         'geometry', ST_AsGeoJSON(geom, 7)::jsonb)
      FROM cad) AS cadastral,
     (SELECT {_document_ref("doc")} FROM doc) AS governing_document,
@@ -447,8 +447,8 @@ SELECT
     (SELECT jsonb_build_object(
         'id', id, 'urban_parcel_number', urban_parcel_number, 'area_m2', area_m2,
         'block_id', block_id, 'document_id', document_id,
-        'centroid', jsonb_build_object('lat', ST_Y(ST_Centroid(geom)),
-                                       'lng', ST_X(ST_Centroid(geom))),
+        'centroid', jsonb_build_object('lat', ST_Y(ST_PointOnSurface(geom)),
+                                       'lng', ST_X(ST_PointOnSurface(geom))),
         'geometry', ST_AsGeoJSON(geom, 7)::jsonb)
      FROM up) AS urban_parcel,
     (SELECT {_document_ref("doc")} FROM doc) AS document,
@@ -466,9 +466,91 @@ SELECT
     (SELECT vals FROM values_json) AS "values",{_MARKET_COLUMN},{_VERSION_COLUMNS}
 """
 
+# --- block ----------------------------------------------------------------------------------------
+
+# An urban block: the plan's own subdivision, drawn with the plan. Its documents are the adopted,
+# live, current documents whose coverage holds its point on surface (most specific first: the
+# governing document's rule); its figures are the current version's heatmap cells for the block
+# (core.choropleth: area-weighted site coverage and FAR, the tallest parcel, the GFA sum), so the
+# panel says exactly what the parameter heatmap colours.
+BLOCK_SQL = f"""WITH{_VERSION},
+blk AS (
+    SELECT b.id, b.block_ref, b.zone_id, b.geom
+    FROM urban_blocks b
+    WHERE b.id = CAST(:id AS bigint) AND b.municipality_id = :municipality_id
+),
+anchor AS (
+    SELECT ST_PointOnSurface(geom) AS pt FROM blk
+),
+docs AS (
+    SELECT COALESCE(jsonb_agg({_document_ref("d")} || jsonb_build_object('covered', true)
+               ORDER BY ST_Area(d.coverage_geom) ASC, d.id DESC), '[]'::jsonb) AS docs,
+           count(*) AS n
+    FROM planning_documents d, anchor a
+    WHERE d.municipality_id = :municipality_id
+      AND {_covered("d")}
+      AND ST_Intersects(d.coverage_geom, a.pt)
+),
+zone_pick AS (
+    -- the block's own zone, else the governing document's, else the smallest zone around it
+    SELECT COALESCE(
+        (SELECT zone_id FROM blk),
+        (SELECT d.zone_id
+         FROM planning_documents d, anchor a
+         WHERE d.municipality_id = :municipality_id AND {_covered("d")}
+           AND ST_Intersects(d.coverage_geom, a.pt)
+         ORDER BY ST_Area(d.coverage_geom) ASC, d.id DESC
+         LIMIT 1),
+        (SELECT z.id
+         FROM zones z, anchor a
+         WHERE z.municipality_id = :municipality_id
+           AND ST_Intersects(z.geom, a.pt)
+         ORDER BY ST_Area(z.geom) ASC, z.id ASC
+         LIMIT 1)
+    ) AS zone_id
+),
+zone AS (
+    SELECT z.id, z.name FROM zones z WHERE z.id = (SELECT zone_id FROM zone_pick)
+),
+urban_count AS (
+    SELECT count(*) AS n FROM urban_parcels u WHERE u.block_id = (SELECT id FROM blk)
+),
+cadastral_count AS (
+    SELECT count(*) AS n
+    FROM cadastral_parcels c, blk
+    WHERE c.municipality_id = :municipality_id
+      AND c.retired_at IS NULL
+      AND c.geom && blk.geom
+      AND ST_Intersects(ST_PointOnSurface(c.geom), blk.geom)
+),
+cells AS (
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+               'layer', c.layer, 'value', c.value, 'unit', c.unit, 'label', c.label,
+               'parcel_count', c.parcel_count)), '[]'::jsonb) AS cells
+    FROM choropleth_cells c
+    WHERE c.publish_version_id = (SELECT id FROM version)
+      AND c.cell_type = 'block' AND c.cell_id = CAST(:id AS bigint)
+      AND c.layer IN ('coverage', 'far', 'height', 'gfa')
+)
+SELECT
+    (SELECT jsonb_build_object(
+        'id', id, 'block_ref', block_ref, 'zone_id', zone_id,
+        'area_m2', round(CAST(ST_Area(CAST(geom AS geography)) AS numeric), 1),
+        'centroid', jsonb_build_object('lat', ST_Y(ST_PointOnSurface(geom)),
+                                       'lng', ST_X(ST_PointOnSurface(geom))),
+        'bbox', jsonb_build_array(ST_XMin(geom), ST_YMin(geom), ST_XMax(geom), ST_YMax(geom)))
+     FROM blk) AS block,
+    (SELECT docs FROM docs) AS documents,
+    (SELECT jsonb_build_object('id', id, 'name', name) FROM zone) AS zone,
+    (SELECT n FROM urban_count) AS urban_parcels,
+    (SELECT n FROM cadastral_count) AS cadastral_parcels,
+    (SELECT cells FROM cells) AS cells,{_VERSION_COLUMNS}
+"""
+
 PANEL_SQL: dict[str, str] = {
     "zone": ZONE_SQL,
     "document": DOCUMENT_SQL,
     "cadastral": CADASTRAL_SQL,
     "urban": URBAN_SQL,
+    "block": BLOCK_SQL,
 }

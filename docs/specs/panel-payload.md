@@ -810,3 +810,31 @@ panels show (migration `0016_document_adopted_on`):
   `feasibility`, for the browser's `recalculate(inputs, edits)` (added with the assumption
   sandbox).
 
+
+## 15. Urban block panel — `GET /v1/panel?type=block&id=<urban_blocks.id>` (added 2026-10-13)
+
+The client's review of 2026-10-12: an urban block answered a click with nothing. `BlockPanel`
+(`api/schemas/panel.py`, one statement `BLOCK_SQL`, `PanelService.block_panel`):
+
+- `block`: `{id, block_ref, zone: ZoneRef | null, area_m2}` (the drawn block's area);
+- `header`: `{title: block_ref, subtitle_en: "Urban block of the plan", subtitle_me}`;
+- `documents[]`: `DocumentRef + {covered: true}` — the adopted, live, current documents whose
+  coverage holds the block's point on surface, most specific (smallest coverage) first: the first
+  is the governing document; empty when no adopted plan covers the block;
+- `counts`: `{urban_parcels, cadastral_parcels}` — the planned parcels with `block_id` = the
+  block, the cadastral parcels whose point on surface lies in it (0 while none is loaded);
+- `parameters[]`, always four rows in this order — `coverage` (`max_site_coverage_pct`, %),
+  `far` (`max_far`), `height` (`max_floors`, floors; `label` = the plan's notation of the
+  tallest parcel), `gfa` (`max_gfa_m2`, m²) — each `{key, layer, label_en, label_me, unit,
+  rule_en, rule_me, value, label, parcel_count}` read from the current publish version's
+  `choropleth_cells` for the block (`core.choropleth`: area-weighted means, the maximum, the
+  sum), so the panel states exactly what the parameter heatmap colours; `value` is null without
+  a cell (the "no data" hatch), never a number made up;
+- `covered` (a document holds the block), `coverage_note_en` / `_me` when not, `centroid` (a
+  point inside the block), `bbox`, and the common `data_version` / `formula_version` fields.
+
+Errors as for the other types: an unknown block id is a 404 `not_found` with `{type: "block",
+id}`. `panel_viewed {panel_type: "block", block_id}` is a valid event (`PANEL_TYPES`); blocks emit
+no `parcel_selected`. Every served `centroid` of this contract (locate, the cadastral, urban and
+block panels, the display-shaped parcel panel) is `ST_PointOnSurface` since 2026-10-13: a point
+inside the shape, where the pin lands.

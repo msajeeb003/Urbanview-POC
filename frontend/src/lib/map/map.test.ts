@@ -40,6 +40,9 @@ describe("pickFeature", () => {
     // queryRenderedFeatures returns top-most first: planned parcel above cadastral above plan area
     expect(pickFeature([urban, cad, doc, zone])).toMatchObject({ type: "cadastral", id: 7, zoneId: 2, linkedUrbanId: 31 });
     expect(pickFeature([urban, doc, zone])).toMatchObject({ type: "urban", id: 31, linkedUrbanId: null });
+    const block = { layer: { id: HIT_LAYERS.block }, properties: { id: 12, block_ref: "C" } };
+    expect(pickFeature([block, doc, zone])).toMatchObject({ type: "block", id: 12 });
+    expect(pickFeature([urban, block, doc])).toMatchObject({ type: "urban", id: 31 });
     expect(pickFeature([doc, zone])).toMatchObject({ type: "document", id: 4 });
     expect(pickFeature([zone])).toMatchObject({ type: "zone", id: 2, properties: { name: "Novi Grad" } });
     expect(pickFeature([])).toBeNull();
@@ -90,17 +93,17 @@ describe("style", () => {
 
   it("highlights the selection, its planned parcel, and a hover that is not the selection", () => {
     const sel = highlightOf({ kind: "feature", type: "cadastral", id: 7, zoneId: 2, linkedUrbanId: 31, via: "click" });
-    expect(sel).toEqual({ cadastral: 7, urban: 31, document: null, zone: null });
-    const f = highlightFilters(sel, { cadastral: 7, urban: null, document: 4, zone: null });
+    expect(sel).toEqual({ cadastral: 7, urban: 31, block: null, document: null, zone: null });
+    const f = highlightFilters(sel, { cadastral: 7, urban: null, block: null, document: 4, zone: null });
     // an uncovered cadastral parcel is never outlined, selected or hovered
     expect(f["uv-cad-sel-line"]).toEqual(["all", ["==", ["get", "id"], 7], ["!=", ["get", "covered"], false]]);
     expect(f["uv-urban-sel-line"]).toEqual(["==", ["get", "id"], 31]);
     expect(f["uv-cad-hover-line"]).toEqual(NONE);
     expect(f["uv-doc-hover-line"]).toEqual(["==", ["get", "id"], 4]);
-    expect(highlightOf({ kind: "point", point: { lng: 1, lat: 2 }, via: "click" })).toEqual({ cadastral: null, urban: null, document: null, zone: null });
+    expect(highlightOf({ kind: "point", point: { lng: 1, lat: 2 }, via: "click" })).toEqual({ cadastral: null, urban: null, block: null, document: null, zone: null });
     // a clicked (or searched) zone is outlined
     const zone = highlightOf({ kind: "zone", id: 3, name: "Novi Grad", via: "click" });
-    expect(zone).toEqual({ cadastral: null, urban: null, document: null, zone: 3 });
+    expect(zone).toEqual({ cadastral: null, urban: null, block: null, document: null, zone: 3 });
     expect(highlightFilters(zone, zone)["uv-zones-sel-line"]).toEqual(["==", ["get", "id"], 3]);
   });
 
@@ -236,14 +239,34 @@ describe("outside-coverage flash", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it("shows the pill with the panel closed for 2.6 s, then brings the panel back", () => {
+  it("shows the pill for 2.6 s with the panel open (and unfolded), then hides the pill", () => {
     const s = useShell.getState();
+    s.setPanelCollapsed(true);
     s.flashUncovered("outside_municipality");
-    expect(useShell.getState()).toMatchObject({ coverWarn: true, coverReason: "outside_municipality", panelHidden: true });
+    // the client's review of 2026-10-12: a click outside coverage never closes the sidebar
+    expect(useShell.getState()).toMatchObject({
+      coverWarn: true,
+      coverReason: "outside_municipality",
+      panelHidden: false,
+      panelCollapsed: false,
+    });
     vi.advanceTimersByTime(UNCOVERED_FLASH_MS - 1);
     expect(useShell.getState().coverWarn).toBe(true);
     vi.advanceTimersByTime(1);
     expect(useShell.getState()).toMatchObject({ coverWarn: false, panelHidden: false });
+  });
+
+  it("a new selection unfolds a panel the visitor folded away", () => {
+    const s = useShell.getState();
+    s.setSelection({ kind: "zone", id: 1, name: "Centar", via: "click" });
+    s.setPanelCollapsed(true);
+    s.setSelection(useShell.getState().selection); // the same selection: stays folded
+    expect(useShell.getState().panelCollapsed).toBe(true);
+    s.setSelection({ kind: "zone", id: 2, name: "Novi Grad", via: "click" });
+    expect(useShell.getState().panelCollapsed).toBe(false);
+    s.setPanelCollapsed(true);
+    s.setSelection(null); // clearing is not a new selection
+    expect(useShell.getState().panelCollapsed).toBe(true);
   });
 
   it("a new selection cancels a running flash", () => {

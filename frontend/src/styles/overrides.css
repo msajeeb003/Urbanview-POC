@@ -2172,3 +2172,126 @@ textarea.rinput {
 .searchwrap.kbdwide input {
   padding-right: 66px;
 }
+
+/* 25. The client's review of 2026-10-12:
+       - the panel's own hide / show (the rail's pattern): a chevron tab on the panel's left edge
+         folds it to a 34 px strip with an opener; a new selection unfolds it;
+       - the empty state for a place no adopted plan covers ("Not covered yet"): the panel stays
+         open instead of closing for 2.6 s;
+       - the note above the assumption sliders while a district has no market figures;
+       - the layout under 1100 px (the mock's own rules, restored: narrower rail and panel) and
+         under 860 px (the rail and the panel over the map, the legend hidden, the nav labels
+         gone), so a tablet or a small laptop window stays usable. Phone layouts stay outside the
+         POC plan. */
+.panel {
+  position: relative;
+}
+.paneltog {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-left: 0;
+  z-index: 6;
+  cursor: pointer;
+}
+.paneltog[class][class][class] {
+  border-radius: 0 8px 8px 0;
+}
+.paneltog:hover,
+.paneltog:focus-visible {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+.panel.collapsed {
+  width: 34px;
+  flex: 0 0 34px;
+  align-items: center;
+  padding: 12px 0 0;
+}
+.panel.collapsed .panelopen {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  background: var(--white);
+  cursor: pointer;
+}
+.panel.collapsed .panelopen:hover,
+.panel.collapsed .panelopen:focus-visible {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.pempty.uncovered h3 {
+  color: var(--ink-2);
+}
+.assum .asmnote {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  background: var(--paper);
+  border: 1px dashed var(--line);
+}
+@media (max-width: 1100px) {
+  .panel {
+    width: 360px;
+    flex-basis: 360px;
+  }
+  .rail {
+    width: 182px;
+    flex-basis: 182px;
+  }
+  .lyr {
+    width: 158px;
+  }
+}
+@media (max-width: 860px) {
+  .rail {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 35;
+    box-shadow: var(--shadow-lg);
+  }
+  .rail.collapsed {
+    position: static;
+    box-shadow: none;
+  }
+  .panel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 400px;
+    z-index: 40;
+    box-shadow: var(--shadow-lg);
+  }
+  .panel.collapsed {
+    position: static;
+    width: 34px;
+    max-width: none;
+    box-shadow: none;
+  }
+  .legend {
+    display: none;
+  }
+  .topnav .navlbl {
+    display: none;
+  }
+  .searchwrap {
+    max-width: none;
+  }
+}

@@ -22,9 +22,10 @@
  *   state at `style.load` is applied by its handler). The zoom goes to the store, so a card and
  *   its legend group say "zoom in to see" for a layer that is on but not drawn at this zoom.
  * - Click: the top-priority feature under the pointer is selected (cadastral parcel, planned
- *   parcel, planning-document coverage; `lib/map/pick.ts`), a click on nothing drops a pin and
- *   asks `/v1/locate`. A drag never selects (`clickTolerance` 3 px). Hover outlines parcels and
- *   plan areas and turns the cursor into a pointer.
+ *   parcel, urban block, planning-document coverage; `lib/map/pick.ts`), a click on nothing drops
+ *   a pin and asks `/v1/locate`. A drag never selects (`clickTolerance` 3 px). Hover outlines
+ *   parcels, blocks and plan areas and turns the cursor into a pointer. Wheel and trackpad zoom
+ *   faster than Mapbox's defaults; hit tests pause while the camera moves.
  * - With Mapbox's light style (the default) the base map is restyled to the wireframe's (land,
  *   white major and cream minor roads, the river; no buildings, land cover or points of interest:
  *   `lib/map/basemap.ts`) before UrbanView's layers go on top.
@@ -78,7 +79,7 @@ const PIN_SVG =
 
 type Bbox = [number, number, number, number];
 type LngLatBounds = [[number, number], [number, number]];
-const NO_HOVER: Highlight = { cadastral: null, urban: null, document: null, zone: null };
+const NO_HOVER: Highlight = { cadastral: null, urban: null, document: null, block: null, zone: null };
 
 // Start fetching Mapbox GL as soon as this module is evaluated (hydration), not at effect time.
 const mapboxModule = TOKEN && typeof window !== "undefined" ? import("mapbox-gl") : null;
@@ -254,6 +255,10 @@ export function MapView({
       if (focus) useShell.getState().setFocus(null);
       map.touchZoomRotate.disableRotation();
       map.keyboard.disableRotation();
+      // snappier zoom than Mapbox's defaults (a wheel notch 1/450 of a level, a trackpad pixel
+      // 1/100): the client's review of 2026-10-12 found zooming slow and heavy
+      map.scrollZoom.setWheelZoomRate(1 / 200);
+      map.scrollZoom.setZoomRate(1 / 60);
       map.addControl(new mapboxgl.AttributionControl({ compact: true }), "top-right");
 
       /** The style has loaded: UrbanView's layers exist and take changes (set once, in `style.load`). */
@@ -288,11 +293,19 @@ export function MapView({
           [fieldNe.lng, fieldNe.lat],
         ]);
       };
+      // the store (and with it the chrome, the rail and the legend) hears about the camera only
+      // when something it shows changed: a pan at one zoom re-renders nothing
+      let lastCamera = "";
       const updateCamera = () => {
         cancelAnimationFrame(raf);
         raf = requestAnimationFrame(() => {
           const zoom = map.getZoom();
-          useShell.getState().setCamera(formatZoomFactor(zoom, baseZoom), scaleBar(map.getCenter().lat, zoom), zoom);
+          const label = formatZoomFactor(zoom, baseZoom);
+          const scale = scaleBar(map.getCenter().lat, zoom);
+          const key = `${label}|${scale.label}|${scale.widthPx}|${zoom.toFixed(2)}`;
+          if (key === lastCamera) return;
+          lastCamera = key;
+          useShell.getState().setCamera(label, scale, zoom);
         });
       };
       measureFraming();
@@ -367,12 +380,18 @@ export function MapView({
       map.on("mousemove", (ev: MapMouseEvent) => {
         cancelAnimationFrame(hoverRaf);
         hoverRaf = requestAnimationFrame(() => {
+          if (map.isMoving()) return; // no hit tests while panning or zooming: the frame budget is the camera's
           const layers = queryableHitLayers(map);
           const picked = layers.length ? pickFeature(map.queryRenderedFeatures(ev.point, { layers }) as never) : null;
           map.getCanvas().style.cursor = picked ? "pointer" : "";
           const next: Highlight = { ...NO_HOVER };
           if (picked) next[picked.type as PickType] = picked.id;
-          if (next.cadastral !== hover.cadastral || next.urban !== hover.urban || next.document !== hover.document) {
+          if (
+            next.cadastral !== hover.cadastral ||
+            next.urban !== hover.urban ||
+            next.block !== hover.block ||
+            next.document !== hover.document
+          ) {
             hover = next;
             apply(() => syncHighlight(map, hover));
           }
@@ -400,8 +419,8 @@ export function MapView({
       };
 
       useShell.getState().registerMap({
-        zoomIn: () => map.zoomIn(),
-        zoomOut: () => map.zoomOut(),
+        zoomIn: () => map.zoomIn({ duration: 220 }),
+        zoomOut: () => map.zoomOut({ duration: 220 }),
         reset: () => map.fitBounds(cityBounds, fitOptions(padFor(FIT_PADDING))),
         flyTo: (p, zoom = 17) =>
           map.flyTo({

@@ -40,6 +40,11 @@ from api.schemas.panel import (
     AssumptionOverrides,
     AssumptionsBlock,
     AssumptionsVersion,
+    BlockCounts,
+    BlockDetail,
+    BlockDocument,
+    BlockPanel,
+    BlockParameter,
     BlockRef,
     CadastralIdentification,
     CadastralLink,
@@ -78,7 +83,13 @@ from api.schemas.panel import (
     ZoneRef,
 )
 from api.services import panel_text
-from api.services.panel_sql import CADASTRAL_SQL, DOCUMENT_SQL, URBAN_SQL, ZONE_SQL
+from api.services.panel_sql import (
+    BLOCK_SQL,
+    CADASTRAL_SQL,
+    DOCUMENT_SQL,
+    URBAN_SQL,
+    ZONE_SQL,
+)
 from core.engine import (
     DEFAULT_SALEABLE_SHARE,
     FORMULA_VERSION,
@@ -109,6 +120,7 @@ ENTITY_LABELS: dict[str, str] = {
     "document": "planning document",
     "cadastral": "cadastral parcel",
     "urban": "planned urban parcel",
+    "block": "urban block",
 }
 
 
@@ -183,6 +195,32 @@ def _zone_document(raw: Mapping[str, Any]) -> ZonePlanningDocument:
 def _document_detail(raw: Mapping[str, Any]) -> DocumentDetail:
     labels = panel_text.document_status_label(raw["status"])
     return DocumentDetail(**raw, status_label_en=labels.en, status_label_me=labels.me)
+
+
+def _block_document(raw: Mapping[str, Any]) -> BlockDocument:
+    labels = panel_text.document_status_label(raw["status"])
+    return BlockDocument(**raw, status_label_en=labels.en, status_label_me=labels.me)
+
+
+def _block_parameter(
+    spec: panel_text.BlockParameterText, cell: Mapping[str, Any] | None
+) -> BlockParameter:
+    """A block-level figure as the heatmap cell holds it; null without a cell (no parcel of the
+    block states the field: the map's "no data" hatch)."""
+    value = cell.get("value") if cell else None
+    count = cell.get("parcel_count") if cell else None
+    return BlockParameter(
+        key=spec.key,  # type: ignore[arg-type]
+        layer=spec.layer,  # type: ignore[arg-type]
+        label_en=spec.label.en,
+        label_me=spec.label.me,
+        unit=(cell.get("unit") or spec.unit) if cell else spec.unit,
+        rule_en=spec.rule.en,
+        rule_me=spec.rule.me,
+        value=float(value) if value is not None else None,
+        label=cell.get("label") if cell else None,
+        parcel_count=int(count) if count is not None else None,
+    )
 
 
 def _header_documents(
@@ -631,6 +669,8 @@ class PanelService:
             return await self.document_panel(entity_id)
         if panel_type == "cadastral":
             return await self.cadastral_panel(entity_id, overrides)
+        if panel_type == "block":
+            return await self.block_panel(entity_id)
         return await self.urban_panel(entity_id, overrides)
 
     # --- zone / document ---------------------------------------------------------------------
@@ -674,6 +714,51 @@ class PanelService:
                 cadastral_parcels=row["cadastral_parcels"], urban_parcels=row["urban_parcels"]
             ),
             general_planning_summary=row["general_planning_summary"],
+        )
+
+    # --- block -------------------------------------------------------------------------------
+
+    async def block_panel(self, block_id: int) -> BlockPanel:
+        """The plan's urban block: its documents, its parcels and the four block-level figures
+        the parameter heatmap draws (the current version's cells), each with its rule."""
+        row = await self._execute(BLOCK_SQL, block_id)
+        blk = _as_json(row["block"])
+        if blk is None:
+            raise self._not_found("block", block_id)
+        version = _version(row)
+        zone_raw = _as_json(row["zone"])
+        zone = ZoneRef(**zone_raw) if zone_raw else None
+        documents = [_block_document(d) for d in _as_json(row["documents"]) or []]
+        covered = bool(documents)
+        cells = {c["layer"]: c for c in _as_json(row["cells"]) or []}
+        parameters = [
+            _block_parameter(spec, cells.get(spec.layer)) for spec in panel_text.BLOCK_PARAMETERS
+        ]
+        note = None if covered else panel_text.BLOCK_NOT_COVERED_NOTE
+        return BlockPanel(
+            municipality_id=self.profile.id,
+            data_version=version.label,
+            data_version_date=version.date,
+            formula_version=FORMULA_VERSION,
+            block=BlockDetail(
+                id=blk["id"], block_ref=blk["block_ref"], zone=zone, area_m2=_r1(blk.get("area_m2"))
+            ),
+            header=ZoneHeader(
+                title=blk["block_ref"],
+                subtitle_en=panel_text.BLOCK_SUBTITLE.en,
+                subtitle_me=panel_text.BLOCK_SUBTITLE.me,
+            ),
+            documents=documents,
+            counts=BlockCounts(
+                urban_parcels=int(row["urban_parcels"] or 0),
+                cadastral_parcels=int(row["cadastral_parcels"] or 0),
+            ),
+            parameters=parameters,
+            covered=covered,
+            coverage_note_en=note.en if note else None,
+            coverage_note_me=note.me if note else None,
+            centroid=LatLng(**blk["centroid"]),
+            bbox=[float(v) for v in blk["bbox"]],
         )
 
     # --- cadastral ---------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 """Information-panel payloads (``GET /v1/panel``, ``docs/specs/panel-payload.md`` section 5).
 
 One response model per panel type, discriminated by ``type`` (``zone`` / ``document`` /
-``cadastral`` / ``urban``), built from shared blocks (``Header``, ``Areas``, ``PlanningBlock``,
-``MarketInputsBlock``, ``AssumptionsBlock``, ``FeasibilityBlock``).
+``cadastral`` / ``urban`` / ``block``), built from shared blocks (``Header``, ``Areas``,
+``PlanningBlock``, ``MarketInputsBlock``, ``AssumptionsBlock``, ``FeasibilityBlock``).
 
 Conventions (5.0): numbers are raw JSON numbers, never formatted strings (``_pct`` 0–100 with one
 decimal, ``_share`` 0–1, ``_factor`` multipliers, areas one decimal, euros whole; the client
@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from api.schemas.locate import DocumentStatus, LatLng
 
-PanelType = Literal["zone", "document", "cadastral", "urban"]
+PanelType = Literal["zone", "document", "cadastral", "urban", "block"]
 CalculationBasis = Literal["urban", "cadastral"]
 PlanningFieldStatus = Literal["stated", "not_stated", "computed", "cannot_compute"]
 FeasibilityStatus = Literal["ok", "cannot_calculate"]
@@ -530,6 +530,71 @@ class UrbanPanel(PanelBase):
     geometry: dict[str, Any] = Field(description="GeoJSON geometry, EPSG:4326")
 
 
+class BlockDetail(BaseModel):
+    id: int
+    block_ref: str = Field(description="The plan's own label of the block (Blok C, 12 …)")
+    zone: ZoneRef | None = None
+    area_m2: float | None = Field(default=None, description="Area of the drawn block, m²")
+
+
+class BlockDocument(DocumentRef):
+    """An adopted, live planning document whose coverage holds the block, most specific first."""
+
+    covered: bool = Field(default=True, description="Adopted, live, current, with coverage")
+
+
+class BlockCounts(BaseModel):
+    urban_parcels: int = Field(description="Planned parcels the plan puts in the block")
+    cadastral_parcels: int = Field(
+        description="Cadastral parcels whose point on surface lies in the block (0 while none "
+        "is loaded)"
+    )
+
+
+class BlockParameter(BaseModel):
+    """One of the four block-level figures the parameter heatmap draws (``choropleth_cells`` of
+    the current version): the rule that made it is stated, the value is null when the block's
+    parcels state nothing for it (the map's "no data" hatch)."""
+
+    key: Literal["max_site_coverage_pct", "max_far", "max_floors", "max_gfa_m2"]
+    layer: Literal["coverage", "far", "height", "gfa"] = Field(
+        description="The heatmap layer (tile source-layer heat_<layer>) the figure colours"
+    )
+    label_en: str
+    label_me: str
+    unit: str
+    rule_en: str
+    rule_me: str
+    value: float | None = None
+    label: str | None = Field(
+        default=None, description="height: the plan's floor notation of the tallest parcel"
+    )
+    parcel_count: int | None = Field(
+        default=None, description="Planned parcels of the block that state the field"
+    )
+
+
+class BlockPanel(PanelBase):
+    type: Literal["block"] = "block"
+    block: BlockDetail
+    header: ZoneHeader
+    documents: list[BlockDocument] = Field(
+        description="Adopted, live documents whose coverage holds the block's point on surface, "
+        "most specific first (the first is the governing one)"
+    )
+    counts: BlockCounts
+    parameters: list[BlockParameter] = Field(
+        description="coverage, far, height, gfa: the block's figures of the current publish "
+        "version, in that order; every row present, value null without a cell"
+    )
+    covered: bool = Field(description="False when no adopted, live plan covers the block")
+    coverage_note_en: str | None = None
+    coverage_note_me: str | None = None
+    centroid: LatLng = Field(description="A point inside the block (its point on surface)")
+    bbox: list[float] = Field(description="[min_lng, min_lat, max_lng, max_lat]")
+
+
 PanelResponse = Annotated[
-    ZonePanel | DocumentPanel | CadastralPanel | UrbanPanel, Field(discriminator="type")
+    ZonePanel | DocumentPanel | CadastralPanel | UrbanPanel | BlockPanel,
+    Field(discriminator="type"),
 ]

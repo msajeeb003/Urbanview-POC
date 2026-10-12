@@ -9,6 +9,7 @@ Everything runs on one server with Docker Compose (`deploy/compose.yml`):
 | `api` | the API (FastAPI, `backend/Dockerfile`) | `https://API_DOMAIN` |
 | `minio` | private file bucket (planning PDFs, map tiles, expert reports) | signed links on `https://FILES_DOMAIN` |
 | `worker` | background jobs: extraction, geometry, the publish job (tippecanoe), e-mails | internal |
+| `photon` | the search box's geocoder (Photon over the country's OpenStreetMap dump, `deploy/photon`) | internal |
 | `postgres` | PostgreSQL 16 + PostGIS | internal |
 | `redis` | job queue, caches, rate limiting | internal |
 | `migrate`, `storage-init` | one-shot: database migrations, bucket creation (every `up`) | — |
@@ -83,7 +84,11 @@ docker compose -f deploy/compose.yml --env-file deploy/.env up -d --build
 
 The first build takes about 10–15 minutes (Python images, tippecanoe from source, the Next.js
 build). `migrate` applies the database migrations before the API starts; Caddy gets the
-certificates on the first request to each name.
+certificates on the first request to each name. `photon` downloads the country's address dump
+(about 5 MB for Montenegro) and imports it on its first start, about a minute: until then the
+search box answers addresses with "No match" (parcel and zone searches never use it). It
+re-imports a fresh dump when the imported one is older than `PHOTON_REIMPORT_DAYS` (30) at a
+restart.
 
 Check:
 
@@ -125,6 +130,38 @@ bash /opt/urbanview/deploy/deploy.sh
 Pulls, rebuilds what changed, applies new migrations, restarts the changed services, removes old
 images. A change to a `NEXT_PUBLIC_*` value in `deploy/.env` also needs this (they are baked into
 the map at build time).
+
+## Moving to the production domain
+
+The site runs on sslip.io names until the real names exist. To move it (here to `urbanview.io`):
+
+1. **DNS** (whoever manages the domain's zone, Bluehost for urbanview.io): three A records to the
+   server's IPv4 (`2.28.35.224`): `urbanview.io` (or `@`), `api.urbanview.io`, `files.urbanview.io`,
+   plus `www.urbanview.io` (Caddy redirects it to the map). Lower the TTL to 300 s a day before.
+   Keep the mail records as they are (MX, SPF, the Brevo DKIM CNAMEs and `_dmarc`): the server
+   does not receive mail.
+2. **Mapbox:** a public token restricted to the sslip.io name would blank the map on the new
+   name: add `https://urbanview.io` to its allowed URLs in the Mapbox account first (the token in
+   use on 2026-10-13 was unrestricted, so nothing was needed then; restrict it to the final name
+   once the move is done).
+3. **Settings** in `deploy/.env`: `SITE_DOMAIN=urbanview.io`, `API_DOMAIN=api.urbanview.io`,
+   `FILES_DOMAIN=files.urbanview.io`, `GEOCODER_CONTACT=https://urbanview.io`; check
+   `SMTP_FROM` (`UrbanView <noreply@urbanview.io>`) and `ORDER_SUPPORT_EMAIL`.
+4. **Old names as redirects:** copy `deploy/caddy.d/legacy.caddy.example` to
+   `deploy/caddy.d/legacy.caddy` and put the sslip.io names in it, so links in e-mails sent before
+   the move (order pages, sign-in links) and bookmarks still land.
+5. **Rebuild and restart:** `bash deploy/deploy.sh` (the map's bundle carries the API's name, so
+   `web` is rebuilt), then `$dc up -d --force-recreate caddy minio` (Caddy requests the new
+   certificates, MinIO takes the new CORS origin). The first request to each name takes a few
+   seconds while the certificate is issued.
+6. **Check:** `curl -s https://api.urbanview.io/health`, open the map, pick a parcel (tiles come
+   from `files.urbanview.io`: a wrong CORS origin shows as a blank map with console errors), open a
+   PDF from a source chip, place a test order and read its e-mail (links point at the new name),
+   sign in to the console from the e-mailed link.
+
+Everything the server sends out (order e-mails, sign-in links, the public order page, the signed
+file links) is built from these three names at the moment of the request, so nothing else needs
+editing; orders placed before the move keep working through the redirects.
 
 ## Library versions
 
@@ -176,4 +213,9 @@ $dc run --rm api python -m core.staff list   # staff users
   rule allowing `GET` with `Range` from `https://SITE_DOMAIN` (exposing `Accept-Ranges`,
   `Content-Range`, `Content-Length`).
 - **Memory:** the Next.js and tippecanoe builds peak above 4 GB; the swap from `server-setup.sh`
-  covers it on a 4 GB server.
+  covers it on a 4 GB server. Photon's Java heap is `PHOTON_JAVA_OPTS` (default `-Xmx768m`; the
+  Montenegro index is small).
+- **Geocoder:** `photon` serves the country dump of OpenStreetMap, so an address is found exactly
+  as far as OpenStreetMap knows it (house numbers are mapped for part of Podgorica, not all). To
+  fall back to the public instance set `GEOCODER_BASE_URL=https://photon.komoot.io` and
+  `GEOCODER_TIMEOUT_MS=3000` in `deploy/.env` and `$dc up -d api`.

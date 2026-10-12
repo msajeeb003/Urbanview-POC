@@ -1,0 +1,13 @@
+# Redirects from names the site used before it moved to its own domain (the sslip.io names of
+# the test server, an old subdomain). Caddy imports every `*.caddy` file in this folder; copy this
+# file to `legacy.caddy`, put the old names in, restart caddy (`$dc restart caddy`). Links in
+# e-mails sent before the move, bookmarks and the old order pages then land on the new names.
+# Caddy obtains a certificate for each old name as long as its DNS still points here.
+
+map.203-0-113-10.sslip.io {
+	redir https://urbanview.example.com{uri} permanent
+}
+
+api.203-0-113-10.sslip.io {
+	redir https://api.urbanview.example.com{uri} permanent
+}

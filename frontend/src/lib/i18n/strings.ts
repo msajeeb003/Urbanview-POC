@@ -63,7 +63,7 @@ const en = {
   "layer.cadastre": "Cadastral parcels",
   "layer.planned": "Urban parcels",
   "layer.landuse": "Land use",
-  "layer.heatFAR": "FAR heatmap",
+  "layer.heatFAR": "Planning parameters heatmap",
   "layer.heatMkt": "Price heatmap",
   "rail.noData": "no data yet",
   "rail.zoomIn": "zoom in to see",
@@ -113,6 +113,8 @@ const en = {
   "legend.priceUnder": "under {v}",
   "legend.priceAbove": "{v} and above",
   "legend.priceUnit": "€/m² of floor area",
+  "legend.notClassified": "Not classified yet",
+  "legend.landUseOther": "Other land use",
   "zoneType.res": "Residential",
   "zoneType.com": "Commercial",
   "zoneType.mix": "Mixed use",
@@ -136,6 +138,10 @@ const en = {
   "empty.noParcel": "— no parcel at this point.",
   "empty.noPlan": "— no adopted plan published here yet.",
   "empty.outside": "— outside {name}.",
+  "empty.uncoveredTitle": "Not covered yet",
+  "empty.uncoveredBody":
+    "No adopted planning document is published for this location yet. The pin marks the point you picked.",
+  "empty.outsideBody": "This point lies outside {name}, which is the area UrbanView covers.",
   "empty.body":
     "Click a parcel or a plan area to see what can be built.",
   "empty.hint.parcel": "◆ click a parcel",
@@ -153,6 +159,8 @@ const en = {
 
   // panels: frame
   "panel.close": "Close the panel",
+  "panel.hide": "Hide the panel",
+  "panel.show": "Show the panel",
   "panel.loading": "Loading…",
   "panel.unavailable": "The planning data service is not answering. Try again in a moment.",
   "panel.retry": "Try again",
@@ -255,6 +263,8 @@ const en = {
   "asm.notAvailable": "not available",
   "asm.outOfRange": "Out of range: use {min}–{max}{unit}.",
   "asm.noMarket": "No market data for this zone yet.",
+  "asm.disabled":
+    "The sliders need this district's market figures (land, construction and sale rates), which are not entered yet. The planning figures above are not affected.",
   "asm.land": "Land {value}/m²",
   "asm.design": "design & documentation {value}/m²",
   "asm.marketData": "Market data: {source}",
@@ -262,6 +272,22 @@ const en = {
   "asm.appliesFrom": "applies from {date}",
   "asm.formula": "Formula {formula} · data version {version}",
   "asm.reset": "Reset to defaults",
+
+  // urban block panel
+  "block.eyebrow": "URBAN BLOCK",
+  "block.sect.plan": "Planning document",
+  "block.sect.counts": "In this block",
+  "block.sect.params": "Block parameters",
+  "block.zone": "Zone",
+  "block.area": "Block area",
+  "block.urbanParcels": "Urban parcels",
+  "block.cadastralParcels": "Cadastral parcels",
+  "block.paramsNote": "The figures the parameters heatmap colours this block by, each derived from the block's urban parcels as the plan states them.",
+  "block.noValue": "no data",
+  "block.parcelsStating": "{n} of the block's parcels state it",
+  "block.parcelStating": "1 of the block's parcels states it",
+  "block.hint": "Click an urban parcel in this block for its own parameters and feasibility.",
+  "block.noPlan": "No adopted planning document covers this block.",
 
   // parcel panels: buttons
   "cta.order": "Order expert analysis",
@@ -320,7 +346,7 @@ const me: Record<StringKey, string> = {
   "layer.cadastre": "Katastarske parcele",
   "layer.planned": "Urbanističke parcele",
   "layer.landuse": "Namjena površina",
-  "layer.heatFAR": "Toplotna mapa izgrađenosti",
+  "layer.heatFAR": "Toplotna mapa planskih parametara",
   "layer.heatMkt": "Toplotna mapa cijena",
   "rail.noData": "još nema podataka",
   "rail.zoomIn": "uvećajte prikaz",
@@ -369,6 +395,8 @@ const me: Record<StringKey, string> = {
   "legend.priceUnder": "ispod {v}",
   "legend.priceAbove": "{v} i više",
   "legend.priceUnit": "€/m² površine objekta",
+  "legend.notClassified": "Još nije klasifikovano",
+  "legend.landUseOther": "Ostala namjena",
   "zoneType.res": "Stanovanje",
   "zoneType.com": "Poslovanje",
   "zoneType.mix": "Mješovita namjena",
@@ -390,6 +418,10 @@ const me: Record<StringKey, string> = {
   "empty.noParcel": "— na ovoj tački nema parcele.",
   "empty.noPlan": "— ovdje još nije objavljen usvojeni plan.",
   "empty.outside": "— izvan obuhvata: {name}.",
+  "empty.uncoveredTitle": "Još nije pokriveno",
+  "empty.uncoveredBody":
+    "Za ovu lokaciju još nije objavljen usvojeni planski dokument. Oznaka pokazuje tačku koju ste izabrali.",
+  "empty.outsideBody": "Ova tačka je izvan obuhvata: {name}, područja koje UrbanView pokriva.",
   "empty.body":
     "Kliknite na parcelu ili obuhvat plana da vidite šta se može graditi.",
   "empty.hint.parcel": "◆ kliknite parcelu",
@@ -404,6 +436,8 @@ const me: Record<StringKey, string> = {
   "market.noted": "Hvala, zabilježili smo vaše interesovanje za više tržišnih podataka.",
 
   "panel.close": "Zatvori panel",
+  "panel.hide": "Sakrij panel",
+  "panel.show": "Prikaži panel",
   "panel.loading": "Učitavanje…",
   "panel.unavailable": "Servis s planskim podacima ne odgovara. Pokušajte ponovo za trenutak.",
   "panel.retry": "Pokušaj ponovo",
@@ -502,6 +536,8 @@ const me: Record<StringKey, string> = {
   "asm.notAvailable": "nije dostupno",
   "asm.outOfRange": "Izvan opsega: unesite {min}–{max}{unit}.",
   "asm.noMarket": "Za ovu zonu još nema tržišnih podataka.",
+  "asm.disabled":
+    "Klizači zahtijevaju tržišne podatke ovog područja (cijene zemljišta, gradnje i prodaje), koji još nisu unijeti. Planski podaci iznad nisu pogođeni.",
   "asm.land": "Zemljište {value}/m²",
   "asm.design": "projektovanje i dokumentacija {value}/m²",
   "asm.marketData": "Tržišni podaci: {source}",
@@ -509,6 +545,21 @@ const me: Record<StringKey, string> = {
   "asm.appliesFrom": "važi od {date}",
   "asm.formula": "Formula {formula} · verzija podataka {version}",
   "asm.reset": "Vrati podrazumijevano",
+
+  "block.eyebrow": "URBANISTIČKI BLOK",
+  "block.sect.plan": "Planski dokument",
+  "block.sect.counts": "U ovom bloku",
+  "block.sect.params": "Parametri bloka",
+  "block.zone": "Zona",
+  "block.area": "Površina bloka",
+  "block.urbanParcels": "Urbanističke parcele",
+  "block.cadastralParcels": "Katastarske parcele",
+  "block.paramsNote": "Pokazatelji po kojima toplotna mapa parametara boji ovaj blok, izvedeni iz urbanističkih parcela bloka onako kako ih plan navodi.",
+  "block.noValue": "nema podataka",
+  "block.parcelsStating": "navodi {n} parcela bloka",
+  "block.parcelStating": "navodi 1 parcela bloka",
+  "block.hint": "Kliknite urbanističku parcelu u ovom bloku za njene parametre i isplativost.",
+  "block.noPlan": "Nijedan usvojeni planski dokument ne pokriva ovaj blok.",
 
   "cta.order": "Naruči stručnu analizu",
   "cta.market": "Više tržišnih podataka",

@@ -1412,3 +1412,92 @@ async def test_panel_issues_one_statement_per_call(pg_app):
             statements.clear()
             assert (await client.get(PANEL, params={"type": "foo", "id": 1})).status_code == 422
             assert statements == []  # rejected before any database work
+
+
+# --- urban block (the client's review of 2026-10-12: a block that answered a click with nothing) --
+
+
+async def test_block_panel_c2_01(pg_client):
+    body = await _get(pg_client, type="block", id=1)
+    assert body["type"] == "block" and body["covered"] is True
+    block = body["block"]
+    assert (block["id"], block["block_ref"], block["zone"]) == (
+        1,
+        "C2-01",
+        {"id": 1, "name": "Centar"},
+    )
+    assert block["area_m2"] > 0
+    assert body["header"] == {
+        "title": "C2-01",
+        "subtitle_en": "Urban block of the plan",
+        "subtitle_me": "Urbanistički blok plana",
+    }
+    # the documents whose coverage holds the block, most specific first (the DUP inside the PUP)
+    assert [d["name"] for d in body["documents"]] == [DUP_C2, PUP]
+    assert all(d["covered"] and d["status"] == "adopted" for d in body["documents"])
+    # UP 12, 13, 31, 32 are in the block; UP 21 has no block
+    assert body["counts"]["urban_parcels"] == 4
+    assert body["counts"]["cadastral_parcels"] >= 3  # 1042, 1043, 1044 lie in it
+    # the four heatmap figures, in the panel's order; the sample has no heatmap cells (no publish
+    # job ran), so every value is null and says so, never a number made up
+    params = body["parameters"]
+    assert [p["layer"] for p in params] == ["coverage", "far", "height", "gfa"]
+    assert [p["key"] for p in params] == [
+        "max_site_coverage_pct",
+        "max_far",
+        "max_floors",
+        "max_gfa_m2",
+    ]
+    assert all(p["value"] is None and p["parcel_count"] is None for p in params)
+    assert all(p["rule_en"] and p["rule_me"] and p["label_en"] and p["label_me"] for p in params)
+    assert params[0]["unit"] == "%" and params[3]["unit"] == "m²"
+    assert body["coverage_note_en"] is None
+    # the point handed to the pin lies inside the block
+    assert body["bbox"][0] <= body["centroid"]["lng"] <= body["bbox"][2]
+    assert body["bbox"][1] <= body["centroid"]["lat"] <= body["bbox"][3]
+    assert body["data_version"] == "sample-2026-09-22" and body["formula_version"] == "poc-1"
+
+
+async def test_block_panel_sa_01_and_unknown_block(pg_client):
+    body = await _get(pg_client, type="block", id=2)
+    assert body["block"]["block_ref"] == "SA-01"
+    assert body["block"]["zone"]["name"] == "Stari Aerodrom"
+    assert [d["name"] for d in body["documents"]] == [DUP_SA]
+    assert body["counts"]["urban_parcels"] == 1  # UP 7
+    res = await pg_client.get(PANEL, params={"type": "block", "id": 999})
+    assert res.status_code == 404
+    assert res.json()["error"]["details"] == {"type": "block", "id": 999}
+
+
+async def test_block_panel_is_one_statement(pg_app, pg_client):
+    statements: list[str] = []
+
+    def record(conn, cursor, statement, parameters, context, executemany):  # noqa: ANN001
+        statements.append(statement)
+
+    engine = pg_app.state.engine.sync_engine
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        await _get(pg_client, type="block", id=1)
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+    assert len(statements) == 1 and "urban_blocks" in statements[0]
+
+
+def _outer_ring(geometry: dict[str, Any]) -> list[list[float]]:
+    if geometry["type"] == "MultiPolygon":
+        return geometry["coordinates"][0][0]
+    return geometry["coordinates"][0]
+
+
+async def test_served_centroids_lie_inside_their_parcels(pg_client):
+    """The pin lands inside the parcel: a point on surface, never a centroid that a concave shape
+    leaves outside (the client's review of 2026-10-12)."""
+    cad = await _get(pg_client, type="cadastral", id=1001)
+    urban = await _get(pg_client, type="urban", id=1)
+    for body in (cad, urban):
+        ring = _outer_ring(body["geometry"])
+        lngs = [p[0] for p in ring]
+        lats = [p[1] for p in ring]
+        assert min(lngs) < body["centroid"]["lng"] < max(lngs)
+        assert min(lats) < body["centroid"]["lat"] < max(lats)

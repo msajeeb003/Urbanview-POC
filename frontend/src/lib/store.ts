@@ -18,15 +18,15 @@ export interface LngLat {
   lat: number;
 }
 
-export type FeatureType = "cadastral" | "urban" | "document";
+export type FeatureType = "cadastral" | "urban" | "document" | "block";
 
 /**
  * What the visitor last looked up; panels read its resolution from the query cache.
  * - `point`: a map click on no feature, or an address suggestion (resolved through `/v1/locate`)
  * - `parcel`: a KO + parcel-number search (resolved through `/v1/locate/parcel`)
  * - `feature`: a selected map feature: cadastral parcel (`id` = Parcel ID), planned (urban)
- *   parcel, or planning-document coverage area; `linkedUrbanId` is the cadastral parcel's primary
- *   planned parcel, highlighted with it.
+ *   parcel, planning-document coverage area or urban block; `linkedUrbanId` is the cadastral
+ *   parcel's primary planned parcel, highlighted with it.
  * - `zone`: a zone picked in the search (framed) or clicked on the map; its panel is
  *   `/v1/panel?type=zone` and the map outlines it.
  */
@@ -57,9 +57,10 @@ export function highlightOf(selection: Selection | null): {
   cadastral: number | null;
   urban: number | null;
   document: number | null;
+  block: number | null;
   zone: number | null;
 } {
-  const none = { cadastral: null, urban: null, document: null, zone: null };
+  const none = { cadastral: null, urban: null, document: null, block: null, zone: null };
   if (selection?.kind === "zone") return { ...none, zone: selection.id };
   if (!selection || selection.kind !== "feature") return none;
   return {
@@ -67,6 +68,7 @@ export function highlightOf(selection: Selection | null): {
     cadastral: selection.type === "cadastral" ? selection.id : null,
     urban: selection.type === "urban" ? selection.id : selection.type === "cadastral" ? selection.linkedUrbanId : null,
     document: selection.type === "document" ? selection.id : null,
+    block: selection.type === "block" ? selection.id : null,
   };
 }
 
@@ -117,8 +119,16 @@ interface ShellState {
 
   view: "map" | "admin";
 
-  /** Panel removed from the layout (outside-coverage state). */
+  /**
+   * Panel removed from the layout. Since the client's review of 2026-10-12 nothing sets it: an
+   * uncovered location keeps the panel open and the panel itself says the place is not covered.
+   */
   panelHidden: boolean;
+  /**
+   * The visitor folded the panel away (its own toggle). A new selection unfolds it: whoever
+   * picks a parcel wants to read about it.
+   */
+  panelCollapsed: boolean;
 
   selection: Selection | null;
   pin: LngLat | null;
@@ -153,11 +163,16 @@ interface ShellState {
   setOrderDraft(patch: Partial<OrderDraft>): void;
   clearOrderDraft(): void;
   setPanelHidden(hidden: boolean): void;
+  setPanelCollapsed(collapsed: boolean): void;
   setSelection(selection: Selection | null): void;
   dropPin(point: LngLat | null): void;
   setCoords(point: LngLat | null): void;
   setCoverWarn(on: boolean): void;
-  /** Uncovered location: pill for 2.6 s with the panel closed, then the panel comes back. */
+  /**
+   * Uncovered location: the "Outside current coverage" pill for 2.6 s; the panel stays open and
+   * shows its not-covered state at once (the client's review of 2026-10-12: a click outside
+   * coverage must not close the sidebar).
+   */
   flashUncovered(reason: UncoveredReason): void;
   setFocus(focus: CameraFocus | null): void;
   setCamera(zoomLabel: string, scale: { label: string; widthPx: number }, zoom: number | null): void;
@@ -185,6 +200,7 @@ export const useShell = create<ShellState>()((set) => ({
   view: "map",
 
   panelHidden: false,
+  panelCollapsed: false,
 
   selection: null,
   pin: null,
@@ -218,7 +234,10 @@ export const useShell = create<ShellState>()((set) => ({
   setOrderDraft: (patch) => set((s) => ({ orderDraft: { ...s.orderDraft, ...patch } })),
   clearOrderDraft: () => set({ orderDraft: EMPTY_DRAFT }),
   setPanelHidden: (panelHidden) => set({ panelHidden }),
-  setSelection: (selection) => set({ selection }),
+  setPanelCollapsed: (panelCollapsed) => set({ panelCollapsed }),
+  // a new selection unfolds a panel the visitor had folded away
+  setSelection: (selection) =>
+    set((s) => ({ selection, panelCollapsed: selection && selection !== s.selection ? false : s.panelCollapsed })),
   dropPin: (pin) => set((s) => ({ pin, coords: pin ?? s.coords })),
   setCoords: (coords) => set({ coords }),
   setCoverWarn: (coverWarn) => {
@@ -230,10 +249,10 @@ export const useShell = create<ShellState>()((set) => ({
   },
   flashUncovered: (reason) => {
     if (uncoveredTimer) clearTimeout(uncoveredTimer);
-    set({ coverWarn: true, coverReason: reason, panelHidden: true });
+    set({ coverWarn: true, coverReason: reason, panelHidden: false, panelCollapsed: false });
     uncoveredTimer = setTimeout(() => {
       uncoveredTimer = null;
-      set({ coverWarn: false, panelHidden: false });
+      set({ coverWarn: false });
     }, UNCOVERED_FLASH_MS);
   },
   setFocus: (focus) => set({ focus }),

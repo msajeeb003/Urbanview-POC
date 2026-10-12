@@ -38,6 +38,65 @@ def document_status_label(status: str) -> Bilingual:
 # --- fixed labels --------------------------------------------------------------------------------
 
 ZONE_SUBTITLE = Bilingual("Internal city division", "Interna podjela grada")
+BLOCK_SUBTITLE = Bilingual("Urban block of the plan", "Urbanistički blok plana")
+BLOCK_NOT_COVERED_NOTE = Bilingual(
+    "No adopted planning document covers this block; its figures are shown for adopted "
+    "documents only.",
+    "Nijedan usvojeni planski dokument ne pokriva ovaj blok; njegovi podaci prikazuju se samo "
+    "za usvojene dokumente.",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class BlockParameterText:
+    key: str
+    layer: str
+    label: Bilingual
+    unit: str
+    rule: Bilingual
+
+
+# The four block-level figures of the parameter heatmap (core.choropleth), in the panel's order:
+# what each one is and the rule that made it from the block's planned parcels.
+BLOCK_PARAMETERS: tuple[BlockParameterText, ...] = (
+    BlockParameterText(
+        "max_site_coverage_pct",
+        "coverage",
+        Bilingual("Max site coverage (IZ)", "Maks. indeks zauzetosti (IZ)"),
+        "%",
+        Bilingual(
+            "area-weighted mean of the block's planned parcels that state it",
+            "površinski ponderisani prosjek urbanističkih parcela bloka koje ga navode",
+        ),
+    ),
+    BlockParameterText(
+        "max_far",
+        "far",
+        Bilingual("Floor area ratio (II)", "Indeks izgrađenosti (II)"),
+        "",
+        Bilingual(
+            "area-weighted mean of the block's planned parcels that state it",
+            "površinski ponderisani prosjek urbanističkih parcela bloka koje ga navode",
+        ),
+    ),
+    BlockParameterText(
+        "max_floors",
+        "height",
+        Bilingual("Max floors above ground", "Maks. nadzemnih etaža"),
+        "floors",
+        Bilingual("the tallest parcel of the block", "najviša parcela bloka"),
+    ),
+    BlockParameterText(
+        "max_gfa_m2",
+        "gfa",
+        Bilingual("Max gross floor area", "Maks. bruto građevinska površina"),
+        "m²",
+        Bilingual(
+            "sum of FAR × planned parcel area over the block's parcels",
+            "zbir indeksa izgrađenosti × površine urbanističke parcele za parcele bloka",
+        ),
+    ),
+)
 MARKET_PARAMETER_LABELS: dict[str, Bilingual] = {
     "land_rate_eur_m2": Bilingual("Land value per m²", "Vrijednost zemljišta po m²"),
     "build_rate_eur_m2": Bilingual("Construction cost per m² GFA", "Cijena gradnje po m² BGP"),

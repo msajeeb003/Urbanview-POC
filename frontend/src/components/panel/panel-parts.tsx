@@ -174,7 +174,7 @@ export function PanelUnavailable({ eyebrow, title, onRetry }: { eyebrow: ReactNo
  * whenever the ids change (another entity in the same variant) and on every new open.
  */
 export function usePanelViewed(
-  panelType: "zone" | "document" | "cadastral" | "urban",
+  panelType: "zone" | "document" | "cadastral" | "urban" | "block",
   ids: Record<string, number | undefined> | null,
 ) {
   const track = useTrack();

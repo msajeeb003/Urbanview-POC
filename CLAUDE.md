@@ -360,6 +360,34 @@ demand: the analytics districts place them by their point.
   the server as `ORDER_BANK_*`; the public site is the client's live POC, so a visitor's order
   is a real order and a transfer to it is a real payment (the client decides whether to keep a
   test site open with real bank details; the repository holds no account number).
+- **The client's review of the live POC (2026-10-12, 17 tasks; demo on urbanview.io wanted by
+  2026-10-20).** Fixed in code (2026-10-13): a click outside coverage keeps the panel open and
+  the panel says "Not covered yet" (2; the S6 pill still shows for 2.6 s, `flashUncovered` no
+  longer hides the panel); the visitor hides and shows the panel with a chevron tab, a new
+  selection unfolds it (3, `panelCollapsed`); the pin stays exactly where the visitor clicked, and
+  every served `centroid` (locate, the panels) is `ST_PointOnSurface`, a point inside the parcel,
+  not a centroid a concave shape leaves outside (4); the zones legend lists the types the drawn
+  zones have, with "Not classified yet" while a drawn zone has none (every zone in production
+  has `zone_type` null: the client's classification is pending), and the land-use legend names
+  its neutral "Other" colour (5); "FAR heatmap" is "Planning parameters heatmap" (6); the
+  assumption sliders say why they are disabled while a district has no market figures (7: Stara
+  Varoš has none, only Novi Grad's test set exists); addresses with house numbers come from a
+  **self-hosted Photon** over the Montenegro OpenStreetMap dump (8, compose service `photon`,
+  see "Geocoding": the public instance answered in 3-7 s, over the API's timeout, so the live
+  search had been saying "No match" for every address); faster wheel and trackpad zoom, no hit
+  tests while the camera moves, no store write per frame (9); an **urban block answers a click
+  with its own panel** (10, `GET /v1/panel?type=block`: documents, counts, the four heatmap
+  figures with their rules); the base map shows buildings, parks and land cover, a clear blue
+  water and road casings (11, `lib/map/basemap.ts`); the mock's own layout rules under 1100 px
+  and 860 px are back (12: narrower rail and panel, then both over the map and the legend hidden;
+  a phone layout stays outside the plan). **Server and DNS, not code (1):** moving to
+  `urbanview.io` is `deploy/README.md` "Moving to the production domain" (DNS at Bluehost, the
+  Mapbox token's allowed URLs, three settings, `deploy/caddy.d/legacy.caddy` for the sslip.io
+  redirects, `deploy.sh`); the Brevo DKIM CNAMEs and `_dmarc` exist since early October. **The
+  client's inputs:** zone types for the 11 zones, market figures per district (or the removal of
+  the Novi Grad test set before the demo), the cadastral export (13), the range sheets (14), the
+  support address; the ownership, restitution and planned-traffic layers (15-17) stay outside
+  the POC plan and were estimated, not built.
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
   POC plans are prepared from their parameter tables by the table reader and loaded as approved
   items (see "Prepared planning values"), not AI-extracted and not reviewed item by item by an
@@ -380,7 +408,9 @@ demand: the analytics districts place them by their point.
   correspondence is shown even when the click lands in land the plan takes for roads, and
   digitising slivers are ignored. Order: point match, governing document, largest overlap.
 - Parcel lookup: `ko` is required and case-insensitive; `number` may be `1042/3`; the reference
-  point is `ST_PointOnSurface` of the parcel; `centroid` is where the map pans.
+  point is `ST_PointOnSurface` of the parcel, and so is `centroid` (where the map pans and the pin
+  lands: a point inside the parcel; since 2026-10-13 never `ST_Centroid`, which a concave or
+  L-shaped parcel leaves outside; the key keeps its name for the clients).
 - **Planned parcel by number** `GET /v1/locate/urban-parcel?number=UP 40` (`UrbanParcelSearch`,
   2026-10-02: with no cadastral base loaded no parcel number could be searched at all): the
   planned parcels of adopted, live, current plans whose number matches without spaces, case and
@@ -396,7 +426,7 @@ demand: the analytics districts place them by their point.
 
 ## Information panel (`backend/api/services/panel.py`, `panel_sql.py`, `panel_text.py`)
 
-- `GET /v1/panel?type=zone|document|cadastral|urban&id=<int>` returns one payload per type
+- `GET /v1/panel?type=zone|document|cadastral|urban|block&id=<int>` returns one payload per type
   (`api/schemas/panel.py`, discriminated by `type`; the field-by-field contract is
   `docs/specs/panel-payload.md`, the reference for the frontend tickets). Optional overrides
   `saleable_share` ((0, 1]), `construction_cost_eur_m2` and `sale_price_eur_m2` ((0, 100 000])
@@ -532,6 +562,17 @@ demand: the analytics districts place them by their point.
   carries `adopted_on` (migration 0016, nullable, entered at registration: `DocumentIn.adopted_on`,
   not in the future; the sample has none). The profile's `terminology.document_types_en`
   gives the English type names the map shows (`DUP — Detailed urban plan`).
+- **Urban block panel** (`type=block`, 2026-10-13, the client's review: a block answered a click
+  with nothing): `block` {id, `block_ref`, zone, drawn `area_m2`}, `header` (the label, "Urban
+  block of the plan"), `documents` = the adopted, live, current documents whose coverage holds
+  the block's point on surface, most specific first (the governing one first), `counts`
+  {`urban_parcels` with `block_id` = the block, `cadastral_parcels` by point on surface},
+  `parameters` = the four figures the parameter heatmap colours the block by, read from the
+  current version's `choropleth_cells` (`coverage`, `far`, `height`, `gfa`, in that order: value,
+  unit, the height's notation `label`, `parcel_count`, bilingual label and the rule that made it;
+  `value` null without a cell, never a number made up), `covered` (= a document holds it),
+  `centroid` (point on surface), `bbox`. One statement (`BLOCK_SQL`); a block the plan never
+  drew is a 404. `panel_viewed {panel_type: block, block_id}`; blocks emit no `parcel_selected`.
 - **Amendments** are linked only by `planning_documents.amends_document_id` (set at ingestion,
   never by coverage intersection): the header lists the governing document, then its
   `in_progress` amendments; the document panel lists them as `amendments_in_progress`.
@@ -698,7 +739,16 @@ demand: the analytics districts place them by their point.
 - **The provider is configuration.** `GEOCODER_PROVIDER` picks an adapter from
   `core.geocode.PROVIDERS`: `photon` (default; OSM data, built for search-as-you-type) or
   `nominatim` (for a self-hosted instance via `GEOCODER_BASE_URL`; the public one forbids
-  autocomplete and allows one call per second). A Google adapter is a new module implementing
+  autocomplete and allows one call per second). **Production runs its own Photon** (2026-10-13,
+  the client's review: "search finds streets but not house numbers"; the public instance had
+  been answering in 3-7 s, over `GEOCODER_TIMEOUT_MS`, so every live address search said "No
+  match"): compose service `photon` (`deploy/photon`: Photon 1.3.0 on Java 21, the Montenegro
+  dump GraphHopper rebuilds weekly from OpenStreetMap, 5 MB, 43 130 places, imported on the first
+  start in under a minute and again when older than `PHOTON_REIMPORT_DAYS`; about 320 MB of
+  memory, answers in 50-200 ms), `GEOCODER_BASE_URL=http://photon:2322`, timeout 1 500 ms. House
+  numbers exist as far as OpenStreetMap maps them: 1 792 of the dump's 8 523 house-number places
+  are in Podgorica (3 038 named street segments); an unmapped number falls back to its street.
+  `GEOCODER_BASE_URL=https://photon.komoot.io` in `deploy/.env` returns to the public instance. A Google adapter is a new module implementing
   `GeocodeProvider` (`search(query, limit=, scope=)` → `GeocodeHit`s, `aclose()`), a registry
   entry and the literal in `core.config`. Every adapter maps its own taxonomy onto the compact
   vocabulary (`classify`, `compose_hit` in `core.geocode.base`); the service never sees

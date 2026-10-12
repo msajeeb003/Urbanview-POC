@@ -28,6 +28,12 @@ http://{$SERVER_IP} {
 	reverse_proxy web:3000
 }
 
+# www. in front of the map's name: the map itself (a certificate is issued for it too, so the
+# name must also point at the server; with sslip.io names it does by itself).
+www.{$SITE_DOMAIN} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}
+
 # The API (FastAPI). Caddy replaces any X-Forwarded-For the client sent, so the API's rate
 # limiter sees the real client address.
 {$API_DOMAIN} {
@@ -41,3 +47,7 @@ http://{$SERVER_IP} {
 {$FILES_DOMAIN} {
 	reverse_proxy minio:9000
 }
+
+# Names the site had before a domain move (redirects): deploy/caddy.d/*.caddy, none by default
+# (see legacy.caddy.example).
+import /etc/caddy/conf.d/*.caddy

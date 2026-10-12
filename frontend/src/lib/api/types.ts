@@ -22,7 +22,8 @@ export type ZonePanel = S["ZonePanel"];
 export type DocumentPanel = S["DocumentPanel"];
 export type CadastralPanel = S["CadastralPanel"];
 export type UrbanPanel = S["UrbanPanel"];
-export type Panel = ZonePanel | DocumentPanel | CadastralPanel | UrbanPanel;
+export type BlockPanel = S["BlockPanel"];
+export type Panel = ZonePanel | DocumentPanel | CadastralPanel | UrbanPanel | BlockPanel;
 export type PanelQuery = paths["/v1/panel"]["get"]["parameters"]["query"];
 
 

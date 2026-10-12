@@ -4,11 +4,13 @@
  * Map legend card (wireframe `.legend`, `renderLegend`): one group per layer that is on, from each
  * registry entry's `legend` (`lib/layers.ts`). Choropleth groups list the classes the API served
  * with the current tiles, coloured by the same functions the map uses, so legend and map match;
- * "No data" (hatch) appears when some cells have no value. A layer the map cannot draw right now
+ * "No data" (hatch) appears when some cells have no value. The zones group lists the types of
+ * the zones the map draws (the zone index), with "Not classified yet" for zones without one, and
+ * the land-use group names the neutral colour of an unclassed wording. A layer the map cannot draw right now
  * says why next to its title, from the same state as its rail card: "zoom in to see" (rows kept)
  * or "no data yet" (no rows). "No overlays active" when nothing is on.
  */
-import { useTilesCurrent } from "@/lib/api/hooks";
+import { useTilesCurrent, useZones } from "@/lib/api/hooks";
 import { useT } from "@/lib/i18n";
 import { legendGroups, type LegendMark } from "@/lib/layers";
 import { useLayerStates } from "@/lib/map/use-layer-states";
@@ -42,10 +44,11 @@ export function Legend() {
   const min = useShell((s) => s.legendMin);
   const toggle = useShell((s) => s.toggleLegend);
   const { data: tiles } = useTilesCurrent();
+  const { data: zoneIndex } = useZones();
   const states = useLayerStates(tiles);
   const t = useT();
 
-  const groups = legendGroups({ layers, choropleth, classes: tiles?.cell_classes, states, t });
+  const groups = legendGroups({ layers, choropleth, classes: tiles?.cell_classes, states, zones: zoneIndex?.zones, t });
 
   return (
     <div className={min ? "legend min" : "legend"} id="legend">

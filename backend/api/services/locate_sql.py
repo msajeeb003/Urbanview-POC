@@ -168,8 +168,8 @@ SELECT
         'ko_name', ko_name, 'street_address', street_address, 'area_m2', area_m2,
         'public_ownership', public_ownership,
         'restitution_or_legal_burden', restitution_or_legal_burden,
-        'centroid', jsonb_build_object('lat', ST_Y(ST_Centroid(geom)),
-                                       'lng', ST_X(ST_Centroid(geom))),
+        'centroid', jsonb_build_object('lat', ST_Y(ST_PointOnSurface(geom)),
+                                       'lng', ST_X(ST_PointOnSurface(geom))),
         'geometry', ST_AsGeoJSON(geom, 7)::jsonb)
      FROM cad) AS cadastral_parcel,
     (SELECT jsonb_build_object('id', id, 'name', name, 'type', type, 'status', status,

@@ -86,7 +86,7 @@ IPV4_RE = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
 IPV6_CANDIDATE_RE = re.compile(r"[0-9A-Fa-f:]{4,45}")
 
 SEARCH_KINDS = ("address", "click", "parcel_number")
-PANEL_TYPES = ("zone", "document", "cadastral", "urban")
+PANEL_TYPES = ("zone", "document", "cadastral", "urban", "block")
 # What a point search, map click, parcel lookup or zone pick found (`search_performed.coverage`):
 # a parcel / plan feature inside coverage, covered land without a parcel, a place no adopted plan
 # covers (the S6 "outside current coverage" hit), or a lookup that failed.

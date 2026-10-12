@@ -36,22 +36,29 @@ describe("wireframe base map over the light style", () => {
     return c && "paint" in c ? c.paint : undefined;
   };
 
-  it("paints the land, the river and the roads in the mock's colours", () => {
+  it("paints the land, a clear blue water and white / cream roads with a casing", () => {
     expect(paint("land")).toEqual({ "background-color": BASEMAP_COLOURS.land });
-    expect(paint("water")).toEqual({ "fill-color": "#BCCEC8", "fill-opacity": 0.85 });
-    expect(paint("waterway")).toEqual({ "line-color": "#A4B9B2" });
+    expect(paint("water")).toEqual({ "fill-color": BASEMAP_COLOURS.water, "fill-opacity": 1 });
+    expect(paint("waterway")).toEqual({ "line-color": BASEMAP_COLOURS.waterLine });
     for (const id of ["road-simple", "bridge-simple", "tunnel-simple"]) {
       const colour = paint(id)?.["line-color"] as unknown[];
       expect(colour[0]).toBe("match");
       expect(colour.at(-2)).toBe("#FFFFFF"); // major classes white
-      expect(colour.at(-1)).toBe("#F2EBDC"); // everything else cream
+      expect(colour.at(-1)).toBe(BASEMAP_COLOURS.minorRoad); // everything else cream
       expect(colour[2]).toContain("primary");
     }
-    expect(paint("road-pedestrian")).toEqual({ "line-color": "#F2EBDC" });
+    expect(paint("bridge-case-simple")).toEqual({ "line-color": BASEMAP_COLOURS.roadCase });
+    expect(paint("road-pedestrian")).toEqual({ "line-color": BASEMAP_COLOURS.minorRoad });
   });
 
-  it("hides buildings, land cover, points of interest and footpaths; keeps place and street labels", () => {
-    for (const id of ["building", "landuse", "national-park", "land-structure-polygon", "aeroway-polygon", "poi-label", "airport-label", "road-path", "road-steps", "tunnel-path-trail"]) {
+  it("shows buildings and green areas (the client's review); hides points of interest and footpaths; keeps labels", () => {
+    expect(paint("building")).toMatchObject({ "fill-color": BASEMAP_COLOURS.building });
+    const landuse = paint("landuse")?.["fill-color"] as unknown[];
+    expect(landuse[0]).toBe("match");
+    expect(landuse[2]).toContain("park");
+    expect(landuse.at(-2)).toBe(BASEMAP_COLOURS.green);
+    expect(paint("national-park")).toMatchObject({ "fill-color": BASEMAP_COLOURS.greenLight });
+    for (const id of ["land-structure-polygon", "aeroway-polygon", "poi-label", "airport-label", "road-path", "road-steps", "tunnel-path-trail"]) {
       expect(changes.get(id), id).toEqual({ id, hide: true });
     }
     for (const id of ["road-label-simple", "settlement-major-label", "admin-0-boundary"]) {

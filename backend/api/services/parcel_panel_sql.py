@@ -194,8 +194,8 @@ SELECT
         'ko_name', ko_name, 'street_address', street_address, 'area_m2', area_m2,
         'public_ownership', public_ownership,
         'restitution_or_legal_burden', restitution_or_legal_burden,
-        'centroid', jsonb_build_object('lat', ST_Y(ST_Centroid(geom)),
-                                       'lng', ST_X(ST_Centroid(geom))),
+        'centroid', jsonb_build_object('lat', ST_Y(ST_PointOnSurface(geom)),
+                                       'lng', ST_X(ST_PointOnSurface(geom))),
         'bbox', jsonb_build_array(ST_XMin(geom), ST_YMin(geom), ST_XMax(geom), ST_YMax(geom)))
      FROM cad) AS cadastral,
     (SELECT {_document_ref("doc")} FROM doc) AS governing_document,
