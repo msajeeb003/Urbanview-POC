@@ -11,6 +11,7 @@
  * block there. Inside coverage a heatmap cell without a value gets the "no data yet" hatch.
  */
 import type { TilesCurrent } from "@/lib/api/types";
+import { BASEMAP_COLOURS } from "@/lib/map/basemap";
 import {
   LAND_USE_OTHER_COLOUR,
   ZONE_TYPES,
@@ -42,6 +43,11 @@ export interface LayerSpec {
   filter?: Expr;
   layout?: Record<string, unknown>;
   paint?: Record<string, unknown>;
+  /**
+   * Where the layer goes in the base style: under its labels (the default: above the roads) or
+   * right above its buildings (`above-buildings`: under the roads, so the streets stay on top).
+   */
+  placement?: "above-buildings";
 }
 
 const NEUTRAL = "#B3A894";
@@ -77,8 +83,29 @@ function layer(id: string, type: LayerSpec["type"], sourceLayer: string, rest: P
   return { id, type, source: SOURCE_ID, "source-layer": sourceLayer, ...rest };
 }
 
+/** The base map's buildings appear from this zoom (Mapbox's light style). */
+export const BUILDINGS_MIN_ZOOM = 15;
+
 /** Bottom to top. Line dash lengths are in line widths (the wireframe's SVG dashes ÷ stroke width). */
 const BASE_LAYERS: readonly LayerSpec[] = [
+  // The plan's own ground (2026-10-13, the client's review): inside a plan whose drawing states its
+  // existing buildings, the base map's OpenStreetMap buildings (2-3 m off the planned parcels, no
+  // rigid shift fits them all) are painted over in the land colour and the plan's own footprints
+  // drawn instead, in the base map's building colours, so parcels and buildings come from one
+  // drawing and match. Both sit right above the base style's `building` layer (`placement`), so the
+  // streets and labels stay on top and water is moved back over the ground (`installTiles`).
+  layer("uv-plan-ground", "fill", "plan_buildings", {
+    minzoom: BUILDINGS_MIN_ZOOM,
+    filter: ["==", ["get", "kind"], "ground"],
+    placement: "above-buildings",
+    paint: { "fill-color": BASEMAP_COLOURS.land, "fill-opacity": 1 },
+  }),
+  layer("uv-plan-buildings", "fill", "plan_buildings", {
+    minzoom: BUILDINGS_MIN_ZOOM,
+    filter: ["==", ["get", "kind"], "building"],
+    placement: "above-buildings",
+    paint: { "fill-color": BASEMAP_COLOURS.building, "fill-opacity": 0.75, "fill-outline-color": BASEMAP_COLOURS.roadCase },
+  }),
   // zones (covered only): type colour at 24 %, boundary at 40 %
   layer("uv-zones-fill", "fill", "zones", { filter: COVERED, paint: { "fill-color": zoneColour, "fill-opacity": 0.24 } }),
   layer("uv-zones-line", "line", "zones", {
@@ -194,7 +221,7 @@ export const HIT_LAYERS = {
 /** Map layers each rail toggle shows or hides. Core layers are always visible. */
 export const LAYER_GROUPS: Record<LayerId, readonly string[]> = {
   docareas: ["uv-doc-fill", "uv-doc-line", "uv-doc-hover-fill", "uv-doc-hover-line", "uv-doc-sel-fill", "uv-doc-sel-line"],
-  base: [],
+  base: ["uv-plan-ground", "uv-plan-buildings"],
   zones: ["uv-zones-fill", "uv-zones-line", "uv-zones-sel-line", "uv-zones-label"],
   blocks: ["uv-blocks-fill", "uv-blocks-line", "uv-blocks-hover-line", "uv-blocks-sel-line", "uv-blocks-label"],
   cadastre: ["uv-cad-fill", "uv-cad-line", "uv-cad-hover-line", "uv-cad-sel-glow", "uv-cad-sel-line"],

@@ -53,6 +53,8 @@ CONTRACT_LAYERS = {
     "urban_blocks": "urban_blocks",
     "planned_land_use": "planned_land_use",
     "land_use": "planned_land_use",
+    "existing_buildings": "existing_buildings",
+    "plan_buildings": "existing_buildings",
 }
 # attribute names the stage reads, matched without regard to case
 CONTRACT_FIELDS = ("urban_parcel_number", "block_ref", "code", "name", "feature_key")

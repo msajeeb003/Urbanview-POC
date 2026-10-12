@@ -367,7 +367,14 @@ demand: the analytics districts place them by their point.
   selection unfolds it (3, `panelCollapsed`); the pin stays exactly where the visitor clicked, and
   every served `centroid` (locate, the panels) is `ST_PointOnSurface`, a point inside the parcel,
   not a centroid a concave shape leaves outside (4; the same day both plans were moved onto the
-  base map's buildings, 2-3 m: see "Georeferencing"); the zones legend lists the types the drawn
+  base map's buildings, 2-3 m, and, since a shift aligns them on average only (2.2 m per building
+  remained), **inside a plan the map paints the plan's own ground and draws the plan's own
+  existing buildings in place of OpenStreetMap's**: the extraction's fifth target layer
+  `existing_buildings` (Novi Grad's building outlines by `polygonize`, Stara Varoš's hatch by
+  the new `hatch` method), staged as `plan_buildings`, published as the tile layer
+  `plan_buildings` (`ground` + `building` features, data version 16), drawn by `uv-plan-ground`
+  / `uv-plan-buildings` right above the base style's buildings: see "Georeferencing" and
+  `docs/gis/georeferencing.md`); the zones legend lists the types the drawn
   zones have, with "Not classified yet" while a drawn zone has none (every zone in production
   has `zone_type` null: the client's classification is pending), and the land-use legend names
   its neutral "Other" colour (5); "FAR heatmap" is "Planning parameters heatmap" (6); the
@@ -870,7 +877,8 @@ demand: the analytics districts place them by their point.
   `GeometryRunner`): a GIS drawing of a current document version (GeoPackage, GeoJSON, zipped
   Shapefile: a QGIS redraw or the plan's official GIS) is read with GDAL, its contract layers
   (`plan_boundary`, `urban_parcels` with `urban_parcel_number` / `block_ref`, `urban_blocks`,
-  `planned_land_use`; also the staged names `document_coverage`, `land_use`; a single-layer file
+  `planned_land_use`, `existing_buildings`; also the staged names `document_coverage`,
+  `land_use`, `plan_buildings`; a single-layer file
   is named by its file name) reprojected from the file's CRS (else the profile's
   `source_crs_epsg`) and staged through georeferencing's `stage_document` (snapping, validation,
   batches; source `gis_file`, method `native`, no fit); a refused dataset is recorded `invalid`
@@ -1702,7 +1710,13 @@ demand: the analytics districts place them by their point.
   published land use, else from its staged polygon), with their own `category`, else the class
   of their name or code; an unclassed wording has no `category` and takes the layer's neutral
   colour; 2026-10-02: before, every
-  feature was the neutral colour because nothing wrote a category), `heat_coverage`,
+  feature was the neutral colour because nothing wrote a category), `plan_buildings`
+  (2026-10-13, the client's review: one `ground` feature per live document whose drawing states
+  its existing buildings, its coverage area, and one `building` feature per footprint of the
+  generic layer `plan_buildings` inside live coverage; the map paints the ground in the land
+  colour over the base map's OpenStreetMap buildings and draws the footprints in their place, so
+  inside a plan parcels and buildings come from one drawing; a plan without a building layer
+  keeps the base map's buildings), `heat_coverage`,
   `heat_far`, `heat_height`,
   `heat_gfa` (every covered urban block), `heat_sale_price` (every covered zone): the heatmaps;
   outside coverage the archive carries no cell (S6: the base map alone). Empty
@@ -1974,6 +1988,23 @@ demand: the analytics districts place them by their point.
   and `tests/integration/test_georef_postgis.py` (CLI through staging on seeded parcel 1001:
   snapped / near miss / re-parcelled vertices, dataset row, admin summary, publish, re-run digest,
   refusals, systematic offset, land-use carry-forward).
+
+- **The plan's own buildings (2026-10-13, the client's review):** a rigid shift aligns a plan
+  to OpenStreetMap on average only (a median 2.2 m per building remained after version 15, no
+  rotation or scale pattern), so inside a plan the map draws the plan's own existing buildings
+  instead of the base map's. The extraction's fifth target layer `existing_buildings`
+  (`TARGET_LAYERS`, `STAGED_AS` → `plan_buildings`; `LayerRule.method: hatch`, new, for plans
+  that hatch their buildings: grow by `gap_mm`, union, simplify by the same distance, shrink
+  back, `geometry.hatch_faces`; copies on two sheets united, `_union_copies`; keys
+  `building-NNNN`) is staged by `stage.GENERIC` as the generic layer `plan_buildings` (one batch
+  per document, carried like `land_use`) and published by the catalogue's `plan_buildings` tile
+  layer (`ground` + `building` features, see "Publish pipeline"). Novi Grad: `polygonize` of
+  OBJEKTI-POSTOJECI + OBJEKTI-GARAZE, 132 footprints, 55 of the 93 parcels coincide with one
+  (IoU ≥ 0.98), 98.5 % of the footprint area inside planned parcels; Stara Varoš: `hatch` of
+  the model's UP-Objekti hatch / pomocni hatch / UP-OBJEKTI at `gap_mm: 0.8`, 313 footprints,
+  99.4 % inside parcels. Planned, demolished and temporary buildings are not drawn.
+  `docs/gis/georeferencing.md`, "The plan's own buildings"; tests `test_gis_extract.py`
+  (`hatch_faces`, the hatch rule), `test_publish_unit.py`, `test_publish_postgis.py`.
 
 ## GIS track: geometry assessment (`backend/core/gis/`, `docs/gis/`)
 

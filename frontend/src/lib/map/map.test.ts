@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_LAYER_STATE } from "@/lib/layers";
+import type { TilesCurrent } from "@/lib/api/types";
+import { DEFAULT_LAYER_STATE, sourceLayerMissing } from "@/lib/layers";
+import { BASEMAP_COLOURS } from "@/lib/map/basemap";
 import { UNCOVERED_FLASH_MS, highlightOf, useShell } from "@/lib/store";
 import { readParcelParam, withParcelParam } from "@/lib/url-state";
 
 import { geometryCentre, pickFeature } from "./pick";
 import { UrbanViewTileProvider, parseSourceUrl, type ArchiveReader, type TilePointer } from "./pmtiles-provider";
-import { HIT_LAYERS, LAYER_GROUPS, NONE, UV_LAYERS, hatchImage, highlightFilters, visibleLayerIds } from "./style";
+import { BUILDINGS_MIN_ZOOM, HIT_LAYERS, LAYER_GROUPS, NONE, UV_LAYERS, hatchImage, highlightFilters, visibleLayerIds } from "./style";
 import { hasArchive, sourceUrl } from "./tiles";
 
 /** Source-layers of the publish catalogue (backend/jobs/publish_layers.py LAYERS). */
@@ -23,6 +25,7 @@ const CATALOGUE = new Set([
   "heat_height",
   "heat_gfa",
   "heat_sale_price",
+  "plan_buildings",
 ]);
 
 const square = (x: number, y: number, s = 1) => ({
@@ -69,6 +72,29 @@ describe("style", () => {
     for (const id of Object.values(HIT_LAYERS)) expect(ids).toContain(id);
     const grouped = Object.values(LAYER_GROUPS).flat();
     expect(new Set(grouped)).toEqual(new Set(ids)); // every layer follows exactly one rail toggle
+  });
+
+  it("paints the plan's own ground and footprints above the base map's buildings, from the zoom they appear", () => {
+    const ground = UV_LAYERS.find((l) => l.id === "uv-plan-ground")!;
+    const buildings = UV_LAYERS.find((l) => l.id === "uv-plan-buildings")!;
+    for (const l of [ground, buildings]) {
+      expect(l["source-layer"]).toBe("plan_buildings");
+      expect(l.placement).toBe("above-buildings");
+      expect(l.minzoom).toBe(BUILDINGS_MIN_ZOOM);
+    }
+    expect(ground.filter).toEqual(["==", ["get", "kind"], "ground"]);
+    expect(ground.paint).toEqual({ "fill-color": BASEMAP_COLOURS.land, "fill-opacity": 1 });
+    expect(buildings.filter).toEqual(["==", ["get", "kind"], "building"]);
+    expect(buildings.paint).toMatchObject({ "fill-color": BASEMAP_COLOURS.building });
+    // every other layer sits under the base map's labels
+    for (const l of UV_LAYERS) if (!l.id.startsWith("uv-plan-")) expect(l.placement, l.id).toBeUndefined();
+    // both follow the base-map card, which is always on
+    expect(visibleLayerIds(DEFAULT_LAYER_STATE).has("uv-plan-ground")).toBe(true);
+    // an archive published before the layer existed does not list it: nothing is drawn for it
+    const older = { status: "published", layers: [{ id: "zones", features: 3, min_zoom: 9, max_zoom: 16 }] } as unknown as TilesCurrent;
+    expect(sourceLayerMissing("plan_buildings", older)).toBe(true);
+    expect(sourceLayerMissing("zones", older)).toBe(false);
+    expect(sourceLayerMissing("plan_buildings", { status: "unpublished", layers: [] } as unknown as TilesCurrent)).toBe(false);
   });
 
   it("colours zones by type at 24 % and draws covered zones only", () => {

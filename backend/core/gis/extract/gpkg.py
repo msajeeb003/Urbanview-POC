@@ -52,6 +52,7 @@ LAYER_COLUMNS: dict[str, tuple[tuple[str, str], ...]] = {
         ("urban_parcel_number", "TEXT"),
         ("area_m2", "REAL"),
     ),
+    "existing_buildings": (("area_m2", "REAL"),),
 }
 JSON_COLUMNS = {"source_paths", "source_bbox", "label_bbox"}
 

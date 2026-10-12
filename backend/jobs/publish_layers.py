@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core.coverage import ZONE_COVERED, point_covered
+from core.coverage import LIVE_DOCUMENT, ZONE_COVERED, point_covered
 
 # --- exported layers -----------------------------------------------------------------------------
 
@@ -291,6 +291,52 @@ LAYERS: tuple[LayerSpec, ...] = (
         "polygon is keyed '<document id>|<urban parcel number>', as the georeferencing stages "
         "it), with their own category, else the class of their name or code",
     ),
+    LayerSpec(
+        "plan_buildings",
+        "polygon",
+        13,
+        16,
+        f"""
+        WITH buildings AS (
+            SELECT f.id, f.geom, f.feature_key,
+                   CAST(f.properties->>'document_id' AS bigint) AS document_id,
+                   f.properties->>'dataset_version' AS dataset_version
+            FROM layer_features f
+            WHERE f.municipality_id = :m AND f.publish_version_id = :v
+              AND f.layer_id = 'plan_buildings' AND {point_covered("f.geom")}
+        ),
+        features AS (
+            SELECT 1 AS ord, b.id, {
+            _feature(
+                "b.id",
+                "b.geom",
+                "jsonb_strip_nulls(jsonb_build_object('id', b.id, 'kind', 'building',"
+                " 'feature_key', b.feature_key, 'document_id', b.document_id,"
+                " 'dataset_version', b.dataset_version))",
+            )
+        } AS feature
+            FROM buildings b
+            UNION ALL
+            SELECT 0 AS ord, d.id, {
+            _feature(
+                "d.id",
+                "d.coverage_geom",
+                "jsonb_build_object('id', d.id, 'kind', 'ground', 'document_id', d.id)",
+            )
+        } AS feature
+            FROM planning_documents d
+            WHERE d.municipality_id = :m AND {LIVE_DOCUMENT}
+              AND EXISTS (SELECT 1 FROM buildings b WHERE b.document_id = d.id)
+        )
+        SELECT feature FROM features ORDER BY ord, id
+        """,
+        "The plan's own ground inside live coverage (2026-10-13, the client's review): one "
+        "`ground` feature per live document whose drawing states its existing buildings (its "
+        "coverage area: the map paints it in the land colour over the base map's OpenStreetMap "
+        "buildings) and one `building` feature per footprint the extraction read from that "
+        "drawing (`existing_buildings`, staged as `plan_buildings`), so inside a plan the "
+        "footprints and the planned parcels come from one drawing and match",
+    ),
     *(
         LayerSpec(
             f"heat_{layer}",
@@ -412,6 +458,12 @@ STAGED_LAYERS: dict[str, StagedLayer] = {
         ),
         StagedLayer("document_coverage", "entity", "document_id", ("document_id",)),
         StagedLayer("land_use", "generic", "any stable id", ("code", "name", "category")),
+        StagedLayer(
+            "plan_buildings",
+            "generic",
+            "<document id>|<building key>",
+            ("document_id", "dataset_version"),
+        ),
     )
 }
 GENERIC_LAYER_IDS: tuple[str, ...] = tuple(

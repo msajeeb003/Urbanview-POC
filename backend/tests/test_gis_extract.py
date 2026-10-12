@@ -520,6 +520,49 @@ def test_hole_faces_cut_out_a_parcel_drawn_inside_another() -> None:
     assert square.intersection(kiosk).area == pytest.approx(0, abs=1e-3)
 
 
+def _hatched(box: Polygon, pitch_m: float = 0.55) -> list[LineString]:
+    """The box hatched at 45 degrees with lines ``pitch_m`` apart (Stara Varos: 1.1 mm at 1:500)."""
+    x0, y0, x1, y1 = box.bounds
+    lines = []
+    k = x0 - (y1 - y0) - pitch_m
+    while k < x1 + pitch_m:
+        piece = LineString([(k - 1, y0 - 1), (k + (y1 - y0) + 1, y1 + 1)]).intersection(box)
+        if not piece.is_empty:
+            lines.append(piece)
+        k += pitch_m * 2**0.5  # perpendicular spacing pitch_m between lines x - y = k
+    return lines
+
+
+def test_hatch_faces_melt_the_lines_of_a_building_into_its_footprint() -> None:
+    house = Polygon([(0, 0), (20, 0), (20, 10), (0, 10)])
+    shed = Polygon([(20.5, 0), (30, 0), (30, 10), (20.5, 10)])  # 0.5 m away: closes with the house
+    other = Polygon([(33, 0), (53, 0), (53, 10), (33, 10)])  # 3 m away: its own footprint
+    faces = G.hatch_faces(_hatched(house) + _hatched(shed) + _hatched(other), 0.4)
+    assert len(faces) == 2
+    first, second = sorted(faces, key=lambda f: f.bounds[0])
+    passage = Polygon([(20, 0), (20.5, 0), (20.5, 10), (20, 10)])
+    for face, drawn in ((first, house.union(shed).union(passage)), (second, other)):
+        # the outline lands where the hatch ends: never outside the drawn building, over 95 % of
+        # it covered (the hatch never reaches into a corner: a chamfer under a pitch), walls
+        # within 0.2 m, no saw-tooth left (a handful of vertices)
+        assert face.within(drawn.buffer(0.05))
+        assert face.area > 0.95 * drawn.area
+        assert face.hausdorff_distance(drawn) < 0.7
+        assert len(face.exterior.coords) < 20
+    for pt in ((10, 0), (10, 10), (0, 5), (43, 0), (53, 5)):
+        assert first.exterior.distance(Point(pt)) < 0.2 or second.exterior.distance(Point(pt)) < 0.2
+    assert G.hatch_faces([], 0.4) == []
+
+
+def test_hatch_rule_needs_its_gap() -> None:
+    with pytest.raises(ValidationError, match="gap_mm"):
+        LayerRule(method="hatch", select=[Selector(layer="UP-Objekti hatch")])
+    with pytest.raises(ValidationError, match="select"):
+        LayerRule(method="hatch", gap_mm=0.8)
+    rule = LayerRule(method="hatch", select=[Selector(layer="UP-Objekti hatch")], gap_mm=0.8)
+    assert rule.method == "hatch"
+
+
 def test_a_label_on_the_line_two_faces_share_goes_to_the_face_no_label_names() -> None:
     faces = [
         Polygon([(0, 0), (10, 0), (10, 10), (0, 10)]),
@@ -575,11 +618,12 @@ def test_geopackage_round_trip(tmp_path: Path, extraction) -> None:
         "urban_parcels": 4,
         "urban_blocks": 1,
         "planned_land_use": 1,
+        "existing_buildings": 0,  # every target layer is written, empty ones too
     }
     con = sqlite3.connect(path)
     assert con.execute("PRAGMA application_id").fetchone()[0] == APPLICATION_ID
     types = dict(con.execute("SELECT table_name, geometry_type_name FROM gpkg_geometry_columns"))
-    assert set(types.values()) == {"MULTIPOLYGON"} and len(types) == 4
+    assert set(types.values()) == {"MULTIPOLYGON"} and len(types) == 5
     blob = con.execute("SELECT geom FROM urban_parcels ORDER BY fid LIMIT 1").fetchone()[0]
     con.close()
     assert blob[:2] == b"GP" and parse_blob(blob).geom_type == "MultiPolygon"

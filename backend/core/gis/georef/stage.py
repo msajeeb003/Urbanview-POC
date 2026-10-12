@@ -40,7 +40,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.geometry_qa import GEOREF_ORIGINS, run_batches_qa
 
 SNAPPED = ("urban_parcels", "urban_blocks")
-GENERIC = (("planned_land_use", "land_use"),)
+GENERIC = (("planned_land_use", "land_use"), ("existing_buildings", "plan_buildings"))
 NEAR_FACTOR = 3.0
 SAMPLES = 20
 OFFSET_MIN_SAMPLES = 5  # vertices near the cadastre needed to judge a systematic offset

@@ -20,7 +20,7 @@ sheets:
     sha256: d250b2a53e4ad5ba09df3d2fbd9fdda99d3b6140dae9d396030c13ed1d2a7eca
     # the viewport says 1:500; the 40 grid crosses (X-GEO_SV$0$MREZA) are 200 mm apart, 100 m
     scale: 500
-    layers: [urban_parcels]
+    layers: [urban_parcels, existing_buildings]
   - id: part-2
     file: 03 Stara Varoš/03 Stara Varoš - Urban parcels - Boundaries - Part 2.pdf
     sha256: e43d60c014aefd48ca9afd326778cd2e53b2af57b4695d4868491a1a907baa21
@@ -28,7 +28,7 @@ sheets:
     # `offset --base part-1 --sheet part-2 --pdf-layer '^UP_Urbanisticka parcela_SS$'` (1114 of
     # 1000 sampled vertices agree); the grid crosses of both sheets agree to 1 cm
     offset_m: [-81.195, -368.702]
-    layers: [urban_parcels]
+    layers: [urban_parcels, existing_buildings]
   - id: land-use
     file: 03 Stara Varoš/03 Stara Varoš - Land use.pdf
     sha256: dbf9a7259d36f7b1ce09e4261bd6fbcaa502598f525388d8c0bb4655e0dd2b3f
@@ -116,6 +116,26 @@ layers:
 # land-use cell of TS 5) and the parcel area on the next line apart. 560 parcels; the drawing
 # also numbers 16 parcels the table does not list: nine of public green (PUJ), the Sahat kula
 # clock tower and its square (C5472/2, C5472/3) and the transformer stations TS 3, 4, 6, 7, 8.
+  # The buildings that stand, as the plan draws them (2026-10-13, the client's review; see the
+  # Novi Grad rules): hatched at 45 degrees on the model's UP-Objekti hatch (lines 1.1 mm
+  # apart: 9 106 on part 1, 8 010 on part 2; UP-OBJEKTI holds 139 more lines of the same
+  # hatch) and, for the auxiliary buildings (sheds, garages), UP-Objekti pomocni hatch (0.5 mm
+  # apart). Grown by 0.8 mm (0.4 m) and shrunk back, the lines of one building melt into its
+  # footprint, whose outline is where the hatch ends (the saw-tooth the round line ends leave
+  # is simplified away: `hatch_faces` in core.gis.extract.geometry). Buildings that share a
+  # wall, or stand less than 0.8 m apart, are one footprint. Left out: UP-Planirani objekti
+  # (planned buildings: solid fills and a 3.7 mm hatch), the legend samples (the layers
+  # without the xref prefix) and the protection plan's copy (08_Plan mjera ... $0$ ...). A
+  # building the parts' overlap shows twice, or one part's frame cuts, is one footprint.
+  existing_buildings:
+    method: hatch
+    select:
+      - {layer: "X-GEO_SV$0$UP-Objekti hatch"}
+      - {layer: "X-GEO_SV$0$UP-Objekti pomocni hatch"}
+      - {layer: "X-GEO_SV$0$UP-OBJEKTI"}
+    gap_mm: 0.8
+    min_area_m2: 6
+
 expected_parcels:
   pdf: 03 Stara Varoš/03 Stara Varoš - Urban parcels - Planning parameters.pdf
   sha256: 52ffc242b7cceb7ab97a6aa095f3879082ac3b049c0d3a00a19c43b0ffaf2066

@@ -218,7 +218,16 @@ Planned traffic (an MVP layer; not published).
   covered ones only (`covered: false` parcels are neither drawn, hovered nor outlined when
   selected; the archive carries no heatmap cell or block outside coverage either: S6 check
   2026-09-29); dashed
-  planned parcels; block boundaries and refs (z15+); context overlays; hover layers (cursor
+  planned parcels; block boundaries and refs (z15+); context overlays; **the plan's own ground
+  and footprints** (`uv-plan-ground`, `uv-plan-buildings`: the `plan_buildings` source-layer's
+  `ground` and `building` features, 2026-10-13, the client's review: inside a plan whose
+  drawing states its existing buildings the base map's OpenStreetMap buildings, 2-3 m off the
+  planned parcels, are painted over in the land colour and the plan's own footprints drawn in
+  the base map's building colours; from zoom 15, where the base map's buildings appear; placed
+  right above the base style's `building` layer, under its roads and labels, `placement:
+  "above-buildings"` in `installTiles`, which also moves the base `water` / `waterway` back above
+  the ground; always on with the base-map card; a version that does not list the source-layer
+  draws nothing for it, `sourceLayerMissing`); hover layers (cursor
   pointer + outline) and selection layers (brand outline + glow; a cadastral selection also
   highlights its primary planned parcel). Visibility follows the rail (`visibleLayerIds`). Each
   layer starts at the zoom its source-layer is built from (`uvLayers(tiles)`:
@@ -231,7 +240,8 @@ Planned traffic (an MVP layer; not published).
   asked for buildings and a clearer difference between streets, green areas and water; the
   wireframe's palette hid buildings and land cover); points of interest, airports, piers and
   footpaths stay hidden, place, street and water labels stay. A custom `NEXT_PUBLIC_MAPBOX_STYLE`
-  is left as designed.
+  is left as designed. Inside a plan whose drawing states its existing buildings, the base map's
+  buildings are covered by the plan's own ground and footprints (see "Layers").
 - **Click** (`lib/map/pick.ts`): features under the pointer on the hit layers; priority
   cadastral parcel > planned parcel > urban block > coverage area > zone. A zone (covered, so
   drawn, with no parcel, block or plan area under the click) becomes the selection with its

@@ -31,12 +31,16 @@ TARGET_LAYERS = (
     "urban_parcels",
     "urban_blocks",
     "planned_land_use",
+    "existing_buildings",
 )
 STAGED_AS = {
     "plan_boundary": "document_coverage",
     "urban_parcels": "urban_parcels",
     "urban_blocks": "urban_blocks",
     "planned_land_use": "land_use",
+    # the plan's own footprints of the buildings that stand: the map draws them inside the
+    # plan instead of OpenStreetMap's (2026-10-13, the client's review)
+    "existing_buildings": "plan_buildings",
 }
 RULES_SUFFIXES = (".yaml", ".yml")
 
@@ -120,10 +124,13 @@ class LayerRule(_Model):
     grown back are the faces), ``fills`` (union of the filled pieces of each category),
     ``classify`` (the polygons of ``classify_from``, each coded by the category covering most of
     it, hatch lines counted ``gap_mm`` wide, or by a code label inside it), ``derive`` (union of
-    ``derive_from`` features grouped by ``derive_by``).
+    ``derive_from`` features grouped by ``derive_by``), ``hatch`` (areas plotted as hatch
+    patterns, lines or fills: every piece is grown by ``gap_mm``, the union shrunk back by the
+    same amount, so the hatch lines of one building melt into its footprint; ``gap_mm`` = at
+    least half the hatch spacing).
     """
 
-    method: Literal["polygonize", "holes", "fills", "classify", "derive"]
+    method: Literal["polygonize", "holes", "fills", "classify", "derive", "hatch"]
     select: list[Selector] = Field(default_factory=list)
     closing: list[str] = Field(default_factory=list)  # target layers closing the faces
     fallback: list[Selector] = Field(default_factory=list)  # extra linework for unmatched labels
@@ -159,8 +166,10 @@ class LayerRule(_Model):
     @model_validator(mode="after")
     def _method_needs(self) -> LayerRule:
         m = self.method
-        if m in ("polygonize", "holes") and not self.select:
+        if m in ("polygonize", "holes", "hatch") and not self.select:
             raise ValueError(f"method {m} needs `select`")
+        if m == "hatch" and not self.gap_mm:
+            raise ValueError("method hatch needs `gap_mm` (at least half the hatch spacing)")
         if m == "fills" and not self.categories and not self.select:
             raise ValueError("method fills needs `categories` or `select`")
         if m == "classify" and not (self.classify_from and self.categories):

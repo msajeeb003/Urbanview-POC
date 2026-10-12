@@ -783,11 +783,33 @@ def _fallback_for(
     return build
 
 
+def _hatch_faces(ctx: _Context, sheet: Sheet, rule: LayerRule) -> tuple[list, list, list[str]]:
+    """Faces of areas drawn as hatches (lines), fills or rings: grown, unioned, shrunk back."""
+    paths = sheet.select(rule.select)
+    pieces: list[BaseGeometry] = []
+    ids: list[str] = []
+    for p in paths:
+        if p.fill is not None:
+            poly = path_polygon(p)
+            if poly is not None:
+                pieces.append(poly)
+                ids.append(p.id)
+                continue
+        for ln in path_lines(p):
+            pieces.append(ln)
+            ids.append(p.id)
+    local = _local(sheet, pieces)
+    faces = g.hatch_faces(local, max(_m(sheet, rule.gap_mm), 1e-3))
+    return faces, local, ids
+
+
 def _build_polygons(ctx: _Context, layer: str, rule: LayerRule) -> list[_Candidate]:
     cands: list[_Candidate] = []
     for sheet in ctx.sheets_for(layer):
         if rule.method == "holes":
             faces, linework, ids = _hole_faces(ctx, sheet, rule)
+        elif rule.method == "hatch":
+            faces, linework, ids = _hatch_faces(ctx, sheet, rule)
         else:
             faces, linework, ids = _faces(ctx, sheet, rule, rule.select)
         ctx.counter(layer)["faces_built"] += len(faces)
@@ -992,6 +1014,7 @@ def _build_derived(ctx: _Context, layer: str, rule: LayerRule) -> list[_Candidat
 BUILDERS: dict[str, Callable[[_Context, str, LayerRule], list[_Candidate]]] = {
     "polygonize": _build_polygons,
     "holes": _build_polygons,
+    "hatch": _build_polygons,
     "fills": _build_fills,
     "classify": _build_classify,
     "derive": _build_derived,
@@ -1034,6 +1057,8 @@ def _merge(layer: str, cands: list[_Candidate], qa: dict[str, Any]) -> list[_Can
     attr = ATTRIBUTES.get(layer)
     if layer == "planned_land_use":
         return _dedupe_copies(cands, qa)
+    if layer == "existing_buildings":
+        return _union_copies(cands, qa)
     if attr is None:
         return cands
     by_value: dict[str, list[_Candidate]] = defaultdict(list)
@@ -1109,6 +1134,46 @@ def _dedupe_copies(cands: list[_Candidate], qa: dict[str, Any]) -> list[_Candida
     return kept
 
 
+def _union_copies(cands: list[_Candidate], qa: dict[str, Any]) -> list[_Candidate]:
+    """Unlabelled areas drawn on several sheets of one drawing (the buildings in the band two
+    parts overlap, one of them cut by the other's frame): pieces of different sheets that
+    overlap are one area, their union, with the paths and flags of all of them."""
+    if len({c.sheet.rule.id for c in cands}) < 2:
+        return cands
+    tree = shapely.STRtree(np.asarray([c.geom for c in cands], dtype=object))
+    parent = list(range(len(cands)))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for i, c in enumerate(cands):
+        for j in tree.query(c.geom, predicate="intersects").tolist():
+            if j <= i or cands[j].sheet.rule.id == c.sheet.rule.id:
+                continue
+            if c.geom.intersection(cands[j].geom).area <= 0:
+                continue  # touching at an edge or a point: neighbours, not copies
+            parent[find(j)] = find(i)
+    groups: dict[int, list[_Candidate]] = defaultdict(list)
+    for i, c in enumerate(cands):
+        groups[find(i)].append(c)
+    out: list[_Candidate] = []
+    for members in groups.values():
+        if len(members) == 1:
+            out.append(members[0])
+            continue
+        members.sort(key=lambda c: c.sheet.rule.id)
+        first = members[0]
+        merged = shapely.union_all([c.geom for c in members])
+        paths = sorted({p for c in members for p in c.paths}, key=_path_order)
+        flags = set().union(*(c.flags for c in members)) | {"merged_faces"}
+        out.append(_Candidate(merged, first.sheet, paths, flags=flags, attrs=dict(first.attrs)))
+        qa["duplicates_removed"] += len(members) - 1
+    return out
+
+
 def _finish(ctx: _Context, layer: str, rule: LayerRule, cands: list[_Candidate]) -> list[Feature]:
     qa = ctx.counter(layer)
     for c in cands:
@@ -1139,6 +1204,7 @@ def _finish(ctx: _Context, layer: str, rule: LayerRule, cands: list[_Candidate])
                 "urban_parcels": "face",
                 "urban_blocks": "block-face",
                 "planned_land_use": "area",
+                "existing_buildings": "building",
             }[layer]
             code = c.attrs.get("code")
             key = f"{prefix}-{code}-{unnamed:04d}" if code else f"{prefix}-{unnamed:04d}"

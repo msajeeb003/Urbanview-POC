@@ -40,7 +40,7 @@ import { getTracker } from "@/lib/analytics/react";
 import { useTilesCurrent } from "@/lib/api/hooks";
 import type { MunicipalityProfile, TilesCurrent } from "@/lib/api/types";
 import { formatZoomFactor, scaleBar } from "@/lib/format";
-import { sourceLayerEmpty } from "@/lib/layers";
+import { sourceLayerEmpty, sourceLayerMissing } from "@/lib/layers";
 import { LIGHT_STYLE, wireframeBasemap } from "@/lib/map/basemap";
 import { fitOptions, fitPadding, legendOffset } from "@/lib/map/camera";
 import { pickFeature, type PickType } from "@/lib/map/pick";
@@ -111,11 +111,25 @@ function installTiles(map: MapboxMap, tiles: TilesCurrent | undefined): number |
   if (!hasArchive(tiles)) return null; // unpublished: base map only, nothing drawn
   // `provider` is a Mapbox GL 3.x source option its bundled style spec does not list yet
   map.addSource(SOURCE_ID, vectorSource(tiles) as unknown as Parameters<MapboxMap["addSource"]>[1]);
-  const beforeId = map.getStyle()?.layers?.find((l) => l.type === "symbol")?.id;
+  const baseLayers = map.getStyle()?.layers ?? [];
+  const beforeId = baseLayers.find((l) => l.type === "symbol")?.id;
+  // right above the base style's buildings (under its roads); without a `building` layer, under the labels
+  const buildingIndex = baseLayers.findIndex((l) => l.id === "building");
+  const aboveBuildings = buildingIndex >= 0 ? (baseLayers[buildingIndex + 1]?.id ?? beforeId) : beforeId;
+  let ground = false;
   for (const l of uvLayers(tiles)) {
-    if (sourceLayerEmpty(l["source-layer"], tiles)) continue; // not in the archive: nothing to draw
+    // not in the archive (a version published before the layer existed, or nothing published for it)
+    if (sourceLayerMissing(l["source-layer"], tiles) || sourceLayerEmpty(l["source-layer"], tiles)) continue;
     // UrbanView's fills and lines go under the base map's labels; our own labels on top
-    map.addLayer(l as unknown as Parameters<MapboxMap["addLayer"]>[0], l.type === "symbol" ? undefined : beforeId);
+    const before = l.type === "symbol" ? undefined : l.placement === "above-buildings" ? aboveBuildings : beforeId;
+    map.addLayer(l as unknown as Parameters<MapboxMap["addLayer"]>[0], before);
+    if (l.placement === "above-buildings") ground = true;
+  }
+  // the plan's ground covers the base map inside the plans: its water (the Morača inside Stara
+  // Varoš) comes back over it, under the plan's footprints
+  if (ground && aboveBuildings) {
+    const overGround = map.getLayer("uv-plan-buildings") ? "uv-plan-buildings" : aboveBuildings;
+    for (const id of ["water", "waterway"]) if (map.getLayer(id)) map.moveLayer(id, overGround);
   }
   return tiles.version_id ?? null;
 }

@@ -407,9 +407,13 @@ async def _datasets(args: argparse.Namespace) -> int:
         print("no georeferencing dataset yet")
     for r in rows:
         snap = r["snap"] or {}
+        # a GIS drawing staged by the console's geometry job (source gis_file, method native)
+        # has no fit: no RMSE, no control points
+        rmse = f"{r['rmse_m']:.3f} m" if r["rmse_m"] is not None else "-"
+        points = f"{r['points_used']:>3}" if r["points_used"] is not None else "  -"
         print(
             f"{r['dataset_version']:24} {r['status']:10} doc {r['document_id']:>4} "
-            f"{r['crs']:10} {r['method']:7} RMSE {r['rmse_m']:.3f} m  {r['points_used']:>3} pts  "
+            f"{r['crs'] or '-':10} {r['method'] or '-':7} RMSE {rmse:8} {points} pts  "
             f"snapped {snap.get('snapped_ratio', 0):.1%}  {r['created_at']:%Y-%m-%d}  {r['name']}"
         )
     return 0

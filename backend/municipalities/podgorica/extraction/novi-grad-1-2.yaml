@@ -19,7 +19,7 @@ sheets:
     # Cetinjskog and 13. jula follow each other from left to right, as they do northwards in
     # OpenStreetMap; the grid lattice is turned a further ~23 degrees
     north: right
-    layers: [plan_boundary, urban_parcels, urban_blocks]
+    layers: [plan_boundary, urban_parcels, urban_blocks, existing_buildings]
   - id: land-use
     file: 02 Novi Grad 1 i 2/Novi Grad 1 i 2 - Land use.pdf
     sha256: 2102020fc8102011fe39c28e6e2a98aed922ac5133ffc9427a09f9a056e9ca4d
@@ -119,6 +119,20 @@ layers:
       - {code: SK, name: školstvo i socijalna zaštita, select: [{layer: SRAF_OBRAZOVANJE}]}
       - {code: IS, name: površine saobraćajne infrastrukture, select: [{layer: SRAF_SAOBRACAJ}]}
       - {code: ZP, name: zelene površine, select: [{layer: SRAF_ZELENE_POVRSINE}]}
+
+  # The buildings that stand, as the plan draws them (2026-10-13, the client's review: the base
+  # map's OpenStreetMap footprints sat 2-3 m off the planned parcels, and no rigid shift fits
+  # them all; inside a plan the map now paints the plan's own ground and draws the plan's own
+  # footprints, so parcels and buildings come from one drawing and match by construction).
+  # The outlines on OBJEKTI-POSTOJECI (223 paths; the parcel of such a building is this
+  # outline, above) and the garages on OBJEKTI-GARAZE. Left out: OBJEKTI-NOVI (planned
+  # buildings), !OBJEKTI RUSENJE (to be demolished), OBJEKTI-PRIVREMENI (temporary) and the
+  # geodetic base's own `objekti` layer, which the plan redrew.
+  existing_buildings:
+    method: polygonize
+    select: [{layer: OBJEKTI-POSTOJECI}, {layer: OBJEKTI-GARAZE}]
+    gap_mm: 0.5
+    min_area_m2: 6
 
 expected_parcels:
   pdf: 02 Novi Grad 1 i 2/Novi Grad 1 i 2 - Urban parcels - Planning parameters.pdf

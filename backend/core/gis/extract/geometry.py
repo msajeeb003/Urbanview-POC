@@ -258,6 +258,27 @@ def hole_faces(
     return faces
 
 
+def hatch_faces(pieces: Sequence[BaseGeometry], gap_m: float) -> list[Polygon]:
+    """Footprints plotted as hatch patterns (parallel lines inside each outline), fills or
+    rings: every piece grown by ``gap_m`` (at least half the hatch spacing), the union shrunk
+    back by the same amount, so the lines of one building melt into its area and the area's
+    outline lands where the hatch ends. The round ends of the grown lines leave a saw-tooth
+    edge up to ``gap_m`` deep along the outline (deeper where the outline runs nearly along the
+    hatch); the tooth tips are the line ends, on the outline itself, so a simplification by
+    ``gap_m`` keeps the tips and drops the teeth. Courtyards wider than twice ``gap_m`` stay
+    holes; narrower ones, and gaps between buildings narrower than that, close."""
+    if not pieces:
+        return []
+    radius = max(gap_m, 1e-4)
+    grown = shapely.buffer(np.asarray(pieces, dtype=object), radius, quad_segs=4)
+    merged = shapely.union_all(grown)
+    # the scallops are simplified away before the shrink: shrinking first would deepen them
+    # (an inward offset sharpens every notch), and the tips, which are the line ends moved out
+    # by the radius, are what the simplification keeps
+    merged = shapely.simplify(merged, radius, preserve_topology=True)
+    return polygon_parts(merged.buffer(-radius, join_style="mitre", mitre_limit=5.0))
+
+
 def union_fills(polys: Sequence[BaseGeometry], eps_m: float = 0.01) -> list[Polygon]:
     """Touching fill pieces (triangles, strips) merged into areas."""
     if not polys:

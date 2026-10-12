@@ -264,3 +264,56 @@ parcel numbers and areas are unchanged.
 When the cadastral export arrives, set `georef.crs: EPSG:25834` (or fit the datum shift on the
 cadastral corners), remove the three UTM steps from both rules and re-run: the staging's snapping then
 reports the residual against the cadastre (sub-metre).
+
+## The plan's own buildings (2026-10-13)
+
+A rigid shift aligns a plan to OpenStreetMap on average only. Measured on the served version 15,
+the matched footprints and parcels still differed by a median 2.2 m per building, with no rotation
+or scale pattern that a further fit could remove: the drawings' and OpenStreetMap's own noise. A
+visitor zoomed into a plan still saw parcel lines beside the buildings, and the client asked for a
+map a user never questions. So inside a plan the map no longer compares two sources: the
+extraction reads the plan's own existing buildings as a fifth target layer, `existing_buildings`
+(`core.gis.extract.rules.TARGET_LAYERS`, staged as the generic layer `plan_buildings`, published
+as the tile layer `plan_buildings`), and the public map paints the plan's ground in the land
+colour over the base map's buildings and draws these footprints instead, in the base map's
+building colours. Parcels and buildings then come from one drawing and match by construction;
+outside the plans the base map is unchanged.
+
+| Plan | Rule | Footprints | Inside planned parcels | Notes |
+|---|---|---|---|---|
+| DUP Novi Grad 1 i 2 | `polygonize` of OBJEKTI-POSTOJECI + OBJEKTI-GARAZE (the outlines) | 132, 85 267 m² | 98.5 % of the area | 55 of the 93 planned parcels coincide with a footprint (IoU ≥ 0.98: the parcel of an existing building is that outline, so both come from the same linework); the two parcel pairs inside one building (UP 14 / 15, 90 / 91) share one footprint; a building of several segments (UP 11, 32, 39, 43, 56) has one footprint per segment; 3 courtyards |
+| UP Stara Varoš | `hatch` of the model's UP-Objekti hatch, UP-Objekti pomocni hatch and UP-OBJEKTI (lines 1.1 mm apart, 17 255 of them), `gap_mm: 0.8` | 313, 49 128 m² | 99.4 % of the area | 111 footprints span several parcels (attached houses hatched as one mass, as the base map draws terraces too); 10 courtyards; 6 sheds under 10 m² |
+
+**The `hatch` method** (`core.gis.extract.geometry.hatch_faces`, new): every hatch line, fill or
+ring is grown by `gap_mm` (at least half the hatch pitch), the union is simplified by the same
+distance (the round ends of the grown lines scallop the outline up to that depth; the tips are
+the line ends moved out by the radius, so the simplification keeps the outline and drops the
+scallops; simplifying after the shrink would deepen every notch instead), then shrunk back with
+mitred joins. Buildings that share a wall, or stand less than twice the gap apart (0.8 m here),
+are one footprint; courtyards wider than that stay holes. On a synthetic 20 × 10 m building
+hatched 0.55 m apart (`tests/test_gis_extract.py`) the footprint never lies outside the drawn
+outline, covers over 95 % of it, keeps every wall within 0.2 m and chamfers the corners under a
+pitch (the hatch never reaches into a corner). Copies of a building on the two parts of the
+Stara Varoš sheet, one of them cut by the other's frame, are united (`_union_copies`).
+
+**Not drawn:** planned buildings (OBJEKTI-NOVI, UP-Planirani objekti), buildings to be demolished
+(!OBJEKTI RUSENJE), temporary ones (OBJEKTI-PRIVREMENI) and the geodetic base's own `objekti`
+layer, which the planners redrew.
+
+**Procedure** (the same as for every layer): `python -m core.gis.extract run <rules> …` (both
+rules list `existing_buildings` on their parcel sheets) → `python -m core.gis.georef apply <rules>
+--gpkg … --stage --store --by ops` (one `plan_buildings` batch per document, origin `vector_pdf`,
+QA validity, keys `<document id>|building-NNNN`) → the geometry review → Publish. The tile layer
+carries one `ground` feature per live document whose drawing states its existing buildings (its
+coverage area) and one `building` feature per footprint inside live coverage, so a plan without a
+building layer keeps the base map's buildings. Published as data version 16. The console's
+geometry job maps a supplied GIS drawing's `existing_buildings` / `plan_buildings` layer the same
+way (`jobs.geometry.CONTRACT_LAYERS`).
+
+**On the map** (`frontend/src/lib/map/style.ts`): `uv-plan-ground` (the land colour) and
+`uv-plan-buildings` (the base map's building colour and outline) sit right above the base
+style's `building` layer (`placement: "above-buildings"` in `installTiles`), under its roads and
+labels, from zoom 15, where the base map's buildings appear; the base style's `water` and
+`waterway` are moved back above the ground (the Morača inside Stara Varoš); both follow the
+base-map card, which is always on. A version published before the layer existed does not list
+the source-layer and draws nothing for it (`sourceLayerMissing`).

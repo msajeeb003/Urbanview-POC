@@ -44,6 +44,7 @@ LAYER_LABELS: dict[str, str] = {
     "urban_parcels": "Planned urban parcels",
     "urban_blocks": "Urban blocks",
     "document_coverage": "Plan boundary",
+    "plan_buildings": "Existing buildings (the plan's)",
     "zones": "Zones",
     "cadastral_parcels": "Cadastral parcels",
     "cadastral_municipalities": "Cadastral municipalities (KO)",

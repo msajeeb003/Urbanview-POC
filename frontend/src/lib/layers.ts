@@ -330,6 +330,15 @@ export function sourceLayerEmpty(sourceLayer: string, tiles: TilesCurrent | null
   return !!served && !served.features;
 }
 
+/**
+ * The pointer lists the version's layers and does not list this one: an archive published before
+ * the layer existed (`plan_buildings`, 2026-10-13). Drawing it would only make the map warn.
+ */
+export function sourceLayerMissing(sourceLayer: string, tiles: TilesCurrent | null | undefined): boolean {
+  const layers = tiles?.layers;
+  return !!layers && layers.length > 0 && !layers.some((l) => l.id === sourceLayer);
+}
+
 /** The pointer's minimum zoom for one source-layer, or null when it does not list it. */
 export function servedMinZoom(sourceLayer: string, tiles: TilesCurrent | null | undefined): number | null {
   const served = tiles?.layers?.find((l) => l.id === sourceLayer);

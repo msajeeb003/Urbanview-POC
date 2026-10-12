@@ -602,7 +602,11 @@ have. These are product-owner-approved deviations from the mock, built 2026-10-1
 - the selection pin stays exactly where the visitor clicked; a searched parcel is pinned at the
   API's point inside it (`ST_PointOnSurface`), never at a centroid a concave shape leaves outside;
 - the base map shows buildings, parks and land cover in quiet tones, a clear blue water and road
-  casings (the mock hid buildings and land cover);
+  casings (the mock hid buildings and land cover); inside a plan whose drawing states its
+  existing buildings the map paints the plan's own ground and draws the plan's own footprints in
+  place of the base map's OpenStreetMap buildings, which sat 2-3 m off the planned parcels
+  (`docs/gis/georeferencing.md`, "The plan's own buildings"); outside the plans the base map is
+  unchanged;
 - "FAR heatmap" reads "Planning parameters heatmap"; the zones legend lists the types the drawn
   zones have (with "Not classified yet"), the land-use legend names its neutral "Other" colour;
 - urban blocks answer a click with a block panel (`GET /v1/panel?type=block`);

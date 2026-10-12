@@ -79,7 +79,7 @@ def test_layer_catalogue_is_consistent():
     for layer in LAYERS:
         if layer.id in versioned:
             assert ":v" in layer.sql, layer.id
-    assert set(GENERIC_LAYER_IDS) == {"land_use"}
+    assert set(GENERIC_LAYER_IDS) == {"land_use", "plan_buildings"}
     assert {s.id for s in STAGED_LAYERS.values() if s.kind == "entity"} == {
         "cadastral_parcels",
         "cadastral_municipalities",
