@@ -140,6 +140,14 @@ parcel_blocks:
 # easting, northing and expects EPSG:4326's own order back (latitude, longitude): hence the
 # final axis swap. A wrong order cannot pass unnoticed: the staging refuses a dataset outside
 # the municipality's extent.
+# 2026-10-13, the client's review: the plan sat a consistent 2.5 m north-west of the buildings of
+# the base map (OpenStreetMap). Measured in the worker on the 57 parcels that outline an existing
+# building: the rigid shift that maximises their overlap with the OpenStreetMap footprints is
+# +1.80 m east, -1.75 m north in WGS 84 / UTM 34N (overlap 0.66 -> 0.74; the remaining scatter of
+# about 2 m per building is the drawings' and OpenStreetMap's own noise). The three UTM steps below
+# apply exactly that shift after the datum step, so the plan sits on the base map's buildings. It
+# is a correction to the base map, not to the cadastre: once the cadastral export arrives the fit
+# snaps to the cadastral corners and these steps go (docs/gis/georeferencing.md).
 georef:
   transform: >-
     +proj=pipeline
@@ -150,5 +158,8 @@ georef:
     +rx=-4.93131 +ry=0.96052 +rz=13.05072 +s=7.86546 +convention=coordinate_frame
     +step +inv +proj=cart +ellps=WGS84
     +step +proj=pop +v_3
+    +step +proj=utm +zone=34 +ellps=WGS84
+    +step +proj=affine +xoff=1.80 +yoff=-1.75
+    +step +inv +proj=utm +zone=34 +ellps=WGS84
     +step +proj=unitconvert +xy_in=rad +xy_out=deg
     +step +proj=axisswap +order=2,1

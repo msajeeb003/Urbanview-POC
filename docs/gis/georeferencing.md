@@ -227,3 +227,40 @@ The tooling, tests and admin display are done.
 - The cadastral base is not loaded yet (access not confirmed). Until it is, snapping and the
   overlap checks have nothing to compare with (warning `no_cadastral_base`), and the offset check
   cannot run.
+
+## Position against the base map (2026-10-13)
+
+The client's review of 2026-10-12 found the plans beside the buildings of the base map. Measured in
+the worker (`shapely` + `gdaltransform`, no pyproj) on the parcels that outline an existing building:
+each is matched to the OpenStreetMap footprint that fits it best (centroid within 12 m, area within
+0.75-1.33 x, shape overlap after centring >= 0.75), and the rigid shift that maximises the summed
+overlap of the matched pairs is found by a grid search in WGS 84 / UTM 34N (EPSG:32634).
+
+| Plan | Matched parcels | Shift that aligns them (UTM 34N) | Mean overlap before -> after |
+|---|---|---|---|
+| DUP Novi Grad 1 i 2 | 57 of 93 | +1.80 m east, -1.75 m north (2.5 m to the south-east) | 0.66 -> 0.74 |
+| UP Stara Varoš | 27 of 576 (the rest are land plots) | +2.05 m east, +0.05 m north | 0.44 -> 0.51 |
+
+Two thirds of the matched parcels in each plan point the same way, so this is a systematic offset of
+the whole plan (the datum shift: EPSG:9486 is a few metres off here, see above), not drawing error;
+the scatter of about 2 m per building that remains is the drawings' and OpenStreetMap's own noise.
+
+**Applied** as three steps in each plan's `georef.transform` after the datum step (`+proj=utm
++zone=34 +ellps=WGS84`, `+proj=affine +xoff=… +yoff=…`, `+inv +proj=utm …`): a rigid translation
+in UTM metres, verified on four grid points and on every vertex of the 93 Novi Grad parcels (the old
+rules reproduce the served geometry to 0.0000 m, the new ones move every vertex by exactly +1.8000 /
+-1.7500 m). Novi Grad was re-run from its local-frame GeoPackage (`apply --stage --store`, dataset
+`geo-6-20261012-1`); Stara Varoš, whose local-frame file is not kept on the server, from its stored
+georeferenced GeoPackage shifted with `ogr2ogr -ct` (the 4326 -> 4326 pipeline: `axisswap`,
+`unitconvert deg->rad`, `utm`, `affine`, `inv utm`, `unitconvert rad->deg`, `axisswap`; GDAL
+feeds and expects EPSG:4326 in its own axis order) and staged through the console's geometry job as
+the plan's drawing (`stara-varos-basemap-shift-2026-10-13.gpkg`, dataset `geo-7-20261012-1`; the
+Stara Varoš rules now state the same pipeline, so a re-run from the PDF lands in the same place).
+Both reviewed and published as data version 15 (`2026-10-13.1`); the measurement repeated on the
+served data gives 0.00 m for both plans. The stored geometry is the only thing that moved: values,
+parcel numbers and areas are unchanged.
+
+**This aligns the plans to OpenStreetMap, whose own accuracy is 1-2 m, not to the official grid.**
+When the cadastral export arrives, set `georef.crs: EPSG:25834` (or fit the datum shift on the
+cadastral corners), remove the three UTM steps from both rules and re-run: the staging's snapping then
+reports the residual against the cadastre (sub-metre).

@@ -366,7 +366,8 @@ demand: the analytics districts place them by their point.
   longer hides the panel); the visitor hides and shows the panel with a chevron tab, a new
   selection unfolds it (3, `panelCollapsed`); the pin stays exactly where the visitor clicked, and
   every served `centroid` (locate, the panels) is `ST_PointOnSurface`, a point inside the parcel,
-  not a centroid a concave shape leaves outside (4); the zones legend lists the types the drawn
+  not a centroid a concave shape leaves outside (4; the same day both plans were moved onto the
+  base map's buildings, 2-3 m: see "Georeferencing"); the zones legend lists the types the drawn
   zones have, with "Not classified yet" while a drawn zone has none (every zone in production
   has `zone_type` null: the client's classification is pending), and the land-use legend names
   its neutral "Other" colour (5); "FAR heatmap" is "Planning parameters heatmap" (6); the
@@ -1952,6 +1953,19 @@ demand: the analytics districts place them by their point.
   approved and applied (`apply_georef_datasets`, the previous published one superseded). `DocumentOut.
   georeference` (admin) is the latest run: RMSE vs limit, per-sheet table, snapping, overlap
   share, offset, warning codes; the console's document page shows it.
+- **Position against the base map (2026-10-13, the client's review):** both plans sat a consistent
+  2-3 m from the base map's buildings (the datum shift). Measured in the worker against the
+  OpenStreetMap footprints the base map draws (building-shaped parcels matched to their
+  footprint, the rigid shift that maximises their overlap, in UTM 34N): Novi Grad +1.80 m east /
+  -1.75 m north, Stara Varoš +2.05 m east / +0.05 m north. Applied as three UTM steps in each
+  plan's `georef.transform` after the datum step (Stara Varoš's rules now state the EPSG:9486
+  pipeline the server had used by default), re-staged (`geo-6-20261012-1` from the local-frame
+  GeoPackage with `apply --stage`; `geo-7-20261012-1` from the stored georeferenced GeoPackage
+  shifted with `ogr2ogr -ct` and staged by the console's geometry job as the plan's drawing),
+  reviewed and published as version 15 `2026-10-13.1`; the measurement on the served data is
+  0.00 m. It aligns the plans to OpenStreetMap (itself 1-2 m), not to the official grid: when the
+  cadastral export arrives, remove the three steps and fit on the cadastral corners
+  (`docs/gis/georeferencing.md`, "Position against the base map").
 - CLI `python -m core.gis.georef points | add | disable | enable | grid | fit | apply [--stage]
   | datasets | show` (exit 1 = fit above the threshold / dataset refused, 2 = input / GDAL error).
   Tests: `tests/test_georef_unit.py` (a synthetic sheet with a known truth: zero RMSE and the

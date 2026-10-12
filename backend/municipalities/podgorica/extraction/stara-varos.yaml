@@ -126,3 +126,28 @@ expected_parcels:
 # (TS 5: D, as in the table; TS 7, 35 % inside zone E's outline, gets none)
 parcel_blocks:
   from_number: '^([A-F])\d'
+
+# Datum and position (2026-10-13). The published Stara Varoš data was converted from EPSG:3908 with
+# the operation the server's PROJ picks by default, EPSG:9486 ("MGI 1901 to WGS 84 (15)"), stated
+# here as a pipeline so a re-run lands where the data is on any machine (see the Novi Grad rules).
+# The client's review found the plan 2 m west of the base map's buildings: measured in the worker on
+# the 27 parcels that outline an existing building, the rigid shift that maximises their overlap
+# with the OpenStreetMap footprints is +2.05 m east, +0.05 m north in WGS 84 / UTM 34N (overlap
+# 0.44 -> 0.51). The three UTM steps apply exactly that shift after the datum step. A correction to
+# the base map, not to the cadastre: once the cadastral export arrives the fit snaps to the cadastral
+# corners and these steps go.
+georef:
+  transform: >-
+    +proj=pipeline
+    +step +inv +proj=tmerc +lat_0=0 +lon_0=18 +k=0.9999 +x_0=6500000 +y_0=0 +ellps=bessel
+    +step +proj=push +v_3
+    +step +proj=cart +ellps=bessel
+    +step +proj=helmert +x=577.84843 +y=165.45019 +z=390.43652
+    +rx=-4.93131 +ry=0.96052 +rz=13.05072 +s=7.86546 +convention=coordinate_frame
+    +step +inv +proj=cart +ellps=WGS84
+    +step +proj=pop +v_3
+    +step +proj=utm +zone=34 +ellps=WGS84
+    +step +proj=affine +xoff=2.05 +yoff=0.05
+    +step +inv +proj=utm +zone=34 +ellps=WGS84
+    +step +proj=unitconvert +xy_in=rad +xy_out=deg
+    +step +proj=axisswap +order=2,1
