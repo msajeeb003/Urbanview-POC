@@ -611,5 +611,8 @@ have. These are product-owner-approved deviations from the mock, built 2026-10-1
   zones have (with "Not classified yet"), the land-use legend names its neutral "Other" colour;
 - urban blocks answer a click with a block panel (`GET /v1/panel?type=block`);
 - the assumption sliders explain why they are disabled while a district has no market figures;
+- the map answers faster: highlights are feature-state flags rather than filters, a card's layers
+  exist only while the card is on, tiles draw without a cross-fade (measured before and after with
+  a throttled CPU; `?fps=1` shows a frame-rate meter for a check on any machine);
 - the mock's layout rules under 1100 px and 860 px are back (narrower rail and panel, then both
   over the map with the legend hidden): a usable tablet / small-laptop layout, no phone layout.

@@ -8,7 +8,7 @@ import { readParcelParam, withParcelParam } from "@/lib/url-state";
 
 import { geometryCentre, pickFeature } from "./pick";
 import { UrbanViewTileProvider, parseSourceUrl, type ArchiveReader, type TilePointer } from "./pmtiles-provider";
-import { BUILDINGS_MIN_ZOOM, HIT_LAYERS, LAYER_GROUPS, NONE, UV_LAYERS, hatchImage, highlightFilters, visibleLayerIds } from "./style";
+import { BUILDINGS_MIN_ZOOM, HIT_LAYERS, LAYER_GROUPS, UV_LAYERS, hatchImage, highlightStates, insertBefore, visibleLayerIds } from "./style";
 import { hasArchive, sourceUrl } from "./tiles";
 
 /** Source-layers of the publish catalogue (backend/jobs/publish_layers.py LAYERS). */
@@ -117,20 +117,45 @@ describe("style", () => {
     expect(visibleLayerIds({ ...DEFAULT_LAYER_STATE, heatMkt: true }).has("uv-heatmkt-fill")).toBe(true); // no paywall
   });
 
-  it("highlights the selection, its planned parcel, and a hover that is not the selection", () => {
+  it("highlights the selection, its planned parcel, and a hover that is not the selection, by feature-state", () => {
     const sel = highlightOf({ kind: "feature", type: "cadastral", id: 7, zoneId: 2, linkedUrbanId: 31, via: "click" });
     expect(sel).toEqual({ cadastral: 7, urban: 31, block: null, document: null, zone: null });
-    const f = highlightFilters(sel, { cadastral: 7, urban: null, block: null, document: 4, zone: null });
-    // an uncovered cadastral parcel is never outlined, selected or hovered
-    expect(f["uv-cad-sel-line"]).toEqual(["all", ["==", ["get", "id"], 7], ["!=", ["get", "covered"], false]]);
-    expect(f["uv-urban-sel-line"]).toEqual(["==", ["get", "id"], 31]);
-    expect(f["uv-cad-hover-line"]).toEqual(NONE);
-    expect(f["uv-doc-hover-line"]).toEqual(["==", ["get", "id"], 4]);
+    const flags = highlightStates(sel, { cadastral: 7, urban: null, block: null, document: 4, zone: null });
+    // one flagged feature per source-layer and id; the hovered selection is one entry with both flags
+    expect(flags).toEqual({
+      "cadastral_parcels:7": { sourceLayer: "cadastral_parcels", id: 7, hover: true, selected: true },
+      "urban_parcels:31": { sourceLayer: "urban_parcels", id: 31, hover: false, selected: true },
+      "document_coverage:4": { sourceLayer: "document_coverage", id: 4, hover: true, selected: false },
+    });
     expect(highlightOf({ kind: "point", point: { lng: 1, lat: 2 }, via: "click" })).toEqual({ cadastral: null, urban: null, block: null, document: null, zone: null });
     // a clicked (or searched) zone is outlined
     const zone = highlightOf({ kind: "zone", id: 3, name: "Novi Grad", via: "click" });
     expect(zone).toEqual({ cadastral: null, urban: null, block: null, document: null, zone: 3 });
-    expect(highlightFilters(zone, zone)["uv-zones-sel-line"]).toEqual(["==", ["get", "id"], 3]);
+    expect(highlightStates(zone, zone)).toEqual({ "zones:3": { sourceLayer: "zones", id: 3, hover: true, selected: true } });
+    // the layers draw the flagged feature only: no filter by id, paint by feature-state; an
+    // uncovered cadastral parcel is never outlined (S6)
+    const hoverLine = UV_LAYERS.find((l) => l.id === "uv-urban-hover-line")!;
+    expect(hoverLine.filter).toBeUndefined();
+    expect(JSON.stringify(hoverLine.paint!["line-opacity"])).toContain('["feature-state","hover"]');
+    expect(JSON.stringify(hoverLine.paint!["line-opacity"])).toContain('["feature-state","selected"]');
+    const selLine = UV_LAYERS.find((l) => l.id === "uv-cad-sel-line")!;
+    expect(selLine.filter).toEqual(["!=", ["get", "covered"], false]);
+    expect(JSON.stringify(selLine.paint!["line-opacity"])).toContain('["feature-state","selected"]');
+  });
+
+  it("puts a layer added later back in catalogue order, within its band", () => {
+    const anchors = { labels: "road-label", aboveBuildings: "tunnel-simple" };
+    const present = (ids: string[]) => (id: string) => ids.includes(id);
+    const at = (id: string) => UV_LAYERS.findIndex((l) => l.id === id);
+    // the land-use fill goes before the first later layer on the map that sits under the labels
+    expect(insertBefore(UV_LAYERS, at("uv-landuse-fill"), present(["uv-doc-fill", "uv-zones-label"]), anchors)).toBe("uv-doc-fill");
+    // with no later layer on the map it goes at the band's anchor, never above a label layer
+    expect(insertBefore(UV_LAYERS, at("uv-landuse-fill"), present(["uv-zones-label"]), anchors)).toBe("road-label");
+    // the plan's buildings stay in their own band above the base map's buildings
+    expect(insertBefore(UV_LAYERS, at("uv-plan-ground"), present(["uv-zones-fill"]), anchors)).toBe("tunnel-simple");
+    expect(insertBefore(UV_LAYERS, at("uv-plan-ground"), present(["uv-plan-buildings"]), anchors)).toBe("uv-plan-buildings");
+    // our own labels go on top
+    expect(insertBefore(UV_LAYERS, at("uv-zones-label"), present(["uv-doc-fill"]), anchors)).toBeUndefined();
   });
 
   it("builds the no-data hatch image", () => {

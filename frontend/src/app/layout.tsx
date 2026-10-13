@@ -44,6 +44,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang={HTML_LANG[lang]} className={`${schibsted.variable} ${jetbrains.variable}`}>
       <body>
+        {/* the base style and its tiles come from Mapbox: connect before the map asks (React hoists the link) */}
+        {process.env.NEXT_PUBLIC_MAPBOX_TOKEN ? <link rel="preconnect" href="https://api.mapbox.com" crossOrigin="anonymous" /> : null}
         <Providers lang={lang}>{children}</Providers>
       </body>
     </html>

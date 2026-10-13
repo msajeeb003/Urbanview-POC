@@ -21,6 +21,12 @@
  *   also while tiles are still loading (Mapbox takes layout, filter and paint changes then; the
  *   state at `style.load` is applied by its handler). The zoom goes to the store, so a card and
  *   its legend group say "zoom in to see" for a layer that is on but not drawn at this zoom.
+ *   The layers of a card exist on the map only while the card is on (`syncLayers`): every tile
+ *   is processed once per style layer, so the twelve heatmap layers of a card that is off cost
+ *   nothing (the client's review of 2026-10-12: "navigation could be faster"). Highlights are
+ *   feature-state flags, never filters (`syncHighlight`), and tiles draw without a cross-fade.
+ * - `?fps=1` shows a frame-rate meter in the map's corner and exposes the map as
+ *   `window.__uvMap`, for a measurement on the visitor's own machine; nothing else changes.
  * - Click: the top-priority feature under the pointer is selected (cadastral parcel, planned
  *   parcel, urban block, planning-document coverage; `lib/map/pick.ts`), a click on nothing drops
  *   a pin and asks `/v1/locate`. A drag never selects (`clickTolerance` 3 px). Hover outlines
@@ -50,12 +56,15 @@ import {
   UV_LAYERS,
   choroplethStyle,
   hatchImage,
-  highlightFilters,
+  highlightStates,
+  insertBefore,
   uvLayers,
   visibleLayerIds,
+  type FeatureFlags,
   type Highlight,
 } from "@/lib/map/style";
 import { SOURCE_ID, hasArchive, registerTileProvider, vectorSource } from "@/lib/map/tiles";
+import { apiBaseUrl } from "@/lib/api/client";
 import { useSelection } from "@/lib/selection";
 import { highlightOf, useShell } from "@/lib/store";
 
@@ -80,9 +89,30 @@ const PIN_SVG =
 type Bbox = [number, number, number, number];
 type LngLatBounds = [[number, number], [number, number]];
 const NO_HOVER: Highlight = { cadastral: null, urban: null, document: null, block: null, zone: null };
+/** The feature-state flags each map currently carries (`syncHighlight`). */
+const FLAGGED = new WeakMap<MapboxMap, Map<string, FeatureFlags>>();
+const PRECONNECTED = new Set<string>();
 
 // Start fetching Mapbox GL as soon as this module is evaluated (hydration), not at effect time.
 const mapboxModule = TOKEN && typeof window !== "undefined" ? import("mapbox-gl") : null;
+
+/** Open the connection to a host before its first request (the API, the tile archive's host). */
+function preconnect(href: string | null | undefined) {
+  if (!href || typeof document === "undefined") return;
+  let origin: string;
+  try {
+    origin = new URL(href, window.location.href).origin;
+  } catch {
+    return;
+  }
+  if (origin === window.location.origin || PRECONNECTED.has(origin)) return;
+  PRECONNECTED.add(origin);
+  const link = document.createElement("link");
+  link.rel = "preconnect";
+  link.href = origin;
+  link.crossOrigin = "anonymous";
+  document.head.appendChild(link);
+}
 
 const toBounds = (b: Bbox): LngLatBounds => [
   [b[0], b[1]],
@@ -104,44 +134,52 @@ function applyBasemap(map: MapboxMap) {
   }
 }
 
-/** Add (or replace) the UrbanView source and layers for the current published archive. */
+/** The two places UrbanView's layers go in the base style: under its labels, or above its buildings. */
+function anchorsOf(map: MapboxMap): { labels: string | undefined; aboveBuildings: string | undefined } {
+  const baseLayers = (map.getStyle()?.layers ?? []).filter((l) => !l.id.startsWith("uv-"));
+  const labels = baseLayers.find((l) => l.type === "symbol")?.id;
+  // right above the base style's buildings (under its roads); without a `building` layer, under the labels
+  const buildingIndex = baseLayers.findIndex((l) => l.id === "building");
+  const aboveBuildings = buildingIndex >= 0 ? (baseLayers[buildingIndex + 1]?.id ?? labels) : labels;
+  return { labels, aboveBuildings };
+}
+
+/** Add (or replace) the UrbanView source and the layers the rail shows, for the current archive. */
 function installTiles(map: MapboxMap, tiles: TilesCurrent | undefined): number | null {
   for (const l of [...UV_LAYERS].reverse()) if (map.getLayer(l.id)) map.removeLayer(l.id);
   if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
+  FLAGGED.delete(map); // a new source carries no feature state
   if (!hasArchive(tiles)) return null; // unpublished: base map only, nothing drawn
   // `provider` is a Mapbox GL 3.x source option its bundled style spec does not list yet
   map.addSource(SOURCE_ID, vectorSource(tiles) as unknown as Parameters<MapboxMap["addSource"]>[1]);
-  const baseLayers = map.getStyle()?.layers ?? [];
-  const beforeId = baseLayers.find((l) => l.type === "symbol")?.id;
-  // right above the base style's buildings (under its roads); without a `building` layer, under the labels
-  const buildingIndex = baseLayers.findIndex((l) => l.id === "building");
-  const aboveBuildings = buildingIndex >= 0 ? (baseLayers[buildingIndex + 1]?.id ?? beforeId) : beforeId;
-  let ground = false;
-  for (const l of uvLayers(tiles)) {
-    // not in the archive (a version published before the layer existed, or nothing published for it)
-    if (sourceLayerMissing(l["source-layer"], tiles) || sourceLayerEmpty(l["source-layer"], tiles)) continue;
-    // UrbanView's fills and lines go under the base map's labels; our own labels on top
-    const before = l.type === "symbol" ? undefined : l.placement === "above-buildings" ? aboveBuildings : beforeId;
-    map.addLayer(l as unknown as Parameters<MapboxMap["addLayer"]>[0], before);
-    if (l.placement === "above-buildings") ground = true;
-  }
+  syncLayers(map, tiles);
   // the plan's ground covers the base map inside the plans: its water (the Morača inside Stara
   // Varoš) comes back over it, under the plan's footprints
-  if (ground && aboveBuildings) {
+  const { aboveBuildings } = anchorsOf(map);
+  if (map.getLayer("uv-plan-ground") && aboveBuildings) {
     const overGround = map.getLayer("uv-plan-buildings") ? "uv-plan-buildings" : aboveBuildings;
     for (const id of ["water", "waterway"]) if (map.getLayer(id)) map.moveLayer(id, overGround);
   }
   return tiles.version_id ?? null;
 }
 
-function syncVisibility(map: MapboxMap) {
-  const s = useShell.getState();
-  const visible = visibleLayerIds(s.layers);
-  for (const l of UV_LAYERS) {
-    if (!map.getLayer(l.id)) continue;
-    const want = visible.has(l.id) ? "visible" : "none";
-    if (map.getLayoutProperty(l.id, "visibility") !== want) map.setLayoutProperty(l.id, "visibility", want);
-  }
+/**
+ * The map carries exactly the layers the rail shows: a card switched off takes its layers off the
+ * map (Mapbox then does no work for them in any tile), a card switched on adds them back in
+ * catalogue order (`insertBefore`), so the drawing order never changes.
+ */
+function syncLayers(map: MapboxMap, tiles: TilesCurrent | undefined) {
+  if (!map.getSource(SOURCE_ID)) return;
+  const visible = visibleLayerIds(useShell.getState().layers);
+  for (const l of [...UV_LAYERS].reverse()) if (map.getLayer(l.id) && !visible.has(l.id)) map.removeLayer(l.id);
+  // not in the archive (a version published before the layer existed, or nothing published for it)
+  const order = uvLayers(tiles).filter((l) => !sourceLayerMissing(l["source-layer"], tiles) && !sourceLayerEmpty(l["source-layer"], tiles));
+  const anchors = anchorsOf(map);
+  const present = (id: string) => !!map.getLayer(id);
+  order.forEach((l, i) => {
+    if (!visible.has(l.id) || present(l.id)) return;
+    map.addLayer(l as unknown as Parameters<MapboxMap["addLayer"]>[0], insertBefore(order, i, present, anchors));
+  });
 }
 
 /** Choropleth colours and filters for the selected fields and the served classes (no reload). */
@@ -156,11 +194,23 @@ function syncChoropleth(map: MapboxMap, tiles: TilesCurrent | undefined) {
   }
 }
 
+/** Flag the selected and hovered features (feature-state), unflag the rest: a paint change only. */
 function syncHighlight(map: MapboxMap, hover: Highlight) {
-  const filters = highlightFilters(highlightOf(useShell.getState().selection), hover);
-  for (const [id, filter] of Object.entries(filters)) {
-    if (map.getLayer(id)) map.setFilter(id, filter as Parameters<MapboxMap["setFilter"]>[1]);
+  if (!map.getSource(SOURCE_ID)) return;
+  const want = highlightStates(highlightOf(useShell.getState().selection), hover);
+  const have = FLAGGED.get(map) ?? new Map<string, FeatureFlags>();
+  for (const [key, f] of have) {
+    if (!want[key]) map.removeFeatureState({ source: SOURCE_ID, sourceLayer: f.sourceLayer, id: f.id });
   }
+  const next = new Map<string, FeatureFlags>();
+  for (const [key, f] of Object.entries(want)) {
+    const prev = have.get(key);
+    if (!prev || prev.hover !== f.hover || prev.selected !== f.selected) {
+      map.setFeatureState({ source: SOURCE_ID, sourceLayer: f.sourceLayer, id: f.id }, { hover: f.hover, selected: f.selected });
+    }
+    next.set(key, f);
+  }
+  FLAGGED.set(map, next);
 }
 
 /** Hit layers present and visible right now (querying a missing layer throws). */
@@ -197,10 +247,14 @@ export function MapView({
     const next = hasArchive(tiles) ? (tiles.version_id ?? null) : null;
     if (next !== installedVersion.current) {
       installedVersion.current = installTiles(map, tiles);
-      syncVisibility(map);
       syncHighlight(map, NO_HOVER);
     }
     syncChoropleth(map, tiles);
+  }, [tiles]);
+
+  // the archive's host is known from the pointer: connect before the first tile request
+  useEffect(() => {
+    if (hasArchive(tiles)) preconnect(tiles.archive_url);
   }, [tiles]);
 
   // No Mapbox token: the map area is the wireframe background; the page still counts as loaded.
@@ -225,6 +279,7 @@ export function MapView({
     const container = containerRef.current;
     const started = typeof performance !== "undefined" ? performance.now() : 0;
 
+    preconnect(apiBaseUrl());
     void (async () => {
       const mapboxgl = (await mapboxModule).default;
       if (cancelled) return;
@@ -261,6 +316,7 @@ export function MapView({
         pitchWithRotate: false,
         touchPitch: false,
         clickTolerance: 3, // a drag of more than 3 px is a pan, never a selection
+        fadeDuration: 0, // a loaded tile is drawn at once, not faded in over 300 ms
         attributionControl: false,
         // top-right is the only corner the wireframe chrome leaves free
         logoPosition: "top-right",
@@ -347,10 +403,37 @@ export function MapView({
       let hover: Highlight = NO_HOVER;
       /** Apply the rail, the choropleth fields and the selection as they are now. */
       const syncAll = () => {
-        syncVisibility(map);
+        syncLayers(map, tilesRef.current);
         syncChoropleth(map, tilesRef.current);
         syncHighlight(map, hover);
       };
+
+      // `?fps=1`: a frame-rate meter in the map's corner and the map on `window`, for a
+      // measurement on the visitor's own machine (the client's review of 2026-10-12)
+      let fpsRaf = 0;
+      if (new URLSearchParams(window.location.search).get("fps") === "1") {
+        (window as unknown as { __uvMap?: MapboxMap }).__uvMap = map;
+        const meter = document.createElement("div");
+        meter.className = "uv-fps";
+        container.appendChild(meter);
+        const recent: number[] = [];
+        let lastTick = performance.now();
+        const tick = (now: number) => {
+          recent.push(now - lastTick);
+          lastTick = now;
+          while (recent.length > 60) recent.shift();
+          const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
+          const worst = Math.max(...recent);
+          meter.textContent = `${Math.round(1000 / mean)} fps · worst ${Math.round(worst)} ms · tiles ${map.areTilesLoaded() ? "ready" : "loading"}`;
+          fpsRaf = requestAnimationFrame(tick);
+        };
+        fpsRaf = requestAnimationFrame(tick);
+        unsubscribers.push(() => {
+          cancelAnimationFrame(fpsRaf);
+          meter.remove();
+          delete (window as unknown as { __uvMap?: MapboxMap }).__uvMap;
+        });
+      }
       /**
        * Apply one change; should Mapbox refuse it (a style that is not done loading), apply the
        * whole state again once the map is idle, so the map never stays behind the rail.
@@ -462,7 +545,14 @@ export function MapView({
           // Before `style.load` there are no layers: its handler applies the state as it is then.
           // After it, every change is applied at once, whether or not tiles are still loading.
           if (ready) {
-            if (st.layers !== prev.layers) apply(() => syncVisibility(map));
+            if (st.layers !== prev.layers) {
+              // a card switched on adds its layers with their default paint: the choropleth
+              // fields and classes go on them right after
+              apply(() => {
+                syncLayers(map, tilesRef.current);
+                syncChoropleth(map, tilesRef.current);
+              });
+            }
             if (st.choropleth !== prev.choropleth) apply(() => syncChoropleth(map, tilesRef.current));
             if (st.selection !== prev.selection) apply(() => syncHighlight(map, hover));
           }

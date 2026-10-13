@@ -233,6 +233,21 @@ Planned traffic (an MVP layer; not published).
   layer starts at the zoom its source-layer is built from (`uvLayers(tiles)`:
   the pointer's range, else the catalogue's); a source-layer the pointer lists with 0 features
   gets no style layer. Text uses the base style's glyphs (`DIN Pro`), not the web fonts.
+  **Responsiveness (2026-10-13, the client's review, task 9, second pass):** the hover and
+  selection layers are always on the map and draw the flagged feature only, by feature-state
+  (`highlightStates` → `setFeatureState` / `removeFeatureState` in `syncHighlight`; the paint
+  expressions `hovered()` / `selected()` in `style.ts`), never by a filter: a filter change made
+  Mapbox re-process the layer in every loaded tile on each crossing of the cursor (measured with a
+  4x slower CPU in the old town: hover 32 fps with 45 % of frames dropped). The layers of a card
+  exist on the map only while the card is on (`syncLayers`: a card switched off removes its
+  layers, one switched on adds them back in catalogue order with `insertBefore`, within its band
+  under the labels or above the base map's buildings; the choropleth paint is applied right
+  after), so the twelve heatmap layers of a card that is off cost nothing per tile. Tiles draw
+  without the 300 ms cross-fade (`fadeDuration: 0`); the page preconnects to the API, the tile
+  archive's host and Mapbox. `?fps=1` shows a frame-rate meter in the map's corner (`.uv-fps`)
+  and exposes the map as `window.__uvMap` for a measurement on the visitor's own machine. The
+  measurement itself (Edge driven by playwright-core, CPU throttled, four scenarios) lives outside
+  the repository: no performance suite in the POC.
 - **Base map** (`lib/map/basemap.ts`): with Mapbox's light style (the default) the style's own
   layers are restyled on `load`: land `#EEF1F5`, white major and cream `#F9F6EF` minor roads with
   a `#D8D3C8` casing, a clear blue water `#B7D2E4` with a `#99BBD2` line, buildings `#DDD9D1`,

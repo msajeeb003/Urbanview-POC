@@ -383,7 +383,12 @@ demand: the analytics districts place them by their point.
   **self-hosted Photon** over the Montenegro OpenStreetMap dump (8, compose service `photon`,
   see "Geocoding": the public instance answered in 3-7 s, over the API's timeout, so the live
   search had been saying "No match" for every address); faster wheel and trackpad zoom, no hit
-  tests while the camera moves, no store write per frame (9); an **urban block answers a click
+  tests while the camera moves, no store write per frame, and, second pass the same day after
+  a measurement (Edge with a 4x slower CPU over the old town: hover 32 fps with 45 % of frames
+  dropped, a zoom step 46 fps), highlights by feature-state instead of filters, the layers of a
+  card on the map only while the card is on, no tile cross-fade, preconnects, `?fps=1` meter
+  (9, see `frontend/CLAUDE.md` "Responsiveness"; the tile archive is 914 KB, 74 KB for its
+  largest tile, so tile weight was not the cause); an **urban block answers a click
   with its own panel** (10, `GET /v1/panel?type=block`: documents, counts, the four heatmap
   figures with their rules); the base map shows buildings, parks and land cover, a clear blue
   water and road casings (11, `lib/map/basemap.ts`); the mock's own layout rules under 1100 px

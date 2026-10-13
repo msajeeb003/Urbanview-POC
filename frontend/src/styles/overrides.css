@@ -2295,3 +2295,18 @@ textarea.rinput {
     max-width: none;
   }
 }
+
+/* 26. `?fps=1`: the frame-rate meter in the map's corner (map-view.tsx), a measurement aid only. */
+#map .uv-fps {
+  position: absolute;
+  right: 8px;
+  top: 44px;
+  z-index: 5;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: rgba(36, 27, 18, 0.82);
+  color: #fff;
+  font: 500 11px/1.4 var(--font-jetbrains-mono), monospace;
+  pointer-events: none;
+  white-space: nowrap;
+}

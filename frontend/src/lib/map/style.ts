@@ -3,7 +3,8 @@
  * (`docs/specs/frontend-design.md` §5 "Map styling"): zone fills by zone type at 24 % with a
  * coloured boundary and a centred label, dashed planning-document coverage, cadastral parcels
  * tinted by zone type, dashed planned parcels, block boundaries, the context overlays, and one
- * hover and one selection layer per clickable source-layer (filters set by `highlightFilters`).
+ * hover and one selection layer per clickable source-layer, drawn for the flagged feature only
+ * (feature-state, `highlightStates`: a paint change, never a tile re-layout).
  *
  * Source-layers are the publish catalogue's (`backend/jobs/publish_layers.py`). Outside coverage the
  * map is the base map alone (BRD S6): zones and cadastral parcels with `covered: false` are neither
@@ -72,11 +73,21 @@ export const zoneColour: Expr = [
  */
 const COVERED: Expr = ["!=", ["get", "covered"], false];
 
-/** Nothing matches: the initial filter of hover / selection layers. */
+/** Nothing matches: the filter of a heatmap pair whose field is not the selected one. */
 export const NONE: Expr = ["==", ["get", "id"], -1];
-const byId = (id: number | null): Expr => (id == null ? NONE : ["==", ["get", "id"], id]);
-/** A covered feature by id: an uncovered cadastral parcel is never outlined (S6). */
-const coveredById = (id: number | null): Expr => (id == null ? NONE : ["all", byId(id), COVERED]);
+
+/**
+ * Highlights are feature-state flags, not filters (2026-10-13, the client's review: "navigation
+ * could be smoother"). A filter change makes Mapbox re-process the layer in every loaded tile on
+ * each crossing of the cursor; a feature-state change touches the paint buffers only. The hover
+ * and selection layers are always present and draw every feature at opacity 0 except the flagged
+ * one.
+ */
+const FLAG = (flag: "hover" | "selected"): Expr => ["boolean", ["feature-state", flag], false];
+/** Drawn for the hovered feature, unless it is the selected one (the selection layers show it). */
+const hovered = (value: number): Expr => ["case", ["all", FLAG("hover"), ["!", FLAG("selected")]], value, 0];
+/** Drawn for the selected feature. */
+const selected = (value: number): Expr => ["case", FLAG("selected"), value, 0];
 
 
 function layer(id: string, type: LayerSpec["type"], sourceLayer: string, rest: Partial<LayerSpec>): LayerSpec {
@@ -165,32 +176,30 @@ const BASE_LAYERS: readonly LayerSpec[] = [
   layer("uv-blocks-line", "line", "urban_blocks", {
     paint: { "line-color": NEUTRAL, "line-width": 1, "line-dasharray": [3, 2.5], "line-opacity": 0.45 },
   }),
-  // hover
-  layer("uv-doc-hover-fill", "fill", "document_coverage", { filter: NONE, paint: { "fill-color": BRAND, "fill-opacity": 0.06 } }),
-  layer("uv-doc-hover-line", "line", "document_coverage", { filter: NONE, paint: { "line-color": BRAND_DARK, "line-width": 2.8 } }),
-  layer("uv-cad-hover-line", "line", "cadastral_parcels", { filter: NONE, paint: { "line-color": INK, "line-width": 1.2 } }),
+  // hover (the flagged feature only; an uncovered cadastral parcel is never outlined, S6)
+  layer("uv-doc-hover-fill", "fill", "document_coverage", { paint: { "fill-color": BRAND, "fill-opacity": hovered(0.06) } }),
+  layer("uv-doc-hover-line", "line", "document_coverage", { paint: { "line-color": BRAND_DARK, "line-width": 2.8, "line-opacity": hovered(1) } }),
+  layer("uv-cad-hover-line", "line", "cadastral_parcels", { filter: COVERED, paint: { "line-color": INK, "line-width": 1.2, "line-opacity": hovered(1) } }),
   layer("uv-blocks-hover-line", "line", "urban_blocks", {
-    filter: NONE,
-    paint: { "line-color": INK, "line-width": 1.4, "line-dasharray": [3, 2.5], "line-opacity": 0.7 },
+    paint: { "line-color": INK, "line-width": 1.4, "line-dasharray": [3, 2.5], "line-opacity": hovered(0.7) },
   }),
-  layer("uv-urban-hover-fill", "fill", "urban_parcels", { filter: NONE, paint: { "fill-color": BRAND, "fill-opacity": 0.14 } }),
-  layer("uv-urban-hover-line", "line", "urban_parcels", { filter: NONE, paint: { "line-color": BRAND_DARK, "line-width": 2.6 } }),
-  // selection
-  layer("uv-zones-sel-line", "line", "zones", { filter: NONE, paint: { "line-color": BRAND, "line-width": 2.8 } }),
-  layer("uv-blocks-sel-line", "line", "urban_blocks", { filter: NONE, paint: { "line-color": BRAND, "line-width": 2.6 } }),
-  layer("uv-doc-sel-fill", "fill", "document_coverage", { filter: NONE, paint: { "fill-color": BRAND, "fill-opacity": 0.07 } }),
-  layer("uv-doc-sel-line", "line", "document_coverage", { filter: NONE, paint: { "line-color": BRAND, "line-width": 3.4 } }),
+  layer("uv-urban-hover-fill", "fill", "urban_parcels", { paint: { "fill-color": BRAND, "fill-opacity": hovered(0.14) } }),
+  layer("uv-urban-hover-line", "line", "urban_parcels", { paint: { "line-color": BRAND_DARK, "line-width": 2.6, "line-opacity": hovered(1) } }),
+  // selection (the flagged feature only)
+  layer("uv-zones-sel-line", "line", "zones", { paint: { "line-color": BRAND, "line-width": 2.8, "line-opacity": selected(1) } }),
+  layer("uv-blocks-sel-line", "line", "urban_blocks", { paint: { "line-color": BRAND, "line-width": 2.6, "line-opacity": selected(1) } }),
+  layer("uv-doc-sel-fill", "fill", "document_coverage", { paint: { "fill-color": BRAND, "fill-opacity": selected(0.07) } }),
+  layer("uv-doc-sel-line", "line", "document_coverage", { paint: { "line-color": BRAND, "line-width": 3.4, "line-opacity": selected(1) } }),
   layer("uv-cad-sel-glow", "line", "cadastral_parcels", {
-    filter: NONE,
-    paint: { "line-color": BRAND, "line-width": 6, "line-blur": 4, "line-opacity": 0.4 },
+    filter: COVERED,
+    paint: { "line-color": BRAND, "line-width": 6, "line-blur": 4, "line-opacity": selected(0.4) },
   }),
-  layer("uv-cad-sel-line", "line", "cadastral_parcels", { filter: NONE, paint: { "line-color": BRAND, "line-width": 2.2 } }),
-  layer("uv-urban-sel-fill", "fill", "urban_parcels", { filter: NONE, paint: { "fill-color": BRAND, "fill-opacity": 0.22 } }),
+  layer("uv-cad-sel-line", "line", "cadastral_parcels", { filter: COVERED, paint: { "line-color": BRAND, "line-width": 2.2, "line-opacity": selected(1) } }),
+  layer("uv-urban-sel-fill", "fill", "urban_parcels", { paint: { "fill-color": BRAND, "fill-opacity": selected(0.22) } }),
   layer("uv-urban-sel-glow", "line", "urban_parcels", {
-    filter: NONE,
-    paint: { "line-color": BRAND, "line-width": 6, "line-blur": 4, "line-opacity": 0.4 },
+    paint: { "line-color": BRAND, "line-width": 6, "line-blur": 4, "line-opacity": selected(0.4) },
   }),
-  layer("uv-urban-sel-line", "line", "urban_parcels", { filter: NONE, paint: { "line-color": BRAND, "line-width": 2.8 } }),
+  layer("uv-urban-sel-line", "line", "urban_parcels", { paint: { "line-color": BRAND, "line-width": 2.8, "line-opacity": selected(1) } }),
   // labels on top
   layer("uv-blocks-label", "symbol", "urban_blocks", {
     minzoom: 15,
@@ -297,25 +306,66 @@ export interface Highlight {
   zone: number | null;
 }
 
-/** Filters of the hover and selection layers for the current highlight. */
-export function highlightFilters(selected: Highlight, hover: Highlight): Record<string, Expr> {
-  return {
-    "uv-zones-sel-line": byId(selected.zone),
-    "uv-blocks-sel-line": byId(selected.block),
-    "uv-blocks-hover-line": byId(hover.block === selected.block ? null : hover.block),
-    "uv-doc-sel-fill": byId(selected.document),
-    "uv-doc-sel-line": byId(selected.document),
-    "uv-cad-sel-glow": coveredById(selected.cadastral),
-    "uv-cad-sel-line": coveredById(selected.cadastral),
-    "uv-urban-sel-fill": byId(selected.urban),
-    "uv-urban-sel-glow": byId(selected.urban),
-    "uv-urban-sel-line": byId(selected.urban),
-    "uv-doc-hover-fill": byId(hover.document === selected.document ? null : hover.document),
-    "uv-doc-hover-line": byId(hover.document === selected.document ? null : hover.document),
-    "uv-cad-hover-line": coveredById(hover.cadastral === selected.cadastral ? null : hover.cadastral),
-    "uv-urban-hover-fill": byId(hover.urban === selected.urban ? null : hover.urban),
-    "uv-urban-hover-line": byId(hover.urban === selected.urban ? null : hover.urban),
+/** The source-layer each highlight kind flags its feature in. */
+export const HIGHLIGHT_SOURCE_LAYERS: Record<keyof Highlight, string> = {
+  cadastral: "cadastral_parcels",
+  urban: "urban_parcels",
+  document: "document_coverage",
+  block: "urban_blocks",
+  zone: "zones",
+};
+
+export interface FeatureFlags {
+  sourceLayer: string;
+  id: number;
+  hover: boolean;
+  selected: boolean;
+}
+
+/**
+ * The feature-state flags the current highlight needs, keyed `<source-layer>:<id>`: the selected
+ * features (a cadastral selection also flags its planned parcel) and the hovered ones. The map
+ * sets exactly these and removes the flags of every feature no longer listed (`syncHighlight`).
+ */
+export function highlightStates(selected: Highlight, hover: Highlight): Record<string, FeatureFlags> {
+  const out: Record<string, FeatureFlags> = {};
+  const flag = (kind: keyof Highlight, id: number | null, which: "hover" | "selected") => {
+    if (id == null) return;
+    const sourceLayer = HIGHLIGHT_SOURCE_LAYERS[kind];
+    const key = `${sourceLayer}:${id}`;
+    const cur = out[key] ?? { sourceLayer, id, hover: false, selected: false };
+    cur[which] = true;
+    out[key] = cur;
   };
+  for (const kind of Object.keys(HIGHLIGHT_SOURCE_LAYERS) as (keyof Highlight)[]) {
+    flag(kind, selected[kind], "selected");
+    flag(kind, hover[kind], "hover");
+  }
+  return out;
+}
+
+/**
+ * Where a layer goes when it is added later than its neighbours (a card switched on): before the
+ * first layer after it in catalogue order that is on the map and sits in the same band (under the
+ * base map's labels, or above its buildings); with none, at that band's own anchor. Our own label
+ * layers go on top (`undefined`). Returns the layer id to insert before, or `undefined` for the
+ * top.
+ */
+export function insertBefore(
+  order: readonly LayerSpec[],
+  index: number,
+  present: (id: string) => boolean,
+  anchors: { labels: string | undefined; aboveBuildings: string | undefined },
+): string | undefined {
+  const l = order[index];
+  if (l.type === "symbol") return undefined;
+  const band = l.placement ?? "labels";
+  for (let j = index + 1; j < order.length; j++) {
+    const m = order[j];
+    if (m.type === "symbol" || (m.placement ?? "labels") !== band) continue;
+    if (present(m.id)) return m.id;
+  }
+  return band === "above-buildings" ? anchors.aboveBuildings : anchors.labels;
 }
 
 /** 8 px diagonal hatch in the wireframe's muted outline colour: the "no data yet" pattern. */
