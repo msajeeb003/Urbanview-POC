@@ -243,9 +243,9 @@ demand: the analytics districts place them by their point.
   access was switched off the same day (`ADMIN_OPEN_ACCESS_TOKEN` emptied and its entry taken
   out of `ADMIN_API_TOKENS`): every `/admin` page asks for the e-mailed sign-in link again and
   the admin API answers 401 without a staff token. The client's bank details (8) came on
-  2026-10-05 and are the server's `ORDER_BANK_*` (two sets, see "Bank details" below). **Still
-  open:** the support address the
-  e-mails name (`ORDER_SUPPORT_EMAIL` is the example placeholder), the codes U, SR and TS of Stara Varoš are named
+  2026-10-05 and are the server's `ORDER_BANK_*` (two sets, see "Bank details" below). The support
+  address the e-mails name is `support@urbanview.io` since 2026-10-15 (the client's;
+  `ORDER_SUPPORT_EMAIL` on the server). **Still open:** the codes U, SR and TS of Stara Varoš are named
   as the legend's UK, SKR and a transformer station (product owner 2026-10-02; the client's
   planner still confirms). The pin behind the legend (22): on a small
   window the open legend covers the map's middle, so a flown-to place now lands beside it
@@ -287,7 +287,8 @@ demand: the analytics districts place them by their point.
   `urbanview.io` has no DKIM record for the provider and no DMARC record (11: its DNS holds the
   provider's verification code and Google's mail records only), which is why Outlook distrusts
   the messages; the domain's owner adds the provider's DKIM records and a DMARC record. The
-  support address (10) is the client's to give (`ORDER_SUPPORT_EMAIL` in `deploy/.env`); the
+  support address (10) came on 2026-10-15 (`support@urbanview.io`, `ORDER_SUPPORT_EMAIL` in
+  `deploy/.env`); the
   bank details (6) came on 2026-10-05 and are set (`ORDER_BANK_*`, see "Bank details" below).
   **Decided on the tester's retest of 2026-10-08 (below):** e-mails on payment received and
   refunded (5) are sent, company name and PIB are required for a legal entity (7).
@@ -398,9 +399,34 @@ demand: the analytics districts place them by their point.
   Mapbox token's allowed URLs, three settings, `deploy/caddy.d/legacy.caddy` for the sslip.io
   redirects, `deploy.sh`); the Brevo DKIM CNAMEs and `_dmarc` exist since early October. **The
   client's inputs:** zone types for the 11 zones, market figures per district (or the removal of
-  the Novi Grad test set before the demo), the cadastral export (13), the range sheets (14), the
-  support address; the ownership, restitution and planned-traffic layers (15-17) stay outside
+  the Novi Grad test set before the demo), the cadastral export (13), the range sheets (14); the ownership, restitution and planned-traffic layers (15-17) stay outside
   the POC plan and were estimated, not built.
+- **Pilot technical scope check (2026-10-13):** the 688 h pilot scope (`docs/urbanview-pilot-
+  technical-scope.pdf`) and its 25-table diagram were audited element by element against the code
+  (`data/reports/2026-10-13-pilot-scope-conformance.md`): every feature, screen, route and table
+  has a counterpart; the differences are the 220 h plan's decisions above (bank transfer, no
+  rollback, validity-only QA, no listings import, no legal pages, no CDN, the wireframe CSS,
+  FastAPI / Celery, one schema, values per parcel, the table-read values of the two plans, no
+  load test). Schema deviations recorded here for the first time: the pilot's
+  `serving.municipality` row is the profile file (`backend/municipalities/<id>.toml`, served by
+  `GET /v1/municipality`; every domain table carries `municipality_id`); `orders` carry no
+  `lat` / `lng` (the parcel ids and the snapshot locate an order); `formula_versions` has no
+  `definition` JSON (the engine package and its fixtures are the definition); the pilot's
+  `GET /api/zones/{id}` is `GET /v1/panel?type=zone`.
+- **The client's answers of 2026-10-15:** the POC goes live at `urbanview.io` in place of the
+  Coming Soon page (the DNS records were sent: A records for the apex, `api` and `files` to
+  the server, `www` stays a CNAME to the apex, the mail records untouched; the switch itself
+  is `deploy/README.md` "Moving to the production domain" once they resolve); the support
+  address is `support@urbanview.io` (set on the server the same day); the scope stays as it is
+  until the 2026-10-20 launch; the cadastral base (13): the client asked whether the UZN
+  geoportal's parcel lookup could serve the covered areas instead of a full export. Answer
+  (`data/reports/2026-10-15-client-feedback-response.md`): the portal's data is an
+  authenticated OGC service (`geoportal.uzn.me/apollo/ogc/wfs/parcele_i_objkti_utm`,
+  typenames `Parcele_UTM` / `Objekti_UTM`; 401 to every direct request, checked again
+  2026-10-15), which the importer reads as it is once UZN gives credentials, or an export of
+  the parcels of the covered KOs; the covered areas alone are enough; scripting the portal's
+  browser session is scraping and is refused by design (`core/cadastre`, access gate).
+
 - **POC data without the model (2026-10-01, product owner):** the planning values of the two
   POC plans are prepared from their parameter tables by the table reader and loaded as approved
   items (see "Prepared planning values"), not AI-extracted and not reviewed item by item by an
