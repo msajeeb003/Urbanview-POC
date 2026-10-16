@@ -163,6 +163,10 @@ Everything the server sends out (order e-mails, sign-in links, the public order 
 file links) is built from these three names at the moment of the request, so nothing else needs
 editing; orders placed before the move keep working through the redirects.
 
+Steps 3 to 6 as one command on the server: `bash deploy/switch-domain.sh` (urbanview.io; another
+apex as its argument). It backs up `deploy/.env`, writes the names, keeps the sslip.io names as
+redirects, rebuilds, recreates Caddy and MinIO and prints the checks.
+
 ## Library versions
 
 The server runs the library versions the tests ran on, never "the newest today".
@@ -199,6 +203,7 @@ $dc logs -f --tail=100 api worker       # logs
 $dc restart api                         # restart one service
 $dc exec postgres psql -U urbanview     # database shell
 $dc run --rm api python -m core.staff list   # staff users
+bash deploy/grant-admin.sh <id> <e-mail>    # make a staff user an admin (audited, as ops)
 ```
 
 ## Notes
